@@ -30,7 +30,9 @@ class FirestoreService {
     required String phoneNumber,
     required String fullName,
     required String role,
+    String? companyName,
     String? assignedSalespersonId,
+    String? userReferralCode,
     bool isVerified = false,
   }) async {
     try {
@@ -39,10 +41,12 @@ class FirestoreService {
         'phoneNumber': phoneNumber,
         'fullName': fullName,
         'role': role,
+        'companyName': companyName ?? '',
         'assignedSalespersonId': assignedSalespersonId,
+        'referralCode': userReferralCode,
         'isVerified': isVerified,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }
