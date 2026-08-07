@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'services/firestore_service.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Ensure Firebase is initialized.
-  // Note: Once 'flutterfire configure' is run, add 'options: DefaultFirebaseOptions.currentPlatform'
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     debugPrint('Firebase initialization note: $e');
   }

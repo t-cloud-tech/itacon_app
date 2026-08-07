@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "889001862943",
+    "project_id": "itacon-app",
+    "storage_bucket": "itacon-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889001862943:android:94550525d95604b255f22a",
+        "android_client_info": {
+          "package_name": "com.example.itacon_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7DbQq8iOO47Krl5m2BkYyv0vs4iybijo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

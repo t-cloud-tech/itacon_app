@@ -24,6 +24,30 @@ class FirestoreService {
   // 1. USER PROFILE & REFERRAL CODE VERIFICATION
   // ===========================================================================
 
+  /// Creates or updates a user profile document in the `users` collection.
+  Future<void> createUserProfile({
+    required String uid,
+    required String phoneNumber,
+    required String fullName,
+    required String role,
+    String? assignedSalespersonId,
+    bool isVerified = false,
+  }) async {
+    try {
+      await _usersRef.doc(uid).set({
+        'uid': uid,
+        'phoneNumber': phoneNumber,
+        'fullName': fullName,
+        'role': role,
+        'assignedSalespersonId': assignedSalespersonId,
+        'isVerified': isVerified,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Fetches the user profile document by [userId].
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     try {
