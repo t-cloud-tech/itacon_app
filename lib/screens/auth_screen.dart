@@ -39,6 +39,7 @@ class _AuthScreenState extends State<AuthScreen> {
         });
       },
       onError: (err) {
+        if (!mounted) return;
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(err)));
@@ -65,6 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invalid OTP code. Please try again.')),
@@ -95,7 +97,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.indigo.withOpacity(0.3),
+                      color: Colors.indigo.withValues(alpha: 0.3),
                       blurRadius: 15,
                       offset: const Offset(0, 8),
                     )
@@ -155,7 +157,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   border: Border.all(color: Colors.grey.shade300),
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     contentPadding:
