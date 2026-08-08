@@ -101,7 +101,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Seed Users for All 5 Categories
+  /// Seed Users for All 5 Categories with State Codes
   Future<void> _seedAllUserCategories() async {
     setState(() {
       _isLoading = true;
@@ -114,6 +114,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543201',
         fullName: 'Apex Ceramics Dealer',
         role: 'dealer',
+        stateCode: 'GJ', // Gujarat State Code
         companyName: 'Apex Tiles & Sanitary',
         isVerified: true,
       );
@@ -123,6 +124,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543202',
         fullName: 'Ar. Priya Sharma',
         role: 'architect',
+        stateCode: 'MH', // Maharashtra State Code
         companyName: 'Modern Space Designs',
         isVerified: true,
       );
@@ -132,6 +134,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543203',
         fullName: 'BuildCorp Infra',
         role: 'builder',
+        stateCode: 'DL', // Delhi State Code
         companyName: 'BuildCorp Infrastructure Ltd',
         isVerified: true,
       );
@@ -141,6 +144,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543204',
         fullName: 'Gujarat Tile Distributors',
         role: 'wholesaler',
+        stateCode: 'GJ',
         companyName: 'Gujarat Wholesale Hub',
         isVerified: true,
       );
@@ -150,6 +154,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543205',
         fullName: 'City Tiles Retail',
         role: 'retailer',
+        stateCode: 'KA', // Karnataka State Code
         companyName: 'City Hardware & Tiles',
         isVerified: true,
       );
@@ -157,7 +162,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
       await _refreshAllDatabaseData();
       setState(() {
         _statusMessage =
-            '✅ Saved & verified all 5 User Categories in top-level Firestore collections (dealers, architects, builders, wholesalers, retailers)!';
+            '✅ Saved & verified all User Categories in top-level Firestore collections (dealers, architects, builders, wholesalers, retailers) with State Codes (GJ, MH, DL, KA)!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -207,7 +212,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
       await _refreshAllDatabaseData();
       setState(() {
         _statusMessage =
-            '✅ Seeded ITACON Product Catalogue tiles (600x1200 Glossy, 800x1600 High Gloss, 1200x1800 Bookmatch, Oak Wood Planks)!';
+            '✅ Seeded ITACON Product Catalogue tiles (600x1200 Glossy, 800x1600 High Gloss, 200x1200 Wood Plank)!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -216,18 +221,19 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Simulate Complete Order Placement Lifecycle (Steps 5 -> 6 -> 7 -> 8 of PDF)
-  Future<void> _simulateCompleteOrderFlow() async {
+  /// Simulate Complete 10-Step Order Placement & Price Approval Workflow
+  Future<void> _simulate10StepOrderPlacementWorkflow() async {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
     });
 
     try {
-      // 1. Step 5: User places Purchase Order
+      // Step 5 & 6: User places PO Order with State Code (GJ)
       final order = await _firestoreService.placeOrder(
         userId: 'TEST_DEALER_01',
         userCategory: 'dealer',
+        stateCode: 'GJ', // Format: PO-GJ-2026-XXXXX
         salespersonId: 'SP_EXE_001',
         orderType: 'ready_stock',
         deliveryAddress: 'Plot 42, GIDC Industrial Estate, Morbi, Gujarat',
@@ -253,7 +259,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         ],
       );
 
-      // 2. Step 6: Salesperson reviews & submits unit prices & estimate
+      // Step 7: Salesperson reviews, applies unit prices, and requests Sales Manager approval for custom discount
       final updatedItems = [
         const OrderItem(
           tileId: 'TILE_STATUARIO_01',
@@ -262,8 +268,8 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           surface: 'High Gloss',
           quantity: 50,
           moq: 20,
-          unitPrice: 62.0,
-          totalPrice: 3100.0,
+          unitPrice: 60.0,
+          totalPrice: 3000.0,
         ),
         const OrderItem(
           tileId: 'TILE_CARVING_GREY_02',
@@ -272,29 +278,49 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           surface: 'Carving',
           quantity: 30,
           moq: 15,
-          unitPrice: 82.0,
-          totalPrice: 2460.0,
+          unitPrice: 80.0,
+          totalPrice: 2400.0,
         ),
       ];
 
+      // Submit Price Approval request to Sales Manager
+      final approval = await _firestoreService.submitPriceListForManagerApproval(
+        orderId: order.id,
+        userId: 'TEST_DEALER_01',
+        salespersonId: 'SP_EXE_001',
+        originalTotal: 5400.0,
+        requestedTotal: 4860.0,
+        discountPercent: 10.0,
+      );
+
+      // Sales Manager Approves Price List / Discount
+      await _firestoreService.approvePriceListByManager(
+        approvalId: approval.id,
+        orderId: order.id,
+        managerId: 'MGR_SALES_01',
+        isApproved: true,
+        notes: 'Approved 10% volume discount for Apex Ceramics Dealer.',
+      );
+
+      // Attach estimate details to order
       await _firestoreService.reviewOrderAndSubmitEstimate(
         orderId: order.id,
         updatedItems: updatedItems,
-        discountPercent: 5.0,
-        taxAmount: 500.0,
-        salespersonNotes: 'Special dealer discount 5% applied by Sales Executive Vikram.',
+        discountPercent: 10.0,
+        taxAmount: 486.0,
+        salespersonNotes: 'Approved 10% volume discount applied.',
       );
 
-      // 3. Step 6/7: User confirms Estimate & Purchase Order
+      // Step 8 & 9: Customer approves estimate, triggering Step 9 Notifications
       await _firestoreService.confirmOrderWithEstimate(orderId: order.id);
 
-      // 4. Step 7/8: Release Order to Production Planner
+      // Step 10: Release order to Production Planner
       await _firestoreService.releaseToProductionPlanner(orderId: order.id);
 
       await _refreshAllDatabaseData();
       setState(() {
         _statusMessage =
-            '✅ Order Placement Workflow Executed! Reference: ${order.orderReferenceNumber} -> Estimate Attached -> User Confirmed -> Released to Production Planner!';
+            '✅ Complete 10-Step Order Flow Executed! PO Ref: ${order.orderReferenceNumber} | Notifications Queued | Price List Approved by Sales Manager | Released to Production Planner!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -357,7 +383,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           tabs: const [
             Tab(icon: Icon(Icons.people), text: 'Users & Sales'),
             Tab(icon: Icon(Icons.grid_view), text: 'Products (Catalogue)'),
-            Tab(icon: Icon(Icons.shopping_bag), text: 'Order Placement Workflow'),
+            Tab(icon: Icon(Icons.shopping_bag), text: '10-Step Order Workflow'),
             Tab(icon: Icon(Icons.design_services), text: 'Custom Design Requests'),
           ],
         ),
@@ -412,7 +438,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           ElevatedButton.icon(
             onPressed: _isLoading ? null : _seedAllUserCategories,
             icon: const Icon(Icons.category_rounded),
-            label: const Text('Seed All 5 User Categories'),
+            label: const Text('Seed User Categories with State Codes'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A237E),
               foregroundColor: Colors.white,
@@ -464,7 +490,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                                   dense: true,
                                   title: Text(u['fullName'] ?? ''),
                                   subtitle: Text(
-                                      'Firm: ${u['companyName']} | Phone: ${u['phoneNumber']}'),
+                                      'Firm: ${u['companyName']} | State: ${u['stateCode']} | Phone: ${u['phoneNumber']}'),
                                 ))
                             .toList(),
                       ),
@@ -587,7 +613,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
   }
 
   // ===========================================================================
-  // TAB 3: ORDER PLACEMENT WORKFLOW
+  // TAB 3: 10-STEP ORDER PLACEMENT WORKFLOW
   // ===========================================================================
   Widget _buildOrdersTab() {
     return SingleChildScrollView(
@@ -596,9 +622,9 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ElevatedButton.icon(
-            onPressed: _isLoading ? null : _simulateCompleteOrderFlow,
+            onPressed: _isLoading ? null : _simulate10StepOrderPlacementWorkflow,
             icon: const Icon(Icons.play_circle_fill_rounded),
-            label: const Text('Simulate Full Order Placement Lifecycle'),
+            label: const Text('Simulate 10-Step Order Placement & Price Approval Workflow'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF8F00),
               foregroundColor: Colors.white,
@@ -648,7 +674,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Order Type: ${order.orderType == 'ready_stock' ? 'Ready Stock' : 'Made Against Order'} | User Category: ${order.userCategory}',
+                      'State: ${order.stateCode} | Order Type: ${order.orderType == 'ready_stock' ? 'Ready Stock' : 'Made Against Order'} | User Category: ${order.userCategory}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     Text(

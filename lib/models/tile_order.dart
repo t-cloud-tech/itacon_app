@@ -55,10 +55,11 @@ class OrderItem {
   }
 }
 
-/// Represents an Order document in Cloud Firestore
+/// Represents an Order document in Cloud Firestore (Supports the 10-Step Flow)
 class TileOrder {
   final String id;
-  final String orderReferenceNumber; // e.g. "PO-2026-88192"
+  final String orderReferenceNumber; // Formatted reference: PO-{STATE}-{YEAR}-{RANDOM} (e.g. PO-GJ-2026-98104)
+  final String stateCode; // State shortcode: GJ, MH, DL, KA, etc.
   final String userId;
   final String userCategory; // dealer, wholesaler, retailer, contractor, architect, builder
   final String? salespersonId;
@@ -66,12 +67,14 @@ class TileOrder {
   final String status;
   // Statuses:
   // - 'pending_salesperson_review'
+  // - 'pending_manager_approval'
   // - 'estimate_provided'
   // - 'user_confirmed'
   // - 'sent_to_production'
   // - 'completed'
   // - 'cancelled'
 
+  final String priceApprovalStatus; // 'none', 'pending_manager_approval', 'approved', 'rejected'
   final List<OrderItem> items;
   final String deliveryAddress;
   final bool transportRequired;
@@ -83,11 +86,13 @@ class TileOrder {
   const TileOrder({
     required this.id,
     required this.orderReferenceNumber,
+    this.stateCode = 'GJ',
     required this.userId,
     required this.userCategory,
     this.salespersonId,
     required this.orderType,
     required this.status,
+    this.priceApprovalStatus = 'none',
     required this.items,
     required this.deliveryAddress,
     required this.transportRequired,
@@ -101,11 +106,13 @@ class TileOrder {
     return {
       'id': id,
       'orderReferenceNumber': orderReferenceNumber,
+      'stateCode': stateCode,
       'userId': userId,
       'userCategory': userCategory,
       'salespersonId': salespersonId,
       'orderType': orderType,
       'status': status,
+      'priceApprovalStatus': priceApprovalStatus,
       'items': items.map((item) => item.toMap()).toList(),
       'deliveryAddress': deliveryAddress,
       'transportRequired': transportRequired,
@@ -121,12 +128,14 @@ class TileOrder {
   factory TileOrder.fromMap(Map<String, dynamic> map, String docId) {
     return TileOrder(
       id: docId,
-      orderReferenceNumber: map['orderReferenceNumber'] ?? 'PO-${docId.substring(0, 6).toUpperCase()}',
+      orderReferenceNumber: map['orderReferenceNumber'] ?? 'PO-${map['stateCode'] ?? 'GJ'}-2026-${docId.substring(0, 5).toUpperCase()}',
+      stateCode: map['stateCode'] ?? 'GJ',
       userId: map['userId'] ?? '',
       userCategory: map['userCategory'] ?? map['role'] ?? 'dealer',
       salespersonId: map['salespersonId'],
       orderType: map['orderType'] ?? 'ready_stock',
       status: map['status'] ?? 'pending_salesperson_review',
+      priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
       items: (map['items'] as List<dynamic>?)
               ?.map((item) => OrderItem.fromMap(Map<String, dynamic>.from(item)))
               .toList() ??

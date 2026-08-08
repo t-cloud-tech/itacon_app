@@ -5,9 +5,13 @@ import '../models/tile_product.dart';
 import '../models/tile_order.dart';
 import '../models/user_bucket.dart';
 import '../models/design_request.dart';
+import '../models/price_list.dart';
+import '../models/price_approval.dart';
+import '../models/notification_queue.dart';
 
 /// A modular production service class for managing Cloud Firestore database operations
-/// for users, salespersons, tile catalogues, orders, buckets, and design requests.
+/// for users, salespersons, tile catalogues, orders, price lists, approvals, notifications, buckets, and design requests.
+/// Serves both Flutter Mobile App (Customer) and Web Application (Salesperson, Sales Manager, Production Planner).
 class FirestoreService {
   final FirebaseFirestore _db;
 
@@ -25,6 +29,12 @@ class FirestoreService {
       _db.collection('tiles');
   CollectionReference<Map<String, dynamic>> get _ordersRef =>
       _db.collection('orders');
+  CollectionReference<Map<String, dynamic>> get _priceListsRef =>
+      _db.collection('price_lists');
+  CollectionReference<Map<String, dynamic>> get _priceApprovalsRef =>
+      _db.collection('price_list_approvals');
+  CollectionReference<Map<String, dynamic>> get _notificationQueueRef =>
+      _db.collection('notification_queue');
   CollectionReference<Map<String, dynamic>> get _designRequestsRef =>
       _db.collection('design_requests');
 
@@ -47,18 +57,17 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 1. USER PROFILE & CATEGORY-WISE STORAGE
+  // 1. USER PROFILE & CATEGORY-WISE STORAGE (WITH STATE CODE)
   // ===========================================================================
 
   /// Creates or updates a user profile document category-wise in Cloud Firestore.
-  /// Stores the user profile data in:
-  /// 1. `users/{uid}` (Global users collection)
-  /// 2. `{dealers/architects/builders/wholesalers/retailers}/{uid}` (Top-level category collection)
+  /// Includes stateCode (e.g. GJ, MH, DL, KA) for state-wise PO formatting and analytics.
   Future<void> createUserProfile({
     required String uid,
     required String phoneNumber,
     required String fullName,
     required String role, // categoryId (dealer, architect, builder, wholesaler, retailer)
+    String stateCode = 'GJ',
     String? companyName,
     String? assignedSalespersonId,
     String? userReferralCode,
@@ -73,6 +82,7 @@ class FirestoreService {
         'role': role,
         'userCategory': role,
         'categoryLabel': categoryLabel,
+        'stateCode': stateCode.toUpperCase(),
         'companyName': companyName ?? '',
         'assignedSalespersonId': assignedSalespersonId,
         'referralCode': userReferralCode,
@@ -105,7 +115,6 @@ class FirestoreService {
             .toList();
       }
 
-      // Fallback check in main users collection
       final querySnapshot = await _usersRef
           .where('userCategory', isEqualTo: categoryId)
           .get();
@@ -115,7 +124,7 @@ class FirestoreService {
     }
   }
 
-  /// Fetches all users grouped by user category, pulling directly from category-wise collections.
+  /// Fetches all users grouped by user category.
   Future<Map<String, List<Map<String, dynamic>>>> getUsersGroupedByCategory() async {
     try {
       final Map<String, List<Map<String, dynamic>>> grouped = {
@@ -149,7 +158,7 @@ class FirestoreService {
   // 2. SALESPERSON DATA STORAGE & ASSIGNMENT
   // ===========================================================================
 
-  /// Creates or updates a Salesperson profile in the dedicated `salespersons` collection.
+  /// Creates or updates a Salesperson profile in the `salespersons` collection.
   Future<void> createSalespersonProfile({
     required String salespersonId,
     required String fullName,
@@ -327,20 +336,7 @@ class FirestoreService {
     }
   }
 
-  /// Updates stock status of a specific tile (e.g. 'Available Now', 'Out of Stock', 'Made-to-Order').
-  Future<void> updateTileStockStatus(String tileId, String stockStatus) async {
-    try {
-      await _tilesRef.doc(tileId).update({
-        'stockStatus': stockStatus,
-        'inStock': stockStatus == 'Available Now' || stockStatus == 'Limited',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Seeds initial realistic sample ITACON tile products into Firestore.
+  /// Seeds initial sample ITACON tile products into Firestore.
   Future<void> seedSampleTileProducts() async {
     final sampleTiles = [
       TileProduct(
@@ -421,32 +417,6 @@ class FirestoreService {
           'piecesPerBox': 5,
         },
       ),
-      TileProduct(
-        id: 'TILE_BOOKMATCH_BLUE_04',
-        name: 'Onyx Blue Bookmatch',
-        size: '1200x1800',
-        surface: 'Bookmatch',
-        baseColor: 'Blue',
-        pattern: 'Marble',
-        collection: 'Exotic Bookmatch Collection',
-        finish: 'High Gloss Polished',
-        bodyType: 'Full Body Porcelain',
-        thickness: '12mm',
-        randomPattern: 'Bookmatch A+B',
-        priceCategory: 'Premium',
-        shade: 'Dark',
-        basePrice: 120.0,
-        moq: 10,
-        stockStatus: 'Limited',
-        images: ['https://example.com/tiles/onyx_blue_hd.jpg'],
-        lifestyleImages: ['https://example.com/tiles/onyx_blue_room.jpg'],
-        packingDetails: {
-          'boxWeight': '55 kg',
-          'sqmPerBox': 4.32,
-          'boxesPerPallet': 20,
-          'piecesPerBox': 2,
-        },
-      ),
     ];
 
     for (var tile in sampleTiles) {
@@ -455,18 +425,127 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 4. ORDER PLACEMENT FLOW & LIFECYCLE WORKFLOW
+  // 4. PRICE LIST ENGINE & SALES MANAGER APPROVALS (STEP 7)
   // ===========================================================================
 
-  /// Helper to generate a unique PO Reference Number (e.g. PO-2026-89104)
-  String _generateOrderReferenceNumber() {
-    final random = Random();
-    final number = random.nextInt(900000) + 100000;
-    return 'PO-${DateTime.now().year}-$number';
+  /// Saves a custom PriceList for user or category.
+  Future<void> savePriceList(PriceList priceList) async {
+    try {
+      await _priceListsRef
+          .doc(priceList.id)
+          .set(priceList.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  /// Step 5 of PDF: User places order (Order Type: Ready stock Or Made Against Order)
-  /// Saves order document with status `'pending_salesperson_review'`.
+  /// Submits a custom Price List / Discount change for Sales Manager / Admin approval (Step 7).
+  Future<PriceApproval> submitPriceListForManagerApproval({
+    required String orderId,
+    required String userId,
+    required String salespersonId,
+    required double originalTotal,
+    required double requestedTotal,
+    required double discountPercent,
+  }) async {
+    try {
+      final docRef = _priceApprovalsRef.doc();
+      final approval = PriceApproval(
+        id: docRef.id,
+        orderId: orderId,
+        userId: userId,
+        salespersonId: salespersonId,
+        originalTotal: originalTotal,
+        requestedTotal: requestedTotal,
+        discountPercent: discountPercent,
+        status: 'pending_manager_approval',
+        createdAt: DateTime.now(),
+      );
+
+      await docRef.set(approval.toMap());
+
+      // Update Order status to pending_manager_approval
+      await _ordersRef.doc(orderId).update({
+        'status': 'pending_manager_approval',
+        'priceApprovalStatus': 'pending_manager_approval',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      return approval;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Sales Manager / Super Admin approves or rejects custom price list / discount.
+  Future<void> approvePriceListByManager({
+    required String approvalId,
+    required String orderId,
+    required String managerId,
+    required bool isApproved,
+    String notes = '',
+  }) async {
+    try {
+      final status = isApproved ? 'approved' : 'rejected';
+      await _priceApprovalsRef.doc(approvalId).update({
+        'status': status,
+        'approvedBy': managerId,
+        'salesManagerNotes': notes,
+        'approvedAt': FieldValue.serverTimestamp(),
+      });
+
+      // If approved, order progresses to estimate_provided
+      await _ordersRef.doc(orderId).update({
+        'status': isApproved ? 'estimate_provided' : 'pending_salesperson_review',
+        'priceApprovalStatus': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ===========================================================================
+  // 5. 10-STEP ORDER PLACEMENT WORKFLOW & NOTIFICATION QUEUEING
+  // ===========================================================================
+
+  /// Generates a state-wise unique PO Reference Number (Step 6)
+  /// Format: PO-{STATE}-{YEAR}-{RANDOM} (e.g. PO-GJ-2026-98104)
+  String generateStateWiseOrderReferenceNumber(String stateCode) {
+    final random = Random();
+    final number = random.nextInt(900000) + 100000;
+    final cleanState = stateCode.trim().toUpperCase();
+    return 'PO-$cleanState-${DateTime.now().year}-$number';
+  }
+
+  /// Queues outgoing notification events to Company Email, WhatsApp, Salesperson, and Customer (Steps 6 & 9)
+  Future<void> queueNotificationEvent({
+    required String orderId,
+    required String orderReferenceNumber,
+    required String eventType, // 'order_placed_step6', 'estimate_approved_step9'
+    required List<String> recipients,
+    required Map<String, dynamic> payload,
+  }) async {
+    try {
+      final docRef = _notificationQueueRef.doc();
+      final item = NotificationQueueItem(
+        id: docRef.id,
+        orderId: orderId,
+        orderReferenceNumber: orderReferenceNumber,
+        eventType: eventType,
+        recipients: recipients,
+        payload: payload,
+        status: 'queued',
+        createdAt: DateTime.now(),
+      );
+      await docRef.set(item.toMap());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Step 5 & 6 of Flow: User places order in PO format.
+  /// Generates state-formatted reference PO-GJ-2026-XXXXX and queues Step 6 Notifications.
   Future<TileOrder> placeOrder({
     required String userId,
     required String userCategory,
@@ -475,20 +554,23 @@ class FirestoreService {
     required String deliveryAddress,
     required bool transportRequired,
     required String remarks,
+    String stateCode = 'GJ',
     String? salespersonId,
   }) async {
     try {
       final docRef = _ordersRef.doc();
-      final poNumber = _generateOrderReferenceNumber();
+      final poNumber = generateStateWiseOrderReferenceNumber(stateCode);
 
       final order = TileOrder(
         id: docRef.id,
         orderReferenceNumber: poNumber,
+        stateCode: stateCode.toUpperCase(),
         userId: userId,
         userCategory: userCategory,
         salespersonId: salespersonId,
         orderType: orderType,
         status: 'pending_salesperson_review',
+        priceApprovalStatus: 'none',
         items: items,
         deliveryAddress: deliveryAddress,
         transportRequired: transportRequired,
@@ -505,20 +587,35 @@ class FirestoreService {
       );
 
       await docRef.set(order.toMap());
+
+      // Step 6 Notification Trigger: Notify Company Email + WhatsApp + Salesperson + Customer
+      await queueNotificationEvent(
+        orderId: order.id,
+        orderReferenceNumber: poNumber,
+        eventType: 'order_placed_step6',
+        recipients: ['company_email', 'company_whatsapp', 'salesperson', 'customer'],
+        payload: {
+          'message': 'New Purchase Order $poNumber submitted by $userCategory.',
+          'userId': userId,
+          'salespersonId': salespersonId,
+          'deliveryAddress': deliveryAddress,
+        },
+      );
+
       return order;
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Step 6 of PDF: Salesperson reviews order with quantity, attaches user-wise unit prices & estimate details.
-  /// Sets status to `'estimate_provided'`.
+  /// Step 7 of Flow: Salesperson reviews order, applies unit prices/estimate.
   Future<void> reviewOrderAndSubmitEstimate({
     required String orderId,
     required List<OrderItem> updatedItems,
     required double discountPercent,
     required double taxAmount,
     required String salespersonNotes,
+    bool requiresManagerApproval = false,
   }) async {
     try {
       double subtotal = 0.0;
@@ -540,10 +637,13 @@ class FirestoreService {
         'estimatedAt': FieldValue.serverTimestamp(),
       };
 
+      final newStatus = requiresManagerApproval ? 'pending_manager_approval' : 'estimate_provided';
+
       await _ordersRef.doc(orderId).update({
         'items': updatedItems.map((i) => i.toMap()).toList(),
         'estimateDetails': estimateDetails,
-        'status': 'estimate_provided',
+        'status': newStatus,
+        'priceApprovalStatus': requiresManagerApproval ? 'pending_manager_approval' : 'none',
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
@@ -551,22 +651,36 @@ class FirestoreService {
     }
   }
 
-  /// Step 6/7 of PDF: Customer reviews estimate & confirms Purchase Order with Estimate.
-  /// Sets status to `'user_confirmed'`.
+  /// Step 8 & 9 of Flow: User approves estimate. Queues Step 9 Notification to Salesperson / Planning team.
   Future<void> confirmOrderWithEstimate({required String orderId}) async {
     try {
+      final orderDoc = await _ordersRef.doc(orderId).get();
+      final poRef = orderDoc.data()?['orderReferenceNumber'] ?? 'PO-2026';
+      final spId = orderDoc.data()?['salespersonId'];
+
       await _ordersRef.doc(orderId).update({
         'status': 'user_confirmed',
         'userConfirmedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Step 9 Notification Trigger: Fire notification to Salesperson & Planning team via WhatsApp/Email
+      await queueNotificationEvent(
+        orderId: orderId,
+        orderReferenceNumber: poRef,
+        eventType: 'estimate_approved_step9',
+        recipients: ['salesperson', 'production_planning_team', 'company_email'],
+        payload: {
+          'message': 'Customer confirmed estimate for $poRef. Order ready for Production Planner.',
+          'salespersonId': spId,
+        },
+      );
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Step 7/8 of PDF: Order released to Production Planning by Salesperson/Planner.
-  /// Sets status to `'sent_to_production'`.
+  /// Step 10 of Flow: Handed to Production Planner (Exit point of Order Placement flow).
   Future<void> releaseToProductionPlanner({required String orderId}) async {
     try {
       await _ordersRef.doc(orderId).update({
@@ -600,18 +714,12 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 5. BUCKET (CART) & WISHLIST OPERATIONS
+  // 6. BUCKET (CART) & WISHLIST OPERATIONS
   // ===========================================================================
 
-  /// Collection reference for User Buckets
   CollectionReference<Map<String, dynamic>> _userBucketRef(String userId) =>
       _usersRef.doc(userId).collection('bucket');
 
-  /// Collection reference for User Wishlist
-  CollectionReference<Map<String, dynamic>> _userWishlistRef(String userId) =>
-      _usersRef.doc(userId).collection('wishlist');
-
-  /// Adds or updates an item in the User's Bucket (Cart)
   Future<void> addToBucket(String userId, BucketItem item) async {
     try {
       await _userBucketRef(userId).doc(item.tileId).set(item.toMap(), SetOptions(merge: true));
@@ -620,7 +728,6 @@ class FirestoreService {
     }
   }
 
-  /// Fetches all items in the User's Bucket
   Future<List<BucketItem>> getBucketItems(String userId) async {
     try {
       final snapshot = await _userBucketRef(userId).get();
@@ -632,52 +739,10 @@ class FirestoreService {
     }
   }
 
-  /// Removes an item from the User's Bucket
-  Future<void> removeFromBucket(String userId, String tileId) async {
-    try {
-      await _userBucketRef(userId).doc(tileId).delete();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Clears the entire Bucket for a User
-  Future<void> clearBucket(String userId) async {
-    try {
-      final snapshot = await _userBucketRef(userId).get();
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete();
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Toggles a tile in the User's Wishlist / Favourites
-  Future<bool> toggleWishlist(String userId, String tileId) async {
-    try {
-      final docRef = _userWishlistRef(userId).doc(tileId);
-      final doc = await docRef.get();
-      if (doc.exists) {
-        await docRef.delete();
-        return false; // Removed from wishlist
-      } else {
-        await docRef.set({
-          'tileId': tileId,
-          'addedAt': FieldValue.serverTimestamp(),
-        });
-        return true; // Added to wishlist
-      }
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   // ===========================================================================
-  // 6. CUSTOM DESIGN REQUESTS (MODULE 7 OF PDF)
+  // 7. CUSTOM DESIGN REQUESTS (MODULE 7)
   // ===========================================================================
 
-  /// Submits a Custom Design Request for a tile design not in catalogue
   Future<DesignRequest> submitDesignRequest(DesignRequest request) async {
     try {
       final docRef = _designRequestsRef.doc();
@@ -701,7 +766,6 @@ class FirestoreService {
     }
   }
 
-  /// Fetches all Custom Design Requests for a User
   Future<List<DesignRequest>> getUserDesignRequests(String userId) async {
     try {
       final snapshot = await _designRequestsRef
