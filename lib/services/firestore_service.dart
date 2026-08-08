@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_category.dart';
 
 /// A modular service class for managing Cloud Firestore database operations
 /// for users, salespersons, tile catalogues, and orders.
@@ -20,37 +21,110 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _ordersRef =>
       _db.collection('orders');
 
+  // Helper to map categoryId to plural collection name
+  String _getCategoryCollectionName(String categoryId) {
+    switch (categoryId.toLowerCase()) {
+      case 'dealer':
+        return 'dealers';
+      case 'architect':
+        return 'architects';
+      case 'builder':
+        return 'builders';
+      case 'wholesaler':
+        return 'wholesalers';
+      case 'retailer':
+        return 'retailers';
+      default:
+        return '${categoryId.toLowerCase()}s';
+    }
+  }
+
   // ===========================================================================
-  // 1. USER PROFILE & REFERRAL CODE VERIFICATION
+  // 1. USER PROFILE & CATEGORY-WISE STORAGE
   // ===========================================================================
 
-  /// Creates or updates a user profile document in the `users` collection.
+  /// Creates or updates a user profile document category-wise in Cloud Firestore.
+  /// Stores the user profile data in:
+  /// 1. `users/{uid}` (Global users collection)
+  /// 2. `{dealers/architects/builders/wholesalers/retailers}/{uid}` (Top-level category collection)
   Future<void> createUserProfile({
     required String uid,
     required String phoneNumber,
     required String fullName,
-    required String role,
+    required String role, // categoryId (dealer, architect, builder, wholesaler, retailer)
     String? companyName,
     String? assignedSalespersonId,
     String? userReferralCode,
     bool isVerified = false,
   }) async {
     try {
-      await _usersRef.doc(uid).set({
+      final categoryLabel = UserCategory.getLabel(role);
+      final profileData = {
         'uid': uid,
         'phoneNumber': phoneNumber,
         'fullName': fullName,
         'role': role,
+        'userCategory': role,
+        'categoryLabel': categoryLabel,
         'companyName': companyName ?? '',
         'assignedSalespersonId': assignedSalespersonId,
         'referralCode': userReferralCode,
         'isVerified': isVerified,
         'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+
+      // 1. Store in primary `users` collection
+      await _usersRef.doc(uid).set(profileData, SetOptions(merge: true));
+
+      // 2. Store category-wise in top-level category collection (e.g. `dealers/{uid}`, `wholesalers/{uid}`)
+      final categoryColName = _getCategoryCollectionName(role);
+      await _db
+          .collection(categoryColName)
+          .doc(uid)
+          .set(profileData, SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }
   }
+
+  /// Fetches users from the category-specific top-level collection (e.g. `dealers`, `architects`, `wholesalers`).
+  Future<List<Map<String, dynamic>>> getUsersByCategory(String categoryId) async {
+    try {
+      final colName = _getCategoryCollectionName(categoryId);
+      final dedicatedColQuery = await _db.collection(colName).get();
+      if (dedicatedColQuery.docs.isNotEmpty) {
+        return dedicatedColQuery.docs
+            .map((doc) => {'id': doc.id, ...doc.data()})
+            .toList();
+      }
+
+      // Fallback check in main users collection
+      final querySnapshot = await _usersRef
+          .where('userCategory', isEqualTo: categoryId)
+          .get();
+      return querySnapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetches all users grouped by user category, pulling directly from category-wise collections.
+  Future<Map<String, List<Map<String, dynamic>>>> getUsersGroupedByCategory() async {
+    try {
+      final Map<String, List<Map<String, dynamic>>> grouped = {
+        for (var cat in UserCategory.categoryIds) cat: []
+      };
+
+      for (var cat in UserCategory.categoryIds) {
+        final catUsers = await getUsersByCategory(cat);
+        grouped[cat] = catUsers;
+      }
+      return grouped;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
 
   /// Fetches the user profile document by [userId].
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
@@ -60,6 +134,44 @@ class FirestoreService {
         return {'id': doc.id, ...doc.data()!};
       }
       return null;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ===========================================================================
+  // 1.1 SALESPERSON DATA STORAGE (SEPARATE COLLECTION)
+  // ===========================================================================
+
+  /// Creates or updates a Salesperson profile in the dedicated `salespersons` collection.
+  Future<void> createSalespersonProfile({
+    required String salespersonId,
+    required String fullName,
+    required String phoneNumber,
+    required String referralCode,
+    String? employeeId,
+    bool isActive = true,
+  }) async {
+    try {
+      await _salespersonsRef.doc(salespersonId).set({
+        'salespersonId': salespersonId,
+        'fullName': fullName,
+        'phoneNumber': phoneNumber,
+        'referralCode': referralCode.trim().toUpperCase(),
+        'employeeId': employeeId ?? 'EMP-$salespersonId',
+        'isActive': isActive,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetches all salesperson records stored in the `salespersons` collection.
+  Future<List<Map<String, dynamic>>> getSalespersons() async {
+    try {
+      final snapshot = await _salespersonsRef.get();
+      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
     } catch (e) {
       rethrow;
     }

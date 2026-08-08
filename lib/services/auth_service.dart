@@ -155,4 +155,24 @@ class AuthService {
     final uid = _auth.currentUser?.uid ?? 'DEMO_USER_001';
     return await _firestoreService.autoAssignSalesperson(userId: uid);
   }
+
+  /// Registers and stores a Salesperson profile directly in the dedicated `salespersons` collection.
+  Future<void> registerSalesperson({
+    required String fullName,
+    required String phoneNumber,
+    required String referralCode,
+    String? salespersonId,
+    String? employeeId,
+  }) async {
+    final spId = salespersonId ?? 'SP_${DateTime.now().millisecondsSinceEpoch}';
+    await _firestoreService.createSalespersonProfile(
+      salespersonId: spId,
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+      referralCode: referralCode,
+      employeeId: employeeId,
+      isActive: true,
+    );
+  }
 }
+
