@@ -1,8 +1,13 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_category.dart';
+import '../models/tile_product.dart';
+import '../models/tile_order.dart';
+import '../models/user_bucket.dart';
+import '../models/design_request.dart';
 
-/// A modular service class for managing Cloud Firestore database operations
-/// for users, salespersons, tile catalogues, and orders.
+/// A modular production service class for managing Cloud Firestore database operations
+/// for users, salespersons, tile catalogues, orders, buckets, and design requests.
 class FirestoreService {
   final FirebaseFirestore _db;
 
@@ -20,6 +25,8 @@ class FirestoreService {
       _db.collection('tiles');
   CollectionReference<Map<String, dynamic>> get _ordersRef =>
       _db.collection('orders');
+  CollectionReference<Map<String, dynamic>> get _designRequestsRef =>
+      _db.collection('design_requests');
 
   // Helper to map categoryId to plural collection name
   String _getCategoryCollectionName(String categoryId) {
@@ -125,7 +132,6 @@ class FirestoreService {
     }
   }
 
-
   /// Fetches the user profile document by [userId].
   Future<Map<String, dynamic>?> getUserProfile(String userId) async {
     try {
@@ -140,7 +146,7 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 1.1 SALESPERSON DATA STORAGE (SEPARATE COLLECTION)
+  // 2. SALESPERSON DATA STORAGE & ASSIGNMENT
   // ===========================================================================
 
   /// Creates or updates a Salesperson profile in the dedicated `salespersons` collection.
@@ -178,15 +184,12 @@ class FirestoreService {
   }
 
   /// Verifies if a given [referralCode] belongs to a valid active salesperson.
-  /// Checks both the `salespersons` and `users` collections (where role is salesperson).
-  /// Returns the salesperson profile data if valid, or `null` if invalid.
   Future<Map<String, dynamic>?> verifySalespersonReferralCode(
       String referralCode) async {
     try {
       final trimmedCode = referralCode.trim().toUpperCase();
       if (trimmedCode.isEmpty) return null;
 
-      // Check salespersons collection
       final spQuery = await _salespersonsRef
           .where('referralCode', isEqualTo: trimmedCode)
           .where('isActive', isEqualTo: true)
@@ -198,7 +201,6 @@ class FirestoreService {
         return {'id': doc.id, ...doc.data()};
       }
 
-      // Fallback check in users collection (for users with role 'salesperson')
       final userQuery = await _usersRef
           .where('referralCode', isEqualTo: trimmedCode)
           .where('role', isEqualTo: 'salesperson')
@@ -216,15 +218,9 @@ class FirestoreService {
     }
   }
 
-  // ===========================================================================
-  // 2. AUTO-ASSIGN SALESPERSON
-  // ===========================================================================
-
   /// Auto-assigns an active salesperson to a user if no referral code was entered.
-  /// Finds an available active salesperson and links their ID to the user document.
   Future<String?> autoAssignSalesperson({required String userId}) async {
     try {
-      // Find an active salesperson from salespersons collection
       final spQuery = await _salespersonsRef
           .where('isActive', isEqualTo: true)
           .limit(1)
@@ -235,7 +231,6 @@ class FirestoreService {
       if (spQuery.docs.isNotEmpty) {
         assignedSalespersonId = spQuery.docs.first.id;
       } else {
-        // Fallback: search users collection for a salesperson
         final userSpQuery = await _usersRef
             .where('role', isEqualTo: 'salesperson')
             .limit(1)
@@ -259,100 +254,464 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 3. TILES CATALOGUE FETCH WITH FILTERS
+  // 3. TILES PRODUCT CATALOGUE & ADVANCED FILTERS
   // ===========================================================================
 
-  /// Fetches the tiles catalogue from Firestore with optional filtering:
-  /// - [size]: Filter by tile size (e.g. '60x60', '60x120', '30x60').
-  /// - [inStockOnly]: If true, returns only tiles with stock status as available (`inStock == true`).
-  Future<List<Map<String, dynamic>>> getTilesCatalogue({
+  /// Adds or updates a TileProduct in the `tiles` collection.
+  Future<void> saveTileProduct(TileProduct product) async {
+    try {
+      await _tilesRef.doc(product.id).set(product.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetches a single TileProduct by ID.
+  Future<TileProduct?> getTileById(String tileId) async {
+    try {
+      final doc = await _tilesRef.doc(tileId).get();
+      if (doc.exists && doc.data() != null) {
+        return TileProduct.fromMap(doc.data()!, doc.id);
+      }
+      return null;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetches tiles catalogue from Cloud Firestore with multi-attribute filtering per PDF:
+  /// Size, Surface, Base Color, Pattern, Collection, Finish, Body Type, Stock Status.
+  Future<List<TileProduct>> getTilesCatalogueAdvanced({
     String? size,
-    bool? inStockOnly,
+    String? surface,
+    String? baseColor,
+    String? pattern,
+    String? collection,
+    String? stockStatus,
+    double? maxPrice,
   }) async {
     try {
-      Query<Map<String, dynamic>> query = _tilesRef;
+      Query<Map<String, dynamic>> query = _tilesRef.where('isActive', isEqualTo: true);
 
       if (size != null && size.isNotEmpty) {
         query = query.where('size', isEqualTo: size);
       }
-
-      if (inStockOnly == true) {
-        query = query.where('inStock', isEqualTo: true);
+      if (surface != null && surface.isNotEmpty) {
+        query = query.where('surface', isEqualTo: surface);
+      }
+      if (baseColor != null && baseColor.isNotEmpty) {
+        query = query.where('baseColor', isEqualTo: baseColor);
+      }
+      if (pattern != null && pattern.isNotEmpty) {
+        query = query.where('pattern', isEqualTo: pattern);
+      }
+      if (collection != null && collection.isNotEmpty) {
+        query = query.where('collection', isEqualTo: collection);
+      }
+      if (stockStatus != null && stockStatus.isNotEmpty) {
+        query = query.where('stockStatus', isEqualTo: stockStatus);
       }
 
       final querySnapshot = await query.get();
-      return querySnapshot.docs
-          .map((doc) => {'id': doc.id, ...doc.data()})
+      var list = querySnapshot.docs
+          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
+          .toList();
+
+      if (maxPrice != null) {
+        list = list.where((p) => p.basePrice <= maxPrice).toList();
+      }
+
+      return list;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Updates stock status of a specific tile (e.g. 'Available Now', 'Out of Stock', 'Made-to-Order').
+  Future<void> updateTileStockStatus(String tileId, String stockStatus) async {
+    try {
+      await _tilesRef.doc(tileId).update({
+        'stockStatus': stockStatus,
+        'inStock': stockStatus == 'Available Now' || stockStatus == 'Limited',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Seeds initial realistic sample ITACON tile products into Firestore.
+  Future<void> seedSampleTileProducts() async {
+    final sampleTiles = [
+      TileProduct(
+        id: 'TILE_STATUARIO_01',
+        name: 'Statuario Marble White',
+        size: '600x1200',
+        surface: 'High Gloss',
+        baseColor: 'White',
+        pattern: 'Marble',
+        collection: 'Royal Statuario 2026',
+        finish: 'Polished',
+        bodyType: 'Porcelain',
+        thickness: '9mm',
+        randomPattern: '6 Faces',
+        priceCategory: 'Premium',
+        shade: 'Light',
+        basePrice: 65.0,
+        moq: 20,
+        stockStatus: 'Available Now',
+        images: ['https://example.com/tiles/statuario_hd.jpg'],
+        lifestyleImages: ['https://example.com/tiles/statuario_room.jpg'],
+        packingDetails: {
+          'boxWeight': '30 kg',
+          'sqmPerBox': 1.44,
+          'boxesPerPallet': 40,
+          'piecesPerBox': 2,
+        },
+      ),
+      TileProduct(
+        id: 'TILE_CARVING_GREY_02',
+        name: 'Armani Grey Carving',
+        size: '800x1600',
+        surface: 'Carving',
+        baseColor: 'Grey',
+        pattern: 'Stone',
+        collection: 'Grand Slab Series',
+        finish: 'Matt Carving',
+        bodyType: 'Vitrified',
+        thickness: '12mm',
+        randomPattern: '4 Faces',
+        priceCategory: 'Premium',
+        shade: 'Medium',
+        basePrice: 85.0,
+        moq: 15,
+        stockStatus: 'Available Now',
+        images: ['https://example.com/tiles/armani_grey_hd.jpg'],
+        lifestyleImages: ['https://example.com/tiles/armani_grey_room.jpg'],
+        packingDetails: {
+          'boxWeight': '42 kg',
+          'sqmPerBox': 2.56,
+          'boxesPerPallet': 28,
+          'piecesPerBox': 2,
+        },
+      ),
+      TileProduct(
+        id: 'TILE_WOOD_BEIGE_03',
+        name: 'Oak Wood Plank',
+        size: '200x1200',
+        surface: 'Matt',
+        baseColor: 'Brown',
+        pattern: 'Wood',
+        collection: 'Natural Timber Planks',
+        finish: 'Rustic',
+        bodyType: 'Porcelain',
+        thickness: '9mm',
+        randomPattern: '8 Faces',
+        priceCategory: 'Standard',
+        shade: 'Medium',
+        basePrice: 55.0,
+        moq: 30,
+        stockStatus: 'Made-to-Order',
+        images: ['https://example.com/tiles/oak_wood_hd.jpg'],
+        lifestyleImages: ['https://example.com/tiles/oak_wood_room.jpg'],
+        packingDetails: {
+          'boxWeight': '24 kg',
+          'sqmPerBox': 1.20,
+          'boxesPerPallet': 50,
+          'piecesPerBox': 5,
+        },
+      ),
+      TileProduct(
+        id: 'TILE_BOOKMATCH_BLUE_04',
+        name: 'Onyx Blue Bookmatch',
+        size: '1200x1800',
+        surface: 'Bookmatch',
+        baseColor: 'Blue',
+        pattern: 'Marble',
+        collection: 'Exotic Bookmatch Collection',
+        finish: 'High Gloss Polished',
+        bodyType: 'Full Body Porcelain',
+        thickness: '12mm',
+        randomPattern: 'Bookmatch A+B',
+        priceCategory: 'Premium',
+        shade: 'Dark',
+        basePrice: 120.0,
+        moq: 10,
+        stockStatus: 'Limited',
+        images: ['https://example.com/tiles/onyx_blue_hd.jpg'],
+        lifestyleImages: ['https://example.com/tiles/onyx_blue_room.jpg'],
+        packingDetails: {
+          'boxWeight': '55 kg',
+          'sqmPerBox': 4.32,
+          'boxesPerPallet': 20,
+          'piecesPerBox': 2,
+        },
+      ),
+    ];
+
+    for (var tile in sampleTiles) {
+      await saveTileProduct(tile);
+    }
+  }
+
+  // ===========================================================================
+  // 4. ORDER PLACEMENT FLOW & LIFECYCLE WORKFLOW
+  // ===========================================================================
+
+  /// Helper to generate a unique PO Reference Number (e.g. PO-2026-89104)
+  String _generateOrderReferenceNumber() {
+    final random = Random();
+    final number = random.nextInt(900000) + 100000;
+    return 'PO-${DateTime.now().year}-$number';
+  }
+
+  /// Step 5 of PDF: User places order (Order Type: Ready stock Or Made Against Order)
+  /// Saves order document with status `'pending_salesperson_review'`.
+  Future<TileOrder> placeOrder({
+    required String userId,
+    required String userCategory,
+    required List<OrderItem> items,
+    required String orderType, // 'ready_stock' or 'made_against_order'
+    required String deliveryAddress,
+    required bool transportRequired,
+    required String remarks,
+    String? salespersonId,
+  }) async {
+    try {
+      final docRef = _ordersRef.doc();
+      final poNumber = _generateOrderReferenceNumber();
+
+      final order = TileOrder(
+        id: docRef.id,
+        orderReferenceNumber: poNumber,
+        userId: userId,
+        userCategory: userCategory,
+        salespersonId: salespersonId,
+        orderType: orderType,
+        status: 'pending_salesperson_review',
+        items: items,
+        deliveryAddress: deliveryAddress,
+        transportRequired: transportRequired,
+        remarks: remarks,
+        estimateDetails: {
+          'discountPercent': 0.0,
+          'taxAmount': 0.0,
+          'subtotal': 0.0,
+          'grandTotal': 0.0,
+          'salespersonNotes': '',
+        },
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await docRef.set(order.toMap());
+      return order;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Step 6 of PDF: Salesperson reviews order with quantity, attaches user-wise unit prices & estimate details.
+  /// Sets status to `'estimate_provided'`.
+  Future<void> reviewOrderAndSubmitEstimate({
+    required String orderId,
+    required List<OrderItem> updatedItems,
+    required double discountPercent,
+    required double taxAmount,
+    required String salespersonNotes,
+  }) async {
+    try {
+      double subtotal = 0.0;
+      for (var item in updatedItems) {
+        final uPrice = item.unitPrice ?? 0.0;
+        subtotal += (uPrice * item.quantity);
+      }
+
+      final discountAmount = subtotal * (discountPercent / 100.0);
+      final grandTotal = (subtotal - discountAmount) + taxAmount;
+
+      final estimateDetails = {
+        'discountPercent': discountPercent,
+        'discountAmount': discountAmount,
+        'taxAmount': taxAmount,
+        'subtotal': subtotal,
+        'grandTotal': grandTotal,
+        'salespersonNotes': salespersonNotes,
+        'estimatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await _ordersRef.doc(orderId).update({
+        'items': updatedItems.map((i) => i.toMap()).toList(),
+        'estimateDetails': estimateDetails,
+        'status': 'estimate_provided',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Step 6/7 of PDF: Customer reviews estimate & confirms Purchase Order with Estimate.
+  /// Sets status to `'user_confirmed'`.
+  Future<void> confirmOrderWithEstimate({required String orderId}) async {
+    try {
+      await _ordersRef.doc(orderId).update({
+        'status': 'user_confirmed',
+        'userConfirmedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Step 7/8 of PDF: Order released to Production Planning by Salesperson/Planner.
+  /// Sets status to `'sent_to_production'`.
+  Future<void> releaseToProductionPlanner({required String orderId}) async {
+    try {
+      await _ordersRef.doc(orderId).update({
+        'status': 'sent_to_production',
+        'productionReleasedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Stream live orders for a specific user
+  Stream<List<TileOrder>> streamUserOrders(String userId) {
+    return _ordersRef
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => TileOrder.fromMap(doc.data(), doc.id))
+            .toList());
+  }
+
+  /// Stream live orders assigned to a specific Salesperson
+  Stream<List<TileOrder>> streamSalespersonOrders(String salespersonId) {
+    return _ordersRef
+        .where('salespersonId', isEqualTo: salespersonId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => TileOrder.fromMap(doc.data(), doc.id))
+            .toList());
+  }
+
+  // ===========================================================================
+  // 5. BUCKET (CART) & WISHLIST OPERATIONS
+  // ===========================================================================
+
+  /// Collection reference for User Buckets
+  CollectionReference<Map<String, dynamic>> _userBucketRef(String userId) =>
+      _usersRef.doc(userId).collection('bucket');
+
+  /// Collection reference for User Wishlist
+  CollectionReference<Map<String, dynamic>> _userWishlistRef(String userId) =>
+      _usersRef.doc(userId).collection('wishlist');
+
+  /// Adds or updates an item in the User's Bucket (Cart)
+  Future<void> addToBucket(String userId, BucketItem item) async {
+    try {
+      await _userBucketRef(userId).doc(item.tileId).set(item.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Fetches all items in the User's Bucket
+  Future<List<BucketItem>> getBucketItems(String userId) async {
+    try {
+      final snapshot = await _userBucketRef(userId).get();
+      return snapshot.docs
+          .map((doc) => BucketItem.fromMap(doc.data()))
           .toList();
     } catch (e) {
       rethrow;
     }
   }
 
-  // ===========================================================================
-  // 4. CREATE ORDER DOCUMENT
-  // ===========================================================================
-
-  /// Creates a new order document with status `'pending_rate'`.
-  /// Each item in [rawItems] has its `unitPrice` explicitly initialized to `null`.
-  Future<DocumentReference<Map<String, dynamic>>> createOrder({
-    required String userId,
-    required List<Map<String, dynamic>> rawItems,
-    String? salespersonId,
-    String? deliveryAddress,
-    String? notes,
-  }) async {
+  /// Removes an item from the User's Bucket
+  Future<void> removeFromBucket(String userId, String tileId) async {
     try {
-      // Process items array: ensure unitPrice is initialized as null
-      final List<Map<String, dynamic>> formattedItems = rawItems.map((item) {
-        return {
-          'tileId': item['tileId'],
-          'tileName': item['tileName'],
-          'quantity': item['quantity'],
-          'size': item['size'],
-          'unitPrice': null, // Initialized as null per requirements
-        };
-      }).toList();
+      await _userBucketRef(userId).doc(tileId).delete();
+    } catch (e) {
+      rethrow;
+    }
+  }
 
-      final orderData = {
-        'userId': userId,
-        'salespersonId': salespersonId,
-        'status': 'pending_rate', // Required initial status
-        'items': formattedItems,
-        'deliveryAddress': deliveryAddress,
-        'notes': notes,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+  /// Clears the entire Bucket for a User
+  Future<void> clearBucket(String userId) async {
+    try {
+      final snapshot = await _userBucketRef(userId).get();
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
 
-      final docRef = await _ordersRef.add(orderData);
-      return docRef;
+  /// Toggles a tile in the User's Wishlist / Favourites
+  Future<bool> toggleWishlist(String userId, String tileId) async {
+    try {
+      final docRef = _userWishlistRef(userId).doc(tileId);
+      final doc = await docRef.get();
+      if (doc.exists) {
+        await docRef.delete();
+        return false; // Removed from wishlist
+      } else {
+        await docRef.set({
+          'tileId': tileId,
+          'addedAt': FieldValue.serverTimestamp(),
+        });
+        return true; // Added to wishlist
+      }
     } catch (e) {
       rethrow;
     }
   }
 
   // ===========================================================================
-  // 5. LIVE ORDER UPDATES SNAPSHOT STREAMS
+  // 6. CUSTOM DESIGN REQUESTS (MODULE 7 OF PDF)
   // ===========================================================================
 
-  /// Stream live order updates for a specific user.
-  Stream<List<Map<String, dynamic>>> streamUserOrders(String userId) {
-    return _ordersRef
-        .where('userId', isEqualTo: userId)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
-            .toList());
+  /// Submits a Custom Design Request for a tile design not in catalogue
+  Future<DesignRequest> submitDesignRequest(DesignRequest request) async {
+    try {
+      final docRef = _designRequestsRef.doc();
+      final newRequest = DesignRequest(
+        id: docRef.id,
+        userId: request.userId,
+        size: request.size,
+        color: request.color,
+        surface: request.surface,
+        referenceImageUrl: request.referenceImageUrl,
+        quantityRequirement: request.quantityRequirement,
+        remarks: request.remarks,
+        status: 'submitted',
+        createdAt: DateTime.now(),
+      );
+
+      await docRef.set(newRequest.toMap());
+      return newRequest;
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  /// Stream live updates for a single order by [orderId].
-  Stream<Map<String, dynamic>?> streamOrderDetails(String orderId) {
-    return _ordersRef.doc(orderId).snapshots().map((doc) {
-      if (doc.exists && doc.data() != null) {
-        return {'id': doc.id, ...doc.data()!};
-      }
-      return null;
-    });
+  /// Fetches all Custom Design Requests for a User
+  Future<List<DesignRequest>> getUserDesignRequests(String userId) async {
+    try {
+      final snapshot = await _designRequestsRef
+          .where('userId', isEqualTo: userId)
+          .get();
+      return snapshot.docs
+          .map((doc) => DesignRequest.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
   }
 }
