@@ -1,123 +1,224 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Single item within a Tile Order
+/// Single item snapshot within `orders/{orderId}/orderItems/{productId}` per PDF schema
 class OrderItem {
-  final String tileId;
-  final String tileName;
+  final String productId;
+  final String sku;
+  final String productName;
   final String size;
   final String surface;
+  final String color;
   final int quantity;
+  final String unit;
   final int moq;
-  final double? unitPrice; // Null initially until Salesperson provides estimate
-  final double? totalPrice; // Computed once unitPrice is set
+  final double basePrice;
+  final double finalPrice;
+  final double lineTotal;
+  final String orderType; // ready_stock / made_to_order
 
   const OrderItem({
-    required this.tileId,
-    required this.tileName,
+    required this.productId,
+    this.sku = 'ITA-PROD-001',
+    required this.productName,
     required this.size,
     required this.surface,
+    this.color = 'White',
     required this.quantity,
+    this.unit = 'box',
     required this.moq,
-    this.unitPrice,
-    this.totalPrice,
-  });
+    this.basePrice = 0.0,
+    this.finalPrice = 0.0,
+    double? lineTotal,
+    this.orderType = 'ready_stock',
+  }) : lineTotal = lineTotal ?? (quantity * finalPrice);
+
+  String get tileId => productId;
+  String get tileName => productName;
+  double? get unitPrice => finalPrice > 0 ? finalPrice : null;
+  double? get totalPrice => lineTotal > 0 ? lineTotal : null;
 
   Map<String, dynamic> toMap() {
     return {
-      'tileId': tileId,
-      'tileName': tileName,
+      'productId': productId,
+      'tileId': productId,
+      'sku': sku,
+      'productName': productName,
+      'tileName': productName,
       'size': size,
       'surface': surface,
+      'color': color,
       'quantity': quantity,
+      'unit': unit,
       'moq': moq,
-      'unitPrice': unitPrice,
-      'totalPrice': totalPrice ?? (unitPrice != null ? unitPrice! * quantity : null),
+      'basePrice': basePrice,
+      'finalPrice': finalPrice,
+      'unitPrice': finalPrice,
+      'lineTotal': lineTotal,
+      'totalPrice': lineTotal,
+      'orderType': orderType,
     };
   }
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
+    final pId = map['productId'] ?? map['tileId'] ?? '';
     final qty = (map['quantity'] ?? 1).toInt();
-    final uPrice = map['unitPrice'] != null ? (map['unitPrice'] as num).toDouble() : null;
-    final tPrice = map['totalPrice'] != null
-        ? (map['totalPrice'] as num).toDouble()
-        : (uPrice != null ? uPrice * qty : null);
+    final bPrice = (map['basePrice'] ?? map['unitPrice'] ?? 0.0).toDouble();
+    final fPrice = (map['finalPrice'] ?? map['unitPrice'] ?? bPrice).toDouble();
+    final lTotal = (map['lineTotal'] ?? map['totalPrice'] ?? (qty * fPrice)).toDouble();
 
     return OrderItem(
-      tileId: map['tileId'] ?? '',
-      tileName: map['tileName'] ?? 'Tile Item',
+      productId: pId,
+      sku: map['sku'] ?? 'ITA-PROD-$pId',
+      productName: map['productName'] ?? map['tileName'] ?? 'Tile Product',
       size: map['size'] ?? '600x1200',
       surface: map['surface'] ?? 'Glossy',
+      color: map['color'] ?? map['baseColor'] ?? 'White',
       quantity: qty,
+      unit: map['unit'] ?? 'box',
       moq: (map['moq'] ?? 10).toInt(),
-      unitPrice: uPrice,
-      totalPrice: tPrice,
+      basePrice: bPrice,
+      finalPrice: fPrice,
+      lineTotal: lTotal,
+      orderType: map['orderType'] ?? 'ready_stock',
     );
   }
 }
 
-/// Represents an Order document in Cloud Firestore (Supports the 10-Step Flow)
-class TileOrder {
-  final String id;
-  final String orderReferenceNumber; // Formatted reference: PO-{STATE}-{YEAR}-{RANDOM} (e.g. PO-GJ-2026-98104)
-  final String stateCode; // State shortcode: GJ, MH, DL, KA, etc.
-  final String userId;
-  final String userCategory; // dealer, wholesaler, retailer, contractor, architect, builder
-  final String? salespersonId;
-  final String orderType; // 'ready_stock' (Ready Stock) or 'made_against_order' (Made Against Order)
-  final String status;
-  // Statuses:
-  // - 'pending_salesperson_review'
-  // - 'pending_manager_approval'
-  // - 'estimate_provided'
-  // - 'user_confirmed'
-  // - 'sent_to_production'
-  // - 'completed'
-  // - 'cancelled'
-
-  final String priceApprovalStatus; // 'none', 'pending_manager_approval', 'approved', 'rejected'
-  final List<OrderItem> items;
-  final String deliveryAddress;
-  final bool transportRequired;
+/// Order Status Change Entry in `orders/{orderId}/orderStatusHistory/{historyId}` per PDF schema
+class OrderStatusHistory {
+  final String fromStatus;
+  final String toStatus;
+  final String changedBy;
+  final String changedByRole;
   final String remarks;
-  final Map<String, dynamic> estimateDetails; // discountPercent, taxAmount, subtotal, grandTotal, salespersonNotes
+  final DateTime? timestamp;
+
+  const OrderStatusHistory({
+    required this.fromStatus,
+    required this.toStatus,
+    required this.changedBy,
+    required this.changedByRole,
+    this.remarks = '',
+    this.timestamp,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'fromStatus': fromStatus,
+      'toStatus': toStatus,
+      'changedBy': changedBy,
+      'changedByRole': changedByRole,
+      'remarks': remarks,
+      'timestamp': timestamp != null
+          ? Timestamp.fromDate(timestamp!)
+          : FieldValue.serverTimestamp(),
+    };
+  }
+
+  factory OrderStatusHistory.fromMap(Map<String, dynamic> map) {
+    return OrderStatusHistory(
+      fromStatus: map['fromStatus'] ?? '',
+      toStatus: map['toStatus'] ?? '',
+      changedBy: map['changedBy'] ?? '',
+      changedByRole: map['changedByRole'] ?? '',
+      remarks: map['remarks'] ?? '',
+      timestamp: map['timestamp'] is Timestamp
+          ? (map['timestamp'] as Timestamp).toDate()
+          : null,
+    );
+  }
+}
+
+/// Represents an Order document in `orders` collection per PDF schema
+class TileOrder {
+  final String id; // orderId / id
+  final String orderId; // PDF schema: orderId
+  final String orderReference; // Business order number (e.g. PO-GJ-2026-98104)
+  final String userId; // Customer ID
+  final String salesPersonId; // Assigned salesperson ID
+  final String userCategory; // Customer category (Dealer / Wholesale / Retail / Contractor)
+  final String status; // Current order status
+  final String orderType; // ready_stock / made_to_order
+  final String poNumber; // Customer PO number
+  final String poDocumentUrl; // Uploaded PO document URL
+  final Map<String, dynamic> deliveryLocation; // Delivery address Map
+  final bool transportRequired; // Transport required
+  final String remarks; // Customer remarks
+  final double subtotal; // Order subtotal
+  final double discount; // Discount amount
+  final double tax; // Tax amount
+  final double total; // Final total
+  final List<OrderItem> items;
+  final String stateCode;
+  final String priceApprovalStatus;
+  final Map<String, dynamic> estimateDetails;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   const TileOrder({
     required this.id,
-    required this.orderReferenceNumber,
-    this.stateCode = 'GJ',
+    String? orderId,
+    required this.orderReference,
     required this.userId,
+    this.salesPersonId = '',
     required this.userCategory,
-    this.salespersonId,
-    required this.orderType,
     required this.status,
-    this.priceApprovalStatus = 'none',
-    required this.items,
-    required this.deliveryAddress,
+    required this.orderType,
+    this.poNumber = '',
+    this.poDocumentUrl = '',
+    required this.deliveryLocation,
     required this.transportRequired,
     required this.remarks,
-    required this.estimateDetails,
+    this.subtotal = 0.0,
+    this.discount = 0.0,
+    this.tax = 0.0,
+    this.total = 0.0,
+    required this.items,
+    this.stateCode = 'GJ',
+    this.priceApprovalStatus = 'none',
+    this.estimateDetails = const {},
     this.createdAt,
     this.updatedAt,
-  });
+  }) : orderId = orderId ?? id;
+
+  String get orderReferenceNumber => orderReference;
+  String? get salespersonId => salesPersonId.isNotEmpty ? salesPersonId : null;
+  String get deliveryAddress => deliveryLocation['address'] ?? deliveryLocation['deliveryAddress'] ?? '';
 
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'orderReferenceNumber': orderReferenceNumber,
-      'stateCode': stateCode,
+      'orderId': orderId,
+      'orderReference': orderReference,
+      'orderReferenceNumber': orderReference,
       'userId': userId,
+      'salesPersonId': salesPersonId,
+      'salespersonId': salesPersonId,
       'userCategory': userCategory,
-      'salespersonId': salespersonId,
-      'orderType': orderType,
       'status': status,
-      'priceApprovalStatus': priceApprovalStatus,
-      'items': items.map((item) => item.toMap()).toList(),
+      'orderType': orderType,
+      'poNumber': poNumber,
+      'poDocumentUrl': poDocumentUrl,
+      'deliveryLocation': deliveryLocation,
       'deliveryAddress': deliveryAddress,
       'transportRequired': transportRequired,
       'remarks': remarks,
-      'estimateDetails': estimateDetails,
+      'subtotal': subtotal,
+      'discount': discount,
+      'tax': tax,
+      'total': total,
+      'items': items.map((item) => item.toMap()).toList(),
+      'stateCode': stateCode,
+      'priceApprovalStatus': priceApprovalStatus,
+      'estimateDetails': estimateDetails.isNotEmpty
+          ? estimateDetails
+          : {
+              'discountPercent': discount > 0 && subtotal > 0 ? (discount / subtotal) * 100 : 0.0,
+              'discountAmount': discount,
+              'taxAmount': tax,
+              'subtotal': subtotal,
+              'grandTotal': total,
+            },
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -126,30 +227,42 @@ class TileOrder {
   }
 
   factory TileOrder.fromMap(Map<String, dynamic> map, String docId) {
+    final oId = map['orderId'] ?? docId;
+    final ref = map['orderReference'] ?? map['orderReferenceNumber'] ?? 'PO-GJ-2026-${docId.substring(0, 5).toUpperCase()}';
+    final sub = (map['subtotal'] ?? 0.0).toDouble();
+    final disc = (map['discount'] ?? 0.0).toDouble();
+    final tx = (map['tax'] ?? 0.0).toDouble();
+    final tot = (map['total'] ?? (sub - disc + tx)).toDouble();
+
+    final delLoc = map['deliveryLocation'] is Map
+        ? Map<String, dynamic>.from(map['deliveryLocation'])
+        : {'address': map['deliveryAddress'] ?? ''};
+
     return TileOrder(
       id: docId,
-      orderReferenceNumber: map['orderReferenceNumber'] ?? 'PO-${map['stateCode'] ?? 'GJ'}-2026-${docId.substring(0, 5).toUpperCase()}',
-      stateCode: map['stateCode'] ?? 'GJ',
+      orderId: oId,
+      orderReference: ref,
       userId: map['userId'] ?? '',
+      salesPersonId: map['salesPersonId'] ?? map['salespersonId'] ?? '',
       userCategory: map['userCategory'] ?? map['role'] ?? 'dealer',
-      salespersonId: map['salespersonId'],
-      orderType: map['orderType'] ?? 'ready_stock',
       status: map['status'] ?? 'pending_salesperson_review',
-      priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
+      orderType: map['orderType'] ?? 'ready_stock',
+      poNumber: map['poNumber'] ?? '',
+      poDocumentUrl: map['poDocumentUrl'] ?? '',
+      deliveryLocation: delLoc,
+      transportRequired: map['transportRequired'] ?? false,
+      remarks: map['remarks'] ?? map['notes'] ?? '',
+      subtotal: sub,
+      discount: disc,
+      tax: tx,
+      total: tot,
       items: (map['items'] as List<dynamic>?)
               ?.map((item) => OrderItem.fromMap(Map<String, dynamic>.from(item)))
               .toList() ??
           [],
-      deliveryAddress: map['deliveryAddress'] ?? '',
-      transportRequired: map['transportRequired'] ?? false,
-      remarks: map['remarks'] ?? map['notes'] ?? '',
-      estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {
-        'discountPercent': 0.0,
-        'taxAmount': 0.0,
-        'subtotal': 0.0,
-        'grandTotal': 0.0,
-        'salespersonNotes': '',
-      }),
+      stateCode: map['stateCode'] ?? 'GJ',
+      priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
+      estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {}),
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,

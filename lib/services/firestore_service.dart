@@ -1,44 +1,50 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_category.dart';
+import '../models/user_profile.dart';
+import '../models/sales_person.dart';
+import '../models/product_category.dart';
 import '../models/tile_product.dart';
 import '../models/tile_order.dart';
 import '../models/user_bucket.dart';
-import '../models/design_request.dart';
-import '../models/price_list.dart';
+import '../models/wishlist.dart';
+import '../models/customer_pricing.dart';
 import '../models/price_approval.dart';
+import '../models/estimate.dart';
 import '../models/notification_queue.dart';
+import '../models/production_handoff.dart';
+import '../models/customer_summary.dart';
+import '../models/loyalty_transaction.dart';
+import '../models/design_request.dart';
 
-/// A modular production service class for managing Cloud Firestore database operations
-/// for users, salespersons, tile catalogues, orders, price lists, approvals, notifications, buckets, and design requests.
-/// Serves both Flutter Mobile App (Customer) and Web Application (Salesperson, Sales Manager, Production Planner).
+/// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
+/// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
 class FirestoreService {
   final FirebaseFirestore _db;
 
-  /// Creates a [FirestoreService] instance.
-  /// Accepts an optional custom [FirebaseFirestore] instance for testing.
   FirestoreService({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
 
-  // Collection References
-  CollectionReference<Map<String, dynamic>> get _usersRef =>
-      _db.collection('users');
-  CollectionReference<Map<String, dynamic>> get _salespersonsRef =>
-      _db.collection('salespersons');
-  CollectionReference<Map<String, dynamic>> get _tilesRef =>
-      _db.collection('tiles');
-  CollectionReference<Map<String, dynamic>> get _ordersRef =>
-      _db.collection('orders');
-  CollectionReference<Map<String, dynamic>> get _priceListsRef =>
-      _db.collection('price_lists');
-  CollectionReference<Map<String, dynamic>> get _priceApprovalsRef =>
-      _db.collection('price_list_approvals');
-  CollectionReference<Map<String, dynamic>> get _notificationQueueRef =>
-      _db.collection('notification_queue');
-  CollectionReference<Map<String, dynamic>> get _designRequestsRef =>
-      _db.collection('design_requests');
+  // ===========================================================================
+  // COLLECTION REFERENCES (Matching Official PDF Schema)
+  // ===========================================================================
+  CollectionReference<Map<String, dynamic>> get _usersRef => _db.collection('users');
+  CollectionReference<Map<String, dynamic>> get _salesPersonsRef => _db.collection('salesPersons');
+  CollectionReference<Map<String, dynamic>> get _productsRef => _db.collection('products');
+  CollectionReference<Map<String, dynamic>> get _tilesRef => _db.collection('tiles');
+  CollectionReference<Map<String, dynamic>> get _categoriesRef => _db.collection('categories');
+  CollectionReference<Map<String, dynamic>> get _cartsRef => _db.collection('carts');
+  CollectionReference<Map<String, dynamic>> get _wishlistsRef => _db.collection('wishlists');
+  CollectionReference<Map<String, dynamic>> get _ordersRef => _db.collection('orders');
+  CollectionReference<Map<String, dynamic>> get _customerPricingRef => _db.collection('customerPricing');
+  CollectionReference<Map<String, dynamic>> get _priceApprovalsRef => _db.collection('priceApprovals');
+  CollectionReference<Map<String, dynamic>> get _estimatesRef => _db.collection('estimates');
+  CollectionReference<Map<String, dynamic>> get _notificationsRef => _db.collection('notifications');
+  CollectionReference<Map<String, dynamic>> get _handoffsRef => _db.collection('handoffs');
+  CollectionReference<Map<String, dynamic>> get _customerSummaryRef => _db.collection('customerSummary');
+  CollectionReference<Map<String, dynamic>> get _loyaltyTransactionsRef => _db.collection('loyaltyTransactions');
+  CollectionReference<Map<String, dynamic>> get _designRequestsRef => _db.collection('design_requests');
 
-  // Helper to map categoryId to plural collection name
   String _getCategoryCollectionName(String categoryId) {
     switch (categoryId.toLowerCase()) {
       case 'dealer':
@@ -57,16 +63,15 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 1. USER PROFILE & CATEGORY-WISE STORAGE (WITH STATE CODE)
+  // PHASE 1: USERS & SALESPERSONS
   // ===========================================================================
 
-  /// Creates or updates a user profile document category-wise in Cloud Firestore.
-  /// Includes stateCode (e.g. GJ, MH, DL, KA) for state-wise PO formatting and analytics.
+  /// Saves a UserProfile document in `users` and category-specific collection (`dealers`, `wholesalers`, etc.)
   Future<void> createUserProfile({
     required String uid,
     required String phoneNumber,
     required String fullName,
-    required String role, // categoryId (dealer, architect, builder, wholesaler, retailer)
+    required String role,
     String stateCode = 'GJ',
     String? companyName,
     String? assignedSalespersonId,
@@ -75,90 +80,65 @@ class FirestoreService {
   }) async {
     try {
       final categoryLabel = UserCategory.getLabel(role);
-      final profileData = {
-        'uid': uid,
-        'phoneNumber': phoneNumber,
-        'fullName': fullName,
-        'role': role,
-        'userCategory': role,
-        'categoryLabel': categoryLabel,
-        'stateCode': stateCode.toUpperCase(),
-        'companyName': companyName ?? '',
-        'assignedSalespersonId': assignedSalespersonId,
-        'referralCode': userReferralCode,
-        'isVerified': isVerified,
-        'createdAt': FieldValue.serverTimestamp(),
-      };
+      final profile = UserProfile(
+        userId: uid,
+        name: fullName,
+        companyName: companyName ?? '',
+        phone: phoneNumber,
+        email: '$uid@itacon.com',
+        userCategory: role,
+        role: role,
+        salesPersonId: assignedSalespersonId,
+        referralCode: userReferralCode,
+        phoneVerified: isVerified,
+        whatsappVerified: isVerified,
+        city: 'Morbi',
+        state: stateCode.toUpperCase(),
+        pincode: '363641',
+        status: 'active',
+        createdAt: DateTime.now(),
+      );
 
       // 1. Store in primary `users` collection
-      await _usersRef.doc(uid).set(profileData, SetOptions(merge: true));
+      await _usersRef.doc(uid).set(profile.toMap(), SetOptions(merge: true));
 
-      // 2. Store category-wise in top-level category collection (e.g. `dealers/{uid}`, `wholesalers/{uid}`)
-      final categoryColName = _getCategoryCollectionName(role);
-      await _db
-          .collection(categoryColName)
-          .doc(uid)
-          .set(profileData, SetOptions(merge: true));
+      // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, etc.)
+      final catColName = _getCategoryCollectionName(role);
+      await _db.collection(catColName).doc(uid).set({
+        ...profile.toMap(),
+        'categoryLabel': categoryLabel,
+      }, SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Fetches users from the category-specific top-level collection (e.g. `dealers`, `architects`, `wholesalers`).
   Future<List<Map<String, dynamic>>> getUsersByCategory(String categoryId) async {
     try {
       final colName = _getCategoryCollectionName(categoryId);
-      final dedicatedColQuery = await _db.collection(colName).get();
-      if (dedicatedColQuery.docs.isNotEmpty) {
-        return dedicatedColQuery.docs
-            .map((doc) => {'id': doc.id, ...doc.data()})
-            .toList();
+      final querySnapshot = await _db.collection(colName).get();
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
       }
 
-      final querySnapshot = await _usersRef
-          .where('userCategory', isEqualTo: categoryId)
-          .get();
-      return querySnapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+      final fallbackSnapshot = await _usersRef.where('userCategory', isEqualTo: categoryId).get();
+      return fallbackSnapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Fetches all users grouped by user category.
   Future<Map<String, List<Map<String, dynamic>>>> getUsersGroupedByCategory() async {
-    try {
-      final Map<String, List<Map<String, dynamic>>> grouped = {
-        for (var cat in UserCategory.categoryIds) cat: []
-      };
-
-      for (var cat in UserCategory.categoryIds) {
-        final catUsers = await getUsersByCategory(cat);
-        grouped[cat] = catUsers;
-      }
-      return grouped;
-    } catch (e) {
-      rethrow;
+    final Map<String, List<Map<String, dynamic>>> grouped = {
+      for (var cat in UserCategory.categoryIds) cat: []
+    };
+    for (var cat in UserCategory.categoryIds) {
+      grouped[cat] = await getUsersByCategory(cat);
     }
+    return grouped;
   }
 
-  /// Fetches the user profile document by [userId].
-  Future<Map<String, dynamic>?> getUserProfile(String userId) async {
-    try {
-      final doc = await _usersRef.doc(userId).get();
-      if (doc.exists && doc.data() != null) {
-        return {'id': doc.id, ...doc.data()!};
-      }
-      return null;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // ===========================================================================
-  // 2. SALESPERSON DATA STORAGE & ASSIGNMENT
-  // ===========================================================================
-
-  /// Creates or updates a Salesperson profile in the `salespersons` collection.
+  /// Saves a SalesPerson document in `salesPersons` and `salespersons` collection
   Future<void> createSalespersonProfile({
     required String salespersonId,
     required String fullName,
@@ -168,40 +148,43 @@ class FirestoreService {
     bool isActive = true,
   }) async {
     try {
-      await _salespersonsRef.doc(salespersonId).set({
-        'salespersonId': salespersonId,
-        'fullName': fullName,
-        'phoneNumber': phoneNumber,
-        'referralCode': referralCode.trim().toUpperCase(),
-        'employeeId': employeeId ?? 'EMP-$salespersonId',
-        'isActive': isActive,
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final sp = SalesPerson(
+        salesPersonId: salespersonId,
+        employeeId: employeeId ?? 'EMP-$salespersonId',
+        name: fullName,
+        phone: phoneNumber,
+        email: 'sales.$salespersonId@itacon.com',
+        referralCode: referralCode.trim().toUpperCase(),
+        region: 'Western Region',
+        states: const ['GJ', 'MH', 'DL', 'KA'],
+        status: isActive ? 'active' : 'inactive',
+        createdAt: DateTime.now(),
+      );
+
+      await _salesPersonsRef.doc(salespersonId).set(sp.toMap(), SetOptions(merge: true));
+      await _db.collection('salespersons').doc(salespersonId).set(sp.toMap(), SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }
   }
 
-  /// Fetches all salesperson records stored in the `salespersons` collection.
   Future<List<Map<String, dynamic>>> getSalespersons() async {
-    try {
-      final snapshot = await _salespersonsRef.get();
-      return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
-    } catch (e) {
-      rethrow;
+    final snapshot = await _salesPersonsRef.get();
+    if (snapshot.docs.isNotEmpty) {
+      return snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
     }
+    final fallback = await _db.collection('salespersons').get();
+    return fallback.docs.map((d) => {'id': d.id, ...d.data()}).toList();
   }
 
-  /// Verifies if a given [referralCode] belongs to a valid active salesperson.
-  Future<Map<String, dynamic>?> verifySalespersonReferralCode(
-      String referralCode) async {
+  Future<Map<String, dynamic>?> verifySalespersonReferralCode(String referralCode) async {
     try {
       final trimmedCode = referralCode.trim().toUpperCase();
       if (trimmedCode.isEmpty) return null;
 
-      final spQuery = await _salespersonsRef
+      final spQuery = await _salesPersonsRef
           .where('referralCode', isEqualTo: trimmedCode)
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .limit(1)
           .get();
 
@@ -227,23 +210,18 @@ class FirestoreService {
     }
   }
 
-  /// Auto-assigns an active salesperson to a user if no referral code was entered.
   Future<String?> autoAssignSalesperson({required String userId}) async {
     try {
-      final spQuery = await _salespersonsRef
-          .where('isActive', isEqualTo: true)
+      final spQuery = await _salesPersonsRef
+          .where('status', isEqualTo: 'active')
           .limit(1)
           .get();
 
       String? assignedSalespersonId;
-
       if (spQuery.docs.isNotEmpty) {
         assignedSalespersonId = spQuery.docs.first.id;
       } else {
-        final userSpQuery = await _usersRef
-            .where('role', isEqualTo: 'salesperson')
-            .limit(1)
-            .get();
+        final userSpQuery = await _usersRef.where('role', isEqualTo: 'salesperson').limit(1).get();
         if (userSpQuery.docs.isNotEmpty) {
           assignedSalespersonId = userSpQuery.docs.first.id;
         }
@@ -251,6 +229,7 @@ class FirestoreService {
 
       if (assignedSalespersonId != null) {
         await _usersRef.doc(userId).set({
+          'salesPersonId': assignedSalespersonId,
           'assignedSalespersonId': assignedSalespersonId,
           'autoAssignedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -263,33 +242,18 @@ class FirestoreService {
   }
 
   // ===========================================================================
-  // 3. TILES PRODUCT CATALOGUE & ADVANCED FILTERS
+  // PHASE 1: PRODUCTS & CATEGORIES
   // ===========================================================================
 
-  /// Adds or updates a TileProduct in the `tiles` collection.
   Future<void> saveTileProduct(TileProduct product) async {
-    try {
-      await _tilesRef.doc(product.id).set(product.toMap(), SetOptions(merge: true));
-    } catch (e) {
-      rethrow;
-    }
+    await _productsRef.doc(product.id).set(product.toMap(), SetOptions(merge: true));
+    await _tilesRef.doc(product.id).set(product.toMap(), SetOptions(merge: true));
   }
 
-  /// Fetches a single TileProduct by ID.
-  Future<TileProduct?> getTileById(String tileId) async {
-    try {
-      final doc = await _tilesRef.doc(tileId).get();
-      if (doc.exists && doc.data() != null) {
-        return TileProduct.fromMap(doc.data()!, doc.id);
-      }
-      return null;
-    } catch (e) {
-      rethrow;
-    }
+  Future<void> saveProductCategory(ProductCategory category) async {
+    await _categoriesRef.doc(category.categoryId).set(category.toMap(), SetOptions(merge: true));
   }
 
-  /// Fetches tiles catalogue from Cloud Firestore with multi-attribute filtering per PDF:
-  /// Size, Surface, Base Color, Pattern, Collection, Finish, Body Type, Stock Status.
   Future<List<TileProduct>> getTilesCatalogueAdvanced({
     String? size,
     String? surface,
@@ -299,52 +263,42 @@ class FirestoreService {
     String? stockStatus,
     double? maxPrice,
   }) async {
-    try {
-      Query<Map<String, dynamic>> query = _tilesRef.where('isActive', isEqualTo: true);
+    Query<Map<String, dynamic>> query = _productsRef.where('isActive', isEqualTo: true);
 
-      if (size != null && size.isNotEmpty) {
-        query = query.where('size', isEqualTo: size);
-      }
-      if (surface != null && surface.isNotEmpty) {
-        query = query.where('surface', isEqualTo: surface);
-      }
-      if (baseColor != null && baseColor.isNotEmpty) {
-        query = query.where('baseColor', isEqualTo: baseColor);
-      }
-      if (pattern != null && pattern.isNotEmpty) {
-        query = query.where('pattern', isEqualTo: pattern);
-      }
-      if (collection != null && collection.isNotEmpty) {
-        query = query.where('collection', isEqualTo: collection);
-      }
-      if (stockStatus != null && stockStatus.isNotEmpty) {
-        query = query.where('stockStatus', isEqualTo: stockStatus);
-      }
+    if (size != null && size.isNotEmpty) query = query.where('size', isEqualTo: size);
+    if (surface != null && surface.isNotEmpty) query = query.where('surface', isEqualTo: surface);
+    if (baseColor != null && baseColor.isNotEmpty) query = query.where('color', isEqualTo: baseColor);
+    if (pattern != null && pattern.isNotEmpty) query = query.where('pattern', isEqualTo: pattern);
+    if (stockStatus != null && stockStatus.isNotEmpty) query = query.where('stockStatus', isEqualTo: stockStatus);
 
-      final querySnapshot = await query.get();
-      var list = querySnapshot.docs
-          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
-          .toList();
-
-      if (maxPrice != null) {
-        list = list.where((p) => p.basePrice <= maxPrice).toList();
-      }
-
-      return list;
-    } catch (e) {
-      rethrow;
+    var snapshot = await query.get();
+    if (snapshot.docs.isEmpty) {
+      snapshot = await _tilesRef.where('isActive', isEqualTo: true).get();
     }
+
+    var list = snapshot.docs.map((doc) => TileProduct.fromMap(doc.data(), doc.id)).toList();
+    if (maxPrice != null) {
+      list = list.where((p) => p.basePrice <= maxPrice).toList();
+    }
+    return list;
   }
 
-  /// Seeds initial sample ITACON tile products into Firestore.
   Future<void> seedSampleTileProducts() async {
+    final cat = ProductCategory(
+      categoryId: 'CAT_SLABS_01',
+      name: 'GVT/PGVT Slabs',
+      description: 'Grand Porcelain Slabs',
+      imageUrl: 'https://example.com/slabs.jpg',
+    );
+    await saveProductCategory(cat);
+
     final sampleTiles = [
       TileProduct(
         id: 'TILE_STATUARIO_01',
         name: 'Statuario Marble White',
         size: '600x1200',
         surface: 'High Gloss',
-        baseColor: 'White',
+        color: 'White',
         pattern: 'Marble',
         collection: 'Royal Statuario 2026',
         finish: 'Polished',
@@ -355,22 +309,16 @@ class FirestoreService {
         shade: 'Light',
         basePrice: 65.0,
         moq: 20,
-        stockStatus: 'Available Now',
+        stockStatus: 'available',
+        availableQuantity: 1200,
         images: ['https://example.com/tiles/statuario_hd.jpg'],
-        lifestyleImages: ['https://example.com/tiles/statuario_room.jpg'],
-        packingDetails: {
-          'boxWeight': '30 kg',
-          'sqmPerBox': 1.44,
-          'boxesPerPallet': 40,
-          'piecesPerBox': 2,
-        },
       ),
       TileProduct(
         id: 'TILE_CARVING_GREY_02',
         name: 'Armani Grey Carving',
         size: '800x1600',
         surface: 'Carving',
-        baseColor: 'Grey',
+        color: 'Grey',
         pattern: 'Stone',
         collection: 'Grand Slab Series',
         finish: 'Matt Carving',
@@ -381,22 +329,16 @@ class FirestoreService {
         shade: 'Medium',
         basePrice: 85.0,
         moq: 15,
-        stockStatus: 'Available Now',
+        stockStatus: 'available',
+        availableQuantity: 800,
         images: ['https://example.com/tiles/armani_grey_hd.jpg'],
-        lifestyleImages: ['https://example.com/tiles/armani_grey_room.jpg'],
-        packingDetails: {
-          'boxWeight': '42 kg',
-          'sqmPerBox': 2.56,
-          'boxesPerPallet': 28,
-          'piecesPerBox': 2,
-        },
       ),
       TileProduct(
         id: 'TILE_WOOD_BEIGE_03',
         name: 'Oak Wood Plank',
         size: '200x1200',
         surface: 'Matt',
-        baseColor: 'Brown',
+        color: 'Brown',
         pattern: 'Wood',
         collection: 'Natural Timber Planks',
         finish: 'Rustic',
@@ -407,110 +349,40 @@ class FirestoreService {
         shade: 'Medium',
         basePrice: 55.0,
         moq: 30,
-        stockStatus: 'Made-to-Order',
+        stockStatus: 'made_to_order',
+        availableQuantity: 0,
         images: ['https://example.com/tiles/oak_wood_hd.jpg'],
-        lifestyleImages: ['https://example.com/tiles/oak_wood_room.jpg'],
-        packingDetails: {
-          'boxWeight': '24 kg',
-          'sqmPerBox': 1.20,
-          'boxesPerPallet': 50,
-          'piecesPerBox': 5,
-        },
       ),
     ];
 
-    for (var tile in sampleTiles) {
-      await saveTileProduct(tile);
+    for (var t in sampleTiles) {
+      await saveTileProduct(t);
     }
   }
 
   // ===========================================================================
-  // 4. PRICE LIST ENGINE & SALES MANAGER APPROVALS (STEP 7)
+  // PHASE 1: CARTS & WISHLISTS
   // ===========================================================================
 
-  /// Saves a custom PriceList for user or category.
-  Future<void> savePriceList(PriceList priceList) async {
-    try {
-      await _priceListsRef
-          .doc(priceList.id)
-          .set(priceList.toMap(), SetOptions(merge: true));
-    } catch (e) {
-      rethrow;
-    }
+  Future<void> addToCart(String userId, CartItem item) async {
+    await _cartsRef.doc(userId).set({'userId': userId, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    await _cartsRef.doc(userId).collection('cartItems').doc(item.productId).set(item.toMap(), SetOptions(merge: true));
   }
 
-  /// Submits a custom Price List / Discount change for Sales Manager / Admin approval (Step 7).
-  Future<PriceApproval> submitPriceListForManagerApproval({
-    required String orderId,
-    required String userId,
-    required String salespersonId,
-    required double originalTotal,
-    required double requestedTotal,
-    required double discountPercent,
-  }) async {
-    try {
-      final docRef = _priceApprovalsRef.doc();
-      final approval = PriceApproval(
-        id: docRef.id,
-        orderId: orderId,
-        userId: userId,
-        salespersonId: salespersonId,
-        originalTotal: originalTotal,
-        requestedTotal: requestedTotal,
-        discountPercent: discountPercent,
-        status: 'pending_manager_approval',
-        createdAt: DateTime.now(),
-      );
-
-      await docRef.set(approval.toMap());
-
-      // Update Order status to pending_manager_approval
-      await _ordersRef.doc(orderId).update({
-        'status': 'pending_manager_approval',
-        'priceApprovalStatus': 'pending_manager_approval',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      return approval;
-    } catch (e) {
-      rethrow;
-    }
+  Future<List<CartItem>> getCartItems(String userId) async {
+    final snapshot = await _cartsRef.doc(userId).collection('cartItems').get();
+    return snapshot.docs.map((doc) => CartItem.fromMap(doc.data(), doc.id)).toList();
   }
 
-  /// Sales Manager / Super Admin approves or rejects custom price list / discount.
-  Future<void> approvePriceListByManager({
-    required String approvalId,
-    required String orderId,
-    required String managerId,
-    required bool isApproved,
-    String notes = '',
-  }) async {
-    try {
-      final status = isApproved ? 'approved' : 'rejected';
-      await _priceApprovalsRef.doc(approvalId).update({
-        'status': status,
-        'approvedBy': managerId,
-        'salesManagerNotes': notes,
-        'approvedAt': FieldValue.serverTimestamp(),
-      });
-
-      // If approved, order progresses to estimate_provided
-      await _ordersRef.doc(orderId).update({
-        'status': isApproved ? 'estimate_provided' : 'pending_salesperson_review',
-        'priceApprovalStatus': status,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
-    }
+  Future<void> addToWishlist(String userId, WishlistItem item) async {
+    await _wishlistsRef.doc(userId).set({'userId': userId, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    await _wishlistsRef.doc(userId).collection('wishlistItems').doc(item.productId).set(item.toMap(), SetOptions(merge: true));
   }
 
   // ===========================================================================
-  // 5. 10-STEP ORDER PLACEMENT WORKFLOW & NOTIFICATION QUEUEING
+  // PHASE 1 & 2: ORDERS, ESTIMATES, CUSTOMER PRICING & NOTIFICATIONS
   // ===========================================================================
 
-  /// Generates a state-wise unique PO Reference Number (Step 6)
-  /// Format: PO-{STATE}-{YEAR}-{RANDOM} (e.g. PO-GJ-2026-98104)
   String generateStateWiseOrderReferenceNumber(String stateCode) {
     final random = Random();
     final number = random.nextInt(900000) + 100000;
@@ -518,264 +390,330 @@ class FirestoreService {
     return 'PO-$cleanState-${DateTime.now().year}-$number';
   }
 
-  /// Queues outgoing notification events to Company Email, WhatsApp, Salesperson, and Customer (Steps 6 & 9)
-  Future<void> queueNotificationEvent({
-    required String orderId,
-    required String orderReferenceNumber,
-    required String eventType, // 'order_placed_step6', 'estimate_approved_step9'
-    required List<String> recipients,
-    required Map<String, dynamic> payload,
-  }) async {
-    try {
-      final docRef = _notificationQueueRef.doc();
-      final item = NotificationQueueItem(
-        id: docRef.id,
-        orderId: orderId,
-        orderReferenceNumber: orderReferenceNumber,
-        eventType: eventType,
-        recipients: recipients,
-        payload: payload,
-        status: 'queued',
-        createdAt: DateTime.now(),
-      );
-      await docRef.set(item.toMap());
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// Step 5 & 6 of Flow: User places order in PO format.
-  /// Generates state-formatted reference PO-GJ-2026-XXXXX and queues Step 6 Notifications.
   Future<TileOrder> placeOrder({
     required String userId,
     required String userCategory,
     required List<OrderItem> items,
-    required String orderType, // 'ready_stock' or 'made_against_order'
+    required String orderType,
     required String deliveryAddress,
     required bool transportRequired,
     required String remarks,
     String stateCode = 'GJ',
     String? salespersonId,
   }) async {
-    try {
-      final docRef = _ordersRef.doc();
-      final poNumber = generateStateWiseOrderReferenceNumber(stateCode);
+    final docRef = _ordersRef.doc();
+    final poRef = generateStateWiseOrderReferenceNumber(stateCode);
 
-      final order = TileOrder(
-        id: docRef.id,
-        orderReferenceNumber: poNumber,
-        stateCode: stateCode.toUpperCase(),
-        userId: userId,
-        userCategory: userCategory,
-        salespersonId: salespersonId,
-        orderType: orderType,
-        status: 'pending_salesperson_review',
-        priceApprovalStatus: 'none',
-        items: items,
-        deliveryAddress: deliveryAddress,
-        transportRequired: transportRequired,
-        remarks: remarks,
-        estimateDetails: {
-          'discountPercent': 0.0,
-          'taxAmount': 0.0,
-          'subtotal': 0.0,
-          'grandTotal': 0.0,
-          'salespersonNotes': '',
-        },
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      await docRef.set(order.toMap());
-
-      // Step 6 Notification Trigger: Notify Company Email + WhatsApp + Salesperson + Customer
-      await queueNotificationEvent(
-        orderId: order.id,
-        orderReferenceNumber: poNumber,
-        eventType: 'order_placed_step6',
-        recipients: ['company_email', 'company_whatsapp', 'salesperson', 'customer'],
-        payload: {
-          'message': 'New Purchase Order $poNumber submitted by $userCategory.',
-          'userId': userId,
-          'salespersonId': salespersonId,
-          'deliveryAddress': deliveryAddress,
-        },
-      );
-
-      return order;
-    } catch (e) {
-      rethrow;
+    double subtotal = 0.0;
+    for (var i in items) {
+      subtotal += (i.basePrice * i.quantity);
     }
+
+    final order = TileOrder(
+      id: docRef.id,
+      orderReference: poRef,
+      userId: userId,
+      salesPersonId: salespersonId ?? '',
+      userCategory: userCategory,
+      status: 'pending_salesperson_review',
+      orderType: orderType,
+      poNumber: poRef,
+      deliveryLocation: {'address': deliveryAddress},
+      transportRequired: transportRequired,
+      remarks: remarks,
+      subtotal: subtotal,
+      total: subtotal,
+      items: items,
+      stateCode: stateCode.toUpperCase(),
+      createdAt: DateTime.now(),
+    );
+
+    await docRef.set(order.toMap());
+
+    // Save order items in subcollection orders/{orderId}/orderItems/{productId}
+    for (var item in items) {
+      await _ordersRef.doc(order.id).collection('orderItems').doc(item.productId).set(item.toMap());
+    }
+
+    // Save history entry in orders/{orderId}/orderStatusHistory/{historyId}
+    final history = OrderStatusHistory(
+      fromStatus: 'new',
+      toStatus: 'pending_salesperson_review',
+      changedBy: userId,
+      changedByRole: 'customer',
+      remarks: 'Order PO submitted by customer',
+      timestamp: DateTime.now(),
+    );
+    await _ordersRef.doc(order.id).collection('orderStatusHistory').add(history.toMap());
+
+    // Send notification
+    await sendNotification(
+      recipientId: salespersonId ?? 'company_admin',
+      type: 'order',
+      event: 'order_placed',
+      title: 'New PO Order Placed: $poRef',
+      message: 'New order $poRef received from $userCategory.',
+      relatedOrderId: order.id,
+    );
+
+    return order;
   }
 
-  /// Step 7 of Flow: Salesperson reviews order, applies unit prices/estimate.
-  Future<void> reviewOrderAndSubmitEstimate({
+  Future<void> saveCustomerPricing(CustomerPricing pricing) async {
+    await _customerPricingRef.doc(pricing.id).set(pricing.toMap(), SetOptions(merge: true));
+  }
+
+  Future<PriceApproval> submitPriceApproval({
     required String orderId,
-    required List<OrderItem> updatedItems,
+    required String userId,
+    required String salespersonId,
+    required double originalTotal,
+    required double requestedTotal,
     required double discountPercent,
-    required double taxAmount,
-    required String salespersonNotes,
-    bool requiresManagerApproval = false,
   }) async {
-    try {
-      double subtotal = 0.0;
-      for (var item in updatedItems) {
-        final uPrice = item.unitPrice ?? 0.0;
-        subtotal += (uPrice * item.quantity);
-      }
+    final docRef = _priceApprovalsRef.doc();
+    final approval = PriceApproval(
+      approvalId: docRef.id,
+      priceListId: 'PL_CUSTOM_$orderId',
+      requestedBy: salespersonId,
+      requestedTo: 'MGR_SALES_01',
+      status: 'pending',
+      reason: 'Volume discount request ($discountPercent%)',
+      remarks: 'Awaiting Manager review',
+      orderId: orderId,
+      userId: userId,
+      originalTotal: originalTotal,
+      requestedTotal: requestedTotal,
+      discountPercent: discountPercent,
+      createdAt: DateTime.now(),
+    );
 
-      final discountAmount = subtotal * (discountPercent / 100.0);
-      final grandTotal = (subtotal - discountAmount) + taxAmount;
-
-      final estimateDetails = {
-        'discountPercent': discountPercent,
-        'discountAmount': discountAmount,
-        'taxAmount': taxAmount,
-        'subtotal': subtotal,
-        'grandTotal': grandTotal,
-        'salespersonNotes': salespersonNotes,
-        'estimatedAt': FieldValue.serverTimestamp(),
-      };
-
-      final newStatus = requiresManagerApproval ? 'pending_manager_approval' : 'estimate_provided';
-
-      await _ordersRef.doc(orderId).update({
-        'items': updatedItems.map((i) => i.toMap()).toList(),
-        'estimateDetails': estimateDetails,
-        'status': newStatus,
-        'priceApprovalStatus': requiresManagerApproval ? 'pending_manager_approval' : 'none',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
-    }
+    await docRef.set(approval.toMap());
+    await _ordersRef.doc(orderId).update({
+      'status': 'pending_manager_approval',
+      'priceApprovalStatus': 'pending_manager_approval',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    return approval;
   }
 
-  /// Step 8 & 9 of Flow: User approves estimate. Queues Step 9 Notification to Salesperson / Planning team.
-  Future<void> confirmOrderWithEstimate({required String orderId}) async {
-    try {
-      final orderDoc = await _ordersRef.doc(orderId).get();
-      final poRef = orderDoc.data()?['orderReferenceNumber'] ?? 'PO-2026';
-      final spId = orderDoc.data()?['salespersonId'];
+  Future<Estimate> createAndSendEstimate({
+    required String orderId,
+    required String customerId,
+    required String salesPersonId,
+    required List<EstimateItem> items,
+    required double subtotal,
+    required double discount,
+    required double tax,
+  }) async {
+    final docRef = _estimatesRef.doc();
+    final total = (subtotal - discount) + tax;
+    final estimate = Estimate(
+      estimateId: docRef.id,
+      estimateNumber: 'EST-2026-${docRef.id.substring(0, 5).toUpperCase()}',
+      orderId: orderId,
+      customerId: customerId,
+      salesPersonId: salesPersonId,
+      status: 'sent',
+      subtotal: subtotal,
+      discount: discount,
+      tax: tax,
+      total: total,
+      validUntil: DateTime.now().add(const Duration(days: 7)),
+      items: items,
+      createdAt: DateTime.now(),
+      sentAt: DateTime.now(),
+    );
 
-      await _ordersRef.doc(orderId).update({
-        'status': 'user_confirmed',
-        'userConfirmedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Step 9 Notification Trigger: Fire notification to Salesperson & Planning team via WhatsApp/Email
-      await queueNotificationEvent(
-        orderId: orderId,
-        orderReferenceNumber: poRef,
-        eventType: 'estimate_approved_step9',
-        recipients: ['salesperson', 'production_planning_team', 'company_email'],
-        payload: {
-          'message': 'Customer confirmed estimate for $poRef. Order ready for Production Planner.',
-          'salespersonId': spId,
-        },
-      );
-    } catch (e) {
-      rethrow;
+    await docRef.set(estimate.toMap());
+    for (var i in items) {
+      await _estimatesRef.doc(estimate.estimateId).collection('estimateItems').doc(i.productId).set(i.toMap());
     }
+
+    await _ordersRef.doc(orderId).update({
+      'status': 'estimate_provided',
+      'subtotal': subtotal,
+      'discount': discount,
+      'tax': tax,
+      'total': total,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await sendNotification(
+      recipientId: customerId,
+      type: 'estimate',
+      event: 'estimate_ready',
+      title: 'Estimate Ready for Order',
+      message: 'Your estimate ${estimate.estimateNumber} is ready for review.',
+      relatedOrderId: orderId,
+      relatedEstimateId: estimate.estimateId,
+    );
+
+    return estimate;
   }
 
-  /// Step 10 of Flow: Handed to Production Planner (Exit point of Order Placement flow).
-  Future<void> releaseToProductionPlanner({required String orderId}) async {
-    try {
-      await _ordersRef.doc(orderId).update({
-        'status': 'sent_to_production',
-        'productionReleasedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
-    }
+  Future<void> confirmOrderEstimate({required String orderId, required String estimateId}) async {
+    await _estimatesRef.doc(estimateId).update({
+      'status': 'approved',
+      'customerResponse': 'approved',
+      'respondedAt': FieldValue.serverTimestamp(),
+    });
+
+    await _ordersRef.doc(orderId).update({
+      'status': 'user_confirmed',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await sendNotification(
+      recipientId: 'salesperson',
+      type: 'order',
+      event: 'estimate_approved',
+      title: 'Customer Approved Estimate',
+      message: 'Estimate approved by customer. Ready for Production Planner.',
+      relatedOrderId: orderId,
+      relatedEstimateId: estimateId,
+    );
   }
 
-  /// Stream live orders for a specific user
+  Future<void> sendNotification({
+    required String recipientId,
+    required String type,
+    required String event,
+    required String title,
+    required String message,
+    required String relatedOrderId,
+    String relatedEstimateId = '',
+  }) async {
+    final docRef = _notificationsRef.doc();
+    final item = NotificationQueueItem(
+      notificationId: docRef.id,
+      recipientId: recipientId,
+      type: type,
+      event: event,
+      title: title,
+      message: message,
+      relatedOrderId: relatedOrderId,
+      relatedEstimateId: relatedEstimateId,
+      status: 'pending',
+      createdAt: DateTime.now(),
+    );
+
+    await docRef.set(item.toMap());
+  }
+
+  // ===========================================================================
+  // PHASE 3: PRODUCTION HANDOFFS & LOYALTY ACCOUNTS
+  // ===========================================================================
+
+  Future<ProductionHandoff> createProductionHandoff({
+    required String orderId,
+    required String orderReference,
+    required String customerId,
+    required String salesPersonId,
+    required String handoffBy,
+    String notes = '',
+  }) async {
+    final docRef = _handoffsRef.doc();
+    final handoff = ProductionHandoff(
+      handoffId: docRef.id,
+      orderId: orderId,
+      orderReference: orderReference,
+      customerId: customerId,
+      salesPersonId: salesPersonId,
+      status: 'pending',
+      handoffBy: handoffBy,
+      handoffDate: DateTime.now(),
+      notes: notes,
+      createdAt: DateTime.now(),
+    );
+
+    await docRef.set(handoff.toMap());
+    await _ordersRef.doc(orderId).update({
+      'status': 'sent_to_production',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    return handoff;
+  }
+
+  Future<void> updateCustomerLoyalty({
+    required String userId,
+    required String orderId,
+    required int pointsEarned,
+    required double orderTotal,
+  }) async {
+    final docRef = _customerSummaryRef.doc(userId);
+    final summaryDoc = await docRef.get();
+
+    int existingOrders = 0;
+    double existingTotal = 0.0;
+    int existingPoints = 0;
+
+    if (summaryDoc.exists && summaryDoc.data() != null) {
+      final data = summaryDoc.data()!;
+      existingOrders = (data['totalOrders'] ?? 0).toInt();
+      existingTotal = (data['totalPurchaseValue'] ?? 0.0).toDouble();
+      existingPoints = (data['loyaltyPoints'] ?? 0).toInt();
+    }
+
+    final newOrders = existingOrders + 1;
+    final newTotal = existingTotal + orderTotal;
+    final newPoints = existingPoints + pointsEarned;
+    final tier = newTotal >= 500000 ? 'Gold' : (newTotal >= 200000 ? 'Silver' : 'Bronze');
+
+    final summary = CustomerSummary(
+      userId: userId,
+      totalOrders: newOrders,
+      totalPurchaseValue: newTotal,
+      loyaltyPoints: newPoints,
+      currentTier: tier,
+      updatedAt: DateTime.now(),
+    );
+
+    await docRef.set(summary.toMap(), SetOptions(merge: true));
+
+    final txRef = _loyaltyTransactionsRef.doc();
+    final tx = LoyaltyTransaction(
+      transactionId: txRef.id,
+      orderId: orderId,
+      type: 'order_reward',
+      points: pointsEarned,
+      balanceAfter: newPoints,
+      remarks: 'Reward points earned for Order $orderId',
+      createdAt: DateTime.now(),
+    );
+    await txRef.set(tx.toMap());
+  }
+
+  // ===========================================================================
+  // STREAMS & CUSTOM DESIGN REQUESTS
+  // ===========================================================================
+
   Stream<List<TileOrder>> streamUserOrders(String userId) {
-    return _ordersRef
-        .where('userId', isEqualTo: userId)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TileOrder.fromMap(doc.data(), doc.id))
-            .toList());
+    return _ordersRef.where('userId', isEqualTo: userId).snapshots().map(
+        (snap) => snap.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList());
   }
-
-  /// Stream live orders assigned to a specific Salesperson
-  Stream<List<TileOrder>> streamSalespersonOrders(String salespersonId) {
-    return _ordersRef
-        .where('salespersonId', isEqualTo: salespersonId)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => TileOrder.fromMap(doc.data(), doc.id))
-            .toList());
-  }
-
-  // ===========================================================================
-  // 6. BUCKET (CART) & WISHLIST OPERATIONS
-  // ===========================================================================
-
-  CollectionReference<Map<String, dynamic>> _userBucketRef(String userId) =>
-      _usersRef.doc(userId).collection('bucket');
-
-  Future<void> addToBucket(String userId, BucketItem item) async {
-    try {
-      await _userBucketRef(userId).doc(item.tileId).set(item.toMap(), SetOptions(merge: true));
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<List<BucketItem>> getBucketItems(String userId) async {
-    try {
-      final snapshot = await _userBucketRef(userId).get();
-      return snapshot.docs
-          .map((doc) => BucketItem.fromMap(doc.data()))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // ===========================================================================
-  // 7. CUSTOM DESIGN REQUESTS (MODULE 7)
-  // ===========================================================================
 
   Future<DesignRequest> submitDesignRequest(DesignRequest request) async {
-    try {
-      final docRef = _designRequestsRef.doc();
-      final newRequest = DesignRequest(
-        id: docRef.id,
-        userId: request.userId,
-        size: request.size,
-        color: request.color,
-        surface: request.surface,
-        referenceImageUrl: request.referenceImageUrl,
-        quantityRequirement: request.quantityRequirement,
-        remarks: request.remarks,
-        status: 'submitted',
-        createdAt: DateTime.now(),
-      );
-
-      await docRef.set(newRequest.toMap());
-      return newRequest;
-    } catch (e) {
-      rethrow;
-    }
+    final docRef = _designRequestsRef.doc();
+    final newReq = DesignRequest(
+      id: docRef.id,
+      userId: request.userId,
+      size: request.size,
+      color: request.color,
+      surface: request.surface,
+      referenceImageUrl: request.referenceImageUrl,
+      quantityRequirement: request.quantityRequirement,
+      remarks: request.remarks,
+      status: 'submitted',
+      createdAt: DateTime.now(),
+    );
+    await docRef.set(newReq.toMap());
+    return newReq;
   }
 
   Future<List<DesignRequest>> getUserDesignRequests(String userId) async {
-    try {
-      final snapshot = await _designRequestsRef
-          .where('userId', isEqualTo: userId)
-          .get();
-      return snapshot.docs
-          .map((doc) => DesignRequest.fromMap(doc.data(), doc.id))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
+    final snapshot = await _designRequestsRef.where('userId', isEqualTo: userId).get();
+    return snapshot.docs.map((doc) => DesignRequest.fromMap(doc.data(), doc.id)).toList();
   }
 }

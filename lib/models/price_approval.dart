@@ -1,72 +1,90 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Represents a Price List / Custom Discount Approval Request for Sales Manager or Super Admin (Step 7 of Flow)
+/// Price Approval Document in `priceApprovals` collection per PDF schema
 class PriceApproval {
-  final String id;
+  final String approvalId; // Unique Approval ID
+  final String priceListId; // Price List ID
+  final String requestedBy; // Salesperson ID
+  final String requestedTo; // Manager/Admin ID
+  final String status; // pending / approved / rejected
+  final String reason; // Reason for special pricing
+  final String remarks; // Manager remarks
   final String orderId;
   final String userId;
-  final String salespersonId;
   final double originalTotal;
   final double requestedTotal;
   final double discountPercent;
-  final String status; // 'pending_manager_approval', 'approved', 'rejected'
-  final String salesManagerNotes;
-  final String? approvedBy; // Sales Manager ID / Super Admin ID
   final DateTime? createdAt;
-  final DateTime? approvedAt;
+  final DateTime? reviewedAt;
 
   const PriceApproval({
-    required this.id,
-    required this.orderId,
-    required this.userId,
-    required this.salespersonId,
-    required this.originalTotal,
-    required this.requestedTotal,
-    required this.discountPercent,
-    this.status = 'pending_manager_approval',
-    this.salesManagerNotes = '',
-    this.approvedBy,
+    required this.approvalId,
+    required this.priceListId,
+    required this.requestedBy,
+    required this.requestedTo,
+    this.status = 'pending',
+    this.reason = 'Volume discount request',
+    this.remarks = '',
+    this.orderId = '',
+    this.userId = '',
+    this.originalTotal = 0.0,
+    this.requestedTotal = 0.0,
+    this.discountPercent = 0.0,
     this.createdAt,
-    this.approvedAt,
+    this.reviewedAt,
   });
+
+  String get id => approvalId;
+  String get salespersonId => requestedBy;
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'approvalId': approvalId,
+      'id': approvalId,
+      'priceListId': priceListId,
+      'requestedBy': requestedBy,
+      'salespersonId': requestedBy,
+      'requestedTo': requestedTo,
+      'approvedBy': requestedTo,
+      'status': status,
+      'reason': reason,
+      'remarks': remarks,
+      'salesManagerNotes': remarks,
       'orderId': orderId,
       'userId': userId,
-      'salespersonId': salespersonId,
       'originalTotal': originalTotal,
       'requestedTotal': requestedTotal,
       'discountPercent': discountPercent,
-      'status': status,
-      'salesManagerNotes': salesManagerNotes,
-      'approvedBy': approvedBy,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
-      'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
+      'reviewedAt': reviewedAt != null ? Timestamp.fromDate(reviewedAt!) : null,
+      'approvedAt': reviewedAt != null ? Timestamp.fromDate(reviewedAt!) : null,
     };
   }
 
   factory PriceApproval.fromMap(Map<String, dynamic> map, String docId) {
     return PriceApproval(
-      id: docId,
+      approvalId: docId,
+      priceListId: map['priceListId'] ?? '',
+      requestedBy: map['requestedBy'] ?? map['salespersonId'] ?? '',
+      requestedTo: map['requestedTo'] ?? map['approvedBy'] ?? '',
+      status: map['status'] ?? 'pending',
+      reason: map['reason'] ?? '',
+      remarks: map['remarks'] ?? map['salesManagerNotes'] ?? '',
       orderId: map['orderId'] ?? '',
       userId: map['userId'] ?? '',
-      salespersonId: map['salespersonId'] ?? '',
       originalTotal: (map['originalTotal'] ?? 0.0).toDouble(),
       requestedTotal: (map['requestedTotal'] ?? 0.0).toDouble(),
       discountPercent: (map['discountPercent'] ?? 0.0).toDouble(),
-      status: map['status'] ?? 'pending_manager_approval',
-      salesManagerNotes: map['salesManagerNotes'] ?? '',
-      approvedBy: map['approvedBy'],
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
-      approvedAt: map['approvedAt'] is Timestamp
-          ? (map['approvedAt'] as Timestamp).toDate()
-          : null,
+      reviewedAt: map['reviewedAt'] is Timestamp
+          ? (map['reviewedAt'] as Timestamp).toDate()
+          : (map['approvedAt'] is Timestamp
+              ? (map['approvedAt'] as Timestamp).toDate()
+              : null),
     );
   }
 }

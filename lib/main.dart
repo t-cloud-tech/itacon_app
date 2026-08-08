@@ -4,6 +4,7 @@ import 'services/firestore_service.dart';
 import 'models/user_category.dart';
 import 'models/tile_product.dart';
 import 'models/tile_order.dart';
+import 'models/estimate.dart';
 import 'models/design_request.dart';
 import 'firebase_options.dart';
 import 'screens/auth_screen.dart';
@@ -55,7 +56,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
   bool _isLoading = false;
   String? _statusMessage;
 
-  // Data states
   Map<String, List<Map<String, dynamic>>> _groupedUserData = {};
   List<Map<String, dynamic>> _salespersonData = [];
   List<TileProduct> _tileCatalogue = [];
@@ -75,7 +75,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     super.dispose();
   }
 
-  /// Refresh all data from Cloud Firestore
   Future<void> _refreshAllDatabaseData() async {
     setState(() => _isLoading = true);
     try {
@@ -101,7 +100,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Seed Users for All 5 Categories with State Codes
   Future<void> _seedAllUserCategories() async {
     setState(() {
       _isLoading = true;
@@ -114,7 +112,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543201',
         fullName: 'Apex Ceramics Dealer',
         role: 'dealer',
-        stateCode: 'GJ', // Gujarat State Code
+        stateCode: 'GJ',
         companyName: 'Apex Tiles & Sanitary',
         isVerified: true,
       );
@@ -124,7 +122,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543202',
         fullName: 'Ar. Priya Sharma',
         role: 'architect',
-        stateCode: 'MH', // Maharashtra State Code
+        stateCode: 'MH',
         companyName: 'Modern Space Designs',
         isVerified: true,
       );
@@ -134,7 +132,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543203',
         fullName: 'BuildCorp Infra',
         role: 'builder',
-        stateCode: 'DL', // Delhi State Code
+        stateCode: 'DL',
         companyName: 'BuildCorp Infrastructure Ltd',
         isVerified: true,
       );
@@ -154,7 +152,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         phoneNumber: '+919876543205',
         fullName: 'City Tiles Retail',
         role: 'retailer',
-        stateCode: 'KA', // Karnataka State Code
+        stateCode: 'KA',
         companyName: 'City Hardware & Tiles',
         isVerified: true,
       );
@@ -162,7 +160,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
       await _refreshAllDatabaseData();
       setState(() {
         _statusMessage =
-            '✅ Saved & verified all User Categories in top-level Firestore collections (dealers, architects, builders, wholesalers, retailers) with State Codes (GJ, MH, DL, KA)!';
+            '✅ Saved & verified User Profiles in primary `users` collection and category collections (`dealers`, `architects`, `wholesalers`, etc.) matching PDF Schema!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -171,7 +169,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Seed Salesperson Data
   Future<void> _seedSalespersons() async {
     setState(() {
       _isLoading = true;
@@ -190,8 +187,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
 
       await _refreshAllDatabaseData();
       setState(() {
-        _statusMessage =
-            '✅ Saved Salesperson in salespersons collection!';
+        _statusMessage = '✅ Saved Salesperson profile in `salesPersons` collection!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -200,7 +196,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Seed Sample Tile Products Catalogue
   Future<void> _seedTileCatalogue() async {
     setState(() {
       _isLoading = true;
@@ -212,7 +207,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
       await _refreshAllDatabaseData();
       setState(() {
         _statusMessage =
-            '✅ Seeded ITACON Product Catalogue tiles (600x1200 Glossy, 800x1600 High Gloss, 200x1200 Wood Plank)!';
+            '✅ Seeded ITACON Catalogue into `products` and `categories` collections!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -221,19 +216,18 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Simulate Complete 10-Step Order Placement & Price Approval Workflow
-  Future<void> _simulate10StepOrderPlacementWorkflow() async {
+  Future<void> _simulateFullPdfDatabaseWorkflow() async {
     setState(() {
       _isLoading = true;
       _statusMessage = null;
     });
 
     try {
-      // Step 5 & 6: User places PO Order with State Code (GJ)
+      // Phase 1: Place PO Order
       final order = await _firestoreService.placeOrder(
         userId: 'TEST_DEALER_01',
         userCategory: 'dealer',
-        stateCode: 'GJ', // Format: PO-GJ-2026-XXXXX
+        stateCode: 'GJ',
         salespersonId: 'SP_EXE_001',
         orderType: 'ready_stock',
         deliveryAddress: 'Plot 42, GIDC Industrial Estate, Morbi, Gujarat',
@@ -241,86 +235,94 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         remarks: 'Please send in heavy wooden pallet packing',
         items: [
           const OrderItem(
-            tileId: 'TILE_STATUARIO_01',
-            tileName: 'Statuario Marble White',
+            productId: 'TILE_STATUARIO_01',
+            sku: 'ITA-STAT-6012',
+            productName: 'Statuario Marble White',
             size: '600x1200',
             surface: 'High Gloss',
+            color: 'White',
             quantity: 50,
+            unit: 'box',
             moq: 20,
+            basePrice: 65.0,
           ),
           const OrderItem(
-            tileId: 'TILE_CARVING_GREY_02',
-            tileName: 'Armani Grey Carving',
+            productId: 'TILE_CARVING_GREY_02',
+            sku: 'ITA-CARV-8016',
+            productName: 'Armani Grey Carving',
             size: '800x1600',
             surface: 'Carving',
+            color: 'Grey',
             quantity: 30,
+            unit: 'box',
             moq: 15,
+            basePrice: 85.0,
           ),
         ],
       );
 
-      // Step 7: Salesperson reviews, applies unit prices, and requests Sales Manager approval for custom discount
-      final updatedItems = [
-        const OrderItem(
-          tileId: 'TILE_STATUARIO_01',
-          tileName: 'Statuario Marble White',
-          size: '600x1200',
-          surface: 'High Gloss',
-          quantity: 50,
-          moq: 20,
-          unitPrice: 60.0,
-          totalPrice: 3000.0,
-        ),
-        const OrderItem(
-          tileId: 'TILE_CARVING_GREY_02',
-          tileName: 'Armani Grey Carving',
-          size: '800x1600',
-          surface: 'Carving',
-          quantity: 30,
-          moq: 15,
-          unitPrice: 80.0,
-          totalPrice: 2400.0,
-        ),
-      ];
-
-      // Submit Price Approval request to Sales Manager
-      final approval = await _firestoreService.submitPriceListForManagerApproval(
+      // Phase 2: Price Approval Request & Estimate Creation
+      await _firestoreService.submitPriceApproval(
         orderId: order.id,
         userId: 'TEST_DEALER_01',
         salespersonId: 'SP_EXE_001',
-        originalTotal: 5400.0,
-        requestedTotal: 4860.0,
+        originalTotal: 5800.0,
+        requestedTotal: 5220.0,
         discountPercent: 10.0,
       );
 
-      // Sales Manager Approves Price List / Discount
-      await _firestoreService.approvePriceListByManager(
-        approvalId: approval.id,
+      final estimate = await _firestoreService.createAndSendEstimate(
         orderId: order.id,
-        managerId: 'MGR_SALES_01',
-        isApproved: true,
-        notes: 'Approved 10% volume discount for Apex Ceramics Dealer.',
+        customerId: 'TEST_DEALER_01',
+        salesPersonId: 'SP_EXE_001',
+        subtotal: 5800.0,
+        discount: 580.0,
+        tax: 522.0,
+        items: [
+          const EstimateItem(
+            productId: 'TILE_STATUARIO_01',
+            productName: 'Statuario Marble White',
+            quantity: 50,
+            unitPrice: 60.0,
+            discount: 250.0,
+          ),
+          const EstimateItem(
+            productId: 'TILE_CARVING_GREY_02',
+            productName: 'Armani Grey Carving',
+            quantity: 30,
+            unitPrice: 80.0,
+            discount: 330.0,
+          ),
+        ],
       );
 
-      // Attach estimate details to order
-      await _firestoreService.reviewOrderAndSubmitEstimate(
+      // Customer approves estimate
+      await _firestoreService.confirmOrderEstimate(
         orderId: order.id,
-        updatedItems: updatedItems,
-        discountPercent: 10.0,
-        taxAmount: 486.0,
-        salespersonNotes: 'Approved 10% volume discount applied.',
+        estimateId: estimate.estimateId,
       );
 
-      // Step 8 & 9: Customer approves estimate, triggering Step 9 Notifications
-      await _firestoreService.confirmOrderWithEstimate(orderId: order.id);
+      // Phase 3: Production Handoff & Customer Loyalty Points Update
+      await _firestoreService.createProductionHandoff(
+        orderId: order.id,
+        orderReference: order.orderReference,
+        customerId: 'TEST_DEALER_01',
+        salesPersonId: 'SP_EXE_001',
+        handoffBy: 'SP_EXE_001',
+        notes: 'Handed off for immediate dispatch from Morbi plant.',
+      );
 
-      // Step 10: Release order to Production Planner
-      await _firestoreService.releaseToProductionPlanner(orderId: order.id);
+      await _firestoreService.updateCustomerLoyalty(
+        userId: 'TEST_DEALER_01',
+        orderId: order.id,
+        pointsEarned: 100,
+        orderTotal: 5742.0,
+      );
 
       await _refreshAllDatabaseData();
       setState(() {
         _statusMessage =
-            '✅ Complete 10-Step Order Flow Executed! PO Ref: ${order.orderReferenceNumber} | Notifications Queued | Price List Approved by Sales Manager | Released to Production Planner!';
+            '✅ Complete PDF Workflow executed across Phase 1, Phase 2, and Phase 3 collections! `users`, `salesPersons`, `products`, `orders`, `estimates`, `notifications`, `handoffs`, `customerSummary`, `loyaltyTransactions` verified!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -329,7 +331,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     }
   }
 
-  /// Simulate Custom Design Request Submission (Module 7)
   Future<void> _simulateDesignRequest() async {
     setState(() {
       _isLoading = true;
@@ -351,8 +352,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
       await _refreshAllDatabaseData();
 
       setState(() {
-        _statusMessage =
-            '✅ Submitted Custom Design Request to Design Team collection!';
+        _statusMessage = '✅ Saved in `design_requests` collection!';
       });
     } catch (e) {
       setState(() => _statusMessage = '❌ Error: $e');
@@ -365,7 +365,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ITACON Database Dashboard'),
+        title: const Text('ITACON Official PDF Schema Dashboard'),
         backgroundColor: const Color(0xFF1A237E),
         foregroundColor: Colors.white,
         actions: [
@@ -382,9 +382,9 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.people), text: 'Users & Sales'),
-            Tab(icon: Icon(Icons.grid_view), text: 'Products (Catalogue)'),
-            Tab(icon: Icon(Icons.shopping_bag), text: '10-Step Order Workflow'),
-            Tab(icon: Icon(Icons.design_services), text: 'Custom Design Requests'),
+            Tab(icon: Icon(Icons.grid_view), text: 'Products & Categories'),
+            Tab(icon: Icon(Icons.shopping_bag), text: 'Phase 1, 2, 3 Workflow'),
+            Tab(icon: Icon(Icons.design_services), text: 'Design Requests'),
           ],
         ),
       ),
@@ -426,9 +426,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     );
   }
 
-  // ===========================================================================
-  // TAB 1: USERS & SALESPERSONS
-  // ===========================================================================
   Widget _buildUsersTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -438,7 +435,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           ElevatedButton.icon(
             onPressed: _isLoading ? null : _seedAllUserCategories,
             icon: const Icon(Icons.category_rounded),
-            label: const Text('Seed User Categories with State Codes'),
+            label: const Text('Seed Users (`users` & Category collections)'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A237E),
               foregroundColor: Colors.white,
@@ -448,7 +445,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           ElevatedButton.icon(
             onPressed: _isLoading ? null : _seedSalespersons,
             icon: const Icon(Icons.badge_rounded),
-            label: const Text('Seed Salesperson Data'),
+            label: const Text('Seed Salespersons (`salesPersons` collection)'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF388E3C),
               foregroundColor: Colors.white,
@@ -488,9 +485,9 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                         children: (_groupedUserData[category.id] ?? [])
                             .map((u) => ListTile(
                                   dense: true,
-                                  title: Text(u['fullName'] ?? ''),
+                                  title: Text(u['name'] ?? u['fullName'] ?? ''),
                                   subtitle: Text(
-                                      'Firm: ${u['companyName']} | State: ${u['stateCode']} | Phone: ${u['phoneNumber']}'),
+                                      'Firm: ${u['companyName']} | State: ${u['state']} | Phone: ${u['phone']}'),
                                 ))
                             .toList(),
                       ),
@@ -507,7 +504,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Salespersons Collection (salespersons)',
+                  const Text('salesPersons Collection',
                       style: TextStyle(
                           fontWeight: FontWeight.bold, color: Colors.green)),
                   const Divider(),
@@ -519,9 +516,9 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                       children: _salespersonData
                           .map((sp) => ListTile(
                                 dense: true,
-                                title: Text(sp['fullName'] ?? ''),
+                                title: Text(sp['name'] ?? sp['fullName'] ?? ''),
                                 subtitle: Text(
-                                    'Code: ${sp['referralCode']} | Phone: ${sp['phoneNumber']}'),
+                                    'Code: ${sp['referralCode']} | Phone: ${sp['phone']} | Region: ${sp['region']}'),
                               ))
                           .toList(),
                     ),
@@ -534,9 +531,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     );
   }
 
-  // ===========================================================================
-  // TAB 2: PRODUCTS CATALOGUE
-  // ===========================================================================
   Widget _buildProductsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -546,7 +540,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
           ElevatedButton.icon(
             onPressed: _isLoading ? null : _seedTileCatalogue,
             icon: const Icon(Icons.cloud_upload_rounded),
-            label: const Text('Seed Sample Tile Products Catalogue'),
+            label: const Text('Seed Products & Categories (`products`, `categories`)'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A237E),
               foregroundColor: Colors.white,
@@ -575,7 +569,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: tile.stockStatus == 'Available Now'
+                            color: tile.stockStatus == 'available' || tile.stockStatus == 'Available Now'
                                 ? Colors.green.shade100
                                 : Colors.amber.shade100,
                             borderRadius: BorderRadius.circular(8),
@@ -585,7 +579,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: tile.stockStatus == 'Available Now'
+                              color: tile.stockStatus == 'available' || tile.stockStatus == 'Available Now'
                                   ? Colors.green.shade900
                                   : Colors.amber.shade900,
                             ),
@@ -595,11 +589,11 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Size: ${tile.size} | Surface: ${tile.surface} | Base Color: ${tile.baseColor} | Pattern: ${tile.pattern}',
+                      'SKU: ${tile.sku} | Size: ${tile.size} | Surface: ${tile.surface} | Color: ${tile.color} | Pattern: ${tile.pattern}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     Text(
-                      'MoQ: ${tile.moq} Boxes | Base Price: ₹${tile.basePrice} | Random Faces: ${tile.randomPattern}',
+                      'MoQ: ${tile.moq} ${tile.unit}s | Base Price: ₹${tile.basePrice} | Available Qty: ${tile.availableQuantity}',
                       style: const TextStyle(
                           fontSize: 12, fontWeight: FontWeight.w500),
                     ),
@@ -612,9 +606,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     );
   }
 
-  // ===========================================================================
-  // TAB 3: 10-STEP ORDER PLACEMENT WORKFLOW
-  // ===========================================================================
   Widget _buildOrdersTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -622,9 +613,9 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ElevatedButton.icon(
-            onPressed: _isLoading ? null : _simulate10StepOrderPlacementWorkflow,
+            onPressed: _isLoading ? null : _simulateFullPdfDatabaseWorkflow,
             icon: const Icon(Icons.play_circle_fill_rounded),
-            label: const Text('Simulate 10-Step Order Placement & Price Approval Workflow'),
+            label: const Text('Simulate Full PDF Workflow (Phase 1, Phase 2, Phase 3)'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF8F00),
               foregroundColor: Colors.white,
@@ -649,7 +640,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                   children: [
                     Row(
                       children: [
-                        Text(order.orderReferenceNumber,
+                        Text(order.orderReference,
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -674,7 +665,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'State: ${order.stateCode} | Order Type: ${order.orderType == 'ready_stock' ? 'Ready Stock' : 'Made Against Order'} | User Category: ${order.userCategory}',
+                      'State: ${order.stateCode} | Order Type: ${order.orderType} | Category: ${order.userCategory}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     Text(
@@ -690,39 +681,15 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                         padding: const EdgeInsets.symmetric(vertical: 2.0),
                         child: Row(
                           children: [
-                            Text(
-                                '• ${item.tileName} (${item.size}, ${item.surface}) x ${item.quantity} Qty'),
+                            Text('• ${item.productName} (${item.size}) x ${item.quantity} ${item.unit}s'),
                             const Spacer(),
-                            if (item.unitPrice != null)
-                              Text('₹${item.unitPrice} / unit = ₹${item.totalPrice}',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12))
-                            else
-                              const Text('Pending Estimate',
-                                  style: TextStyle(
-                                      color: Colors.orange, fontSize: 11)),
+                            Text('₹${item.finalPrice > 0 ? item.finalPrice : item.basePrice} / unit',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12)),
                           ],
                         ),
                       ),
-                    if (order.estimateDetails['grandTotal'] != null &&
-                        (order.estimateDetails['grandTotal'] as num) > 0) ...[
-                      const Divider(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Grand Total (Estimated):',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text(
-                            '₹${order.estimateDetails['grandTotal']}',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.green),
-                          ),
-                        ],
-                      ),
-                    ]
                   ],
                 ),
               ),
@@ -732,9 +699,6 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     );
   }
 
-  // ===========================================================================
-  // TAB 4: CUSTOM DESIGN REQUESTS
-  // ===========================================================================
   Widget _buildDesignRequestsTab() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
