@@ -194,5 +194,10 @@ class AuthService {
       isActive: true,
     );
   }
+
+  /// Signs out current user
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
 }
 

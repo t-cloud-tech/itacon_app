@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_category.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import '../main.dart';
+import 'home_screen.dart';
 import 'referral_gate_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -125,10 +125,9 @@ class _AuthScreenState extends State<AuthScreen> {
         const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
       );
 
-      // On Sign In, user gets direct access to app to order products!
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -184,7 +183,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (hasSalesperson) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       } else {
         Navigator.pushReplacement(
