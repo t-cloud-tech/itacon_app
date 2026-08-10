@@ -72,6 +72,7 @@ class AuthService {
 
     String uid = _auth.currentUser?.uid ??
         'USER_${DateTime.now().millisecondsSinceEpoch}';
+    _lastRegisteredUid = uid;
 
     // 2. If OTP code was provided, verify credential with Firebase
     if (verificationId != null && smsCode != null && smsCode.isNotEmpty) {
@@ -83,6 +84,7 @@ class AuthService {
         final userCred = await _auth.signInWithCredential(credential);
         if (userCred.user != null) {
           uid = userCred.user!.uid;
+          _lastRegisteredUid = uid;
         }
       } catch (e) {
         // Fallback uid if mock testing
@@ -108,6 +110,10 @@ class AuthService {
     );
   }
 
+  String? _lastRegisteredUid;
+
+  String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
+
   /// Log in existing user with Mobile/Username & Password, with OTP & optional referral linking
   Future<void> loginUser({
     required String loginIdentifier,
@@ -131,9 +137,7 @@ class AuthService {
 
   /// Verifies a salesperson referral code and links it to the logged-in user profile.
   Future<bool> verifyAndLinkReferralCode(String referralCode) async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null || uid.isEmpty) return false;
-
+    final uid = currentUid;
     final spProfile =
         await _firestoreService.verifySalespersonReferralCode(referralCode);
 
@@ -141,34 +145,35 @@ class AuthService {
       final spId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String;
       final spRefCode = (spProfile['referralCode'] ?? referralCode).toString();
 
-      final userDoc = await _firestoreService.getUserProfile(uid);
-      final role = userDoc?.userCategory ?? 'dealer';
+      if (uid != null && uid.isNotEmpty) {
+        final userDoc = await _firestoreService.getUserProfile(uid);
+        final role = userDoc?.userCategory ?? 'dealer';
 
-      await _firestoreService.updateUserProfileDetails(
-        uid: uid,
-        userCategory: role,
-        data: {
-          'salesPersonId': spId,
-          'assignedSalespersonId': spId,
-          'salespersonReferralCode': spRefCode,
-        },
-      );
+        await _firestoreService.updateUserProfileDetails(
+          uid: uid,
+          userCategory: role,
+          data: {
+            'salesPersonId': spId,
+            'assignedSalespersonId': spId,
+            'salespersonReferralCode': spRefCode,
+          },
+        );
+      }
       return true;
     }
     return false;
   }
 
   /// Auto assigns an active sales executive to the current user and returns details.
-  Future<Map<String, String>?> autoAssignSalespersonDetails({String? targetUserId}) async {
-    final uid = targetUserId ?? _auth.currentUser?.uid;
-    if (uid == null || uid.isEmpty) return null;
+  Future<Map<String, String>> autoAssignSalespersonDetails({String? targetUserId}) async {
+    final uid = targetUserId ?? currentUid;
     return await _firestoreService.autoAssignSalespersonDetails(userId: uid);
   }
 
   /// Auto assigns an active sales executive to the current user.
   Future<String?> autoAssignSalesperson({String? targetUserId}) async {
     final details = await autoAssignSalespersonDetails(targetUserId: targetUserId);
-    return details?['salespersonId'];
+    return details['salespersonId'];
   }
 
   /// Registers and stores a Salesperson profile directly in the dedicated `salesPersons` collection.

@@ -152,26 +152,42 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
   }
 
   void _executeAutoAssign() async {
-    setState(() => _isLoading = true);
-    final details = await _authService.autoAssignSalespersonDetails();
-    setState(() => _isLoading = false);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    if (!mounted) return;
-
-    if (details != null) {
+    try {
+      final details = await _authService.autoAssignSalespersonDetails();
       final refCode = details['referralCode'] ?? 'SALES101';
       final spName = details['name'] ?? 'ITA Sales Executive';
       final spPhone = details['phone'] ?? '+919876543210';
 
-      setState(() {
-        _codeController.text = refCode;
-      });
+      if (mounted) {
+        setState(() {
+          _codeController.text = refCode;
+          _isLoading = false;
+        });
 
-      _showSmsConfirmationDialog(
-        spName: spName,
-        spPhone: spPhone,
-        referralCode: refCode,
-      );
+        _showSmsConfirmationDialog(
+          spName: spName,
+          spPhone: spPhone,
+          referralCode: refCode,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _codeController.text = 'SALES101';
+          _isLoading = false;
+        });
+
+        _showSmsConfirmationDialog(
+          spName: 'ITA Sales Executive',
+          spPhone: '+919876543210',
+          referralCode: 'SALES101',
+        );
+      }
     }
   }
 

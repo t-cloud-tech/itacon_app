@@ -245,7 +245,7 @@ class FirestoreService {
     }
   }
 
-  Future<Map<String, String>> autoAssignSalespersonDetails({required String userId}) async {
+  Future<Map<String, String>> autoAssignSalespersonDetails({String? userId}) async {
     try {
       final spQuery = await _salesPersonsRef
           .where('status', isEqualTo: 'active')
@@ -290,19 +290,21 @@ class FirestoreService {
         }
       }
 
-      final userDoc = await getUserProfile(userId);
-      final role = userDoc?.userCategory ?? 'dealer';
+      if (userId != null && userId.isNotEmpty) {
+        final userDoc = await getUserProfile(userId);
+        final role = userDoc?.userCategory ?? 'dealer';
 
-      await updateUserProfileDetails(
-        uid: userId,
-        userCategory: role,
-        data: {
-          'salesPersonId': assignedSalespersonId,
-          'assignedSalespersonId': assignedSalespersonId,
-          'salespersonReferralCode': spReferralCode,
-          'autoAssignedAt': FieldValue.serverTimestamp(),
-        },
-      );
+        await updateUserProfileDetails(
+          uid: userId,
+          userCategory: role,
+          data: {
+            'salesPersonId': assignedSalespersonId,
+            'assignedSalespersonId': assignedSalespersonId,
+            'salespersonReferralCode': spReferralCode,
+            'autoAssignedAt': FieldValue.serverTimestamp(),
+          },
+        );
+      }
 
       return {
         'salespersonId': assignedSalespersonId,
@@ -320,7 +322,7 @@ class FirestoreService {
     }
   }
 
-  Future<String?> autoAssignSalesperson({required String userId}) async {
+  Future<String?> autoAssignSalesperson({String? userId}) async {
     final details = await autoAssignSalespersonDetails(userId: userId);
     return details['salespersonId'];
   }
