@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Single item snapshot within `orders/{orderId}/orderItems/{productId}` per PDF schema
@@ -152,6 +153,9 @@ class TileOrder {
   final String stateCode;
   final String priceApprovalStatus;
   final Map<String, dynamic> estimateDetails;
+  final String? shipmentId;
+  final double? freightAmount;
+  final String dispatchStatus; // unassigned, assigned, dispatched, delivered
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -177,6 +181,9 @@ class TileOrder {
     this.stateCode = 'GJ',
     this.priceApprovalStatus = 'none',
     this.estimateDetails = const {},
+    this.shipmentId,
+    this.freightAmount,
+    this.dispatchStatus = 'unassigned',
     this.createdAt,
     this.updatedAt,
   }) : orderId = orderId ?? id;
@@ -219,6 +226,9 @@ class TileOrder {
               'subtotal': subtotal,
               'grandTotal': total,
             },
+      'shipmentId': shipmentId,
+      'freightAmount': freightAmount,
+      'dispatchStatus': dispatchStatus,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -228,7 +238,7 @@ class TileOrder {
 
   factory TileOrder.fromMap(Map<String, dynamic> map, String docId) {
     final oId = map['orderId'] ?? docId;
-    final ref = map['orderReference'] ?? map['orderReferenceNumber'] ?? 'PO-GJ-2026-${docId.substring(0, 5).toUpperCase()}';
+    final ref = map['orderReference'] ?? map['orderReferenceNumber'] ?? 'PO-GJ-2026-${docId.substring(0, min(5, docId.length)).toUpperCase()}';
     final sub = (map['subtotal'] ?? 0.0).toDouble();
     final disc = (map['discount'] ?? 0.0).toDouble();
     final tx = (map['tax'] ?? 0.0).toDouble();
@@ -263,6 +273,9 @@ class TileOrder {
       stateCode: map['stateCode'] ?? 'GJ',
       priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
       estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {}),
+      shipmentId: map['shipmentId'] as String?,
+      freightAmount: (map['freightAmount'] as num?)?.toDouble(),
+      dispatchStatus: map['dispatchStatus'] as String? ?? 'unassigned',
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
@@ -271,4 +284,66 @@ class TileOrder {
           : null,
     );
   }
+
+  TileOrder copyWith({
+    String? id,
+    String? orderId,
+    String? orderReference,
+    String? userId,
+    String? salesPersonId,
+    String? userCategory,
+    String? status,
+    String? orderType,
+    String? poNumber,
+    String? poDocumentUrl,
+    Map<String, dynamic>? deliveryLocation,
+    bool? transportRequired,
+    String? remarks,
+    double? subtotal,
+    double? discount,
+    double? tax,
+    double? total,
+    List<OrderItem>? items,
+    String? stateCode,
+    String? priceApprovalStatus,
+    Map<String, dynamic>? estimateDetails,
+    String? shipmentId,
+    double? freightAmount,
+    String? dispatchStatus,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return TileOrder(
+      id: id ?? this.id,
+      orderId: orderId ?? this.orderId,
+      orderReference: orderReference ?? this.orderReference,
+      userId: userId ?? this.userId,
+      salesPersonId: salesPersonId ?? this.salesPersonId,
+      userCategory: userCategory ?? this.userCategory,
+      status: status ?? this.status,
+      orderType: orderType ?? this.orderType,
+      poNumber: poNumber ?? this.poNumber,
+      poDocumentUrl: poDocumentUrl ?? this.poDocumentUrl,
+      deliveryLocation: deliveryLocation ?? this.deliveryLocation,
+      transportRequired: transportRequired ?? this.transportRequired,
+      remarks: remarks ?? this.remarks,
+      subtotal: subtotal ?? this.subtotal,
+      discount: discount ?? this.discount,
+      tax: tax ?? this.tax,
+      total: total ?? this.total,
+      items: items ?? this.items,
+      stateCode: stateCode ?? this.stateCode,
+      priceApprovalStatus: priceApprovalStatus ?? this.priceApprovalStatus,
+      estimateDetails: estimateDetails ?? this.estimateDetails,
+      shipmentId: shipmentId ?? this.shipmentId,
+      freightAmount: freightAmount ?? this.freightAmount,
+      dispatchStatus: dispatchStatus ?? this.dispatchStatus,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }
+
+/// Type alias for OrderModel per schema naming
+typedef OrderModel = TileOrder;
+

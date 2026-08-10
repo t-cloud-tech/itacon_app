@@ -16,6 +16,9 @@ import '../models/production_handoff.dart';
 import '../models/customer_summary.dart';
 import '../models/loyalty_transaction.dart';
 import '../models/design_request.dart';
+import '../models/transporter_model.dart';
+import '../models/shipment_model.dart';
+import '../models/tracking_history_model.dart';
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
@@ -44,6 +47,9 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _customerSummaryRef => _db.collection('customerSummary');
   CollectionReference<Map<String, dynamic>> get _loyaltyTransactionsRef => _db.collection('loyaltyTransactions');
   CollectionReference<Map<String, dynamic>> get _designRequestsRef => _db.collection('design_requests');
+  CollectionReference<Map<String, dynamic>> get _transportersRef => _db.collection('transporters');
+  CollectionReference<Map<String, dynamic>> get _shipmentsRef => _db.collection('shipments');
+  CollectionReference<Map<String, dynamic>> get _systemConfigsRef => _db.collection('systemConfigs');
 
   String _getCategoryCollectionName(String categoryId) {
     switch (categoryId.toLowerCase()) {
@@ -716,4 +722,95 @@ class FirestoreService {
     final snapshot = await _designRequestsRef.where('userId', isEqualTo: userId).get();
     return snapshot.docs.map((doc) => DesignRequest.fromMap(doc.data(), doc.id)).toList();
   }
+
+  // ===========================================================================
+  // LOGISTICS, TRANSPORTERS, SHIPMENTS & TRACKING HISTORY
+  // ===========================================================================
+
+  /// Transporters Management
+  Future<void> saveTransporter(TransporterModel transporter) async {
+    await _transportersRef.doc(transporter.transporterId).set(transporter.toMap(), SetOptions(merge: true));
+  }
+
+  Future<List<TransporterModel>> getTransporters() async {
+    final snapshot = await _transportersRef.get();
+    return snapshot.docs.map((doc) => TransporterModel.fromMap(doc.data(), doc.id)).toList();
+  }
+
+  Stream<List<TransporterModel>> streamTransporters() {
+    return _transportersRef.snapshots().map(
+        (snap) => snap.docs.map((doc) => TransporterModel.fromMap(doc.data(), doc.id)).toList());
+  }
+
+  /// Shipments Management
+  Future<void> saveShipment(ShipmentModel shipment) async {
+    await _shipmentsRef.doc(shipment.shipmentId).set(shipment.toMap(), SetOptions(merge: true));
+    if (shipment.orderId.isNotEmpty) {
+      await _ordersRef.doc(shipment.orderId).set({
+        'shipmentId': shipment.shipmentId,
+        'dispatchStatus': shipment.shipmentStatus,
+        'freightAmount': shipment.freightCharges,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+  }
+
+  Future<ShipmentModel?> getShipmentById(String shipmentId) async {
+    final doc = await _shipmentsRef.doc(shipmentId).get();
+    if (doc.exists && doc.data() != null) {
+      return ShipmentModel.fromMap(doc.data()!, doc.id);
+    }
+    return null;
+  }
+
+  Future<ShipmentModel?> getShipmentByOrderId(String orderId) async {
+    final snap = await _shipmentsRef.where('orderId', isEqualTo: orderId).limit(1).get();
+    if (snap.docs.isNotEmpty) {
+      return ShipmentModel.fromMap(snap.docs.first.data(), snap.docs.first.id);
+    }
+    return null;
+  }
+
+  Stream<List<ShipmentModel>> streamShipments() {
+    return _shipmentsRef.snapshots().map(
+        (snap) => snap.docs.map((doc) => ShipmentModel.fromMap(doc.data(), doc.id)).toList());
+  }
+
+  /// Tracking History Management for sub-collection `shipments/{shipmentId}/trackingHistory`
+  Future<void> addTrackingHistory(String shipmentId, TrackingHistoryModel history) async {
+    final docRef = _shipmentsRef.doc(shipmentId).collection('trackingHistory').doc();
+    final entry = history.copyWith(id: docRef.id);
+    await docRef.set(entry.toMap());
+
+    await _shipmentsRef.doc(shipmentId).set({
+      'shipmentStatus': history.status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<List<TrackingHistoryModel>> streamTrackingHistory(String shipmentId) {
+    return _shipmentsRef
+        .doc(shipmentId)
+        .collection('trackingHistory')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((doc) => TrackingHistoryModel.fromMap(doc.data(), doc.id)).toList());
+  }
+
+  /// System Configuration Management (`systemConfigs` collection)
+  Future<Map<String, dynamic>?> getSystemConfig(String docId) async {
+    final doc = await _systemConfigsRef.doc(docId).get();
+    return doc.data();
+  }
+
+  Stream<Map<String, dynamic>?> streamSystemConfig(String docId) {
+    return _systemConfigsRef.doc(docId).snapshots().map((doc) => doc.data());
+  }
+
+  Future<void> setSystemConfig(String docId, Map<String, dynamic> config) async {
+    await _systemConfigsRef.doc(docId).set(config, SetOptions(merge: true));
+  }
 }
+
+
