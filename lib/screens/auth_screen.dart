@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/user_category.dart';
 import '../services/auth_service.dart';
+import '../services/firestore_service.dart';
+import '../main.dart';
 import 'referral_gate_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class _AuthScreenState extends State<AuthScreen> {
   int _selectedTab = 0; // 0 = Login, 1 = Register
 
   final AuthService _authService = AuthService();
+  final FirestoreService _firestoreService = FirestoreService();
   final _formKey = GlobalKey<FormState>();
 
   // Login Controllers
@@ -103,13 +106,33 @@ class _AuthScreenState extends State<AuthScreen> {
         password: _loginPasswordController.text.trim(),
         referralCode: _loginReferralCodeController.text.trim(),
       );
+
+      final uid = _authService.currentUser?.uid;
+      bool hasSalesperson = false;
+      if (uid != null && uid.isNotEmpty) {
+        final profile = await _firestoreService.getUserProfile(uid);
+        if (profile != null &&
+            profile.salesPersonId != null &&
+            profile.salesPersonId!.isNotEmpty) {
+          hasSalesperson = true;
+        }
+      }
+
       setState(() => _isLoading = false);
 
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
-      );
+
+      if (hasSalesperson) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -142,6 +165,17 @@ class _AuthScreenState extends State<AuthScreen> {
         smsCode: _regOtpController.text.trim(),
       );
 
+      final uid = _authService.currentUser?.uid;
+      bool hasSalesperson = false;
+      if (uid != null && uid.isNotEmpty) {
+        final profile = await _firestoreService.getUserProfile(uid);
+        if (profile != null &&
+            profile.salesPersonId != null &&
+            profile.salesPersonId!.isNotEmpty) {
+          hasSalesperson = true;
+        }
+      }
+
       setState(() => _isLoading = false);
       if (!mounted) return;
 
@@ -150,10 +184,17 @@ class _AuthScreenState extends State<AuthScreen> {
             content: Text('Registration Successful! Executive linked.')),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
-      );
+      if (hasSalesperson) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

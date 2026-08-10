@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../main.dart';
 
 class ReferralGateScreen extends StatefulWidget {
   const ReferralGateScreen({super.key});
@@ -31,7 +32,10 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Account Verified! Access Granted.')));
-        // Route to Catalogue (Phase 3)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+        );
       }
     } else {
       setState(() => _error = 'Invalid code. Check with your salesperson.');
@@ -44,8 +48,11 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
     setState(() => _isLoading = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Sales Executive Linked Automatically!')));
-      // Route to Catalogue (Phase 3)
+          content: Text('Sales Executive Linked Automatically! Access Granted.')));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+      );
     }
   }
 
