@@ -131,19 +131,27 @@ class AuthService {
 
   /// Verifies a salesperson referral code and links it to the logged-in user profile.
   Future<bool> verifyAndLinkReferralCode(String referralCode) async {
-    final uid = _auth.currentUser?.uid ?? 'DEMO_USER_001';
+    final uid = _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return false;
+
     final spProfile =
         await _firestoreService.verifySalespersonReferralCode(referralCode);
 
     if (spProfile != null) {
-      final spId = spProfile['id'] as String;
-      await _firestoreService.createUserProfile(
+      final spId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String;
+      final spRefCode = (spProfile['referralCode'] ?? referralCode).toString();
+
+      final userDoc = await _firestoreService.getUserProfile(uid);
+      final role = userDoc?.userCategory ?? 'dealer';
+
+      await _firestoreService.updateUserProfileDetails(
         uid: uid,
-        phoneNumber: _auth.currentUser?.phoneNumber ?? '+919876543210',
-        fullName: 'Partner User',
-        role: 'dealer',
-        assignedSalespersonId: spId,
-        isVerified: true,
+        userCategory: role,
+        data: {
+          'salesPersonId': spId,
+          'assignedSalespersonId': spId,
+          'salespersonReferralCode': spRefCode,
+        },
       );
       return true;
     }
@@ -151,8 +159,9 @@ class AuthService {
   }
 
   /// Auto assigns an active sales executive to the current user.
-  Future<String?> autoAssignSalesperson() async {
-    final uid = _auth.currentUser?.uid ?? 'DEMO_USER_001';
+  Future<String?> autoAssignSalesperson({String? targetUserId}) async {
+    final uid = targetUserId ?? _auth.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return null;
     return await _firestoreService.autoAssignSalesperson(userId: uid);
   }
 

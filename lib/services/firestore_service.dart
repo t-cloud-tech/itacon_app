@@ -144,6 +144,15 @@ class FirestoreService {
     await _db.collection(catColName).doc(uid).set(updateData, SetOptions(merge: true));
   }
 
+  /// Retrieves user profile document by UID
+  Future<UserProfile?> getUserProfile(String uid) async {
+    final doc = await _usersRef.doc(uid).get();
+    if (doc.exists && doc.data() != null) {
+      return UserProfile.fromMap(doc.data()!, doc.id);
+    }
+    return null;
+  }
+
   Future<List<Map<String, dynamic>>> getUsersByCategory(String categoryId) async {
     try {
       final colName = _getCategoryCollectionName(categoryId);
@@ -244,15 +253,22 @@ class FirestoreService {
           .get();
 
       String assignedSalespersonId;
+      String spReferralCode = 'SALES101';
+
       if (spQuery.docs.isNotEmpty) {
-        assignedSalespersonId = spQuery.docs.first.id;
+        final doc = spQuery.docs.first;
+        assignedSalespersonId = doc.id;
+        spReferralCode = doc.data()['referralCode'] ?? 'SALES101';
       } else {
         final userSpQuery = await _usersRef.where('role', isEqualTo: 'salesperson').limit(1).get();
         if (userSpQuery.docs.isNotEmpty) {
-          assignedSalespersonId = userSpQuery.docs.first.id;
+          final doc = userSpQuery.docs.first;
+          assignedSalespersonId = doc.id;
+          spReferralCode = doc.data()['referralCode'] ?? 'SALES101';
         } else {
           // If no active salesperson document exists in database, seed default sales executive
           assignedSalespersonId = 'SP_001';
+          spReferralCode = 'SALES101';
           await createSalespersonProfile(
             salespersonId: 'SP_001',
             fullName: 'ITA Sales Executive',
@@ -264,11 +280,19 @@ class FirestoreService {
         }
       }
 
-      await _usersRef.doc(userId).set({
-        'salesPersonId': assignedSalespersonId,
-        'assignedSalespersonId': assignedSalespersonId,
-        'autoAssignedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      final userDoc = await getUserProfile(userId);
+      final role = userDoc?.userCategory ?? 'dealer';
+
+      await updateUserProfileDetails(
+        uid: userId,
+        userCategory: role,
+        data: {
+          'salesPersonId': assignedSalespersonId,
+          'assignedSalespersonId': assignedSalespersonId,
+          'salespersonReferralCode': spReferralCode,
+          'autoAssignedAt': FieldValue.serverTimestamp(),
+        },
+      );
 
       return assignedSalespersonId;
     } catch (e) {
