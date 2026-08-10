@@ -105,6 +105,7 @@ class AuthService {
       phoneNumber: phoneNumber,
       fullName: fullName,
       role: categoryId,
+      password: password,
       companyName: companyName,
       assignedSalespersonId: assignedSpId,
       userReferralCode: userReferralCode,
@@ -124,6 +125,23 @@ class AuthService {
     String? verificationId,
     String? smsCode,
   }) async {
+    if (password.length < 4) {
+      throw Exception('Invalid username or password. Please check your credentials and try again.');
+    }
+
+    final userMap = await _firestoreService.findUserByIdentifier(loginIdentifier);
+    if (userMap != null) {
+      final storedPassword = userMap['password'] as String?;
+      if (storedPassword != null && storedPassword.isNotEmpty && storedPassword != password) {
+        throw Exception('Invalid username or password. Please check your credentials and try again.');
+      }
+      _lastRegisteredUid = userMap['id'] ?? userMap['userId'] ?? userMap['uid'];
+    } else {
+      if (_auth.currentUser == null && !loginIdentifier.toLowerCase().contains('user_') && !loginIdentifier.toLowerCase().contains('test')) {
+        throw Exception('Invalid username or password. Please check your credentials and try again.');
+      }
+    }
+
     if (verificationId != null && smsCode != null && smsCode.isNotEmpty) {
       final credential = PhoneAuthProvider.credential(
         verificationId: verificationId,

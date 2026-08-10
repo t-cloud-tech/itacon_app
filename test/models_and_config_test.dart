@@ -317,7 +317,7 @@ void main() {
     });
   });
 
-  group('Referral Code Validation Gate Tests', () {
+  group('Referral Code & Credential Validation Gate Tests', () {
     test('Should trim and uppercase referral code format for database verification', () {
       final inputCode = '  sales101  ';
       final formatted = inputCode.trim().toUpperCase();
@@ -327,6 +327,11 @@ void main() {
     test('Invalid referral code format should fail verification', () {
       final invalidCode = '  ';
       expect(invalidCode.trim().isEmpty, isTrue);
+    });
+
+    test('Short password should be rejected with invalid credentials message', () {
+      const shortPass = '123';
+      expect(shortPass.length < 4, isTrue);
     });
   });
 

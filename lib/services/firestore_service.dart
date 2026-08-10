@@ -81,6 +81,7 @@ class FirestoreService {
     required String fullName,
     required String role,
     String? email,
+    String? password,
     String? city,
     String? state,
     String? stateCode,
@@ -113,17 +114,80 @@ class FirestoreService {
         createdAt: DateTime.now(),
       );
 
+      final docData = {
+        ...profile.toMap(),
+        if (password != null && password.isNotEmpty) 'password': password,
+      };
+
       // 1. Store in primary `users` collection
-      await _usersRef.doc(uid).set(profile.toMap(), SetOptions(merge: true));
+      await _usersRef.doc(uid).set(docData, SetOptions(merge: true));
 
       // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, etc.)
       final catColName = _getCategoryCollectionName(role);
       await _db.collection(catColName).doc(uid).set({
-        ...profile.toMap(),
+        ...docData,
         'categoryLabel': categoryLabel,
       }, SetOptions(merge: true));
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Searches for a user document by phone number, email, UID, or username
+  Future<Map<String, dynamic>?> findUserByIdentifier(String identifier) async {
+    final clean = identifier.trim();
+    if (clean.isEmpty) return null;
+
+    try {
+      // 1. Direct doc lookup by UID
+      final directDoc = await _usersRef.doc(clean).get();
+      if (directDoc.exists && directDoc.data() != null) {
+        return {'id': directDoc.id, ...directDoc.data()!};
+      }
+
+      // 2. Query by phone / phoneNumber
+      final formattedPhone = clean.startsWith('+91') ? clean : '+91$clean';
+      var phoneQuery = await _usersRef.where('phone', isEqualTo: formattedPhone).limit(1).get();
+      if (phoneQuery.docs.isNotEmpty) {
+        final doc = phoneQuery.docs.first;
+        return {'id': doc.id, ...doc.data()};
+      }
+
+      var rawPhoneQuery = await _usersRef.where('phone', isEqualTo: clean).limit(1).get();
+      if (rawPhoneQuery.docs.isNotEmpty) {
+        final doc = rawPhoneQuery.docs.first;
+        return {'id': doc.id, ...doc.data()};
+      }
+
+      var phoneNumberQuery = await _usersRef.where('phoneNumber', isEqualTo: clean).limit(1).get();
+      if (phoneNumberQuery.docs.isNotEmpty) {
+        final doc = phoneNumberQuery.docs.first;
+        return {'id': doc.id, ...doc.data()};
+      }
+
+      // 3. Query by email
+      var emailQuery = await _usersRef.where('email', isEqualTo: clean.toLowerCase()).limit(1).get();
+      if (emailQuery.docs.isNotEmpty) {
+        final doc = emailQuery.docs.first;
+        return {'id': doc.id, ...doc.data()};
+      }
+
+      // 4. Query by name / fullName
+      var nameQuery = await _usersRef.where('name', isEqualTo: clean).limit(1).get();
+      if (nameQuery.docs.isNotEmpty) {
+        final doc = nameQuery.docs.first;
+        return {'id': doc.id, ...doc.data()};
+      }
+
+      var fullNameQuery = await _usersRef.where('fullName', isEqualTo: clean).limit(1).get();
+      if (fullNameQuery.docs.isNotEmpty) {
+        final doc = fullNameQuery.docs.first;
+        return {'id': doc.id, ...doc.data()};
+      }
+
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
