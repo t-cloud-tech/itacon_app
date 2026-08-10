@@ -15,8 +15,121 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
   bool _isLoading = false;
   String? _error;
 
+  void _showSmsConfirmationDialog({
+    required String spName,
+    required String spPhone,
+    required String referralCode,
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.sms_rounded, color: Color(0xFF1A237E), size: 28),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'SMS Notification Sent!',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.indigo.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.indigo.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.mark_chat_read_rounded, size: 16, color: Color(0xFF1A237E)),
+                      SizedBox(width: 6),
+                      Text(
+                        '📲 Phone SMS Message',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16),
+                  Text(
+                    'Welcome to ITACON! Your account is linked to Salesperson:\n• Name: $spName\n• Phone: $spPhone',
+                    style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Your Assigned Salesperson Referral Code:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+                  ),
+                  const SizedBox(height: 6),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A237E),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        referralCode,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Your referral code is verified and linked. You have full access to view custom pricing and place tile orders!',
+              style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A237E),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+                );
+              },
+              child: const Text(
+                'Proceed to Order Products',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _verifyManualCode() async {
-    if (_codeController.text.trim().isEmpty) {
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
       setState(() => _error = 'Please enter a referral code.');
       return;
     }
@@ -24,17 +137,15 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
       _isLoading = true;
       _error = null;
     });
-    bool success =
-        await _authService.verifyAndLinkReferralCode(_codeController.text.trim());
+    bool success = await _authService.verifyAndLinkReferralCode(code);
     setState(() => _isLoading = false);
 
     if (success) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Account Verified! Access Granted.')));
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+        _showSmsConfirmationDialog(
+          spName: 'Assigned Sales Representative',
+          spPhone: '+919876543210',
+          referralCode: code.toUpperCase(),
         );
       }
     } else {
@@ -44,11 +155,18 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
 
   void _executeAutoAssign() async {
     setState(() => _isLoading = true);
-    await _authService.autoAssignSalesperson();
+    final details = await _authService.autoAssignSalespersonDetails();
     setState(() => _isLoading = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Sales Executive Linked Automatically! Access Granted.')));
+
+    if (!mounted) return;
+
+    if (details != null) {
+      _showSmsConfirmationDialog(
+        spName: details['name'] ?? 'ITA Sales Executive',
+        spPhone: details['phone'] ?? '+919876543210',
+        referralCode: details['referralCode'] ?? 'SALES101',
+      );
+    } else {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),

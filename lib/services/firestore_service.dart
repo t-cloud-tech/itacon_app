@@ -245,7 +245,7 @@ class FirestoreService {
     }
   }
 
-  Future<String?> autoAssignSalesperson({required String userId}) async {
+  Future<Map<String, String>> autoAssignSalespersonDetails({required String userId}) async {
     try {
       final spQuery = await _salesPersonsRef
           .where('status', isEqualTo: 'active')
@@ -254,21 +254,31 @@ class FirestoreService {
 
       String assignedSalespersonId;
       String spReferralCode = 'SALES101';
+      String spName = 'ITA Sales Executive';
+      String spPhone = '+919876543210';
 
       if (spQuery.docs.isNotEmpty) {
         final doc = spQuery.docs.first;
+        final data = doc.data();
         assignedSalespersonId = doc.id;
-        spReferralCode = doc.data()['referralCode'] ?? 'SALES101';
+        spReferralCode = data['referralCode'] ?? 'SALES101';
+        spName = data['name'] ?? data['fullName'] ?? 'ITA Sales Executive';
+        spPhone = data['phone'] ?? data['phoneNumber'] ?? '+919876543210';
       } else {
         final userSpQuery = await _usersRef.where('role', isEqualTo: 'salesperson').limit(1).get();
         if (userSpQuery.docs.isNotEmpty) {
           final doc = userSpQuery.docs.first;
+          final data = doc.data();
           assignedSalespersonId = doc.id;
-          spReferralCode = doc.data()['referralCode'] ?? 'SALES101';
+          spReferralCode = data['referralCode'] ?? 'SALES101';
+          spName = data['fullName'] ?? data['name'] ?? 'ITA Sales Executive';
+          spPhone = data['phone'] ?? data['phoneNumber'] ?? '+919876543210';
         } else {
           // If no active salesperson document exists in database, seed default sales executive
           assignedSalespersonId = 'SP_001';
           spReferralCode = 'SALES101';
+          spName = 'ITA Sales Executive';
+          spPhone = '+919876543210';
           await createSalespersonProfile(
             salespersonId: 'SP_001',
             fullName: 'ITA Sales Executive',
@@ -294,10 +304,25 @@ class FirestoreService {
         },
       );
 
-      return assignedSalespersonId;
+      return {
+        'salespersonId': assignedSalespersonId,
+        'referralCode': spReferralCode,
+        'name': spName,
+        'phone': spPhone,
+      };
     } catch (e) {
-      return 'SP_001';
+      return {
+        'salespersonId': 'SP_001',
+        'referralCode': 'SALES101',
+        'name': 'ITA Sales Executive',
+        'phone': '+919876543210',
+      };
     }
+  }
+
+  Future<String?> autoAssignSalesperson({required String userId}) async {
+    final details = await autoAssignSalespersonDetails(userId: userId);
+    return details['salespersonId'];
   }
 
   // ===========================================================================

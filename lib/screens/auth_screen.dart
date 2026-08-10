@@ -108,13 +108,12 @@ class _AuthScreenState extends State<AuthScreen> {
       );
 
       final uid = _authService.currentUser?.uid;
-      bool hasSalesperson = false;
       if (uid != null && uid.isNotEmpty) {
         final profile = await _firestoreService.getUserProfile(uid);
-        if (profile != null &&
-            profile.salesPersonId != null &&
-            profile.salesPersonId!.isNotEmpty) {
-          hasSalesperson = true;
+        if (profile == null ||
+            profile.salesPersonId == null ||
+            profile.salesPersonId!.isEmpty) {
+          await _authService.autoAssignSalesperson(targetUserId: uid);
         }
       }
 
@@ -122,17 +121,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (!mounted) return;
 
-      if (hasSalesperson) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign In Successful! Full product ordering catalogue unlocked.')),
+      );
+
+      // On Sign In, user gets direct access to app to order products!
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

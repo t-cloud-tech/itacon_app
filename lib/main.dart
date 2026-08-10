@@ -462,13 +462,16 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                   children: [
                     Row(
                       children: [
-                        Text(
-                          '${category.label} (${category.id})',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A237E)),
+                        Expanded(
+                          child: Text(
+                            '${category.label} (${category.id})',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A237E)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        const Spacer(),
+                        const SizedBox(width: 8),
                         Text(
                           'Collection: ${category.id == 'architect' ? 'architects' : '${category.id}s'}',
                           style: const TextStyle(
