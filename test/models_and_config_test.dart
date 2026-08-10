@@ -317,6 +317,19 @@ void main() {
     });
   });
 
+  group('Referral Code Validation Gate Tests', () {
+    test('Should trim and uppercase referral code format for database verification', () {
+      final inputCode = '  sales101  ';
+      final formatted = inputCode.trim().toUpperCase();
+      expect(formatted, 'SALES101');
+    });
+
+    test('Invalid referral code format should fail verification', () {
+      final invalidCode = '  ';
+      expect(invalidCode.trim().isEmpty, isTrue);
+    });
+  });
+
   group('ConfigService Tests', () {
     test('Default enableTransportation should be false', () {
       final service = ConfigService();

@@ -67,6 +67,8 @@ class AuthService {
           .verifySalespersonReferralCode(referralCode.trim());
       if (spProfile != null) {
         assignedSpId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String?;
+      } else {
+        throw Exception('Invalid referral code entered. Access denied. Please enter a valid salesperson referral code.');
       }
     }
 
@@ -91,7 +93,7 @@ class AuthService {
       }
     }
 
-    // 3. Auto-assign salesperson if no code was given or valid
+    // 3. Auto-assign salesperson if no code was given
     assignedSpId ??=
         await _firestoreService.autoAssignSalesperson(userId: uid);
 
@@ -131,7 +133,10 @@ class AuthService {
     }
 
     if (referralCode != null && referralCode.trim().isNotEmpty) {
-      await verifyAndLinkReferralCode(referralCode.trim());
+      bool valid = await verifyAndLinkReferralCode(referralCode.trim());
+      if (!valid) {
+        throw Exception('Invalid referral code entered. Access denied. Please enter a valid salesperson referral code.');
+      }
     }
   }
 

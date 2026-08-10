@@ -101,19 +101,22 @@ class _AuthScreenState extends State<AuthScreen> {
 
     setState(() => _isLoading = true);
     try {
+      final referralInput = _loginReferralCodeController.text.trim();
       await _authService.loginUser(
         loginIdentifier: _loginIdentifierController.text.trim(),
         password: _loginPasswordController.text.trim(),
-        referralCode: _loginReferralCodeController.text.trim(),
+        referralCode: referralInput,
       );
 
       final uid = _authService.currentUser?.uid;
+      bool hasSalesperson = false;
+
       if (uid != null && uid.isNotEmpty) {
         final profile = await _firestoreService.getUserProfile(uid);
-        if (profile == null ||
-            profile.salesPersonId == null ||
-            profile.salesPersonId!.isEmpty) {
-          await _authService.autoAssignSalesperson(targetUserId: uid);
+        if (profile != null &&
+            profile.salesPersonId != null &&
+            profile.salesPersonId!.isNotEmpty) {
+          hasSalesperson = true;
         }
       }
 
@@ -121,19 +124,36 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
-      );
+      if (hasSalesperson) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
+        );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please verify or auto-assign a referral code to gain access.'),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
+      final errorText = e.toString().replaceAll('Exception: ', '');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login failed: ${e.toString()}')),
+        SnackBar(
+          content: Text(errorText),
+          backgroundColor: Colors.red.shade700,
+        ),
       );
     }
   }
