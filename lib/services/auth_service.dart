@@ -143,7 +143,6 @@ class AuthService {
 
     if (spProfile != null) {
       final spId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String;
-      final spRefCode = (spProfile['referralCode'] ?? referralCode).toString();
 
       if (uid != null && uid.isNotEmpty) {
         await _firestoreService.executeAtomicClientAssignment(

@@ -19,6 +19,8 @@ import '../models/design_request.dart';
 import '../models/transporter_model.dart';
 import '../models/shipment_model.dart';
 import '../models/tracking_history_model.dart';
+import '../models/client_assignment.dart';
+import '../models/assigned_client_snapshot.dart';
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
