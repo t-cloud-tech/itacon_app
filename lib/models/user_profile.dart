@@ -65,7 +65,7 @@ class UserProfile {
       'address': address,
       'city': city,
       'state': state,
-      'stateCode': state.length >= 2 ? state.substring(0, 2).toUpperCase() : 'GJ',
+      'stateCode': state.isNotEmpty && state.length >= 2 ? state.substring(0, 2).toUpperCase() : '',
       'pincode': pincode,
       'status': status,
       'isVerified': phoneVerified || whatsappVerified,

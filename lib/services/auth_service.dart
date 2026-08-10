@@ -66,7 +66,7 @@ class AuthService {
       final spProfile = await _firestoreService
           .verifySalespersonReferralCode(referralCode.trim());
       if (spProfile != null) {
-        assignedSpId = spProfile['id'] as String;
+        assignedSpId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String?;
       }
     }
 

@@ -78,7 +78,12 @@ class FirestoreService {
     required String phoneNumber,
     required String fullName,
     required String role,
-    String stateCode = 'GJ',
+    String? email,
+    String? city,
+    String? state,
+    String? stateCode,
+    String? pincode,
+    Map<String, dynamic>? address,
     String? companyName,
     String? assignedSalespersonId,
     String? userReferralCode,
@@ -91,16 +96,17 @@ class FirestoreService {
         name: fullName,
         companyName: companyName ?? '',
         phone: phoneNumber,
-        email: '$uid@itacon.com',
+        email: email ?? '',
         userCategory: role,
         role: role,
         salesPersonId: assignedSalespersonId,
         referralCode: userReferralCode,
         phoneVerified: isVerified,
         whatsappVerified: isVerified,
-        city: 'Morbi',
-        state: stateCode.toUpperCase(),
-        pincode: '363641',
+        address: address ?? const {},
+        city: city ?? '',
+        state: state ?? stateCode ?? '',
+        pincode: pincode ?? '',
         status: 'active',
         createdAt: DateTime.now(),
       );
@@ -117,6 +123,25 @@ class FirestoreService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Updates user profile details when completing profile inside the app
+  Future<void> updateUserProfileDetails({
+    required String uid,
+    required String userCategory,
+    required Map<String, dynamic> data,
+  }) async {
+    final updateData = {
+      ...data,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    // 1. Update in primary `users` collection
+    await _usersRef.doc(uid).set(updateData, SetOptions(merge: true));
+
+    // 2. Update in category-wise collection (dealers/{uid}, architects/{uid}, etc.)
+    final catColName = _getCategoryCollectionName(userCategory);
+    await _db.collection(catColName).doc(uid).set(updateData, SetOptions(merge: true));
   }
 
   Future<List<Map<String, dynamic>>> getUsersByCategory(String categoryId) async {
@@ -223,27 +248,36 @@ class FirestoreService {
           .limit(1)
           .get();
 
-      String? assignedSalespersonId;
+      String assignedSalespersonId;
       if (spQuery.docs.isNotEmpty) {
         assignedSalespersonId = spQuery.docs.first.id;
       } else {
         final userSpQuery = await _usersRef.where('role', isEqualTo: 'salesperson').limit(1).get();
         if (userSpQuery.docs.isNotEmpty) {
           assignedSalespersonId = userSpQuery.docs.first.id;
+        } else {
+          // If no active salesperson document exists in database, seed default sales executive
+          assignedSalespersonId = 'SP_001';
+          await createSalespersonProfile(
+            salespersonId: 'SP_001',
+            fullName: 'ITA Sales Executive',
+            phoneNumber: '+919876543210',
+            referralCode: 'SALES101',
+            employeeId: 'EMP-SP-001',
+            isActive: true,
+          );
         }
       }
 
-      if (assignedSalespersonId != null) {
-        await _usersRef.doc(userId).set({
-          'salesPersonId': assignedSalespersonId,
-          'assignedSalespersonId': assignedSalespersonId,
-          'autoAssignedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
+      await _usersRef.doc(userId).set({
+        'salesPersonId': assignedSalespersonId,
+        'assignedSalespersonId': assignedSalespersonId,
+        'autoAssignedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       return assignedSalespersonId;
     } catch (e) {
-      rethrow;
+      return 'SP_001';
     }
   }
 
