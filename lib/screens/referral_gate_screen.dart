@@ -95,7 +95,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Your referral code is verified and linked to your account.',
+              'Salesperson assigned and referral code auto-filled below. Click "Verify Code & Unlock" to proceed.',
               style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
             ),
           ],
@@ -138,10 +138,12 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
 
     if (success) {
       if (mounted) {
-        _showSmsConfirmationDialog(
-          spName: 'Assigned Sales Representative',
-          spPhone: '+919876543210',
-          referralCode: code.toUpperCase(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Referral Code Verified! Access Granted.')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
         );
       }
     } else {
@@ -157,15 +159,18 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
     if (!mounted) return;
 
     if (details != null) {
+      final refCode = details['referralCode'] ?? 'SALES101';
+      final spName = details['name'] ?? 'ITA Sales Executive';
+      final spPhone = details['phone'] ?? '+919876543210';
+
+      setState(() {
+        _codeController.text = refCode;
+      });
+
       _showSmsConfirmationDialog(
-        spName: details['name'] ?? 'ITA Sales Executive',
-        spPhone: details['phone'] ?? '+919876543210',
-        referralCode: details['referralCode'] ?? 'SALES101',
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
+        spName: spName,
+        spPhone: spPhone,
+        referralCode: refCode,
       );
     }
   }
