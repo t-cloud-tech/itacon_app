@@ -11,6 +11,8 @@ class SalesPerson {
   final String region; // Assigned region
   final List<String> states; // States handled
   final String status; // active / inactive
+  final int assignedClientsCount;
+  final int activeClientsCount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -24,6 +26,8 @@ class SalesPerson {
     this.region = 'Western Region',
     this.states = const ['GJ', 'MH'],
     this.status = 'active',
+    this.assignedClientsCount = 0,
+    this.activeClientsCount = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -43,6 +47,8 @@ class SalesPerson {
       'states': states,
       'status': status,
       'isActive': status == 'active',
+      'assignedClientsCount': assignedClientsCount,
+      'activeClientsCount': activeClientsCount,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -61,6 +67,8 @@ class SalesPerson {
       region: map['region'] ?? 'Western Region',
       states: List<String>.from(map['states'] ?? ['GJ']),
       status: map['status'] ?? (map['isActive'] == true ? 'active' : 'inactive'),
+      assignedClientsCount: (map['assignedClientsCount'] as num?)?.toInt() ?? 0,
+      activeClientsCount: (map['activeClientsCount'] as num?)?.toInt() ?? 0,
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,

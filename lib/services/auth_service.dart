@@ -146,17 +146,10 @@ class AuthService {
       final spRefCode = (spProfile['referralCode'] ?? referralCode).toString();
 
       if (uid != null && uid.isNotEmpty) {
-        final userDoc = await _firestoreService.getUserProfile(uid);
-        final role = userDoc?.userCategory ?? 'dealer';
-
-        await _firestoreService.updateUserProfileDetails(
-          uid: uid,
-          userCategory: role,
-          data: {
-            'salesPersonId': spId,
-            'assignedSalespersonId': spId,
-            'salespersonReferralCode': spRefCode,
-          },
+        await _firestoreService.executeAtomicClientAssignment(
+          clientId: uid,
+          salespersonId: spId,
+          assignmentType: 'manual_referral',
         );
       }
       return true;

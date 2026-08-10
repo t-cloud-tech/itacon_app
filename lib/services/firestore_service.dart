@@ -291,18 +291,10 @@ class FirestoreService {
       }
 
       if (userId != null && userId.isNotEmpty) {
-        final userDoc = await getUserProfile(userId);
-        final role = userDoc?.userCategory ?? 'dealer';
-
-        await updateUserProfileDetails(
-          uid: userId,
-          userCategory: role,
-          data: {
-            'salesPersonId': assignedSalespersonId,
-            'assignedSalespersonId': assignedSalespersonId,
-            'salespersonReferralCode': spReferralCode,
-            'autoAssignedAt': FieldValue.serverTimestamp(),
-          },
+        await executeAtomicClientAssignment(
+          clientId: userId,
+          salespersonId: assignedSalespersonId,
+          assignmentType: 'auto_assigned',
         );
       }
 
@@ -325,6 +317,91 @@ class FirestoreService {
   Future<String?> autoAssignSalesperson({String? userId}) async {
     final details = await autoAssignSalespersonDetails(userId: userId);
     return details['salespersonId'];
+  }
+
+  /// Atomically completes client referral assignment across:
+  /// a. Set assignedSalespersonId and isVerified: true on users/{clientId} & category collection
+  /// b. Insert record into client_assignments
+  /// c. Add client snapshot under users/{salespersonId}/assigned_clients/{clientId} & salesPersons/{salespersonId}/assigned_clients/{clientId}
+  /// d. Increment assignedClientsCount by +1 on users/{salespersonId} & salesPersons/{salespersonId}
+  Future<void> executeAtomicClientAssignment({
+    required String clientId,
+    required String salespersonId,
+    String assignmentType = 'manual_referral',
+  }) async {
+    try {
+      final batch = _db.batch();
+
+      final clientDoc = await getUserProfile(clientId);
+      final clientName = clientDoc?.name ?? 'Client';
+      final clientPhone = clientDoc?.phone ?? '';
+      final clientCategory = clientDoc?.userCategory ?? 'dealer';
+      final companyName = clientDoc?.companyName ?? '';
+
+      final spDoc = await _salesPersonsRef.doc(salespersonId).get();
+      final spData = spDoc.data();
+      final spReferralCode = spData?['referralCode'] ?? 'SALES101';
+
+      // a. Set assignedSalespersonId and isVerified: true on users/{clientId}
+      final userUpdateData = {
+        'assignedSalespersonId': salespersonId,
+        'salesPersonId': salespersonId,
+        'salespersonReferralCode': spReferralCode,
+        'isVerified': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      batch.set(_usersRef.doc(clientId), userUpdateData, SetOptions(merge: true));
+
+      final catColName = _getCategoryCollectionName(clientCategory);
+      batch.set(_db.collection(catColName).doc(clientId), userUpdateData, SetOptions(merge: true));
+
+      // b. Insert record into client_assignments
+      final assignmentId = 'ASGN_${DateTime.now().millisecondsSinceEpoch}_$clientId';
+      final clientAssignment = ClientAssignment(
+        assignmentId: assignmentId,
+        clientId: clientId,
+        clientName: clientName,
+        clientPhone: clientPhone,
+        clientCategory: clientCategory,
+        salespersonId: salespersonId,
+        assignmentType: assignmentType,
+        status: 'active',
+        assignedAt: DateTime.now(),
+      );
+      batch.set(_db.collection('client_assignments').doc(assignmentId), clientAssignment.toMap());
+
+      // c. Add client snapshot under users/{salespersonId}/assigned_clients/{clientId} & salesPersons/{salespersonId}/assigned_clients/{clientId}
+      final clientSnapshot = AssignedClientSnapshot(
+        clientId: clientId,
+        name: clientName,
+        companyName: companyName,
+        phone: clientPhone,
+        clientCategory: clientCategory,
+        assignmentType: assignmentType,
+        assignedAt: DateTime.now(),
+      );
+      batch.set(
+        _usersRef.doc(salespersonId).collection('assigned_clients').doc(clientId),
+        clientSnapshot.toMap(),
+      );
+      batch.set(
+        _salesPersonsRef.doc(salespersonId).collection('assigned_clients').doc(clientId),
+        clientSnapshot.toMap(),
+      );
+
+      // d. Increment assignedClientsCount by +1 on users/{salespersonId} & salesPersons/{salespersonId}
+      final counterUpdate = {
+        'assignedClientsCount': FieldValue.increment(1),
+        'activeClientsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      batch.set(_usersRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
+      batch.set(_salesPersonsRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
+
+      await batch.commit();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // ===========================================================================

@@ -18,3 +18,11 @@ export 'user_bucket.dart';
 export 'user_category.dart';
 export 'user_profile.dart';
 export 'wishlist.dart';
+export 'client_assignment.dart';
+export 'assigned_client_snapshot.dart';
+
+import 'transporter_model.dart';
+import 'shipment_model.dart';
+
+typedef Transporter = TransporterModel;
+typedef Shipment = ShipmentModel;

@@ -220,6 +220,103 @@ void main() {
     });
   });
 
+  group('ClientAssignment Tests', () {
+    test('Should correctly instantiate and convert to/from map', () {
+      final assignment = ClientAssignment(
+        assignmentId: 'ASGN_1001',
+        clientId: 'CUST_501',
+        clientName: 'Patel Group',
+        clientPhone: '+919876543210',
+        clientCategory: 'architect',
+        salespersonId: 'SP_001',
+        assignmentType: 'manual_referral',
+        status: 'active',
+        assignedAt: DateTime(2026, 8, 10, 12, 0),
+      );
+
+      expect(assignment.assignmentId, 'ASGN_1001');
+      expect(assignment.clientId, 'CUST_501');
+      expect(assignment.clientName, 'Patel Group');
+      expect(assignment.clientPhone, '+919876543210');
+      expect(assignment.clientCategory, 'architect');
+      expect(assignment.salespersonId, 'SP_001');
+      expect(assignment.assignmentType, 'manual_referral');
+      expect(assignment.status, 'active');
+
+      final map = assignment.toMap();
+      expect(map['assignmentId'], 'ASGN_1001');
+      expect(map['salespersonId'], 'SP_001');
+
+      final deserialized = ClientAssignment.fromMap(map, 'ASGN_1001');
+      expect(deserialized.assignmentId, 'ASGN_1001');
+      expect(deserialized.clientName, 'Patel Group');
+      expect(deserialized.salespersonId, 'SP_001');
+    });
+  });
+
+  group('AssignedClientSnapshot Tests', () {
+    test('Should correctly instantiate and convert to/from map', () {
+      final snapshot = AssignedClientSnapshot(
+        clientId: 'CUST_501',
+        name: 'Smit Patel',
+        companyName: 'Patel Group',
+        phone: '+919876543210',
+        clientCategory: 'architect',
+        assignmentType: 'auto_assigned',
+        assignedAt: DateTime(2026, 8, 10, 12, 0),
+      );
+
+      expect(snapshot.clientId, 'CUST_501');
+      expect(snapshot.name, 'Smit Patel');
+      expect(snapshot.companyName, 'Patel Group');
+      expect(snapshot.phone, '+919876543210');
+      expect(snapshot.clientCategory, 'architect');
+      expect(snapshot.assignmentType, 'auto_assigned');
+
+      final map = snapshot.toMap();
+      expect(map['clientId'], 'CUST_501');
+      expect(map['companyName'], 'Patel Group');
+
+      final deserialized = AssignedClientSnapshot.fromMap(map, 'CUST_501');
+      expect(deserialized.clientId, 'CUST_501');
+      expect(deserialized.name, 'Smit Patel');
+      expect(deserialized.assignmentType, 'auto_assigned');
+    });
+  });
+
+  group('Salesperson Client Counters Tests', () {
+    test('UserProfile and SalesPerson should default counter fields to 0', () {
+      const profile = UserProfile(
+        userId: 'SP_001',
+        name: 'ITA Sales Executive',
+        companyName: 'ITACON',
+        phone: '+919876543210',
+        email: 'sales@itacon.com',
+        userCategory: 'salesperson',
+        role: 'salesperson',
+      );
+
+      expect(profile.assignedClientsCount, 0);
+      expect(profile.activeClientsCount, 0);
+
+      const sp = SalesPerson(
+        salesPersonId: 'SP_001',
+        employeeId: 'EMP-SP-001',
+        name: 'ITA Sales Executive',
+        phone: '+919876543210',
+        email: 'sales@itacon.com',
+        referralCode: 'SALES101',
+      );
+
+      expect(sp.assignedClientsCount, 0);
+      expect(sp.activeClientsCount, 0);
+
+      final spMap = sp.toMap();
+      expect(spMap['assignedClientsCount'], 0);
+      expect(spMap['activeClientsCount'], 0);
+    });
+  });
+
   group('ConfigService Tests', () {
     test('Default enableTransportation should be false', () {
       final service = ConfigService();

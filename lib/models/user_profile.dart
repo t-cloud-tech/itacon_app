@@ -19,6 +19,8 @@ class UserProfile {
   final String state; // State
   final String pincode; // PIN code
   final String status; // active / inactive / blocked
+  final int assignedClientsCount;
+  final int activeClientsCount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -40,6 +42,8 @@ class UserProfile {
     this.state = '',
     this.pincode = '',
     this.status = 'active',
+    this.assignedClientsCount = 0,
+    this.activeClientsCount = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -68,6 +72,8 @@ class UserProfile {
       'stateCode': state.isNotEmpty && state.length >= 2 ? state.substring(0, 2).toUpperCase() : '',
       'pincode': pincode,
       'status': status,
+      'assignedClientsCount': assignedClientsCount,
+      'activeClientsCount': activeClientsCount,
       'isVerified': phoneVerified || whatsappVerified,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
@@ -95,6 +101,8 @@ class UserProfile {
       state: map['state'] ?? map['stateCode'] ?? '',
       pincode: map['pincode'] ?? '',
       status: map['status'] ?? 'active',
+      assignedClientsCount: (map['assignedClientsCount'] as num?)?.toInt() ?? 0,
+      activeClientsCount: (map['activeClientsCount'] as num?)?.toInt() ?? 0,
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
