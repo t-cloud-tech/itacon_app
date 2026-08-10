@@ -109,14 +109,12 @@ class _AuthScreenState extends State<AuthScreen> {
       );
 
       final uid = _authService.currentUser?.uid;
-      bool hasSalesperson = false;
-
       if (uid != null && uid.isNotEmpty) {
         final profile = await _firestoreService.getUserProfile(uid);
-        if (profile != null &&
-            profile.salesPersonId != null &&
-            profile.salesPersonId!.isNotEmpty) {
-          hasSalesperson = true;
+        if (profile == null ||
+            profile.salesPersonId == null ||
+            profile.salesPersonId!.isEmpty) {
+          await _authService.autoAssignSalesperson(targetUserId: uid);
         }
       }
 
@@ -124,27 +122,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (!mounted) return;
 
-      if (hasSalesperson) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
-        );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
+      );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please verify or auto-assign a referral code to gain access.'),
-          ),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
-        );
-      }
+      // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
