@@ -156,7 +156,7 @@ class AuthService {
     return await _firestoreService.autoAssignSalesperson(userId: uid);
   }
 
-  /// Registers and stores a Salesperson profile directly in the dedicated `salespersons` collection.
+  /// Registers and stores a Salesperson profile directly in the dedicated `salesPersons` collection.
   Future<void> registerSalesperson({
     required String fullName,
     required String phoneNumber,

@@ -169,7 +169,7 @@ class FirestoreService {
     return grouped;
   }
 
-  /// Saves a SalesPerson document in `salesPersons` and `salespersons` collection
+  /// Saves a SalesPerson document in `salesPersons` collection
   Future<void> createSalespersonProfile({
     required String salespersonId,
     required String fullName,
@@ -193,7 +193,6 @@ class FirestoreService {
       );
 
       await _salesPersonsRef.doc(salespersonId).set(sp.toMap(), SetOptions(merge: true));
-      await _db.collection('salespersons').doc(salespersonId).set(sp.toMap(), SetOptions(merge: true));
     } catch (e) {
       rethrow;
     }
@@ -201,11 +200,7 @@ class FirestoreService {
 
   Future<List<Map<String, dynamic>>> getSalespersons() async {
     final snapshot = await _salesPersonsRef.get();
-    if (snapshot.docs.isNotEmpty) {
-      return snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-    }
-    final fallback = await _db.collection('salespersons').get();
-    return fallback.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    return snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
   }
 
   Future<Map<String, dynamic>?> verifySalespersonReferralCode(String referralCode) async {
