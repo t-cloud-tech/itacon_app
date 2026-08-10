@@ -95,7 +95,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Your referral code is verified and linked. You have full access to view custom pricing and place tile orders!',
+              'Your referral code is verified and linked to your account.',
               style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
             ),
           ],
@@ -111,13 +111,9 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
               ),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const FirebaseTestScreen()),
-                );
               },
               child: const Text(
-                'Proceed to Order Products',
+                'OK',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),

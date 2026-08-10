@@ -122,7 +122,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign In Successful! Full product ordering catalogue unlocked.')),
+        const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
       );
 
       // On Sign In, user gets direct access to app to order products!
