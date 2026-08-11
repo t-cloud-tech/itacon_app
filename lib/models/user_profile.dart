@@ -48,6 +48,8 @@ class UserProfile {
     this.updatedAt,
   });
 
+  bool get isVerified => phoneVerified || whatsappVerified || emailVerified;
+
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -72,8 +74,10 @@ class UserProfile {
       'stateCode': state.isNotEmpty && state.length >= 2 ? state.substring(0, 2).toUpperCase() : '',
       'pincode': pincode,
       'status': status,
-      'assignedClientsCount': assignedClientsCount,
-      'activeClientsCount': activeClientsCount,
+      if (role == 'salesperson' || userCategory == 'salesperson') ...{
+        'assignedClientsCount': assignedClientsCount,
+        'activeClientsCount': activeClientsCount,
+      },
       'isVerified': phoneVerified || whatsappVerified,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)

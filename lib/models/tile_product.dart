@@ -73,6 +73,10 @@ class TileProduct {
         availableStock = availableStock ?? ((currentStock ?? availableQuantity) - reservedStock);
 
   String get baseColor => color;
+  String get categoryName => collection.isNotEmpty ? collection : categoryId;
+  String get sizeCm => size;
+  String get thicknessMm => thickness.endsWith('mm') ? thickness.replaceAll('mm', '') : thickness;
+  double get basePricePerSqFt => basePrice;
 
   Map<String, dynamic> toMap() {
     return {

@@ -299,6 +299,10 @@ void main() {
       expect(profile.assignedClientsCount, 0);
       expect(profile.activeClientsCount, 0);
 
+      final spProfileMap = profile.toMap();
+      expect(spProfileMap['assignedClientsCount'], 0);
+      expect(spProfileMap['activeClientsCount'], 0);
+
       const sp = SalesPerson(
         salesPersonId: 'SP_001',
         employeeId: 'EMP-SP-001',
@@ -312,8 +316,54 @@ void main() {
       expect(sp.activeClientsCount, 0);
 
       final spMap = sp.toMap();
+      expect(spMap['salesPersonId'], 'SP_001');
+      expect(spMap.containsKey('salespersonId'), false);
       expect(spMap['assignedClientsCount'], 0);
       expect(spMap['activeClientsCount'], 0);
+    });
+
+    test('UserProfile toMap should omit client counter fields for non-salesperson users', () {
+      const customerProfile = UserProfile(
+        userId: 'CUST_101',
+        name: 'John Doe',
+        companyName: 'ABC Construction',
+        phone: '+919876543211',
+        email: 'john@abc.com',
+        userCategory: 'dealer',
+        role: 'customer',
+      );
+
+      final customerMap = customerProfile.toMap();
+      expect(customerMap.containsKey('assignedClientsCount'), false);
+      expect(customerMap.containsKey('activeClientsCount'), false);
+    });
+
+    test('UserProfile isVerified getter should evaluate verification status correctly', () {
+      const unverified = UserProfile(
+        userId: 'U1',
+        name: 'Unverified',
+        companyName: '',
+        phone: '+919999999999',
+        email: '',
+        userCategory: 'dealer',
+        role: 'customer',
+        phoneVerified: false,
+        whatsappVerified: false,
+        emailVerified: false,
+      );
+      expect(unverified.isVerified, false);
+
+      const phoneVerifiedUser = UserProfile(
+        userId: 'U2',
+        name: 'Verified User',
+        companyName: '',
+        phone: '+919999999999',
+        email: '',
+        userCategory: 'dealer',
+        role: 'customer',
+        phoneVerified: true,
+      );
+      expect(phoneVerifiedUser.isVerified, true);
     });
   });
 

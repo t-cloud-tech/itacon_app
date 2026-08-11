@@ -35,7 +35,6 @@ class SalesPerson {
   Map<String, dynamic> toMap() {
     return {
       'salesPersonId': salesPersonId,
-      'salespersonId': salesPersonId,
       'employeeId': employeeId,
       'name': name,
       'fullName': name,
@@ -58,7 +57,7 @@ class SalesPerson {
 
   factory SalesPerson.fromMap(Map<String, dynamic> map, String docId) {
     return SalesPerson(
-      salesPersonId: docId,
+      salesPersonId: map['salesPersonId'] ?? map['salespersonId'] ?? docId,
       employeeId: map['employeeId'] ?? 'EMP-$docId',
       name: map['name'] ?? map['fullName'] ?? '',
       phone: map['phone'] ?? map['phoneNumber'] ?? '',

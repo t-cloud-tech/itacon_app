@@ -8,6 +8,7 @@ import 'models/estimate.dart';
 import 'models/design_request.dart';
 import 'firebase_options.dart';
 import 'screens/auth_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const AuthScreen(),
+      home: const SplashScreen(),
     );
   }
 }

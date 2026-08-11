@@ -33,7 +33,6 @@ class ClientAssignment {
       'clientPhone': clientPhone,
       'clientCategory': clientCategory,
       'salespersonId': salespersonId,
-      'salesPersonId': salespersonId,
       'assignmentType': assignmentType,
       'status': status,
       'assignedAt': assignedAt != null

@@ -200,7 +200,6 @@ class TileOrder {
       'orderReferenceNumber': orderReference,
       'userId': userId,
       'salesPersonId': salesPersonId,
-      'salespersonId': salesPersonId,
       'userCategory': userCategory,
       'status': status,
       'orderType': orderType,
