@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _startSplashTimerAndRoute() async {
-    // 1. Run 2-second timer minimum delay
+    // 1. Run 3-second timer minimum delay
     final startTime = DateTime.now();
 
     Widget targetScreen = const AuthScreen();
@@ -54,9 +54,9 @@ class _SplashScreenState extends State<SplashScreen> {
       targetScreen = const AuthScreen();
     }
 
-    // Ensure at least 2 seconds elapsed for full 2-second splash experience
+    // Ensure at least 3 seconds elapsed for full 3-second splash experience
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-    final remainingMs = 2000 - elapsedMs;
+    final remainingMs = 3000 - elapsedMs;
     if (remainingMs > 0) {
       await Future.delayed(Duration(milliseconds: remainingMs));
     }
