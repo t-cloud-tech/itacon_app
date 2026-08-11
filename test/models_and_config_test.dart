@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:itacon_app/models/models.dart';
 import 'package:itacon_app/services/config_service.dart';
+import 'package:itacon_app/services/firestore_service.dart';
 
 void main() {
   group('TransporterModel Tests', () {
@@ -364,6 +365,21 @@ void main() {
         phoneVerified: true,
       );
       expect(phoneVerifiedUser.isVerified, true);
+    });
+
+    test('FirestoreService should define maxClientsPerSalesperson as 5', () {
+      expect(FirestoreService.maxClientsPerSalesperson, 5);
+
+      const spAtCapacity = SalesPerson(
+        salesPersonId: 'SP_001',
+        employeeId: 'EMP-SP-001',
+        name: 'Full Salesperson',
+        phone: '+919876543210',
+        email: 'sales@itacon.com',
+        referralCode: 'SALES101',
+        assignedClientsCount: 5,
+      );
+      expect(spAtCapacity.assignedClientsCount >= FirestoreService.maxClientsPerSalesperson, true);
     });
   });
 

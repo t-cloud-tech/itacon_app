@@ -273,9 +273,65 @@ class FirestoreService {
     }
   }
 
+  static const int maxClientsPerSalesperson = 5;
+
   Future<List<Map<String, dynamic>>> getSalespersons() async {
     final snapshot = await _salesPersonsRef.get();
     return snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+  }
+
+  /// Retrieves active salespersons filtered by capacity limit (< 5 assigned clients)
+  /// sorted in ascending order of assignedClientsCount (least assigned workload first).
+  Future<List<Map<String, dynamic>>> getAvailableSalespersons() async {
+    final List<Map<String, dynamic>> available = [];
+
+    try {
+      // 1. Fetch active salespersons from salesPersons collection
+      final spSnap = await _salesPersonsRef.get();
+
+      for (var doc in spSnap.docs) {
+        final data = doc.data();
+        final status = data['status'] ?? (data['isActive'] == true ? 'active' : 'active');
+        if (status == 'active') {
+          final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
+          if (count < maxClientsPerSalesperson) {
+            available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
+          }
+        }
+      }
+
+      // 2. Fetch active salespersons from users collection (if role == 'salesperson')
+      final userSpSnap = await _usersRef
+          .where('role', isEqualTo: 'salesperson')
+          .get();
+
+      for (var doc in userSpSnap.docs) {
+        final data = doc.data();
+        final status = data['status'] ?? 'active';
+        if (status == 'active') {
+          final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
+          if (count < maxClientsPerSalesperson) {
+            if (!available.any((item) => item['id'] == doc.id)) {
+              available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
+            }
+          }
+        }
+      }
+
+      // Sort by assignedClientsCount ASC (least-assigned salesperson first)
+      available.sort((a, b) {
+        final cA = (a['assignedClientsCount'] as int);
+        final cB = (b['assignedClientsCount'] as int);
+        if (cA != cB) return cA.compareTo(cB);
+        final activeA = (a['activeClientsCount'] as num?)?.toInt() ?? 0;
+        final activeB = (b['activeClientsCount'] as num?)?.toInt() ?? 0;
+        return activeA.compareTo(activeB);
+      });
+    } catch (e) {
+      // Return whatever available list collected
+    }
+
+    return available;
   }
 
   Future<Map<String, dynamic>?> verifySalespersonReferralCode(String referralCode) async {
@@ -285,13 +341,19 @@ class FirestoreService {
 
       final spQuery = await _salesPersonsRef
           .where('referralCode', isEqualTo: trimmedCode)
-          .where('status', isEqualTo: 'active')
           .limit(1)
           .get();
 
       if (spQuery.docs.isNotEmpty) {
         final doc = spQuery.docs.first;
-        return {'id': doc.id, ...doc.data()};
+        final data = doc.data();
+        final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
+        if (count >= maxClientsPerSalesperson) {
+          throw Exception(
+            'Salesperson ${data['name'] ?? trimmedCode} has reached maximum client capacity ($maxClientsPerSalesperson/$maxClientsPerSalesperson clients). Auto-assigning available salesperson with lower workload.',
+          );
+        }
+        return {'id': doc.id, ...data};
       }
 
       final userQuery = await _usersRef
@@ -302,7 +364,14 @@ class FirestoreService {
 
       if (userQuery.docs.isNotEmpty) {
         final doc = userQuery.docs.first;
-        return {'id': doc.id, ...doc.data()};
+        final data = doc.data();
+        final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
+        if (count >= maxClientsPerSalesperson) {
+          throw Exception(
+            'Salesperson ${data['name'] ?? trimmedCode} has reached maximum client capacity ($maxClientsPerSalesperson/$maxClientsPerSalesperson clients). Auto-assigning available salesperson with lower workload.',
+          );
+        }
+        return {'id': doc.id, ...data};
       }
 
       return null;
@@ -313,47 +382,38 @@ class FirestoreService {
 
   Future<Map<String, String>> autoAssignSalespersonDetails({String? userId}) async {
     try {
-      final spQuery = await _salesPersonsRef
-          .where('status', isEqualTo: 'active')
-          .limit(1)
-          .get();
+      final availableSpList = await getAvailableSalespersons();
 
       String assignedSalespersonId;
-      String spReferralCode = 'SALES101';
-      String spName = 'ITA Sales Executive';
-      String spPhone = '+919876543210';
+      String spReferralCode;
+      String spName;
+      String spPhone;
 
-      if (spQuery.docs.isNotEmpty) {
-        final doc = spQuery.docs.first;
-        final data = doc.data();
-        assignedSalespersonId = doc.id;
-        spReferralCode = data['referralCode'] ?? 'SALES101';
-        spName = data['name'] ?? data['fullName'] ?? 'ITA Sales Executive';
-        spPhone = data['phone'] ?? data['phoneNumber'] ?? '+919876543210';
+      if (availableSpList.isNotEmpty) {
+        // Pick salesperson with the lowest assignedClientsCount (< 5)
+        final chosenSp = availableSpList.first;
+        assignedSalespersonId = (chosenSp['id'] ?? chosenSp['salesPersonId'] ?? chosenSp['salespersonId']) as String;
+        spReferralCode = chosenSp['referralCode'] ?? 'SALES101';
+        spName = chosenSp['name'] ?? chosenSp['fullName'] ?? 'ITA Sales Executive';
+        spPhone = chosenSp['phone'] ?? chosenSp['phoneNumber'] ?? '+919876543210';
       } else {
-        final userSpQuery = await _usersRef.where('role', isEqualTo: 'salesperson').limit(1).get();
-        if (userSpQuery.docs.isNotEmpty) {
-          final doc = userSpQuery.docs.first;
-          final data = doc.data();
-          assignedSalespersonId = doc.id;
-          spReferralCode = data['referralCode'] ?? 'SALES101';
-          spName = data['fullName'] ?? data['name'] ?? 'ITA Sales Executive';
-          spPhone = data['phone'] ?? data['phoneNumber'] ?? '+919876543210';
-        } else {
-          // If no active salesperson document exists in database, seed default sales executive
-          assignedSalespersonId = 'SP_001';
-          spReferralCode = 'SALES101';
-          spName = 'ITA Sales Executive';
-          spPhone = '+919876543210';
-          await createSalespersonProfile(
-            salespersonId: 'SP_001',
-            fullName: 'ITA Sales Executive',
-            phoneNumber: '+919876543210',
-            referralCode: 'SALES101',
-            employeeId: 'EMP-SP-001',
-            isActive: true,
-          );
-        }
+        // All existing salespersons have reached max capacity of 5 clients!
+        // Dynamically create a new salesperson instance with 0 clients to maintain max 5 limit
+        final allSp = await getSalespersons();
+        final nextNum = allSp.length + 1;
+        assignedSalespersonId = 'SP_00$nextNum';
+        spReferralCode = 'SALES10$nextNum';
+        spName = 'ITA Sales Executive $nextNum';
+        spPhone = '+9198765432${10 + nextNum}';
+
+        await createSalespersonProfile(
+          salespersonId: assignedSalespersonId,
+          fullName: spName,
+          phoneNumber: spPhone,
+          referralCode: spReferralCode,
+          employeeId: 'EMP-SP-00$nextNum',
+          isActive: true,
+        );
       }
 
       if (userId != null && userId.isNotEmpty) {
@@ -396,6 +456,33 @@ class FirestoreService {
     String assignmentType = 'manual_referral',
   }) async {
     try {
+      // Enforce 5-user capacity limit per salesperson
+      final targetDoc = await _salesPersonsRef.doc(salespersonId).get();
+      final targetData = targetDoc.data();
+      final targetCount = (targetData?['assignedClientsCount'] as num?)?.toInt() ?? 0;
+
+      if (targetCount >= maxClientsPerSalesperson) {
+        // Re-route assignment to an available salesperson with lowest assignedClientsCount (< 5)
+        final available = await getAvailableSalespersons();
+        if (available.isNotEmpty) {
+          salespersonId = (available.first['id'] ?? available.first['salesPersonId'] ?? available.first['salespersonId']) as String;
+        } else {
+          // If all salespersons are at 5 capacity, create a new active salesperson
+          final allSp = await getSalespersons();
+          final nextNum = allSp.length + 1;
+          final newSpId = 'SP_00$nextNum';
+          await createSalespersonProfile(
+            salespersonId: newSpId,
+            fullName: 'ITA Sales Executive $nextNum',
+            phoneNumber: '+9198765432${10 + nextNum}',
+            referralCode: 'SALES10$nextNum',
+            employeeId: 'EMP-SP-00$nextNum',
+            isActive: true,
+          );
+          salespersonId = newSpId;
+        }
+      }
+
       final batch = _db.batch();
 
       final clientDoc = await getUserProfile(clientId);
