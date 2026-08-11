@@ -93,13 +93,9 @@ class AuthService {
       }
     }
 
-    // 3. Auto-assign salesperson if no code was given
-    assignedSpId ??=
-        await _firestoreService.autoAssignSalesperson(userId: uid);
-
     final userReferralCode = _generateUserReferralCode();
 
-    // 4. Create user profile in Firestore
+    // 3. Create primary user profile & category profile first
     await _firestoreService.createUserProfile(
       uid: uid,
       phoneNumber: phoneNumber,
@@ -111,6 +107,27 @@ class AuthService {
       userReferralCode: userReferralCode,
       isVerified: true,
     );
+
+    // 4. Assign salesperson (manual or auto) with explicit user details
+    if (assignedSpId != null) {
+      await _firestoreService.executeAtomicClientAssignment(
+        clientId: uid,
+        salespersonId: assignedSpId,
+        assignmentType: 'manual_referral',
+        clientName: fullName,
+        clientPhone: phoneNumber,
+        companyName: companyName,
+        clientCategory: categoryId,
+      );
+    } else {
+      await _firestoreService.autoAssignSalespersonDetails(
+        userId: uid,
+        clientName: fullName,
+        clientPhone: phoneNumber,
+        companyName: companyName,
+        clientCategory: categoryId,
+      );
+    }
   }
 
   String? _lastRegisteredUid;
@@ -159,7 +176,13 @@ class AuthService {
   }
 
   /// Verifies a salesperson referral code and links it to the logged-in user profile.
-  Future<bool> verifyAndLinkReferralCode(String referralCode) async {
+  Future<bool> verifyAndLinkReferralCode(
+    String referralCode, {
+    String? clientName,
+    String? clientPhone,
+    String? companyName,
+    String? clientCategory,
+  }) async {
     final uid = currentUid;
     final spProfile =
         await _firestoreService.verifySalespersonReferralCode(referralCode);
@@ -172,6 +195,10 @@ class AuthService {
           clientId: uid,
           salespersonId: spId,
           assignmentType: 'manual_referral',
+          clientName: clientName,
+          clientPhone: clientPhone,
+          companyName: companyName,
+          clientCategory: clientCategory,
         );
       }
       return true;

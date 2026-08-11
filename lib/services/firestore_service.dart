@@ -380,7 +380,13 @@ class FirestoreService {
     }
   }
 
-  Future<Map<String, String>> autoAssignSalespersonDetails({String? userId}) async {
+  Future<Map<String, String>> autoAssignSalespersonDetails({
+    String? userId,
+    String? clientName,
+    String? clientPhone,
+    String? companyName,
+    String? clientCategory,
+  }) async {
     try {
       final availableSpList = await getAvailableSalespersons();
 
@@ -421,6 +427,10 @@ class FirestoreService {
           clientId: userId,
           salespersonId: assignedSalespersonId,
           assignmentType: 'auto_assigned',
+          clientName: clientName,
+          clientPhone: clientPhone,
+          companyName: companyName,
+          clientCategory: clientCategory,
         );
       }
 
@@ -440,20 +450,35 @@ class FirestoreService {
     }
   }
 
-  Future<String?> autoAssignSalesperson({String? userId}) async {
-    final details = await autoAssignSalespersonDetails(userId: userId);
+  Future<String?> autoAssignSalesperson({
+    String? userId,
+    String? clientName,
+    String? clientPhone,
+    String? companyName,
+    String? clientCategory,
+  }) async {
+    final details = await autoAssignSalespersonDetails(
+      userId: userId,
+      clientName: clientName,
+      clientPhone: clientPhone,
+      companyName: companyName,
+      clientCategory: clientCategory,
+    );
     return details['salespersonId'];
   }
 
   /// Atomically completes client referral assignment across:
-  /// a. Set assignedSalespersonId and isVerified: true on users/{clientId} & category collection
-  /// b. Insert record into client_assignments
-  /// c. Add client snapshot under users/{salespersonId}/assigned_clients/{clientId} & salesPersons/{salespersonId}/assigned_clients/{clientId}
-  /// d. Increment assignedClientsCount by +1 on users/{salespersonId} & salesPersons/{salespersonId}
+  /// a. Set assignedSalespersonId and isVerified: true on users/{clientId}
+  /// b. Insert record into root collections based on assignment type (Auto_Assign_User or Manual_salesperson_assign) & client_assignments
+  /// c. Increment assignedClientsCount by +1 on users/{salespersonId} & salesPersons/{salespersonId}
   Future<void> executeAtomicClientAssignment({
     required String clientId,
     required String salespersonId,
     String assignmentType = 'manual_referral',
+    String? clientName,
+    String? clientPhone,
+    String? companyName,
+    String? clientCategory,
   }) async {
     try {
       // Enforce 5-user capacity limit per salesperson
@@ -486,10 +511,16 @@ class FirestoreService {
       final batch = _db.batch();
 
       final clientDoc = await getUserProfile(clientId);
-      final clientName = clientDoc?.name ?? 'Client';
-      final clientPhone = clientDoc?.phone ?? '';
-      final clientCategory = clientDoc?.userCategory ?? 'dealer';
-      final companyName = clientDoc?.companyName ?? '';
+      final resolvedName = (clientName != null && clientName.trim().isNotEmpty)
+          ? clientName.trim()
+          : (clientDoc?.name ?? 'Client');
+      final resolvedPhone = (clientPhone != null && clientPhone.trim().isNotEmpty)
+          ? clientPhone.trim()
+          : (clientDoc?.phone ?? '');
+      final resolvedCategory = (clientCategory != null && clientCategory.trim().isNotEmpty)
+          ? clientCategory.trim()
+          : (clientDoc?.userCategory ?? 'dealer');
+      final resolvedCompany = companyName ?? clientDoc?.companyName ?? '';
 
       final spDoc = await _salesPersonsRef.doc(salespersonId).get();
       final spData = spDoc.data();
@@ -497,7 +528,7 @@ class FirestoreService {
       final spName = spData?['name'] ?? spData?['fullName'] ?? 'ITA Sales Executive';
       final spPhone = spData?['phone'] ?? spData?['phoneNumber'] ?? '+919876543210';
 
-      // a. Set assignedSalespersonId, salespersonName, salespersonPhone, and isVerified: true on users/{clientId}
+      // a. Set assignedSalespersonId, salespersonName, salespersonPhone, and isVerified: true on users/{clientId} ONLY
       final userUpdateData = {
         'assignedSalespersonId': salespersonId,
         'salesPersonId': salespersonId,
@@ -509,8 +540,12 @@ class FirestoreService {
       };
       batch.set(_usersRef.doc(clientId), userUpdateData, SetOptions(merge: true));
 
-      final catColName = _getCategoryCollectionName(clientCategory);
-      batch.set(_db.collection(catColName).doc(clientId), userUpdateData, SetOptions(merge: true));
+      // Category collections (dealers, architects, etc.) DO NOT store salesperson data
+      final catColName = _getCategoryCollectionName(resolvedCategory);
+      batch.set(_db.collection(catColName).doc(clientId), {
+        'isVerified': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       // b. Insert record into root collections based on assignment type:
       // - If auto_assigned -> Auto_Assign_User collection
@@ -519,9 +554,9 @@ class FirestoreService {
       final clientAssignment = ClientAssignment(
         assignmentId: assignmentId,
         clientId: clientId,
-        clientName: clientName,
-        clientPhone: clientPhone,
-        clientCategory: clientCategory,
+        clientName: resolvedName,
+        clientPhone: resolvedPhone,
+        clientCategory: resolvedCategory,
         salespersonId: salespersonId,
         assignmentType: assignmentType,
         status: 'active',
@@ -532,7 +567,7 @@ class FirestoreService {
         'salespersonName': spName,
         'salespersonPhone': spPhone,
         'salespersonReferralCode': spReferralCode,
-        'companyName': companyName,
+        'companyName': resolvedCompany,
       };
 
       batch.set(_db.collection('client_assignments').doc(assignmentId), assignmentData);
