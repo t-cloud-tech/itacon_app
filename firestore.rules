@@ -26,7 +26,10 @@ service cloud.firestore {
     match /client_assignments/{assignmentId} {
       allow read, write: if true;
     }
-    match /assigned_clients/{assignmentId} {
+    match /Auto_Assign_User/{docId} {
+      allow read, write: if true;
+    }
+    match /Manual_salesperson_assign/{docId} {
       allow read, write: if true;
     }
 

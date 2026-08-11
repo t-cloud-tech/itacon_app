@@ -512,7 +512,9 @@ class FirestoreService {
       final catColName = _getCategoryCollectionName(clientCategory);
       batch.set(_db.collection(catColName).doc(clientId), userUpdateData, SetOptions(merge: true));
 
-      // b. Insert record into root collections assigned_clients & client_assignments
+      // b. Insert record into root collections based on assignment type:
+      // - If auto_assigned -> Auto_Assign_User collection
+      // - If manual_referral -> Manual_salesperson_assign collection
       final assignmentId = 'ASGN_${DateTime.now().millisecondsSinceEpoch}_$clientId';
       final clientAssignment = ClientAssignment(
         assignmentId: assignmentId,
@@ -532,8 +534,14 @@ class FirestoreService {
         'salespersonReferralCode': spReferralCode,
         'companyName': companyName,
       };
+
       batch.set(_db.collection('client_assignments').doc(assignmentId), assignmentData);
-      batch.set(_db.collection('assigned_clients').doc(assignmentId), assignmentData);
+
+      if (assignmentType == 'auto_assigned') {
+        batch.set(_db.collection('Auto_Assign_User').doc(clientId), assignmentData, SetOptions(merge: true));
+      } else {
+        batch.set(_db.collection('Manual_salesperson_assign').doc(clientId), assignmentData, SetOptions(merge: true));
+      }
 
       // c. Increment assignedClientsCount by +1 on users/{salespersonId} & salesPersons/{salespersonId}
       final counterUpdate = {
