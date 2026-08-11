@@ -388,6 +388,22 @@ class FirestoreService {
     String? clientCategory,
   }) async {
     try {
+      if (userId != null && userId.isNotEmpty) {
+        final existingUser = await getUserProfile(userId);
+        if (existingUser != null &&
+            existingUser.salesPersonId != null &&
+            existingUser.salesPersonId!.isNotEmpty) {
+          final existingSpDoc = await _salesPersonsRef.doc(existingUser.salesPersonId!).get();
+          final existingSpData = existingSpDoc.data();
+          return {
+            'salespersonId': existingUser.salesPersonId!,
+            'referralCode': existingSpData?['referralCode'] ?? 'SALES101',
+            'name': existingSpData?['name'] ?? existingSpData?['fullName'] ?? 'ITA Sales Executive',
+            'phone': existingSpData?['phone'] ?? existingSpData?['phoneNumber'] ?? '+919876543210',
+          };
+        }
+      }
+
       final availableSpList = await getAvailableSalespersons();
 
       String assignedSalespersonId;
@@ -481,6 +497,20 @@ class FirestoreService {
     String? clientCategory,
   }) async {
     try {
+      final clientDoc = await getUserProfile(clientId);
+      final existingSpId = clientDoc?.salesPersonId;
+
+      final existingAssignSnap = await _db
+          .collection('client_assignments')
+          .where('clientId', isEqualTo: clientId)
+          .limit(1)
+          .get();
+
+      if ((existingSpId != null && existingSpId.isNotEmpty) || existingAssignSnap.docs.isNotEmpty) {
+        // Client is ALREADY assigned to a salesperson. Prevent duplicate document creation and double counter increments.
+        return;
+      }
+
       // Enforce 5-user capacity limit per salesperson
       final targetDoc = await _salesPersonsRef.doc(salespersonId).get();
       final targetData = targetDoc.data();
@@ -510,7 +540,6 @@ class FirestoreService {
 
       final batch = _db.batch();
 
-      final clientDoc = await getUserProfile(clientId);
       final resolvedName = (clientName != null && clientName.trim().isNotEmpty)
           ? clientName.trim()
           : (clientDoc?.name ?? 'Client');
@@ -547,10 +576,10 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // b. Insert record into root collections based on assignment type:
+      // b. Insert record into root collections based on assignment type (deterministic document ID):
       // - If auto_assigned -> Auto_Assign_User collection
       // - If manual_referral -> Manual_salesperson_assign collection
-      final assignmentId = 'ASGN_${DateTime.now().millisecondsSinceEpoch}_$clientId';
+      final assignmentId = 'ASGN_$clientId';
       final clientAssignment = ClientAssignment(
         assignmentId: assignmentId,
         clientId: clientId,

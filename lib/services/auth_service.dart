@@ -168,9 +168,15 @@ class AuthService {
     }
 
     if (referralCode != null && referralCode.trim().isNotEmpty) {
-      bool valid = await verifyAndLinkReferralCode(referralCode.trim());
-      if (!valid) {
-        throw Exception('Invalid referral code entered. Access denied. Please enter a valid salesperson referral code.');
+      final uid = currentUid;
+      final existingUser = uid != null ? await _firestoreService.getUserProfile(uid) : null;
+      final existingSpId = existingUser?.salesPersonId;
+
+      if (existingSpId == null || existingSpId.isEmpty) {
+        bool valid = await verifyAndLinkReferralCode(referralCode.trim());
+        if (!valid) {
+          throw Exception('Invalid referral code entered. Access denied. Please enter a valid salesperson referral code.');
+        }
       }
     }
   }
