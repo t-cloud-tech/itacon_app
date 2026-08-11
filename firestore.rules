@@ -23,6 +23,12 @@ service cloud.firestore {
     match /salesPersons/{spId} {
       allow read, write: if true;
     }
+    match /client_assignments/{assignmentId} {
+      allow read, write: if true;
+    }
+    match /assigned_clients/{assignmentId} {
+      allow read, write: if true;
+    }
 
     // Products catalog and feature flags (public read & write access)
     match /products/{productId} {
