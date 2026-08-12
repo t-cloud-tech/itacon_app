@@ -190,6 +190,17 @@ class AuthService {
     String? clientCategory,
   }) async {
     final uid = currentUid;
+
+    if (uid != null && uid.isNotEmpty) {
+      final existingUser = await _firestoreService.getUserProfile(uid);
+      final existingSpId = existingUser?.salesPersonId;
+      if (existingSpId != null && existingSpId.isNotEmpty) {
+        // Existing user is ALREADY assigned to a salesperson.
+        // Do NOT store in Manual_salesperson_assign or client_assignments again.
+        return true;
+      }
+    }
+
     final spProfile =
         await _firestoreService.verifySalespersonReferralCode(referralCode);
 
