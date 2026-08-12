@@ -13,6 +13,8 @@ class SalesPerson {
   final String status; // active / inactive
   final int assignedClientsCount;
   final int activeClientsCount;
+  final List<Map<String, dynamic>> assignedUsers;
+  final List<String> assignedUserIds;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -28,6 +30,8 @@ class SalesPerson {
     this.status = 'active',
     this.assignedClientsCount = 0,
     this.activeClientsCount = 0,
+    this.assignedUsers = const [],
+    this.assignedUserIds = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -48,6 +52,8 @@ class SalesPerson {
       'isActive': status == 'active',
       'assignedClientsCount': assignedClientsCount,
       'activeClientsCount': activeClientsCount,
+      'assignedUsers': assignedUsers,
+      'assignedUserIds': assignedUserIds,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -68,6 +74,10 @@ class SalesPerson {
       status: map['status'] ?? (map['isActive'] == true ? 'active' : 'inactive'),
       assignedClientsCount: (map['assignedClientsCount'] as num?)?.toInt() ?? 0,
       activeClientsCount: (map['activeClientsCount'] as num?)?.toInt() ?? 0,
+      assignedUsers: List<Map<String, dynamic>>.from(
+        (map['assignedUsers'] as List?)?.map((x) => Map<String, dynamic>.from(x)) ?? [],
+      ),
+      assignedUserIds: List<String>.from(map['assignedUserIds'] ?? []),
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
