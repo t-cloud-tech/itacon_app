@@ -91,7 +91,10 @@ class _AuthScreenState extends State<AuthScreen> {
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP Code sent successfully!')),
+          const SnackBar(
+            content: Text('OTP sent successfully! Check SMS or enter test OTP (e.g. 123456).'),
+            duration: Duration(seconds: 4),
+          ),
         );
       },
       onError: (err) {
