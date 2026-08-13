@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_category.dart';
 import '../models/user_profile.dart';
@@ -468,6 +469,7 @@ class FirestoreService {
         'phone': spPhone,
       };
     } catch (e) {
+      debugPrint('Error in autoAssignSalespersonDetails: $e');
       return {
         'salespersonId': 'SP_001',
         'referralCode': 'SALES101',
@@ -636,7 +638,7 @@ class FirestoreService {
         'userCategory': resolvedCategory,
         'companyName': resolvedCompany,
         'assignmentType': assignmentType,
-        'assignedAt': FieldValue.serverTimestamp(),
+        'assignedAt': DateTime.now().toIso8601String(),
       };
 
       final counterUpdate = {
