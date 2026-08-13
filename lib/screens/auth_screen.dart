@@ -280,7 +280,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32.0),
                     child: Image.asset(
-                      'assets/images/itacon_logo.png',
+                      'assets/images/itacon-logo.png',
                       width: 240,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
@@ -541,7 +541,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     Center(
                       child: Image.asset(
-                        'assets/images/itacon_logo.png',
+                        'assets/images/itacon-logo.png',
                         height: 48,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) =>
@@ -558,12 +558,12 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // 2.1 Header Banner
+                  // 2.1 Header Banner (Height: 230)
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 180,
+                    height: 230,
                     child: Stack(
                       children: [
                         Positioned.fill(
@@ -612,7 +612,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               const Text(
                                 'Welcome\nBack!',
                                 style: TextStyle(
-                                  fontSize: 21,
+                                  fontSize: 26,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF1B365D),
                                   height: 1.15,
@@ -620,9 +620,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                               Container(
                                 margin:
-                                    const EdgeInsets.symmetric(vertical: 4),
-                                width: 30,
-                                height: 3,
+                                    const EdgeInsets.symmetric(vertical: 5),
+                                width: 36,
+                                height: 3.5,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF16528),
                                   borderRadius: BorderRadius.circular(2),
@@ -631,7 +631,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               const Text(
                                 'Sign in to your account',
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 15,
                                   color: Color(0xFF757575),
                                   fontWeight: FontWeight.w400,
                                 ),
@@ -643,9 +643,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // 2.2 White Form Sheet Container
+                  // 2.2 White Form Sheet Container (Overlaps 30px over bottom of banner)
                   Positioned.fill(
-                    top: 150,
+                    top: 200,
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -715,9 +715,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // 2.3 Centered Floating Avatar Badge
+                  // 2.3 Centered Floating Avatar Badge (Centered at top edge of white sheet)
                   Positioned(
-                    top: 129,
+                    top: 179,
                     left: 0,
                     right: 0,
                     child: Center(
@@ -1070,7 +1070,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     Center(
                       child: Image.asset(
-                        'assets/images/itacon_logo.png',
+                        'assets/images/itacon-logo.png',
                         height: 48,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) =>
@@ -1087,12 +1087,12 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // 2.1 Header Banner (Height: 180)
+                  // 2.1 Header Banner (Height: 230)
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 180,
+                    height: 230,
                     child: Stack(
                       children: [
                         // Texture background image
@@ -1144,7 +1144,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               const Text(
                                 'Create your\naccount',
                                 style: TextStyle(
-                                  fontSize: 21,
+                                  fontSize: 26,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF1B365D),
                                   height: 1.15,
@@ -1152,9 +1152,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                               Container(
                                 margin:
-                                    const EdgeInsets.symmetric(vertical: 4),
-                                width: 30,
-                                height: 3,
+                                    const EdgeInsets.symmetric(vertical: 5),
+                                width: 36,
+                                height: 3.5,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF16528),
                                   borderRadius: BorderRadius.circular(2),
@@ -1163,7 +1163,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               const Text(
                                 "Let's get you started",
                                 style: TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 15,
                                   color: Color(0xFF757575),
                                   fontWeight: FontWeight.w400,
                                 ),
@@ -1177,7 +1177,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   // 2.2 White Form Sheet Container (Overlaps 30px over bottom of banner!)
                   Positioned.fill(
-                    top: 150,
+                    top: 200,
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -1250,7 +1250,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   // 2.3 Centered Floating Avatar Badge (Centered at top edge of white sheet)
                   Positioned(
-                    top: 129, // Centered vertically on y = 150 seam
+                    top: 179, // Centered vertically on y = 200 seam
                     left: 0,
                     right: 0,
                     child: Center(
