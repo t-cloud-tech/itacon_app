@@ -108,20 +108,12 @@ class AuthService {
       isVerified: true,
     );
 
-    // 4. Assign salesperson (manual or auto) with explicit user details
+    // 4. Assign salesperson ONLY if manual referral code was explicitly provided during sign up
     if (assignedSpId != null) {
       await _firestoreService.executeAtomicClientAssignment(
         clientId: uid,
         salespersonId: assignedSpId,
         assignmentType: 'manual_referral',
-        clientName: fullName,
-        clientPhone: phoneNumber,
-        companyName: companyName,
-        clientCategory: categoryId,
-      );
-    } else {
-      await _firestoreService.autoAssignSalespersonDetails(
-        userId: uid,
         clientName: fullName,
         clientPhone: phoneNumber,
         companyName: companyName,
