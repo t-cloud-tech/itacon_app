@@ -122,10 +122,17 @@ class FirestoreService {
       // 1. Store in primary `users` collection
       await _usersRef.doc(uid).set(docData, SetOptions(merge: true));
 
-      // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, etc.)
+      // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, etc.) WITHOUT salesperson fields
+      final catDocData = Map<String, dynamic>.from(docData);
+      catDocData.remove('salesPersonId');
+      catDocData.remove('assignedSalespersonId');
+      catDocData.remove('salespersonName');
+      catDocData.remove('salespersonPhone');
+      catDocData.remove('salespersonReferralCode');
+
       final catColName = _getCategoryCollectionName(role);
       await _db.collection(catColName).doc(uid).set({
-        ...docData,
+        ...catDocData,
         'categoryLabel': categoryLabel,
       }, SetOptions(merge: true));
     } catch (e) {

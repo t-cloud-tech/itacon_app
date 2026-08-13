@@ -189,7 +189,7 @@ class _AuthScreenState extends State<AuthScreen> {
         final profile = await _firestoreService.getUserProfile(uid);
         if (profile != null &&
             profile.salesPersonId != null &&
-            profile.salesPersonId!.isEmpty) {
+            profile.salesPersonId!.isNotEmpty) {
           hasSalesperson = true;
         }
       }
