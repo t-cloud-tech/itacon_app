@@ -27,9 +27,50 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Login Controllers
-  final _loginIdentifierController = TextEditingController();
+  final _loginUsernameController = TextEditingController();
+  final _loginPhoneController = TextEditingController();
+  final _loginOtpController = TextEditingController();
   final _loginPasswordController = TextEditingController();
   final _loginReferralCodeController = TextEditingController();
+
+  final _loginFormKey = GlobalKey<FormState>();
+
+  // Login Step & OTP state
+  int _loginStep = 1;
+  String? _loginVerificationId;
+  bool _loginOtpSent = false;
+
+  void _requestLoginOtp() async {
+    final phone = _loginPhoneController.text.trim();
+    if (phone.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please enter a valid 10-digit mobile number.')),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    await _authService.sendOtp(
+      phoneNumber: '+91$phone',
+      onCodeSent: (verId) {
+        if (!mounted) return;
+        setState(() {
+          _loginVerificationId = verId;
+          _loginOtpSent = true;
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('OTP Code sent successfully!')),
+        );
+      },
+      onError: (err) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(err)));
+      },
+    );
+  }
 
   // Registration Controllers
   final _regFullNameController = TextEditingController();
@@ -58,7 +99,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    _loginIdentifierController.dispose();
+    _loginUsernameController.dispose();
+    _loginPhoneController.dispose();
+    _loginOtpController.dispose();
     _loginPasswordController.dispose();
     _loginReferralCodeController.dispose();
     _regFullNameController.dispose();
@@ -106,59 +149,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  void _handleLogin() async {
-    if (_loginIdentifierController.text.trim().isEmpty ||
-        _loginPasswordController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your username and password.')),
-      );
-      return;
-    }
 
-    setState(() => _isLoading = true);
-    try {
-      final referralInput = _loginReferralCodeController.text.trim();
-      await _authService.loginUser(
-        loginIdentifier: _loginIdentifierController.text.trim(),
-        password: _loginPasswordController.text.trim(),
-        referralCode: referralInput,
-      );
-
-      final uid = _authService.currentUser?.uid;
-      if (uid != null && uid.isNotEmpty) {
-        final profile = await _firestoreService.getUserProfile(uid);
-        if (profile == null ||
-            profile.salesPersonId == null ||
-            profile.salesPersonId!.isEmpty) {
-          await _authService.autoAssignSalesperson(targetUserId: uid);
-        }
-      }
-
-      setState(() => _isLoading = false);
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
-      );
-
-      // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      final errorText = e.toString().replaceAll('Exception: ', '');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(errorText),
-          backgroundColor: Colors.red.shade700,
-        ),
-      );
-    }
-  }
 
   void _handleRegistration() async {
     if (!_formKey.currentState!.validate()) return;
@@ -429,6 +420,80 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  void _handleLogin() async {
+    if (!_loginFormKey.currentState!.validate()) return;
+
+    if (_loginStep == 1) {
+      if (!_loginOtpSent || _loginOtpController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please request and enter the OTP code.')),
+        );
+        return;
+      }
+      // Proceed to Step 2
+      setState(() {
+        _loginStep = 2;
+      });
+      return;
+    }
+
+    // Step 2: Final Submission
+    final referralInput = _loginReferralCodeController.text.trim();
+    if (referralInput.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sales Representative Referral Code is required.')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final identifier = _loginUsernameController.text.trim().isNotEmpty
+          ? _loginUsernameController.text.trim()
+          : '+91${_loginPhoneController.text.trim()}';
+
+      await _authService.loginUser(
+        loginIdentifier: identifier,
+        password: _loginPasswordController.text.trim(),
+        referralCode: referralInput,
+      );
+
+      final uid = _authService.currentUser?.uid;
+      if (uid != null && uid.isNotEmpty) {
+        final profile = await _firestoreService.getUserProfile(uid);
+        if (profile == null ||
+            profile.salesPersonId == null ||
+            profile.salesPersonId!.isEmpty) {
+          await _authService.autoAssignSalesperson(targetUserId: uid);
+        }
+      }
+
+      setState(() => _isLoading = false);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
+      );
+
+      // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      final errorText = e.toString().replaceAll('Exception: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorText),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    }
+  }
+
   // ===========================================================================
   // 2. LOGIN VIEW SCREEN
   // ===========================================================================
@@ -451,9 +516,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       alignment: Alignment.centerLeft,
                       child: InkWell(
                         onTap: () {
-                          setState(() {
-                            _viewMode = AuthViewMode.choice;
-                          });
+                          if (_loginStep > 1) {
+                            setState(() => _loginStep--);
+                          } else {
+                            setState(() {
+                              _viewMode = AuthViewMode.choice;
+                            });
+                          }
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
@@ -484,12 +553,12 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ),
 
-            // 2. Banner & White Form Container (Overlapping Layout without any Gap)
+            // 2. Banner & White Form Container
             Expanded(
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // 2.1 Header Banner (Height: 180)
+                  // 2.1 Header Banner
                   Positioned(
                     top: 0,
                     left: 0,
@@ -497,7 +566,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     height: 180,
                     child: Stack(
                       children: [
-                        // Texture background image
                         Positioned.fill(
                           child: Image.asset(
                             'assets/images/auth_bg.png',
@@ -506,7 +574,6 @@ class _AuthScreenState extends State<AuthScreen> {
                                 Container(color: Colors.white),
                           ),
                         ),
-                        // Right side curved image clip spanning full width
                         Positioned.fill(
                           child: ClipPath(
                             clipper: CurvedBannerClipper(),
@@ -536,7 +603,6 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                         ),
-                        // Left side text block
                         Positioned(
                           left: 20,
                           top: 25,
@@ -577,7 +643,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // 2.2 White Form Sheet Container (Overlaps 30px over bottom of banner!)
+                  // 2.2 White Form Sheet Container
                   Positioned.fill(
                     top: 150,
                     child: Container(
@@ -596,48 +662,55 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                       padding: const EdgeInsets.fromLTRB(20, 38, 20, 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            child: SingleChildScrollView(
-                              physics: const ClampingScrollPhysics(),
-                              child: _buildLoginFormFields(),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
+                      child: Form(
+                        key: _loginFormKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // 2-Step Timeline Indicator for Login
+                            _buildLoginTimelineIndicator(),
+                            const SizedBox(height: 12),
 
-                          // Login Action Button
-                          _buildLoginActionButton(),
-                          const SizedBox(height: 8),
-
-                          // Footer Sign Up Link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Don't have an account? ",
-                                style: TextStyle(
-                                    color: Color(0xFF6B7280), fontSize: 13),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                physics: const ClampingScrollPhysics(),
+                                child: _buildLoginFormFields(),
                               ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _viewMode = AuthViewMode.signup;
-                                  });
-                                },
-                                child: const Text(
-                                  'Sign up',
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Login Action Button
+                            _buildLoginActionButton(),
+                            const SizedBox(height: 8),
+
+                            // Footer Sign Up Link
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "Don't have an account? ",
                                   style: TextStyle(
-                                    color: Color(0xFF1B365D),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                                      color: Color(0xFF6B7280), fontSize: 13),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _viewMode = AuthViewMode.signup;
+                                    });
+                                  },
+                                  child: const Text(
+                                    'Sign up',
+                                    style: TextStyle(
+                                      color: Color(0xFF1B365D),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -681,57 +754,232 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ===========================================================================
-  // LOGIN FORM FIELDS AND BUTTON
+  // LOGIN TIMELINE INDICATOR (2 STEPS)
   // ===========================================================================
-  Widget _buildLoginFormFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 4),
-        // Username / Mobile
-        _buildFieldLabel('Username / Mobile No. *'),
-        _buildCustomInputField(
-          controller: _loginIdentifierController,
-          hintText: 'Enter Mobile No. or Username',
-          prefixIcon: Icons.person_outline_rounded,
-        ),
-        const SizedBox(height: 12),
-
-        // Password
-        _buildFieldLabel('Password *'),
-        _buildCustomInputField(
-          controller: _loginPasswordController,
-          hintText: 'Enter your password',
-          prefixIcon: Icons.lock_outline_rounded,
-          obscureText: _obscurePassword,
-          suffixIcon: IconButton(
-            constraints: const BoxConstraints(maxHeight: 38, maxWidth: 38),
-            icon: Icon(
-              _obscurePassword
-                  ? Icons.visibility_off_outlined
-                  : Icons.visibility_outlined,
-              color: Colors.grey.shade600,
-              size: 18,
-            ),
-            onPressed: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Referral Code (Optional)
-        _buildFieldLabel('Sales Representative Referral Code (Optional)'),
-        _buildCustomInputField(
-          controller: _loginReferralCodeController,
-          hintText: 'e.g., SALES123',
-          prefixIcon: Icons.qr_code_outlined,
-          textCapitalization: TextCapitalization.characters,
-        ),
-      ],
+  Widget _buildLoginTimelineIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+      child: Row(
+        children: [
+          _buildLoginTimelineStep(stepNumber: 1, label: 'Account & OTP'),
+          Expanded(child: _buildTimelineDashedLine(isPassed: _loginStep > 1)),
+          _buildLoginTimelineStep(stepNumber: 2, label: 'Sales Code'),
+        ],
+      ),
     );
   }
 
+  Widget _buildLoginTimelineStep({required int stepNumber, required String label}) {
+    final isActive = _loginStep == stepNumber;
+    final isPassed = _loginStep > stepNumber;
+
+    return GestureDetector(
+      onTap: stepNumber < _loginStep
+          ? () {
+              setState(() {
+                _loginStep = stepNumber;
+              });
+            }
+          : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive || isPassed
+                  ? const Color(0xFF1B365D)
+                  : Colors.white,
+              border: Border.all(
+                color: isActive || isPassed
+                    ? const Color(0xFF1B365D)
+                    : Colors.grey.shade300,
+                width: 1.5,
+              ),
+            ),
+            child: Center(
+              child: isPassed
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
+                  : Text(
+                      '$stepNumber',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isActive ? Colors.white : Colors.grey.shade600,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight:
+                  isActive || isPassed ? FontWeight.bold : FontWeight.w500,
+              color: isActive || isPassed
+                  ? const Color(0xFF1B365D)
+                  : Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // LOGIN FORM FIELDS AND BUTTON
+  // ===========================================================================
+  Widget _buildLoginFormFields() {
+    if (_loginStep == 1) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          // Username
+          _buildFieldLabel('Username'),
+          _buildCustomInputField(
+            controller: _loginUsernameController,
+            hintText: 'Enter Username',
+            prefixIcon: Icons.person_outline_rounded,
+          ),
+          const SizedBox(height: 12),
+
+          // Mobile Number + OTP Button
+          _buildFieldLabel('Mobile Number *'),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildCustomInputField(
+                  controller: _loginPhoneController,
+                  hintText: '9876543210',
+                  prefixIcon: Icons.phone_iphone_outlined,
+                  prefixText: '+91 ',
+                  keyboardType: TextInputType.phone,
+                  validator: (v) => v == null || v.trim().length < 10
+                      ? 'Enter 10-digit mobile number'
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                height: 38,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B365D),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isLoading ? null : _requestLoginOtp,
+                  child: Text(
+                    _loginOtpSent ? 'Resend' : 'Send OTP',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // OTP Field if sent
+          if (_loginOtpSent) ...[
+            _buildFieldLabel('Enter 6-Digit OTP *'),
+            _buildCustomInputField(
+              controller: _loginOtpController,
+              hintText: '• • • • • •',
+              prefixIcon: Icons.pin_outlined,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              validator: (v) => v == null || v.trim().length < 6
+                  ? 'Enter 6-digit OTP'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Password
+          _buildFieldLabel('Password *'),
+          _buildCustomInputField(
+            controller: _loginPasswordController,
+            hintText: 'Enter your password',
+            prefixIcon: Icons.lock_outline_rounded,
+            obscureText: _obscurePassword,
+            suffixIcon: IconButton(
+              constraints: const BoxConstraints(maxHeight: 38, maxWidth: 38),
+              icon: Icon(
+                _obscurePassword
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: Colors.grey.shade600,
+                size: 18,
+              ),
+              onPressed: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+            ),
+            validator: (v) => v == null || v.isEmpty
+                ? 'Enter your password'
+                : null,
+          ),
+        ],
+      );
+    } else {
+      // STEP 2: Sales Representative Referral Code
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          _buildFieldLabel('Sales Representative Referral Code *'),
+          _buildCustomInputField(
+            controller: _loginReferralCodeController,
+            hintText: 'e.g., SALES123',
+            prefixIcon: Icons.qr_code_outlined,
+            textCapitalization: TextCapitalization.characters,
+            validator: (v) => v == null || v.trim().isEmpty
+                ? 'Sales representative referral code is mandatory'
+                : null,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B365D).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: const Color(0xFF1B365D).withValues(alpha: 0.15)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline_rounded,
+                    color: Color(0xFF1B365D), size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Please enter the referral code of your assigned Sales Representative to proceed.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF1B365D),
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
   Widget _buildLoginActionButton() {
+    final isFinalStep = _loginStep == 2;
     return SizedBox(
       height: 44,
       child: ElevatedButton(
@@ -750,19 +998,19 @@ class _AuthScreenState extends State<AuthScreen> {
                 height: 20,
                 child: CircularProgressIndicator(
                     color: Colors.white, strokeWidth: 2))
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Sign In',
-                    style: TextStyle(
+                    isFinalStep ? 'Sign In' : 'Continue',
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.3,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.arrow_forward_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded, size: 18),
                 ],
               ),
       ),
