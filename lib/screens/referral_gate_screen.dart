@@ -111,6 +111,12 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
               ),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  );
+                }
               },
               child: const Text(
                 'OK',

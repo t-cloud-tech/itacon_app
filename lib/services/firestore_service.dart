@@ -390,9 +390,13 @@ class FirestoreService {
     try {
       if (userId != null && userId.isNotEmpty) {
         final existingUser = await getUserProfile(userId);
+        final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(userId).get();
+        final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(userId).get();
+
         if (existingUser != null &&
             existingUser.salesPersonId != null &&
-            existingUser.salesPersonId!.isNotEmpty) {
+            existingUser.salesPersonId!.isNotEmpty &&
+            (existingAutoSnap.exists || existingManualSnap.exists)) {
           final existingSpDoc = await _salesPersonsRef.doc(existingUser.salesPersonId!).get();
           final existingSpData = existingSpDoc.data();
           return {
@@ -508,11 +512,10 @@ class FirestoreService {
           .limit(1)
           .get();
 
-      if ((existingSpId != null && existingSpId.isNotEmpty) ||
-          existingManualSnap.exists ||
+      if (existingManualSnap.exists ||
           existingAutoSnap.exists ||
           existingAssignSnap.docs.isNotEmpty) {
-        // Client is ALREADY assigned to a salesperson. Prevent duplicate document creation and double counter increments.
+        // Client assignment document ALREADY exists in root assignment collections. Prevent duplicate document creation and double counter increments.
         return;
       }
 

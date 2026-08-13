@@ -226,7 +226,28 @@ class AuthService {
   /// Auto assigns an active sales executive to the current user and returns details.
   Future<Map<String, String>> autoAssignSalespersonDetails({String? targetUserId}) async {
     final uid = targetUserId ?? currentUid;
-    return await _firestoreService.autoAssignSalespersonDetails(userId: uid);
+    String? name;
+    String? phone;
+    String? company;
+    String? category;
+
+    if (uid != null && uid.isNotEmpty) {
+      final profile = await _firestoreService.getUserProfile(uid);
+      if (profile != null) {
+        name = profile.name;
+        phone = profile.phone;
+        company = profile.companyName;
+        category = profile.userCategory;
+      }
+    }
+
+    return await _firestoreService.autoAssignSalespersonDetails(
+      userId: uid,
+      clientName: name,
+      clientPhone: phone,
+      companyName: company,
+      clientCategory: category,
+    );
   }
 
   /// Auto assigns an active sales executive to the current user.
