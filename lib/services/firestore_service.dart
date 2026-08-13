@@ -653,11 +653,10 @@ class FirestoreService {
         SetOptions(merge: true),
       );
 
-      // d. Increment assignedClientsCount by +1 and update assignedUserIds array on salesPersons/{salespersonId} & users/{salespersonId}
+      // d. Increment assignedClientsCount by +1 on salesPersons/{salespersonId} & users/{salespersonId}
       final counterUpdate = {
         'assignedClientsCount': FieldValue.increment(1),
         'activeClientsCount': FieldValue.increment(1),
-        'assignedUserIds': FieldValue.arrayUnion([clientId]),
         'updatedAt': FieldValue.serverTimestamp(),
       };
       batch.set(_usersRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
