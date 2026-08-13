@@ -624,8 +624,8 @@ class FirestoreService {
         batch.set(_db.collection('Manual_salesperson_assign').doc(clientId), assignmentData, SetOptions(merge: true));
       }
 
-      // c. Increment assignedClientsCount by +1 and store assigned user info directly on users/{salespersonId} & salesPersons/{salespersonId}
-      final clientEntryMap = {
+      // c. Store assigned client document in `assigned_clients` sub-collection under salesPersons/{salespersonId} and users/{salespersonId}
+      final assignedClientData = {
         'clientId': clientId,
         'userId': clientId,
         'name': resolvedName,
@@ -638,13 +638,25 @@ class FirestoreService {
         'userCategory': resolvedCategory,
         'companyName': resolvedCompany,
         'assignmentType': assignmentType,
-        'assignedAt': DateTime.now().toIso8601String(),
+        'assignedAt': FieldValue.serverTimestamp(),
       };
 
+      batch.set(
+        _salesPersonsRef.doc(salespersonId).collection('assigned_clients').doc(clientId),
+        assignedClientData,
+        SetOptions(merge: true),
+      );
+
+      batch.set(
+        _usersRef.doc(salespersonId).collection('assigned_clients').doc(clientId),
+        assignedClientData,
+        SetOptions(merge: true),
+      );
+
+      // d. Increment assignedClientsCount by +1 and update assignedUserIds array on salesPersons/{salespersonId} & users/{salespersonId}
       final counterUpdate = {
         'assignedClientsCount': FieldValue.increment(1),
         'activeClientsCount': FieldValue.increment(1),
-        'assignedUsers': FieldValue.arrayUnion([clientEntryMap]),
         'assignedUserIds': FieldValue.arrayUnion([clientId]),
         'updatedAt': FieldValue.serverTimestamp(),
       };
