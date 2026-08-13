@@ -122,7 +122,7 @@ class AuthService {
     }
   }
 
-  String? _lastRegisteredUid;
+  static String? _lastRegisteredUid;
 
   String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
 

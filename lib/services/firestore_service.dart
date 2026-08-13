@@ -396,10 +396,29 @@ class FirestoreService {
     String? clientCategory,
   }) async {
     try {
-      if (userId != null && userId.isNotEmpty) {
-        final existingUser = await getUserProfile(userId);
-        final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(userId).get();
-        final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(userId).get();
+      String? targetUid = userId;
+      String? targetName = clientName;
+      String? targetPhone = clientPhone;
+      String? targetCompany = companyName;
+      String? targetCategory = clientCategory;
+
+      if (targetUid == null || targetUid.isEmpty) {
+        final recentUsers = await _usersRef.orderBy('createdAt', descending: true).limit(1).get();
+        if (recentUsers.docs.isNotEmpty) {
+          final doc = recentUsers.docs.first;
+          final data = doc.data();
+          targetUid = doc.id;
+          targetName ??= data['name'] ?? data['fullName'];
+          targetPhone ??= data['phone'] ?? data['phoneNumber'];
+          targetCompany ??= data['companyName'];
+          targetCategory ??= data['userCategory'] ?? data['role'];
+        }
+      }
+
+      if (targetUid != null && targetUid.isNotEmpty) {
+        final existingUser = await getUserProfile(targetUid);
+        final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(targetUid).get();
+        final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(targetUid).get();
 
         if (existingUser != null &&
             existingUser.salesPersonId != null &&
@@ -450,15 +469,15 @@ class FirestoreService {
         );
       }
 
-      if (userId != null && userId.isNotEmpty) {
+      if (targetUid != null && targetUid.isNotEmpty) {
         await executeAtomicClientAssignment(
-          clientId: userId,
+          clientId: targetUid,
           salespersonId: assignedSalespersonId,
           assignmentType: 'auto_assigned',
-          clientName: clientName,
-          clientPhone: clientPhone,
-          companyName: companyName,
-          clientCategory: clientCategory,
+          clientName: targetName,
+          clientPhone: targetPhone,
+          companyName: targetCompany,
+          clientCategory: targetCategory,
         );
       }
 
