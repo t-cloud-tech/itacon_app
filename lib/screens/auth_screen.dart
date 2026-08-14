@@ -37,7 +37,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // Login Step & OTP state
   int _loginStep = 1;
-  String? _loginVerificationId;
   bool _loginOtpSent = false;
 
   void _requestLoginOtp() async {
@@ -55,7 +54,6 @@ class _AuthScreenState extends State<AuthScreen> {
       onCodeSent: (verId) {
         if (!mounted) return;
         setState(() {
-          _loginVerificationId = verId;
           _loginOtpSent = true;
           _isLoading = false;
         });
@@ -79,7 +77,6 @@ class _AuthScreenState extends State<AuthScreen> {
   final _regOtpController = TextEditingController();
   final _regPasswordController = TextEditingController();
   final _regConfirmPasswordController = TextEditingController();
-  final _regReferralCodeController = TextEditingController();
 
   String _selectedCategory = UserCategory.allCategories.first.id;
 
@@ -110,7 +107,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _regOtpController.dispose();
     _regPasswordController.dispose();
     _regConfirmPasswordController.dispose();
-    _regReferralCodeController.dispose();
     super.dispose();
   }
 
@@ -169,7 +165,6 @@ class _AuthScreenState extends State<AuthScreen> {
         categoryId: _selectedCategory,
         password: _regPasswordController.text.trim(),
         companyName: _regCompanyNameController.text.trim(),
-        referralCode: _regReferralCodeController.text.trim(),
         verificationId: _verificationId,
         smsCode: _regOtpController.text.trim(),
       );
@@ -1331,14 +1326,15 @@ class _AuthScreenState extends State<AuthScreen> {
   // TIMELINE INDICATOR (Positioned BEFORE fields)
   // ===========================================================================
   Widget _buildTimelineIndicator() {
-    return Row(
-      children: [
-        _buildTimelineStep(stepNumber: 1, label: 'Account'),
-        Expanded(child: _buildTimelineDashedLine(isPassed: _signupStep > 1)),
-        _buildTimelineStep(stepNumber: 2, label: 'Personal'),
-        Expanded(child: _buildTimelineDashedLine(isPassed: _signupStep > 2)),
-        _buildTimelineStep(stepNumber: 3, label: 'Address'),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+      child: Row(
+        children: [
+          _buildTimelineStep(stepNumber: 1, label: 'Account'),
+          Expanded(child: _buildTimelineDashedLine(isPassed: _signupStep > 1)),
+          _buildTimelineStep(stepNumber: 2, label: 'Personal'),
+        ],
+      ),
     );
   }
 
@@ -1441,8 +1437,6 @@ class _AuthScreenState extends State<AuthScreen> {
         return _buildAccountStepFields();
       case 2:
         return _buildPersonalStepFields();
-      case 3:
-        return _buildAddressStepFields();
       default:
         return _buildAccountStepFields();
     }
@@ -1613,43 +1607,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildAddressStepFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('Sales Representative Referral Code (Optional)'),
-        _buildCustomInputField(
-          controller: _regReferralCodeController,
-          hintText: 'e.g., SALES101 (Leave empty for Auto-Assign)',
-          prefixIcon: Icons.qr_code_outlined,
-          textCapitalization: TextCapitalization.characters,
-        ),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1B365D).withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-                color: const Color(0xFF1B365D).withValues(alpha: 0.15)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.info_outline_rounded,
-                  color: Color(0xFF1B365D), size: 18),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'If no referral code is entered, a Sales Executive will be automatically assigned to your account.',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF1B365D)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildFieldLabel(String text) {
     return Padding(
@@ -1720,7 +1677,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildSignupActionButton() {
-    final isFinalStep = _signupStep == 3;
+    final isFinalStep = _signupStep == 2;
 
     return SizedBox(
       height: 44,
@@ -1736,7 +1693,7 @@ class _AuthScreenState extends State<AuthScreen> {
         onPressed: _isLoading
             ? null
             : () {
-                if (_signupStep < 3) {
+                if (_signupStep < 2) {
                   if (_signupStep == 1) {
                     if (!_formKey.currentState!.validate()) return;
                   }
