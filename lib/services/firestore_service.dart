@@ -288,8 +288,7 @@ class FirestoreService {
     return snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
   }
 
-  /// Retrieves active salespersons filtered by capacity limit (< 5 assigned clients)
-  /// sorted in ascending order of assignedClientsCount (least assigned workload first).
+  /// Retrieves active salespersons sorted in ascending order of assignedClientsCount (least assigned workload first).
   Future<List<Map<String, dynamic>>> getAvailableSalespersons() async {
     final List<Map<String, dynamic>> available = [];
 
@@ -302,9 +301,7 @@ class FirestoreService {
         final status = data['status'] ?? (data['isActive'] == true ? 'active' : 'active');
         if (status == 'active') {
           final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
-          if (count < maxClientsPerSalesperson) {
-            available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
-          }
+          available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
         }
       }
 
@@ -318,10 +315,8 @@ class FirestoreService {
         final status = data['status'] ?? 'active';
         if (status == 'active') {
           final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
-          if (count < maxClientsPerSalesperson) {
-            if (!available.any((item) => item['id'] == doc.id)) {
-              available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
-            }
+          if (!available.any((item) => item['id'] == doc.id)) {
+            available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
           }
         }
       }
@@ -355,12 +350,6 @@ class FirestoreService {
       if (spQuery.docs.isNotEmpty) {
         final doc = spQuery.docs.first;
         final data = doc.data();
-        final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
-        if (count >= maxClientsPerSalesperson) {
-          throw Exception(
-            'Salesperson ${data['name'] ?? trimmedCode} has reached maximum client capacity ($maxClientsPerSalesperson/$maxClientsPerSalesperson clients). Auto-assigning available salesperson with lower workload.',
-          );
-        }
         return {'id': doc.id, ...data};
       }
 
@@ -373,12 +362,6 @@ class FirestoreService {
       if (userQuery.docs.isNotEmpty) {
         final doc = userQuery.docs.first;
         final data = doc.data();
-        final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
-        if (count >= maxClientsPerSalesperson) {
-          throw Exception(
-            'Salesperson ${data['name'] ?? trimmedCode} has reached maximum client capacity ($maxClientsPerSalesperson/$maxClientsPerSalesperson clients). Auto-assigning available salesperson with lower workload.',
-          );
-        }
         return {'id': doc.id, ...data};
       }
 
@@ -443,30 +426,18 @@ class FirestoreService {
       String spPhone;
 
       if (availableSpList.isNotEmpty) {
-        // Pick salesperson with the lowest assignedClientsCount (< 5)
+        // Pick salesperson with the lowest assignedClientsCount among existing 3 salespersons
         final chosenSp = availableSpList.first;
         assignedSalespersonId = (chosenSp['id'] ?? chosenSp['salesPersonId'] ?? chosenSp['salespersonId']) as String;
         spReferralCode = chosenSp['referralCode'] ?? 'SALES101';
         spName = chosenSp['name'] ?? chosenSp['fullName'] ?? 'ITA Sales Executive';
         spPhone = chosenSp['phone'] ?? chosenSp['phoneNumber'] ?? '+919876543210';
       } else {
-        // All existing salespersons have reached max capacity of 5 clients!
-        // Dynamically create a new salesperson instance with 0 clients to maintain max 5 limit
-        final allSp = await getSalespersons();
-        final nextNum = allSp.length + 1;
-        assignedSalespersonId = 'SP_00$nextNum';
-        spReferralCode = 'SALES10$nextNum';
-        spName = 'ITA Sales Executive $nextNum';
-        spPhone = '+9198765432${10 + nextNum}';
-
-        await createSalespersonProfile(
-          salespersonId: assignedSalespersonId,
-          fullName: spName,
-          phoneNumber: spPhone,
-          referralCode: spReferralCode,
-          employeeId: 'EMP-SP-00$nextNum',
-          isActive: true,
-        );
+        // Default fallback to SP_001 if no salespersons exist in database yet
+        assignedSalespersonId = 'SP_001';
+        spReferralCode = 'SALES101';
+        spName = 'ITA Sales Executive 1';
+        spPhone = '+919876543210';
       }
 
       if (targetUid != null && targetUid.isNotEmpty) {
@@ -492,7 +463,7 @@ class FirestoreService {
       return {
         'salespersonId': 'SP_001',
         'referralCode': 'SALES101',
-        'name': 'ITA Sales Executive',
+        'name': 'ITA Sales Executive 1',
         'phone': '+919876543210',
       };
     }
@@ -545,33 +516,6 @@ class FirestoreService {
           existingAssignSnap.docs.isNotEmpty) {
         // Client assignment document ALREADY exists in root assignment collections. Prevent duplicate document creation and double counter increments.
         return;
-      }
-
-      // Enforce 5-user capacity limit per salesperson
-      final targetDoc = await _salesPersonsRef.doc(salespersonId).get();
-      final targetData = targetDoc.data();
-      final targetCount = (targetData?['assignedClientsCount'] as num?)?.toInt() ?? 0;
-
-      if (targetCount >= maxClientsPerSalesperson) {
-        // Re-route assignment to an available salesperson with lowest assignedClientsCount (< 5)
-        final available = await getAvailableSalespersons();
-        if (available.isNotEmpty) {
-          salespersonId = (available.first['id'] ?? available.first['salesPersonId'] ?? available.first['salespersonId']) as String;
-        } else {
-          // If all salespersons are at 5 capacity, create a new active salesperson
-          final allSp = await getSalespersons();
-          final nextNum = allSp.length + 1;
-          final newSpId = 'SP_00$nextNum';
-          await createSalespersonProfile(
-            salespersonId: newSpId,
-            fullName: 'ITA Sales Executive $nextNum',
-            phoneNumber: '+9198765432${10 + nextNum}',
-            referralCode: 'SALES10$nextNum',
-            employeeId: 'EMP-SP-00$nextNum',
-            isActive: true,
-          );
-          salespersonId = newSpId;
-        }
       }
 
       final batch = _db.batch();

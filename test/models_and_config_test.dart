@@ -367,19 +367,17 @@ void main() {
       expect(phoneVerifiedUser.isVerified, true);
     });
 
-    test('FirestoreService should define maxClientsPerSalesperson as 5', () {
-      expect(FirestoreService.maxClientsPerSalesperson, 5);
-
-      const spAtCapacity = SalesPerson(
+    test('SalesPerson model should support unlimited assigned clients without cap', () {
+      const spUnlimited = SalesPerson(
         salesPersonId: 'SP_001',
         employeeId: 'EMP-SP-001',
-        name: 'Full Salesperson',
+        name: 'ITA Salesperson',
         phone: '+919876543210',
         email: 'sales@itacon.com',
         referralCode: 'SALES101',
-        assignedClientsCount: 5,
+        assignedClientsCount: 15,
       );
-      expect(spAtCapacity.assignedClientsCount >= FirestoreService.maxClientsPerSalesperson, true);
+      expect(spUnlimited.assignedClientsCount, 15);
     });
   });
 
