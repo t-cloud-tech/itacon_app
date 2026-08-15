@@ -88,7 +88,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _regConfirmPasswordController = TextEditingController();
   final _regReferralCodeController = TextEditingController();
 
-  String _selectedCategory = UserCategory.allCategories.first.id;
+  String? _selectedCategory;
 
   // OTP State
   String? _verificationId;
@@ -178,7 +178,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await _authService.registerUser(
         fullName: _regFullNameController.text.trim(),
         phoneNumber: '+91${_regPhoneController.text.trim()}',
-        categoryId: _selectedCategory,
+        categoryId: _selectedCategory ?? UserCategory.allCategories.first.id,
         password: _regPasswordController.text.trim(),
         companyName: _regCompanyNameController.text.trim(),
         referralCode: _regReferralCodeController.text.trim(),
@@ -1594,7 +1594,15 @@ class _AuthScreenState extends State<AuthScreen> {
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: DropdownButtonFormField<String>(
-            initialValue: _selectedCategory,
+            value: _selectedCategory,
+            hint: Text(
+              'Select Category',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
             decoration: const InputDecoration(
               isDense: true,
               border: InputBorder.none,
@@ -1611,7 +1619,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         fontSize: 13, fontWeight: FontWeight.w500)),
               );
             }).toList(),
-            onChanged: (val) => setState(() => _selectedCategory = val!),
+            onChanged: (val) => setState(() => _selectedCategory = val),
           ),
         ),
         const SizedBox(height: 12),
