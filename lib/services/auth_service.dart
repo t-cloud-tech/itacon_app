@@ -77,8 +77,6 @@ class AuthService {
           .verifySalespersonReferralCode(referralCode.trim());
       if (spProfile != null) {
         assignedSpId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String?;
-      } else {
-        throw Exception('Invalid referral code entered. Access denied. Please enter a valid salesperson referral code.');
       }
     }
 
@@ -117,6 +115,17 @@ class AuthService {
       userReferralCode: userReferralCode,
       isVerified: true,
     );
+
+    // Save referral code in customer_referrals datastore if provided
+    if (referralCode != null && referralCode.trim().isNotEmpty) {
+      await _firestoreService.saveCustomerReferralCode(
+        userId: uid,
+        referralCode: referralCode.trim(),
+        userName: fullName,
+        userPhone: phoneNumber,
+        userCategory: categoryId,
+      );
+    }
 
     // 4. Assign salesperson ONLY if manual referral code was explicitly provided during sign up
     if (assignedSpId != null) {
@@ -175,19 +184,17 @@ class AuthService {
 
     if (referralCode != null && referralCode.trim().isNotEmpty) {
       final uid = currentUid;
-      final existingUser = uid != null ? await _firestoreService.getUserProfile(uid) : null;
-      final existingSpId = existingUser?.salesPersonId;
-
-      if (existingSpId == null || existingSpId.isEmpty) {
-        bool valid = await verifyAndLinkReferralCode(referralCode.trim());
-        if (!valid) {
-          throw Exception('Invalid referral code entered. Access denied. Please enter a valid salesperson referral code.');
-        }
+      if (uid != null && uid.isNotEmpty) {
+        await _firestoreService.saveCustomerReferralCode(
+          userId: uid,
+          referralCode: referralCode.trim(),
+        );
       }
+      await verifyAndLinkReferralCode(referralCode.trim());
     }
   }
 
-  /// Verifies a salesperson referral code and links it to the logged-in user profile.
+  /// Verifies a salesperson/customer referral code and links it if applicable.
   Future<bool> verifyAndLinkReferralCode(
     String referralCode, {
     String? clientName,
@@ -196,19 +203,28 @@ class AuthService {
     String? clientCategory,
   }) async {
     final uid = currentUid;
+    final code = referralCode.trim();
+
+    if (code.isEmpty) return true;
 
     if (uid != null && uid.isNotEmpty) {
+      await _firestoreService.saveCustomerReferralCode(
+        userId: uid,
+        referralCode: code,
+        userName: clientName,
+        userPhone: clientPhone,
+        userCategory: clientCategory,
+      );
+
       final existingUser = await _firestoreService.getUserProfile(uid);
       final existingSpId = existingUser?.salesPersonId;
       if (existingSpId != null && existingSpId.isNotEmpty) {
-        // Existing user is ALREADY assigned to a salesperson.
-        // Do NOT store in Manual_salesperson_assign or client_assignments again.
         return true;
       }
     }
 
     final spProfile =
-        await _firestoreService.verifySalespersonReferralCode(referralCode);
+        await _firestoreService.verifySalespersonReferralCode(code);
 
     if (spProfile != null) {
       final spId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String;
@@ -224,9 +240,8 @@ class AuthService {
           clientCategory: clientCategory,
         );
       }
-      return true;
     }
-    return false;
+    return true;
   }
 
   /// Auto assigns an active sales executive to the current user and returns details.

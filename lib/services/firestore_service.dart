@@ -22,6 +22,8 @@ import '../models/shipment_model.dart';
 import '../models/tracking_history_model.dart';
 import '../models/client_assignment.dart';
 import '../models/assigned_client_snapshot.dart';
+import '../models/promotion_model.dart';
+import '../models/system_config_model.dart';
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
@@ -1194,6 +1196,115 @@ class FirestoreService {
 
   Future<void> setSystemConfig(String docId, Map<String, dynamic> config) async {
     await _systemConfigsRef.doc(docId).set(config, SetOptions(merge: true));
+  }
+
+  /// Datastore for Customer Referral Codes (`customer_referrals` collection)
+  /// Stores entered referral codes with user details (username, phone, category, timestamp)
+  Future<void> saveCustomerReferralCode({
+    required String userId,
+    required String referralCode,
+    String? userName,
+    String? userPhone,
+    String? userCategory,
+  }) async {
+    final code = referralCode.trim();
+    if (code.isEmpty) return;
+
+    try {
+      final formattedCode = code.toUpperCase();
+      String resolvedName = userName ?? '';
+      String resolvedPhone = userPhone ?? '';
+      String resolvedCategory = userCategory ?? '';
+
+      if (resolvedName.isEmpty || resolvedPhone.isEmpty) {
+        final profile = await getUserProfile(userId);
+        if (profile != null) {
+          if (resolvedName.isEmpty) resolvedName = profile.name;
+          if (resolvedPhone.isEmpty) resolvedPhone = profile.phone;
+          if (resolvedCategory.isEmpty) resolvedCategory = profile.userCategory;
+        }
+      }
+
+      await _db.collection('customer_referrals').add({
+        'referralCode': formattedCode,
+        'userId': userId,
+        'clientId': userId,
+        'userName': resolvedName,
+        'clientName': resolvedName,
+        'userPhone': resolvedPhone,
+        'clientPhone': resolvedPhone,
+        'userCategory': resolvedCategory,
+        'createdAt': FieldValue.serverTimestamp(),
+        'enteredAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error saving customer referral code: $e');
+    }
+  }
+
+  /// Streams active promotions banners sorted by displayOrder ascending
+  Stream<List<PromotionModel>> fetchActivePromotions() {
+    return _db
+        .collection('promotions')
+        .where('isActive', isEqualTo: true)
+        .orderBy('displayOrder', descending: false)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((doc) => PromotionModel.fromSnapshot(doc)).toList());
+  }
+
+  /// Fetches featured categories sorted by displayOrder ascending
+  Future<List<ProductCategory>> fetchFeaturedCategories() async {
+    try {
+      final snap = await _db
+          .collection('categories')
+          .where('isFeatured', isEqualTo: true)
+          .orderBy('displayOrder', descending: false)
+          .get();
+      return snap.docs
+          .map((doc) => ProductCategory.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (_) {
+      final snap = await _db.collection('categories').get();
+      return snap.docs
+          .map((doc) => ProductCategory.fromMap(doc.data(), doc.id))
+          .where((cat) => cat.isActive && cat.isFeatured)
+          .toList();
+    }
+  }
+
+  /// Fetches ready stock tiles where stockStatus == "available_now" and isActive == true
+  Future<List<TileProduct>> fetchReadyStockTiles() async {
+    try {
+      final snap = await _db
+          .collection('products')
+          .where('stockStatus', whereIn: ['available_now', 'available'])
+          .where('isActive', isEqualTo: true)
+          .get();
+      return snap.docs
+          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
+          .toList();
+    } catch (_) {
+      final snap = await _db.collection('products').get();
+      return snap.docs
+          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
+          .where((prod) =>
+              prod.isActive &&
+              (prod.stockStatus == 'available_now' ||
+                  prod.stockStatus == 'available'))
+          .toList();
+    }
+  }
+
+  /// Fetches system configuration for `systemConfigs/app_features`
+  Future<SystemConfigModel> getAppFeaturesConfig() async {
+    try {
+      final doc = await _systemConfigsRef.doc('app_features').get();
+      if (doc.exists && doc.data() != null) {
+        return SystemConfigModel.fromMap(doc.data()!);
+      }
+    } catch (_) {}
+    return const SystemConfigModel();
   }
 }
 

@@ -25,8 +25,10 @@ class TileProduct {
   final String finish;
   final String bodyType;
   final String thickness;
-  final String shape;
-  final String aspectRatio;
+  final String thicknessCategory; // thin_slim / standard / heavy_thick
+  final String shape; // rectangle / square / plank / hexagonal
+  final String aspectRatio; // String format (e.g. '1:2' or '0.5')
+  final double aspectRatioValue; // Double format (e.g. 0.5 for 600x1200, 1.0 for 800x800)
   final String randomPattern;
   final String priceCategory;
   final String shade;
@@ -58,9 +60,11 @@ class TileProduct {
     this.collection = 'General Collection',
     this.finish = 'Polished',
     this.bodyType = 'Porcelain',
-    this.thickness = '9mm',
-    this.shape = 'Rectangle',
-    this.aspectRatio = '1:2',
+    this.thickness = '9 mm',
+    this.thicknessCategory = 'standard',
+    this.shape = 'rectangle',
+    this.aspectRatio = '0.5',
+    double? aspectRatioValue,
     this.randomPattern = '4 Faces',
     this.priceCategory = 'Premium',
     this.shade = 'Light',
@@ -70,12 +74,30 @@ class TileProduct {
     this.updatedAt,
   })  : productId = productId ?? id,
         currentStock = currentStock ?? availableQuantity,
-        availableStock = availableStock ?? ((currentStock ?? availableQuantity) - reservedStock);
+        availableStock = availableStock ?? ((currentStock ?? availableQuantity) - reservedStock),
+        aspectRatioValue = aspectRatioValue ?? _parseAspectRatio(aspectRatio);
+
+  static double _parseAspectRatio(dynamic val) {
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      final parsed = double.tryParse(val);
+      if (parsed != null) return parsed;
+      if (val.contains(':')) {
+        final parts = val.split(':');
+        if (parts.length == 2) {
+          final w = double.tryParse(parts[0]);
+          final h = double.tryParse(parts[1]);
+          if (w != null && h != null && h != 0) return w / h;
+        }
+      }
+    }
+    return 0.5;
+  }
 
   String get baseColor => color;
   String get categoryName => collection.isNotEmpty ? collection : categoryId;
   String get sizeCm => size;
-  String get thicknessMm => thickness.endsWith('mm') ? thickness.replaceAll('mm', '') : thickness;
+  String get thicknessMm => thickness.endsWith('mm') ? thickness.replaceAll('mm', '').trim() : thickness;
   double get basePricePerSqFt => basePrice;
 
   Map<String, dynamic> toMap() {
@@ -94,7 +116,7 @@ class TileProduct {
       'moq': moq,
       'unit': unit,
       'stockStatus': stockStatus,
-      'inStock': stockStatus == 'available' || stockStatus == 'Available Now' || stockStatus == 'Limited',
+      'inStock': stockStatus == 'available' || stockStatus == 'available_now' || stockStatus == 'Available Now' || stockStatus == 'Limited',
       'availableQuantity': availableQuantity,
       'currentStock': currentStock,
       'reservedStock': reservedStock,
@@ -105,8 +127,10 @@ class TileProduct {
       'finish': finish,
       'bodyType': bodyType,
       'thickness': thickness,
+      'thicknessCategory': thicknessCategory,
       'shape': shape,
       'aspectRatio': aspectRatio,
+      'aspectRatioValue': aspectRatioValue,
       'randomPattern': randomPattern,
       'priceCategory': priceCategory,
       'shade': shade,
@@ -126,6 +150,7 @@ class TileProduct {
     final cStock = (map['currentStock'] ?? map['availableQuantity'] ?? 500).toInt();
     final rStock = (map['reservedStock'] ?? 0).toInt();
     final aStock = (map['availableStock'] ?? (cStock - rStock)).toInt();
+    final aspVal = _parseAspectRatio(map['aspectRatio']);
 
     return TileProduct(
       id: docId,
@@ -150,9 +175,11 @@ class TileProduct {
       collection: map['collection'] ?? 'General Collection',
       finish: map['finish'] ?? 'Polished',
       bodyType: map['bodyType'] ?? 'Porcelain',
-      thickness: map['thickness'] ?? '9mm',
-      shape: map['shape'] ?? 'Rectangle',
-      aspectRatio: map['aspectRatio'] ?? '1:2',
+      thickness: map['thickness'] ?? '9 mm',
+      thicknessCategory: map['thicknessCategory'] ?? 'standard',
+      shape: map['shape'] ?? 'rectangle',
+      aspectRatio: map['aspectRatio']?.toString() ?? '0.5',
+      aspectRatioValue: aspVal,
       randomPattern: map['randomPattern'] ?? '4 Faces',
       priceCategory: map['priceCategory'] ?? 'Premium',
       shade: map['shade'] ?? 'Light',
@@ -196,8 +223,10 @@ class TileProduct {
     String? finish,
     String? bodyType,
     String? thickness,
+    String? thicknessCategory,
     String? shape,
     String? aspectRatio,
+    double? aspectRatioValue,
     String? randomPattern,
     String? priceCategory,
     String? shade,
@@ -230,8 +259,10 @@ class TileProduct {
       finish: finish ?? this.finish,
       bodyType: bodyType ?? this.bodyType,
       thickness: thickness ?? this.thickness,
+      thicknessCategory: thicknessCategory ?? this.thicknessCategory,
       shape: shape ?? this.shape,
       aspectRatio: aspectRatio ?? this.aspectRatio,
+      aspectRatioValue: aspectRatioValue ?? this.aspectRatioValue,
       randomPattern: randomPattern ?? this.randomPattern,
       priceCategory: priceCategory ?? this.priceCategory,
       shade: shade ?? this.shade,
@@ -243,6 +274,6 @@ class TileProduct {
   }
 }
 
-/// Type alias for ProductModel per schema naming
-typedef ProductModel = TileProduct;
+
+
 

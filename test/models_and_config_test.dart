@@ -405,4 +405,103 @@ void main() {
       expect(service.enableTransportation, isFalse);
     });
   });
+
+  group('PromotionModel & SystemConfigModel & Home Screen Attributes Tests', () {
+    test('PromotionModel should correctly instantiate and serialize/deserialize', () {
+      final promo = PromotionModel(
+        bannerId: 'BAN_001',
+        title: 'Monsoon Special Offer',
+        imageUrl: 'https://example.com/banner.png',
+        redirectType: 'category',
+        redirectTargetId: 'CAT_GVT',
+        displayOrder: 1,
+        isActive: true,
+      );
+
+      expect(promo.bannerId, 'BAN_001');
+      expect(promo.title, 'Monsoon Special Offer');
+      expect(promo.redirectType, 'category');
+      expect(promo.displayOrder, 1);
+      expect(promo.isActive, isTrue);
+
+      final map = promo.toMap();
+      expect(map['bannerId'], 'BAN_001');
+      expect(map['redirectType'], 'category');
+
+      final deserialized = PromotionModel.fromMap(map, 'BAN_001');
+      expect(deserialized.title, 'Monsoon Special Offer');
+      expect(deserialized.redirectTargetId, 'CAT_GVT');
+    });
+
+    test('SystemConfigModel should correctly parse systemConfigs/app_features schema', () {
+      final config = SystemConfigModel(
+        enableTransportation: true,
+        appVersion: '2.1.0',
+        maintenanceMode: false,
+      );
+
+      expect(config.enableTransportation, isTrue);
+      expect(config.appVersion, '2.1.0');
+      expect(config.maintenanceMode, isFalse);
+
+      final map = config.toMap();
+      final deserialized = SystemConfigModel.fromMap(map);
+      expect(deserialized.enableTransportation, isTrue);
+      expect(deserialized.appVersion, '2.1.0');
+    });
+
+    test('CategoryModel should support displayOrder and isFeatured attributes', () {
+      final category = ProductCategory(
+        categoryId: 'CAT_SLABS',
+        name: 'GVT/PGVT Slabs',
+        description: 'Large Format Porcelain Slabs',
+        imageUrl: 'https://example.com/slabs.jpg',
+        displayOrder: 2,
+        isFeatured: true,
+      );
+
+      expect(category.displayOrder, 2);
+      expect(category.isFeatured, isTrue);
+
+      final map = category.toMap();
+      expect(map['displayOrder'], 2);
+      expect(map['isFeatured'], isTrue);
+
+      final deserialized = ProductCategory.fromMap(map, 'CAT_SLABS');
+      expect(deserialized.displayOrder, 2);
+      expect(deserialized.isFeatured, isTrue);
+    });
+
+    test('TileProduct should support thicknessCategory, shape, and numeric aspectRatioValue', () {
+      final product = TileProduct(
+        id: 'PROD_99',
+        name: 'Royal Statuario Porcelain',
+        size: '600x1200',
+        surface: 'Glossy',
+        color: 'White',
+        pattern: 'Marble',
+        basePrice: 45.0,
+        moq: 20,
+        stockStatus: 'available_now',
+        images: ['https://example.com/tile.jpg'],
+        thickness: '15 mm',
+        thicknessCategory: 'heavy_thick',
+        shape: 'rectangle',
+        aspectRatio: '0.5',
+      );
+
+      expect(product.thicknessCategory, 'heavy_thick');
+      expect(product.shape, 'rectangle');
+      expect(product.aspectRatioValue, 0.5);
+
+      final map = product.toMap();
+      expect(map['thicknessCategory'], 'heavy_thick');
+      expect(map['aspectRatioValue'], 0.5);
+
+      final deserialized = TileProduct.fromMap(map, 'PROD_99');
+      expect(deserialized.thicknessCategory, 'heavy_thick');
+      expect(deserialized.aspectRatioValue, 0.5);
+    });
+  });
 }
+

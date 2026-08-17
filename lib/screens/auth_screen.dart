@@ -446,12 +446,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
     // Step 2: Final Submission
     final referralInput = _loginReferralCodeController.text.trim();
-    if (referralInput.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sales Representative Referral Code is required.')),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
     try {
@@ -462,7 +456,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await _authService.loginUser(
         loginIdentifier: identifier,
         password: _loginPasswordController.text.trim(),
-        referralCode: referralInput,
+        referralCode: referralInput.isNotEmpty ? referralInput : null,
       );
 
       final uid = _authService.currentUser?.uid;
@@ -938,20 +932,18 @@ class _AuthScreenState extends State<AuthScreen> {
         ],
       );
     } else {
-      // STEP 2: Sales Representative Referral Code
+      // STEP 2: Customer Referral Code (Optional)
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          _buildFieldLabel('Sales Representative Referral Code *'),
+          _buildFieldLabel('Customer Referral Code (Optional)'),
           _buildCustomInputField(
             controller: _loginReferralCodeController,
-            hintText: 'e.g., SALES123',
+            hintText: 'e.g., CUST123 (Optional)',
             prefixIcon: Icons.qr_code_outlined,
             textCapitalization: TextCapitalization.characters,
-            validator: (v) => v == null || v.trim().isEmpty
-                ? 'Sales representative referral code is mandatory'
-                : null,
+            validator: null,
           ),
           const SizedBox(height: 12),
           Container(
@@ -969,7 +961,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Please enter the referral code of your assigned Sales Representative to proceed.',
+                    'If you have any Customer Referral Code, please enter it below, or skip this step to proceed.',
                     style: TextStyle(
                       fontSize: 12,
                       color: Color(0xFF1B365D),
@@ -1459,13 +1451,21 @@ class _AuthScreenState extends State<AuthScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Full Name
-        _buildFieldLabel('Full Name'),
+        _buildFieldLabel('Full Name (First, Middle & Surname) *'),
         _buildCustomInputField(
           controller: _regFullNameController,
-          hintText: 'Enter your full name',
+          hintText: 'e.g., Ramesh Kumar Patel',
           prefixIcon: Icons.person_outline_rounded,
-          validator: (v) =>
-              v == null || v.trim().isEmpty ? 'Enter your full name' : null,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Please enter your full name';
+            }
+            final parts = v.trim().split(RegExp(r'\s+'));
+            if (parts.length < 3) {
+              return 'Please enter complete full name (First Name, Middle Name, Surname)';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 8),
 

@@ -20,6 +20,10 @@ export 'user_profile.dart';
 export 'wishlist.dart';
 export 'client_assignment.dart';
 export 'assigned_client_snapshot.dart';
+export 'promotion_model.dart';
+export 'category_model.dart';
+export 'product_model.dart';
+export 'system_config_model.dart';
 
 import 'transporter_model.dart';
 import 'shipment_model.dart';

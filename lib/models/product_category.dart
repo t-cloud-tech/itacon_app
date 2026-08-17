@@ -7,6 +7,8 @@ class ProductCategory {
   final String description;
   final String imageUrl;
   final bool isActive;
+  final int displayOrder;
+  final bool isFeatured;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -16,6 +18,8 @@ class ProductCategory {
     required this.description,
     required this.imageUrl,
     this.isActive = true,
+    this.displayOrder = 0,
+    this.isFeatured = true,
     this.createdAt,
     this.updatedAt,
   });
@@ -27,6 +31,8 @@ class ProductCategory {
       'description': description,
       'imageUrl': imageUrl,
       'isActive': isActive,
+      'displayOrder': displayOrder,
+      'isFeatured': isFeatured,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -41,6 +47,8 @@ class ProductCategory {
       description: map['description'] ?? '',
       imageUrl: map['imageUrl'] ?? '',
       isActive: map['isActive'] ?? true,
+      displayOrder: (map['displayOrder'] as num?)?.toInt() ?? 0,
+      isFeatured: map['isFeatured'] as bool? ?? true,
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
