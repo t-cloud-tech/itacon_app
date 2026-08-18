@@ -6,8 +6,9 @@ import 'auth_screen.dart';
 import 'referral_gate_screen.dart';
 import 'product_catalogue_screen.dart';
 
-/// Lightweight, fast 2-second splash loading screen displaying ITACON TILES branding,
-/// tagline, and performing auto-routing based on authentication and verification state.
+/// Splash loading screen displaying ITACON GRANITO luxury branding,
+/// taglines, diagonal angled division, marble kitchen background,
+/// and performing auto-routing based on authentication and verification state.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -26,9 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _startSplashTimerAndRoute() async {
-    // 1. Run 3-second timer minimum delay
     final startTime = DateTime.now();
-
     Widget targetScreen = const AuthScreen();
 
     try {
@@ -42,19 +41,15 @@ class _SplashScreenState extends State<SplashScreen> {
         } else if (profile != null && !profile.isVerified) {
           targetScreen = const ReferralGateScreen();
         } else {
-          // If profile does not exist yet in Firestore
           targetScreen = const AuthScreen();
         }
       } else {
-        // Not logged in
         targetScreen = const AuthScreen();
       }
     } catch (e) {
-      // On network/auth check error, default to AuthScreen
       targetScreen = const AuthScreen();
     }
 
-    // Ensure at least 3 seconds elapsed for full 3-second splash experience
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
     final remainingMs = 3000 - elapsedMs;
     if (remainingMs > 0) {
@@ -63,7 +58,6 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
-    // 2. Perform smooth fade-in transition using Navigator.pushReplacement
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
@@ -81,106 +75,133 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A237E), // Brand color #1A237E
-      body: SafeArea(
-        child: Column(
-          children: [
-            const Spacer(),
+    final screenSize = MediaQuery.of(context).size;
 
-            // Center Branding Container
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo Container with Amber/Gold Accent
-                  Container(
-                    width: 100,
-                    height: 100,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF8F00), // Amber Gold Brand Accent
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
+    return Scaffold(
+      backgroundColor: const Color(0xFF0B1B36),
+      body: Stack(
+        children: [
+          // 1. Bottom Section: High Quality Marble Kitchen Interior Photo
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/splash_kitchen.jpg',
+              fit: BoxFit.cover,
+              alignment: Alignment.bottomCenter,
+              errorBuilder: (context, error, stackTrace) {
+                return Image.asset(
+                  'assets/images/auth_bg.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Container(color: const Color(0xFF152642)),
+                );
+              },
+            ),
+          ),
+
+          // 2. Top Section: Dark Navy Blue Angled Container
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: screenSize.height * 0.67,
+            child: ClipPath(
+              clipper: DiagonalPathClipper(),
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF091528),
+                      Color(0xFF0D203D),
+                      Color(0xFF0F2646),
+                    ],
+                  ),
+                ),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Spacer(flex: 2),
+
+                        // ITACON GRANITO Branding Logo
+                        _buildBrandingLogo(),
+
+                        const SizedBox(height: 44),
+
+                        // Tagline 1
+                        const Text(
+                          'Strength. Elegance. Timeless.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.6,
+                            height: 1.2,
+                          ),
                         ),
-                        BoxShadow(
-                          color: const Color(0xFFFF8F00).withValues(alpha: 0.4),
-                          blurRadius: 30,
-                          spreadRadius: 2,
+
+                        const SizedBox(height: 10),
+
+                        // Tagline 2
+                        Text(
+                          'Premium Surfaces for Every Space.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.4,
+                          ),
                         ),
+
+                        const Spacer(flex: 3),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.grid_view_rounded,
-                      size: 60,
-                      color: Color(0xFF1A237E),
-                    ),
                   ),
-
-                  const SizedBox(height: 28),
-
-                  // Brand Title
-                  const Text(
-                    'ITACON TILES',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Brand Tagline
-                  const Text(
-                    'Premium Tiles & Architectural Solutions',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-
-            const Spacer(),
-
-            // Bottom Loading Indicator
-            const Padding(
-              padding: EdgeInsets.only(bottom: 40.0),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFFF8F00),
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Loading ITACON Connect...',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _buildBrandingLogo() {
+    return Image.asset(
+      'assets/images/itacon-logo.png',
+      width: 250,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          'assets/images/itacon_logo.png',
+          width: 250,
+          fit: BoxFit.contain,
+        );
+      },
+    );
+  }
 }
+
+/// Custom Clipper for the diagonal downward slope of the navy splash container
+class DiagonalPathClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height * 0.84);
+    path.lineTo(size.width, size.height);
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+
