@@ -18,6 +18,8 @@ class UserProfile {
   final String city; // City
   final String state; // State
   final String pincode; // PIN code
+  final String gstNumber; // GSTIN Number
+  final String avatarUrl; // Avatar URL
   final String status; // active / inactive / blocked
   final int assignedClientsCount;
   final int activeClientsCount;
@@ -41,6 +43,8 @@ class UserProfile {
     this.city = '',
     this.state = '',
     this.pincode = '',
+    this.gstNumber = '',
+    this.avatarUrl = '',
     this.status = 'active',
     this.assignedClientsCount = 0,
     this.activeClientsCount = 0,
@@ -49,6 +53,67 @@ class UserProfile {
   });
 
   bool get isVerified => phoneVerified || whatsappVerified || emailVerified;
+
+  String get initials {
+    if (name.trim().isEmpty) return 'U';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  }
+
+  UserProfile copyWith({
+    String? userId,
+    String? name,
+    String? companyName,
+    String? phone,
+    String? email,
+    String? userCategory,
+    String? role,
+    String? salesPersonId,
+    String? referralCode,
+    bool? phoneVerified,
+    bool? emailVerified,
+    bool? whatsappVerified,
+    Map<String, dynamic>? address,
+    String? city,
+    String? state,
+    String? pincode,
+    String? gstNumber,
+    String? avatarUrl,
+    String? status,
+    int? assignedClientsCount,
+    int? activeClientsCount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return UserProfile(
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      companyName: companyName ?? this.companyName,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      userCategory: userCategory ?? this.userCategory,
+      role: role ?? this.role,
+      salesPersonId: salesPersonId ?? this.salesPersonId,
+      referralCode: referralCode ?? this.referralCode,
+      phoneVerified: phoneVerified ?? this.phoneVerified,
+      emailVerified: emailVerified ?? this.emailVerified,
+      whatsappVerified: whatsappVerified ?? this.whatsappVerified,
+      address: address ?? this.address,
+      city: city ?? this.city,
+      state: state ?? this.state,
+      pincode: pincode ?? this.pincode,
+      gstNumber: gstNumber ?? this.gstNumber,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      status: status ?? this.status,
+      assignedClientsCount: assignedClientsCount ?? this.assignedClientsCount,
+      activeClientsCount: activeClientsCount ?? this.activeClientsCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -73,6 +138,8 @@ class UserProfile {
       'state': state,
       'stateCode': state.isNotEmpty && state.length >= 2 ? state.substring(0, 2).toUpperCase() : '',
       'pincode': pincode,
+      'gstNumber': gstNumber,
+      'avatarUrl': avatarUrl,
       'status': status,
       if (role == 'salesperson' || userCategory == 'salesperson') ...{
         'assignedClientsCount': assignedClientsCount,
@@ -104,6 +171,8 @@ class UserProfile {
       city: map['city'] ?? '',
       state: map['state'] ?? map['stateCode'] ?? '',
       pincode: map['pincode'] ?? '',
+      gstNumber: map['gstNumber'] ?? map['gstin'] ?? '',
+      avatarUrl: map['avatarUrl'] ?? '',
       status: map['status'] ?? 'active',
       assignedClientsCount: (map['assignedClientsCount'] as num?)?.toInt() ?? 0,
       activeClientsCount: (map['activeClientsCount'] as num?)?.toInt() ?? 0,

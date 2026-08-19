@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import 'home_screen.dart';
 import 'referral_gate_screen.dart';
+import 'main_navigation_screen.dart';
 
 enum AuthViewMode { choice, login, signup }
 
@@ -203,7 +204,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (hasSalesperson) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       } else {
         Navigator.pushReplacement(
@@ -437,27 +438,52 @@ class _AuthScreenState extends State<AuthScreen> {
         );
         return;
       }
-      // Proceed to Step 2
-      setState(() {
-        _loginStep = 2;
-      });
+
+      // Verify username and password credentials directly on Step 1
+      setState(() => _isLoading = true);
+      try {
+        final identifier = _loginUsernameController.text.trim().isNotEmpty
+            ? _loginUsernameController.text.trim()
+            : '+91${_loginPhoneController.text.trim()}';
+
+        await _authService.loginUser(
+          loginIdentifier: identifier,
+          password: _loginPasswordController.text.trim(),
+          verificationId: _verificationId,
+          smsCode: _loginOtpController.text.trim(),
+        );
+
+        // Only transition to Step 2 (Customer Referral Code) if credentials are valid!
+        setState(() {
+          _isLoading = false;
+          _loginStep = 2;
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        final errorText = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorText),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
       return;
     }
 
-    // Step 2: Final Submission
+    // Step 2: Final Submission (Optional Customer Referral Code linking + Direct Access)
     final referralInput = _loginReferralCodeController.text.trim();
 
     setState(() => _isLoading = true);
     try {
-      final identifier = _loginUsernameController.text.trim().isNotEmpty
-          ? _loginUsernameController.text.trim()
-          : '+91${_loginPhoneController.text.trim()}';
-
-      await _authService.loginUser(
-        loginIdentifier: identifier,
-        password: _loginPasswordController.text.trim(),
-        referralCode: referralInput.isNotEmpty ? referralInput : null,
-      );
+      if (referralInput.isNotEmpty) {
+        await _authService.verifyAndLinkReferralCode(
+          referralInput,
+          clientName: _loginUsernameController.text.trim(),
+          clientPhone: _loginPhoneController.text.trim(),
+        );
+      }
 
       final uid = _authService.currentUser?.uid;
       if (uid != null && uid.isNotEmpty) {
@@ -480,7 +506,7 @@ class _AuthScreenState extends State<AuthScreen> {
       // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
       );
     } catch (e) {
       if (!mounted) return;

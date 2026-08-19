@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
+import 'main_navigation_screen.dart';
 
 class ReferralGateScreen extends StatefulWidget {
   const ReferralGateScreen({super.key});
@@ -114,7 +115,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
                 if (mounted) {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
                   );
                 }
               },

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:itacon_app/models/models.dart';
 import 'package:itacon_app/services/config_service.dart';
 import 'package:itacon_app/services/firestore_service.dart';
+import 'package:itacon_app/services/app_state_service.dart';
 
 void main() {
   group('TransporterModel Tests', () {
@@ -501,6 +502,65 @@ void main() {
       final deserialized = TileProduct.fromMap(map, 'PROD_99');
       expect(deserialized.thicknessCategory, 'heavy_thick');
       expect(deserialized.aspectRatioValue, 0.5);
+    });
+  });
+
+  group('Profile Completion Percentage & Live User Profile Tests', () {
+    test('Should calculate correct profile completion percentage', () {
+      final appState = AppStateService.instance;
+
+      final testUser = const UserProfile(
+        userId: 'USER_101',
+        name: 'Suresh Patel',
+        phone: '+91 99887 76655',
+        email: 'suresh@example.com',
+        userCategory: 'Architect',
+        role: 'customer',
+        companyName: 'Patel Designs',
+        city: '',
+        pincode: '',
+        gstNumber: '',
+      );
+
+      appState.setCurrentUserProfile(testUser);
+
+      // Name(20) + Phone(20) + Category(15) + Email(15) + Company(10) = 80%
+      expect(appState.profileCompletionPercentage, 80);
+      expect(appState.pendingProfileFields.length, 2);
+
+      appState.updateUserProfileFields(
+        city: 'Ahmedabad',
+        pincode: '380001',
+        gstNumber: '24BBBBB1111B1Z2',
+      );
+
+      // + Address(10) + GST(10) = 100%
+      expect(appState.profileCompletionPercentage, 100);
+      expect(appState.pendingProfileFields.isEmpty, isTrue);
+    });
+
+    test('UserProfile initials should return uppercase initials correctly', () {
+      const user1 = UserProfile(
+        userId: 'U1',
+        name: 'Ramesh Kumar',
+        phone: '123',
+        email: '',
+        companyName: '',
+        userCategory: 'Dealer',
+        role: 'customer',
+      );
+      expect(user1.initials, 'RK');
+
+      const user2 = UserProfile(
+        userId: 'U2',
+        name: 'Anil',
+        phone: '123',
+        email: '',
+        companyName: '',
+        userCategory: 'Dealer',
+        role: 'customer',
+      );
+      expect(user2.initials, 'A');
     });
   });
 }

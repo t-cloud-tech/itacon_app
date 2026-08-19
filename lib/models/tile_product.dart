@@ -1,16 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/tile_dimension_helper.dart';
 
-/// Represents a Product in the `products` and `tiles` collections per PDF schema
+/// Represents a Product in the `products` and `tiles` collections per Master Product Schema
 class TileProduct {
   final String id; // productId / id
   final String productId; // PDF schema: productId
   final String sku; // Product SKU (e.g. "ITA-STAT-6012")
   final String name; // Product name
   final String categoryId; // Category ID
-  final String size; // e.g. '600x1200'
-  final String surface; // Glossy, High Gloss, Matt, Carving, Sugar, Punch, Bookmatch
-  final String color; // Product color (White, Black, Beige, Grey, etc.)
-  final String pattern; // Design/pattern (Marble, Stone, Wood, etc.)
+  final String tileCategory; // Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parkings
+  final String size; // e.g. '600x1200 mm'
+  final String surface; // Glossy, Satin Matt, Matt - Carving, Rustic Wood, Semi High Gloss, High Gloss, Anti - Skid
+  final String color; // Product color
+  final String baseColour; // White, Beige - Brown, Bianco - Grey, Nero, Black
+  final String pattern; // Design/pattern
   final double basePrice; // Base price
   final int moq; // Minimum order quantity
   final String unit; // box, sqft, piece
@@ -21,14 +24,21 @@ class TileProduct {
   final int availableStock; // Inventory tracking: Net available stock
   final List<String> images; // Array of product image URLs
   final bool isActive;
-  final String collection;
+  final bool isComingSoon;
+  final String collection; // Endless, Marbles, Golden, Terrazzo, 3D, Book Match, Wall Decore, Moracan
+  final List<String> spaces; // Living Room, Bath Room, Bedroom, Outdoor
   final String finish;
+  final String productType; // Vitrified | Ceramic
   final String bodyType;
   final String thickness;
+  final double thicknessMm; // e.g. 9.0
+  final double boxWeightKg; // e.g. 28.0
+  final int pcsPerBox; // e.g. 2 or 4
+  final double sqFtPerBox; // e.g. 15.5
   final String thicknessCategory; // thin_slim / standard / heavy_thick
   final String shape; // rectangle / square / plank / hexagonal
-  final String aspectRatio; // String format (e.g. '1:2' or '0.5')
-  final double aspectRatioValue; // Double format (e.g. 0.5 for 600x1200, 1.0 for 800x800)
+  final String aspectRatio; // String format (e.g. '0.5' or '1.0')
+  final double aspectRatioValue; // Double format
   final String randomPattern;
   final String priceCategory;
   final String shade;
@@ -43,9 +53,11 @@ class TileProduct {
     this.sku = 'ITA-PROD-001',
     required this.name,
     this.categoryId = 'CAT_GLAZED_01',
+    this.tileCategory = 'Floor Tiles',
     required this.size,
     required this.surface,
     required this.color,
+    String? baseColour,
     required this.pattern,
     required this.basePrice,
     required this.moq,
@@ -57,10 +69,17 @@ class TileProduct {
     int? availableStock,
     required this.images,
     this.isActive = true,
-    this.collection = 'General Collection',
+    this.isComingSoon = false,
+    this.collection = 'Endless',
+    this.spaces = const ['Living Room', 'Bedroom'],
     this.finish = 'Polished',
+    this.productType = 'Vitrified',
     this.bodyType = 'Porcelain',
     this.thickness = '9 mm',
+    this.thicknessMm = 9.0,
+    this.boxWeightKg = 28.0,
+    int? pcsPerBox,
+    this.sqFtPerBox = 15.5,
     this.thicknessCategory = 'standard',
     this.shape = 'rectangle',
     this.aspectRatio = '0.5',
@@ -73,31 +92,15 @@ class TileProduct {
     this.createdAt,
     this.updatedAt,
   })  : productId = productId ?? id,
+        baseColour = baseColour ?? color,
+        pcsPerBox = pcsPerBox ?? TileDimensionHelper.getPcsPerBox(size),
         currentStock = currentStock ?? availableQuantity,
         availableStock = availableStock ?? ((currentStock ?? availableQuantity) - reservedStock),
-        aspectRatioValue = aspectRatioValue ?? _parseAspectRatio(aspectRatio);
+        aspectRatioValue = aspectRatioValue ?? TileDimensionHelper.calculateTileAspectRatio(size);
 
-  static double _parseAspectRatio(dynamic val) {
-    if (val is num) return val.toDouble();
-    if (val is String) {
-      final parsed = double.tryParse(val);
-      if (parsed != null) return parsed;
-      if (val.contains(':')) {
-        final parts = val.split(':');
-        if (parts.length == 2) {
-          final w = double.tryParse(parts[0]);
-          final h = double.tryParse(parts[1]);
-          if (w != null && h != null && h != 0) return w / h;
-        }
-      }
-    }
-    return 0.5;
-  }
-
-  String get baseColor => color;
+  String get baseColor => baseColour;
   String get categoryName => collection.isNotEmpty ? collection : categoryId;
   String get sizeCm => size;
-  String get thicknessMm => thickness.endsWith('mm') ? thickness.replaceAll('mm', '').trim() : thickness;
   double get basePricePerSqFt => basePrice;
 
   Map<String, dynamic> toMap() {
@@ -107,26 +110,34 @@ class TileProduct {
       'sku': sku,
       'name': name,
       'categoryId': categoryId,
+      'tileCategory': tileCategory,
       'size': size,
       'surface': surface,
       'color': color,
-      'baseColor': color,
+      'baseColour': baseColour,
       'pattern': pattern,
       'basePrice': basePrice,
       'moq': moq,
       'unit': unit,
       'stockStatus': stockStatus,
-      'inStock': stockStatus == 'available' || stockStatus == 'available_now' || stockStatus == 'Available Now' || stockStatus == 'Limited',
+      'inStock': stockStatus == 'available' || stockStatus == 'available_now' || stockStatus == 'Available Now',
       'availableQuantity': availableQuantity,
       'currentStock': currentStock,
       'reservedStock': reservedStock,
       'availableStock': availableStock,
       'images': images,
       'isActive': isActive,
+      'isComingSoon': isComingSoon,
       'collection': collection,
+      'spaces': spaces,
       'finish': finish,
+      'productType': productType,
       'bodyType': bodyType,
       'thickness': thickness,
+      'thicknessMm': thicknessMm,
+      'boxWeightKg': boxWeightKg,
+      'pcsPerBox': pcsPerBox,
+      'sqFtPerBox': sqFtPerBox,
       'thicknessCategory': thicknessCategory,
       'shape': shape,
       'aspectRatio': aspectRatio,
@@ -145,12 +156,13 @@ class TileProduct {
 
   factory TileProduct.fromMap(Map<String, dynamic> map, String docId) {
     final pId = map['productId'] ?? docId;
-    final colorVal = map['color'] ?? map['baseColor'] ?? 'White';
+    final colorVal = map['baseColour'] ?? map['color'] ?? map['baseColor'] ?? 'White';
+    final sz = map['size'] ?? '600x1200 mm';
     final stStatus = map['stockStatus'] ?? 'available';
     final cStock = (map['currentStock'] ?? map['availableQuantity'] ?? 500).toInt();
     final rStock = (map['reservedStock'] ?? 0).toInt();
     final aStock = (map['availableStock'] ?? (cStock - rStock)).toInt();
-    final aspVal = _parseAspectRatio(map['aspectRatio']);
+    final aspVal = TileDimensionHelper.calculateTileAspectRatio(sz);
 
     return TileProduct(
       id: docId,
@@ -158,9 +170,11 @@ class TileProduct {
       sku: map['sku'] ?? 'ITA-PROD-$docId',
       name: map['name'] ?? 'Unnamed Product',
       categoryId: map['categoryId'] ?? 'CAT_GLAZED_01',
-      size: map['size'] ?? '600x1200',
+      tileCategory: map['tileCategory'] ?? 'Floor Tiles',
+      size: sz,
       surface: map['surface'] ?? 'Glossy',
       color: colorVal,
+      baseColour: colorVal,
       pattern: map['pattern'] ?? 'Marble',
       basePrice: (map['basePrice'] ?? 0.0).toDouble(),
       moq: (map['moq'] ?? 10).toInt(),
@@ -172,20 +186,27 @@ class TileProduct {
       availableStock: aStock,
       images: List<String>.from(map['images'] ?? []),
       isActive: map['isActive'] ?? true,
-      collection: map['collection'] ?? 'General Collection',
+      isComingSoon: map['isComingSoon'] ?? false,
+      collection: map['collection'] ?? 'Endless',
+      spaces: List<String>.from(map['spaces'] ?? ['Living Room', 'Bedroom']),
       finish: map['finish'] ?? 'Polished',
+      productType: map['productType'] ?? 'Vitrified',
       bodyType: map['bodyType'] ?? 'Porcelain',
       thickness: map['thickness'] ?? '9 mm',
+      thicknessMm: (map['thicknessMm'] ?? 9.0).toDouble(),
+      boxWeightKg: (map['boxWeightKg'] ?? 28.0).toDouble(),
+      pcsPerBox: (map['pcsPerBox'] ?? TileDimensionHelper.getPcsPerBox(sz)).toInt(),
+      sqFtPerBox: (map['sqFtPerBox'] ?? 15.5).toDouble(),
       thicknessCategory: map['thicknessCategory'] ?? 'standard',
       shape: map['shape'] ?? 'rectangle',
-      aspectRatio: map['aspectRatio']?.toString() ?? '0.5',
+      aspectRatio: map['aspectRatio']?.toString() ?? '$aspVal',
       aspectRatioValue: aspVal,
       randomPattern: map['randomPattern'] ?? '4 Faces',
       priceCategory: map['priceCategory'] ?? 'Premium',
       shade: map['shade'] ?? 'Light',
       lifestyleImages: List<String>.from(map['lifestyleImages'] ?? []),
       packingDetails: Map<String, dynamic>.from(map['packingDetails'] ?? {
-        'boxWeight': '30 kg',
+        'boxWeight': '28 kg',
         'sqmPerBox': 1.44,
         'boxesPerPallet': 40,
         'piecesPerBox': 2,
@@ -198,82 +219,4 @@ class TileProduct {
           : null,
     );
   }
-
-  TileProduct copyWith({
-    String? id,
-    String? productId,
-    String? sku,
-    String? name,
-    String? categoryId,
-    String? size,
-    String? surface,
-    String? color,
-    String? pattern,
-    double? basePrice,
-    int? moq,
-    String? unit,
-    String? stockStatus,
-    int? availableQuantity,
-    int? currentStock,
-    int? reservedStock,
-    int? availableStock,
-    List<String>? images,
-    bool? isActive,
-    String? collection,
-    String? finish,
-    String? bodyType,
-    String? thickness,
-    String? thicknessCategory,
-    String? shape,
-    String? aspectRatio,
-    double? aspectRatioValue,
-    String? randomPattern,
-    String? priceCategory,
-    String? shade,
-    List<String>? lifestyleImages,
-    Map<String, dynamic>? packingDetails,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return TileProduct(
-      id: id ?? this.id,
-      productId: productId ?? this.productId,
-      sku: sku ?? this.sku,
-      name: name ?? this.name,
-      categoryId: categoryId ?? this.categoryId,
-      size: size ?? this.size,
-      surface: surface ?? this.surface,
-      color: color ?? this.color,
-      pattern: pattern ?? this.pattern,
-      basePrice: basePrice ?? this.basePrice,
-      moq: moq ?? this.moq,
-      unit: unit ?? this.unit,
-      stockStatus: stockStatus ?? this.stockStatus,
-      availableQuantity: availableQuantity ?? this.availableQuantity,
-      currentStock: currentStock ?? this.currentStock,
-      reservedStock: reservedStock ?? this.reservedStock,
-      availableStock: availableStock ?? this.availableStock,
-      images: images ?? this.images,
-      isActive: isActive ?? this.isActive,
-      collection: collection ?? this.collection,
-      finish: finish ?? this.finish,
-      bodyType: bodyType ?? this.bodyType,
-      thickness: thickness ?? this.thickness,
-      thicknessCategory: thicknessCategory ?? this.thicknessCategory,
-      shape: shape ?? this.shape,
-      aspectRatio: aspectRatio ?? this.aspectRatio,
-      aspectRatioValue: aspectRatioValue ?? this.aspectRatioValue,
-      randomPattern: randomPattern ?? this.randomPattern,
-      priceCategory: priceCategory ?? this.priceCategory,
-      shade: shade ?? this.shade,
-      lifestyleImages: lifestyleImages ?? this.lifestyleImages,
-      packingDetails: packingDetails ?? this.packingDetails,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
 }
-
-
-
-

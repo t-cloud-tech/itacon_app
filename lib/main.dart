@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'theme/app_theme.dart';
 import 'services/firestore_service.dart';
 import 'models/user_category.dart';
 import 'models/tile_product.dart';
@@ -28,15 +29,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ITACON CONNECT',
+      title: 'ITACON GRANITO',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A237E),
-          primary: const Color(0xFF1A237E),
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.luxuryTheme,
       home: const SplashScreen(),
     );
   }

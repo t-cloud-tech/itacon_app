@@ -5,6 +5,7 @@ import '../services/firestore_service.dart';
 import 'auth_screen.dart';
 import 'referral_gate_screen.dart';
 import 'product_catalogue_screen.dart';
+import 'main_navigation_screen.dart';
 
 /// Splash loading screen displaying ITACON GRANITO luxury branding,
 /// taglines, diagonal angled division, marble kitchen background,
@@ -37,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (uid != null && uid.isNotEmpty) {
         final profile = await _firestoreService.getUserProfile(uid);
         if (profile != null && profile.isVerified) {
-          targetScreen = const ProductCatalogueScreen();
+          targetScreen = const MainNavigationScreen();
         } else if (profile != null && !profile.isVerified) {
           targetScreen = const ReferralGateScreen();
         } else {
