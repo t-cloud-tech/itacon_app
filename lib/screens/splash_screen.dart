@@ -81,16 +81,21 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: const Color(0xFF0B1B36),
       body: Stack(
         children: [
-          // 1. Bottom Section: High Quality Marble Kitchen Interior Photo
-          Positioned.fill(
+          // 1. Bottom Section: Background Photo with Top Portion Visible
+          Positioned(
+            top: screenSize.height * 0.22,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: Image.asset(
-              'assets/images/splash_kitchen.jpg',
+              'assets/images/splash_img.jpg',
               fit: BoxFit.cover,
-              alignment: Alignment.bottomCenter,
+              alignment: Alignment.topCenter,
               errorBuilder: (context, error, stackTrace) {
                 return Image.asset(
-                  'assets/images/auth_bg.png',
+                  'assets/images/splash_kitchen.jpg',
                   fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
                   errorBuilder: (context, error, stackTrace) =>
                       Container(color: const Color(0xFF152642)),
                 );
@@ -98,14 +103,14 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
           ),
 
-          // 2. Top Section: Dark Navy Blue Angled Container
+          // 2. Top Section: Dark Navy Blue Container with Curved Wave Clipper
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             height: screenSize.height * 0.67,
             child: ClipPath(
-              clipper: DiagonalPathClipper(),
+              clipper: CurvedWaveClipper(),
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
@@ -134,7 +139,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
                         // Tagline 1
                         const Text(
-                          'Strength. Elegance. Timeless.',
+                          'Right Choice. Right Time. Right Value.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -174,7 +179,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Widget _buildBrandingLogo() {
     return Image.asset(
-      'assets/images/itacon-logo.png',
+      'assets/images/itacon-logo-white.png',
       width: 250,
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
@@ -188,13 +193,27 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-/// Custom Clipper for the diagonal downward slope of the navy splash container
-class DiagonalPathClipper extends CustomClipper<Path> {
+/// Custom Clipper for a smooth elegant curved wave on the navy splash container
+class CurvedWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    path.lineTo(0, size.height * 0.84);
-    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height * 0.72);
+
+    // Smooth wave curve from left to right using cubic bezier
+    final firstControlPoint = Offset(size.width * 0.35, size.height * 0.58);
+    final secondControlPoint = Offset(size.width * 0.70, size.height * 0.96);
+    final endPoint = Offset(size.width, size.height * 0.82);
+
+    path.cubicTo(
+      firstControlPoint.dx,
+      firstControlPoint.dy,
+      secondControlPoint.dx,
+      secondControlPoint.dy,
+      endPoint.dx,
+      endPoint.dy,
+    );
+
     path.lineTo(size.width, 0);
     path.close();
     return path;
