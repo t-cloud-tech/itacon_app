@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
+import '../services/user_session_service.dart';
 import '../models/user_profile.dart';
 import 'auth_screen.dart';
 import 'orders_screen.dart';
@@ -575,12 +576,19 @@ class ProfileScreen extends StatelessWidget {
                         _buildTile(
                           Icons.logout_rounded,
                           'Log Out',
-                          () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (_) => const AuthScreen()),
-                              (route) => false,
-                            );
+                          () async {
+                            await UserSessionService.clearUserSession();
+                            if (context.mounted) {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AuthScreen(
+                                    initialMode: AuthViewMode.login,
+                                  ),
+                                ),
+                                (route) => false,
+                              );
+                            }
                           },
                           isDestructive: true,
                         ),

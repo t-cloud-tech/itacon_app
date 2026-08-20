@@ -36,6 +36,7 @@ class AppStateService extends ChangeNotifier {
 
   int get cartCount => _cartItems.fold(0, (sum, item) => sum + item.quantity);
   int get favoritesCount => _favoriteProductIds.length;
+  int get ordersCount => 0;
 
   double get subtotal =>
       _cartItems.fold(0.0, (sum, item) => sum + item.itemTotal);
@@ -68,8 +69,15 @@ class AppStateService extends ChangeNotifier {
         );
   }
 
+  bool get hasSessionProfile => _currentUserProfile != null;
+
   void setCurrentUserProfile(UserProfile profile) {
     _currentUserProfile = profile;
+    notifyListeners();
+  }
+
+  void clearUserProfile() {
+    _currentUserProfile = null;
     notifyListeners();
   }
 

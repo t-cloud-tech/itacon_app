@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/user_session_service.dart';
 import 'auth_screen.dart';
 import 'referral_gate_screen.dart';
 import 'product_catalogue_screen.dart';
@@ -32,20 +33,24 @@ class _SplashScreenState extends State<SplashScreen> {
     Widget targetScreen = const AuthScreen();
 
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final uid = _authService.currentUid ?? currentUser?.uid;
+      final restoredProfile = await UserSessionService.restoreUserSession();
+      if (restoredProfile != null) {
+        targetScreen = const MainNavigationScreen();
+      } else {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        final uid = _authService.currentUid ?? currentUser?.uid;
 
-      if (uid != null && uid.isNotEmpty) {
-        final profile = await _firestoreService.getUserProfile(uid);
-        if (profile != null && profile.isVerified) {
-          targetScreen = const MainNavigationScreen();
-        } else if (profile != null && !profile.isVerified) {
-          targetScreen = const ReferralGateScreen();
+        if (uid != null && uid.isNotEmpty) {
+          final profile = await _firestoreService.getUserProfile(uid);
+          if (profile != null) {
+            await UserSessionService.saveUserSession(profile);
+            targetScreen = const MainNavigationScreen();
+          } else {
+            targetScreen = const AuthScreen();
+          }
         } else {
           targetScreen = const AuthScreen();
         }
-      } else {
-        targetScreen = const AuthScreen();
       }
     } catch (e) {
       targetScreen = const AuthScreen();

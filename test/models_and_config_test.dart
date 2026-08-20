@@ -4,7 +4,12 @@ import 'package:itacon_app/services/config_service.dart';
 import 'package:itacon_app/services/firestore_service.dart';
 import 'package:itacon_app/services/app_state_service.dart';
 
+import 'package:itacon_app/services/user_session_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
   group('TransporterModel Tests', () {
     test('Should correctly instantiate and convert to/from map', () {
       final transporter = TransporterModel(
@@ -561,6 +566,39 @@ void main() {
         role: 'customer',
       );
       expect(user2.initials, 'A');
+    });
+  });
+
+  group('UserSessionService Persistent Session Tests', () {
+    test('Should save, restore, and clear user session correctly', () async {
+      SharedPreferences.setMockInitialValues({});
+      const testProfile = UserProfile(
+        userId: 'USER_101',
+        name: 'Vikram Patel',
+        phone: '+919988776655',
+        email: 'vikram@itacongranito.com',
+        companyName: 'Patel Tiles & Sanitary',
+        userCategory: 'Architect',
+        role: 'customer',
+        city: 'Surat',
+        state: 'Gujarat',
+        pincode: '395007',
+        gstNumber: '24BBBBB1111B1Z2',
+      );
+
+      await UserSessionService.saveUserSession(testProfile);
+      final restored = await UserSessionService.restoreUserSession();
+
+      expect(restored, isNotNull);
+      expect(restored!.userId, 'USER_101');
+      expect(restored.name, 'Vikram Patel');
+      expect(restored.companyName, 'Patel Tiles & Sanitary');
+      expect(restored.userCategory, 'Architect');
+      expect(AppStateService.instance.currentUserProfile.name, 'Vikram Patel');
+
+      await UserSessionService.clearUserSession();
+      final cleared = await UserSessionService.restoreUserSession();
+      expect(cleared, isNull);
     });
   });
 }

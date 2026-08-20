@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_service.dart';
 import '../models/user_profile.dart';
 import 'app_state_service.dart';
+import 'user_session_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth;
@@ -118,23 +119,23 @@ class AuthService {
       isVerified: true,
     );
 
-    AppStateService.instance.setCurrentUserProfile(
-      UserProfile(
-        userId: uid,
-        name: fullName,
-        companyName: companyName ?? '',
-        phone: phoneNumber,
-        email: '',
-        userCategory: categoryId,
-        role: categoryId,
-        salesPersonId: assignedSpId,
-        referralCode: userReferralCode,
-        phoneVerified: true,
-        whatsappVerified: true,
-        status: 'active',
-        createdAt: DateTime.now(),
-      ),
+    final registeredProfile = UserProfile(
+      userId: uid,
+      name: fullName,
+      companyName: companyName ?? '',
+      phone: phoneNumber,
+      email: '',
+      userCategory: categoryId,
+      role: categoryId,
+      salesPersonId: assignedSpId,
+      referralCode: userReferralCode,
+      phoneVerified: true,
+      whatsappVerified: true,
+      status: 'active',
+      createdAt: DateTime.now(),
     );
+
+    await UserSessionService.saveUserSession(registeredProfile);
 
     // Save referral code in customer_referrals datastore if provided
     if (referralCode != null && referralCode.trim().isNotEmpty) {
@@ -186,7 +187,7 @@ class AuthService {
       _lastRegisteredUid = (userMap['id'] ?? userMap['userId'] ?? userMap['uid']) as String?;
       final docId = _lastRegisteredUid ?? 'USER_LOGIN';
       final profile = UserProfile.fromMap(userMap, docId);
-      AppStateService.instance.setCurrentUserProfile(profile);
+      await UserSessionService.saveUserSession(profile);
     } else {
       if (_auth.currentUser == null && !loginIdentifier.toLowerCase().contains('user_') && !loginIdentifier.toLowerCase().contains('test')) {
         throw Exception('Invalid username or password. Please check your credentials and try again.');
@@ -200,7 +201,7 @@ class AuthService {
         userCategory: 'Dealer',
         role: 'customer',
       );
-      AppStateService.instance.setCurrentUserProfile(fallbackProfile);
+      await UserSessionService.saveUserSession(fallbackProfile);
     }
 
     if (verificationId != null && smsCode != null && smsCode.isNotEmpty) {

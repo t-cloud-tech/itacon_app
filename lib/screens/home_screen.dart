@@ -9,6 +9,7 @@ import 'product_detail_screen.dart';
 import 'favorites_screen.dart';
 import 'orders_screen.dart';
 import 'cart_screen.dart';
+import '../widgets/app_navigation_drawer.dart';
 
 class HomeScreen extends StatelessWidget {
   final Function(int)? onNavigateTab;
@@ -28,9 +29,9 @@ class HomeScreen extends StatelessWidget {
         name: 'Statuario Marble Vitrified',
         size: '600x1200 mm',
         surface: 'Glossy',
-        color: 'White',
-        baseColour: 'White',
-        pattern: 'Grey Vein',
+        color: 'Bianco - Grey',
+        baseColour: 'Bianco - Grey',
+        pattern: 'Marble Veining',
         basePrice: 120.0,
         moq: 50,
         stockStatus: 'available_now',
@@ -92,10 +93,15 @@ class HomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
+      drawer: AppNavigationDrawer(onSelectTab: onNavigateTab),
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded, color: AppTheme.primaryNavy),
-          onPressed: () {},
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.primaryNavy),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
         ),
         title: Row(
           mainAxisAlignment: MainAxisAlignment.center,
