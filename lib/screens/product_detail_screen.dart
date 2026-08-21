@@ -233,7 +233,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ListenableBuilder(
                     listenable: PricingService.instance,
                     builder: (context, _) {
-                      final resolved = PricingService.instance.resolvePrice(_product);
+                      final resolved = PricingService.instance.resolvePrice(_product, null, _quantity);
                       final sqFtPerBox = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
                       final boxCost = resolved.unitPrice * sqFtPerBox;
                       final totalArea = _quantity * sqFtPerBox;
@@ -262,7 +262,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                         decoration: BoxDecoration(
-                                          color: AppTheme.accentOrange,
+                                          color: resolved.isVolumeDiscounted ? Colors.green.shade700 : AppTheme.accentOrange,
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
@@ -311,6 +311,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
+
                           // Dynamic Box Cost & Area Coverage Card
                           Container(
                             padding: const EdgeInsets.all(12),
@@ -363,6 +364,44 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       'Total: ₹${totalCost.toStringAsFixed(0)}',
                                       style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.textDark),
                                     ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Bulk Order Quantity Savings Tiers Card
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryNavy.withOpacity(0.04),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppTheme.primaryNavy.withOpacity(0.15)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.inventory_2_outlined, size: 16, color: AppTheme.primaryNavy),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Bulk Order Volume Discount Tiers',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _buildVolumeTierPill('1-49 Boxes', 'Standard', _quantity < 50),
+                                    const SizedBox(width: 6),
+                                    _buildVolumeTierPill('50+ Boxes', '+3% OFF', _quantity >= 50 && _quantity < 100),
+                                    const SizedBox(width: 6),
+                                    _buildVolumeTierPill('100+ Boxes', '+5% OFF', _quantity >= 100 && _quantity < 500),
+                                    const SizedBox(width: 6),
+                                    _buildVolumeTierPill('500+ Boxes', '+8% OFF', _quantity >= 500),
                                   ],
                                 ),
                               ],
@@ -662,6 +701,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildVolumeTierPill(String title, String discount, bool isActive) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.green.shade600 : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isActive ? Colors.green.shade700 : AppTheme.borderSubtle,
+            width: isActive ? 1.5 : 1.0,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                color: isActive ? Colors.white : AppTheme.textDark,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              discount,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: isActive ? Colors.white : Colors.green.shade700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

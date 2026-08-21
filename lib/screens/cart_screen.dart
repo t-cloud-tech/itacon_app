@@ -146,7 +146,7 @@ class CartScreen extends StatelessWidget {
                                    children: [
                                      Builder(
                                        builder: (context) {
-                                         final resolved = PricingService.instance.resolvePrice(item.product);
+                                         final resolved = PricingService.instance.resolvePrice(item.product, null, item.quantity);
                                          return Row(
                                            children: [
                                              if (resolved.hasDiscount) ...[
