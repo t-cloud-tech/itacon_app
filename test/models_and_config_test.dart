@@ -5,6 +5,7 @@ import 'package:itacon_app/services/firestore_service.dart';
 import 'package:itacon_app/services/app_state_service.dart';
 
 import 'package:itacon_app/services/user_session_service.dart';
+import 'package:itacon_app/services/pricing_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -599,6 +600,67 @@ void main() {
       await UserSessionService.clearUserSession();
       final cleared = await UserSessionService.restoreUserSession();
       expect(cleared, isNull);
+    });
+  });
+
+  group('PricingService Waterfall & Tier Resolution Tests', () {
+    final testProduct = TileProduct(
+      id: 'PROD_TEST_01',
+      name: 'Statuario Marble',
+      size: '600x1200 mm',
+      surface: 'Glossy',
+      color: 'White',
+      baseColour: 'White',
+      pattern: 'Vein',
+      basePrice: 100.0,
+      moq: 10,
+      stockStatus: 'available_now',
+      images: [],
+      finish: 'Glossy',
+      thickness: '9 mm',
+      productType: 'Vitrified',
+      tileCategory: 'Floor Tiles',
+      collection: 'Marbles',
+      shape: 'rectangle',
+      aspectRatio: '0.5',
+    );
+
+    test('Should apply category tier discount correctly (Dealer 15% OFF)', () {
+      const dealerProfile = UserProfile(
+        userId: 'DEALER_USER_01',
+        name: 'Amit Patel',
+        phone: '123',
+        email: '',
+        companyName: 'Amit Traders',
+        userCategory: 'Dealer',
+        role: 'customer',
+      );
+
+      final resolved = PricingService.instance.resolvePrice(testProduct, dealerProfile);
+
+      expect(resolved.unitPrice, 85.0); // 100 * (1 - 0.15) = 85
+      expect(resolved.basePrice, 100.0);
+      expect(resolved.isTierDiscounted, isTrue);
+      expect(resolved.isCustomOverride, isFalse);
+    });
+
+    test('Custom SKU rate override should take priority over tier discount', () {
+      const dealerProfile = UserProfile(
+        userId: 'DEALER_USER_02',
+        name: 'Rajesh Shah',
+        phone: '123',
+        email: '',
+        companyName: 'Shah Granites',
+        userCategory: 'Dealer',
+        role: 'customer',
+      );
+
+      PricingService.instance.setCustomPriceOverride('DEALER_USER_02', 'PROD_TEST_01', 75.0);
+      final resolved = PricingService.instance.resolvePrice(testProduct, dealerProfile);
+
+      expect(resolved.unitPrice, 75.0);
+      expect(resolved.isCustomOverride, isTrue);
+      expect(resolved.discountBadgeLabel, 'Your Partner Rate');
     });
   });
 }

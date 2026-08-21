@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/tile_product.dart';
 import '../models/user_profile.dart';
 
+import 'pricing_service.dart';
+
 /// Represents an item in the user's cart
 class CartItem {
   final TileProduct product;
@@ -16,7 +18,10 @@ class CartItem {
     this.quantity = 1,
   });
 
-  double get itemTotal => product.basePrice * quantity;
+  double get effectiveUnitPrice => PricingService.instance.resolvePrice(product).unitPrice;
+  double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
+  double get boxPrice => effectiveUnitPrice * sqFtPerBox;
+  double get itemTotal => boxPrice * quantity;
 }
 
 /// AppStateService for reactive Cart, Favorites, and Live User Profile state management

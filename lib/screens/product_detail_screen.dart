@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
+import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
 import 'cart_screen.dart';
 
@@ -228,37 +229,148 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title & Rate Tag
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _product.name,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
+                  // Resolved Price & Partner Badge Tag
+                  ListenableBuilder(
+                    listenable: PricingService.instance,
+                    builder: (context, _) {
+                      final resolved = PricingService.instance.resolvePrice(_product);
+                      final sqFtPerBox = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
+                      final boxCost = resolved.unitPrice * sqFtPerBox;
+                      final totalArea = _quantity * sqFtPerBox;
+                      final totalCost = _quantity * boxCost;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _product.name,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textDark,
+                                      ),
+                                    ),
+                                    if (resolved.hasDiscount) ...[
+                                      const SizedBox(height: 4),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.accentOrange,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          resolved.discountBadgeLabel.toUpperCase(),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (resolved.hasDiscount)
+                                    Text(
+                                      '₹${resolved.basePrice.toStringAsFixed(0)} / sq.ft',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '₹${resolved.unitPrice.toStringAsFixed(0)} / sq.ft',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          '₹${_product.basePrice.toStringAsFixed(0)} / sq.ft',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.accentOrange,
+                          const SizedBox(height: 12),
+                          // Dynamic Box Cost & Area Coverage Card
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.backgroundColor,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppTheme.borderSubtle),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Cost Per Box',
+                                      style: TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                                    ),
+                                    Text(
+                                      '₹${boxCost.toStringAsFixed(0)} / Box',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryNavy,
+                                      ),
+                                    ),
+                                    Text(
+                                      '(${sqFtPerBox} sq.ft / Box)',
+                                      style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                                    ),
+                                  ],
+                                ),
+                                Container(width: 1, height: 32, color: AppTheme.borderSubtle),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      'Est. Coverage (${_quantity} Boxes)',
+                                      style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                                    ),
+                                    Text(
+                                      '${totalArea.toStringAsFixed(1)} sq.ft',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Total: ₹${totalCost.toStringAsFixed(0)}',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 

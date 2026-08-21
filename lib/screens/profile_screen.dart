@@ -3,7 +3,9 @@ import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
+import '../services/pricing_service.dart';
 import '../models/user_profile.dart';
+import '../widgets/profile_tier_card.dart';
 import 'auth_screen.dart';
 import 'orders_screen.dart';
 import 'favorites_screen.dart';
@@ -395,6 +397,13 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
+                // Trade Tier Status Card
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ProfileTierCard(user: profile),
+                ),
+                const SizedBox(height: 16),
+
                 // Profile Completion Progress Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -559,6 +568,10 @@ class ProfileScreen extends StatelessWidget {
                           _openEditProfileModal(context, profile);
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
+                        _buildTile(Icons.sell_outlined, 'My Contract Rates', () {
+                          _openContractRatesBottomSheet(context, profile);
+                        }),
+                        const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.shopping_bag_outlined, 'My Orders', () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const OrdersScreen()));
                         }),
@@ -632,6 +645,199 @@ class ProfileScreen extends StatelessWidget {
               color: AppTheme.textSubtle,
             ),
       onTap: onTap,
+    );
+  }
+
+  void _openContractRatesBottomSheet(BuildContext context, UserProfile profile) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.70,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.sell_outlined, color: AppTheme.primaryNavy),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'My Contract Rates',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryNavy,
+                          ),
+                        ),
+                        Text(
+                          'Approved Partner Rates for ${profile.companyName.isNotEmpty ? profile.companyName : profile.name}',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(color: AppTheme.borderSubtle),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _buildContractRateCard(
+                      sku: 'ITA-STAT-6012',
+                      productName: 'Statuario Marble Vitrified',
+                      standardRate: 120.0,
+                      approvedRate: 98.0,
+                      size: '600x1200 mm',
+                      category: 'Floor Tiles',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildContractRateCard(
+                      sku: 'ITA-ROYA-6012',
+                      productName: 'Royal Beige Carving Tile',
+                      standardRate: 135.0,
+                      approvedRate: 115.0,
+                      size: '600x1200 mm',
+                      category: 'Floor Tiles',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildContractRateCard(
+                      sku: 'ITA-NERO-6060',
+                      productName: 'Nero Marquina Square Tile',
+                      standardRate: 95.0,
+                      approvedRate: 82.0,
+                      size: '600x600 mm',
+                      category: 'Floor Tiles',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildContractRateCard({
+    required String sku,
+    required String productName,
+    required double standardRate,
+    required double approvedRate,
+    required String size,
+    required String category,
+  }) {
+    final savingsPct = (((standardRate - approvedRate) / standardRate) * 100).toStringAsFixed(0);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.grid_on_rounded, color: AppTheme.primaryNavy),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  productName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryNavy,
+                  ),
+                ),
+                Text(
+                  'SKU: $sku • $size',
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      '₹${standardRate.toStringAsFixed(0)}/sq.ft',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '₹${approvedRate.toStringAsFixed(0)}/sq.ft',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.accentOrange,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.statusSuccess.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.statusSuccess.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              '$savingsPct% SAVINGS',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.statusSuccess,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

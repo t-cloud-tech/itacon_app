@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
+import '../services/pricing_service.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -139,18 +140,38 @@ class CartScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      '₹${item.product.basePrice.toStringAsFixed(0)}/sq.ft',
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppTheme.accentOrange,
-                                      ),
-                                    ),
+                                 Row(
+                                   mainAxisAlignment:
+                                       MainAxisAlignment.spaceBetween,
+                                   children: [
+                                     Builder(
+                                       builder: (context) {
+                                         final resolved = PricingService.instance.resolvePrice(item.product);
+                                         return Row(
+                                           children: [
+                                             if (resolved.hasDiscount) ...[
+                                               Text(
+                                                 '₹${resolved.basePrice.toStringAsFixed(0)}',
+                                                 style: const TextStyle(
+                                                   fontSize: 11,
+                                                   color: Colors.grey,
+                                                   decoration: TextDecoration.lineThrough,
+                                                 ),
+                                               ),
+                                               const SizedBox(width: 4),
+                                             ],
+                                             Text(
+                                               '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/sq.ft',
+                                               style: const TextStyle(
+                                                 fontSize: 15,
+                                                 fontWeight: FontWeight.w800,
+                                                 color: AppTheme.accentOrange,
+                                               ),
+                                             ),
+                                           ],
+                                         );
+                                       },
+                                     ),
                                     Container(
                                       height: 32,
                                       decoration: BoxDecoration(

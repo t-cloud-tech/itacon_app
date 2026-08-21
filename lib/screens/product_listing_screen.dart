@@ -3,6 +3,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
+import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
 import '../widgets/product_filter_bottom_sheet.dart';
 import 'product_detail_screen.dart';
@@ -534,24 +535,65 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 6),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          '₹${product.basePrice.toStringAsFixed(0)}',
-                                          style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.accentOrange,
-                                          ),
-                                        ),
-                                        const Text(
-                                          ' / sq.ft',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: AppTheme.textSubtle,
-                                          ),
-                                        ),
-                                      ],
+                                    ListenableBuilder(
+                                      listenable: PricingService.instance,
+                                      builder: (context, _) {
+                                        final resolved = PricingService.instance.resolvePrice(product);
+
+                                        return Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            if (resolved.hasDiscount) ...[
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.accentOrange,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  resolved.discountBadgeLabel,
+                                                  style: const TextStyle(
+                                                    fontSize: 8,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                            ],
+                                            Row(
+                                              children: [
+                                                if (resolved.hasDiscount) ...[
+                                                  Text(
+                                                    '₹${resolved.basePrice.toStringAsFixed(0)}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.grey,
+                                                      decoration: TextDecoration.lineThrough,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                ],
+                                                Text(
+                                                  '₹${resolved.unitPrice.toStringAsFixed(0)}',
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w800,
+                                                    color: AppTheme.accentOrange,
+                                                  ),
+                                                ),
+                                                const Text(
+                                                  ' / sq.ft',
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: AppTheme.textSubtle,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
