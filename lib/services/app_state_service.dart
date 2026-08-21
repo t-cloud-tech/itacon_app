@@ -18,7 +18,7 @@ class CartItem {
     this.quantity = 1,
   });
 
-  double get effectiveUnitPrice => PricingService.instance.resolvePrice(product, null, quantity).unitPrice;
+  double get effectiveUnitPrice => PricingService.instance.resolvePrice(product).unitPrice;
   double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
   double get boxPrice => effectiveUnitPrice * sqFtPerBox;
   double get itemTotal => boxPrice * quantity;

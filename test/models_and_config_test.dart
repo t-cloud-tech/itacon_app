@@ -662,25 +662,6 @@ void main() {
       expect(resolved.isCustomOverride, isTrue);
       expect(resolved.discountBadgeLabel, 'Your Partner Rate');
     });
-
-    test('Should apply volume quantity tier discount for large orders (Dealer + 100 Boxes = 15% + 5% = 20% OFF)', () {
-      const dealerProfile = UserProfile(
-        userId: 'DEALER_USER_03',
-        name: 'Vikas Patel',
-        phone: '123',
-        email: '',
-        companyName: 'Vikas Tiles',
-        userCategory: 'Dealer',
-        role: 'customer',
-      );
-
-      // Order of 100 boxes -> 15% Dealer + 5% Volume Bonus = 20% total discount
-      final resolved = PricingService.instance.resolvePrice(testProduct, dealerProfile, 100);
-
-      expect(resolved.unitPrice, 80.0); // 100 * (1 - 0.20) = 80
-      expect(resolved.isVolumeDiscounted, isTrue);
-      expect(resolved.volumeBonusPercent, 5.0);
-    });
   });
 }
 

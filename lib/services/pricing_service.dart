@@ -10,27 +10,23 @@ class ResolvedPrice {
   final double unitPrice;
   final double basePrice;
   final double discountPercent;
-  final double volumeBonusPercent;
   final bool isCustomOverride;
   final bool isTierDiscounted;
-  final bool isVolumeDiscounted;
   final String discountBadgeLabel;
 
   const ResolvedPrice({
     required this.unitPrice,
     required this.basePrice,
     this.discountPercent = 0.0,
-    this.volumeBonusPercent = 0.0,
     this.isCustomOverride = false,
     this.isTierDiscounted = false,
-    this.isVolumeDiscounted = false,
     this.discountBadgeLabel = '',
   });
 
-  bool get hasDiscount => isCustomOverride || isTierDiscounted || isVolumeDiscounted || unitPrice < basePrice;
+  bool get hasDiscount => isCustomOverride || isTierDiscounted || unitPrice < basePrice;
 }
 
-/// Service handling trade tier discounts, volume quantity discounts, SKU overrides, and price resolution waterfall
+/// Service handling trade tier discounts, SKU overrides, and price resolution waterfall
 class PricingService extends ChangeNotifier {
   static final PricingService instance = PricingService._internal();
   PricingService._internal();
@@ -59,23 +55,15 @@ class PricingService extends ChangeNotifier {
     'Retail': 0.00,
   };
 
-  /// Bulk volume quantity bonus discount ratio lookup
-  static double getVolumeBonusRatio(int quantity) {
-    if (quantity >= 500) return 0.08; // +8% Bonus for 500+ boxes (Pallet/Truckload)
-    if (quantity >= 100) return 0.05; // +5% Bonus for 100+ boxes (Wholesale Container)
-    if (quantity >= 50) return 0.03;  // +3% Bonus for 50+ boxes (Bulk Order)
-    return 0.0;
-  }
-
   /// Registers a custom SKU price override for a specific user
   void setCustomPriceOverride(String userId, String productId, double customPrice) {
     _customPriceCache['${userId}_$productId'] = customPrice;
     notifyListeners();
   }
 
-  /// Resolves the price waterfall for a product based on active user session & order quantity:
-  /// Waterfall: Custom User SKU Price -> (Trade Category Tier Discount + Volume Bonus Discount) -> Standard Base Price
-  ResolvedPrice resolvePrice(TileProduct product, [UserProfile? user, int quantity = 1]) {
+  /// Resolves the price waterfall for a product based on active user session:
+  /// Waterfall: Custom User SKU Price -> Trade Category Tier Discount -> Standard Base Price
+  ResolvedPrice resolvePrice(TileProduct product, [UserProfile? user]) {
     final activeUser = user ?? AppStateService.instance.currentUserProfile;
     final base = product.basePrice > 0 ? product.basePrice : product.basePricePerSqFt;
 
@@ -92,40 +80,24 @@ class PricingService extends ChangeNotifier {
         discountPercent: discountPct,
         isCustomOverride: true,
         isTierDiscounted: false,
-        isVolumeDiscounted: false,
         discountBadgeLabel: 'Your Partner Rate',
       );
     }
 
-    // 2. Level 2: Category Trade Tier Discount + Quantity Volume Bonus Discount
+    // 2. Level 2: Category Trade Tier Discount
     final category = activeUser.userCategory;
     final tierDiscountRatio = tierDiscountMap[category] ?? 0.0;
-    final volumeBonusRatio = getVolumeBonusRatio(quantity);
-    final totalDiscountRatio = (tierDiscountRatio + volumeBonusRatio).clamp(0.0, 0.40);
 
-    if (totalDiscountRatio > 0.0) {
-      final effectivePrice = base * (1.0 - totalDiscountRatio);
-      final totalDiscountPct = totalDiscountRatio * 100.0;
-      final volumeBonusPct = volumeBonusRatio * 100.0;
-
-      String badgeText = '';
-      if (tierDiscountRatio > 0 && volumeBonusRatio > 0) {
-        badgeText = '${category.toUpperCase()} + ${volumeBonusPct.toStringAsFixed(0)}% BULK BONUS (${totalDiscountPct.toStringAsFixed(0)}% OFF)';
-      } else if (volumeBonusRatio > 0) {
-        badgeText = 'BULK ${quantity} BOXES (${volumeBonusPct.toStringAsFixed(0)}% OFF)';
-      } else {
-        badgeText = '${category.toUpperCase()} RATE (${totalDiscountPct.toStringAsFixed(0)}% OFF)';
-      }
-
+    if (tierDiscountRatio > 0.0) {
+      final tierPrice = base * (1.0 - tierDiscountRatio);
+      final discountPct = tierDiscountRatio * 100.0;
       return ResolvedPrice(
-        unitPrice: effectivePrice,
+        unitPrice: tierPrice,
         basePrice: base,
-        discountPercent: totalDiscountPct,
-        volumeBonusPercent: volumeBonusPct,
+        discountPercent: discountPct,
         isCustomOverride: false,
-        isTierDiscounted: tierDiscountRatio > 0,
-        isVolumeDiscounted: volumeBonusRatio > 0,
-        discountBadgeLabel: badgeText,
+        isTierDiscounted: true,
+        discountBadgeLabel: '${category.toUpperCase()} RATE (${discountPct.toStringAsFixed(0)}% OFF)',
       );
     }
 
@@ -134,10 +106,8 @@ class PricingService extends ChangeNotifier {
       unitPrice: base,
       basePrice: base,
       discountPercent: 0.0,
-      volumeBonusPercent: 0.0,
       isCustomOverride: false,
       isTierDiscounted: false,
-      isVolumeDiscounted: false,
       discountBadgeLabel: '',
     );
   }

@@ -379,7 +379,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         const SizedBox(height: 8),
         Column(
           children: appState.cartItems.map((item) {
-            final resolved = PricingService.instance.resolvePrice(item.product, user, item.quantity);
+            final resolved = PricingService.instance.resolvePrice(item.product);
             final totalCoverageSqFt = item.quantity * item.sqFtPerBox;
 
             return Container(
@@ -741,7 +741,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
               Column(
                 children: appState.cartItems.map((item) {
-                  final resolved = PricingService.instance.resolvePrice(item.product, user, item.quantity);
+                  final resolved = PricingService.instance.resolvePrice(item.product);
                   final totalAreaSqFt = item.quantity * item.sqFtPerBox;
 
                   return Padding(
