@@ -22,6 +22,10 @@ class CartItem {
   double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
   double get boxPrice => effectiveUnitPrice * sqFtPerBox;
   double get itemTotal => boxPrice * quantity;
+
+  int get quantityInBoxes => quantity;
+  double get itemWeightKg => quantityInBoxes * (product.boxWeightKg > 0 ? product.boxWeightKg : 28.0);
+  double get itemWeightTons => itemWeightKg / 1000.0;
 }
 
 /// AppStateService for reactive Cart, Favorites, and Live User Profile state management
@@ -42,6 +46,10 @@ class AppStateService extends ChangeNotifier {
   int get cartCount => _cartItems.fold(0, (sum, item) => sum + item.quantity);
   int get favoritesCount => _favoriteProductIds.length;
   int get ordersCount => 0;
+
+  int get totalBoxes => _cartItems.fold(0, (sum, item) => sum + item.quantityInBoxes);
+  double get totalWeightKg => _cartItems.fold(0.0, (sum, item) => sum + item.itemWeightKg);
+  double get totalWeightTons => totalWeightKg / 1000.0;
 
   double get subtotal =>
       _cartItems.fold(0.0, (sum, item) => sum + item.itemTotal);

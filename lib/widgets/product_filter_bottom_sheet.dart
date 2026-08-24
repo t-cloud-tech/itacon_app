@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/product_enums.dart';
 
+const Object _sentinel = Object();
+
 /// Class holding filter parameters
 class ProductFilterCriteria {
   final String? selectedSpace;
@@ -29,20 +31,26 @@ class ProductFilterCriteria {
       selectedSize == null;
 
   ProductFilterCriteria copyWith({
-    String? selectedSpace,
-    String? selectedSurface,
-    String? selectedBaseColour,
-    String? selectedCollection,
-    String? selectedProductType,
-    String? selectedSize,
+    Object? selectedSpace = _sentinel,
+    Object? selectedSurface = _sentinel,
+    Object? selectedBaseColour = _sentinel,
+    Object? selectedCollection = _sentinel,
+    Object? selectedProductType = _sentinel,
+    Object? selectedSize = _sentinel,
   }) {
     return ProductFilterCriteria(
-      selectedSpace: selectedSpace ?? this.selectedSpace,
-      selectedSurface: selectedSurface ?? this.selectedSurface,
-      selectedBaseColour: selectedBaseColour ?? this.selectedBaseColour,
-      selectedCollection: selectedCollection ?? this.selectedCollection,
-      selectedProductType: selectedProductType ?? this.selectedProductType,
-      selectedSize: selectedSize ?? this.selectedSize,
+      selectedSpace:
+          selectedSpace == _sentinel ? this.selectedSpace : selectedSpace as String?,
+      selectedSurface:
+          selectedSurface == _sentinel ? this.selectedSurface : selectedSurface as String?,
+      selectedBaseColour:
+          selectedBaseColour == _sentinel ? this.selectedBaseColour : selectedBaseColour as String?,
+      selectedCollection:
+          selectedCollection == _sentinel ? this.selectedCollection : selectedCollection as String?,
+      selectedProductType:
+          selectedProductType == _sentinel ? this.selectedProductType : selectedProductType as String?,
+      selectedSize:
+          selectedSize == _sentinel ? this.selectedSize : selectedSize as String?,
     );
   }
 }

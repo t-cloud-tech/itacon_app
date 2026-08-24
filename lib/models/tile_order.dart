@@ -149,6 +149,9 @@ class TileOrder {
   final double discount; // Discount amount
   final double tax; // Tax amount
   final double total; // Final total
+  final int totalBoxes; // Logistics: Total box count
+  final double totalWeightKg; // Logistics: Total weight in kg
+  final double totalWeightTons; // Logistics: Total weight in metric tonnes
   final List<OrderItem> items;
   final String stateCode;
   final String priceApprovalStatus;
@@ -177,6 +180,9 @@ class TileOrder {
     this.discount = 0.0,
     this.tax = 0.0,
     this.total = 0.0,
+    this.totalBoxes = 0,
+    this.totalWeightKg = 0.0,
+    this.totalWeightTons = 0.0,
     required this.items,
     this.stateCode = 'GJ',
     this.priceApprovalStatus = 'none',
@@ -213,17 +219,28 @@ class TileOrder {
       'discount': discount,
       'tax': tax,
       'total': total,
+      'totalBoxes': totalBoxes,
+      'totalWeightKg': totalWeightKg,
+      'totalWeightTons': totalWeightTons,
       'items': items.map((item) => item.toMap()).toList(),
       'stateCode': stateCode,
       'priceApprovalStatus': priceApprovalStatus,
       'estimateDetails': estimateDetails.isNotEmpty
-          ? estimateDetails
+          ? (Map<String, dynamic>.from(estimateDetails)
+            ..addAll({
+              'totalBoxes': totalBoxes,
+              'totalWeightTons': totalWeightTons,
+              'totalWeightKg': totalWeightKg,
+            }))
           : {
               'discountPercent': discount > 0 && subtotal > 0 ? (discount / subtotal) * 100 : 0.0,
               'discountAmount': discount,
               'taxAmount': tax,
               'subtotal': subtotal,
               'grandTotal': total,
+              'totalBoxes': totalBoxes,
+              'totalWeightTons': totalWeightTons,
+              'totalWeightKg': totalWeightKg,
             },
       'shipmentId': shipmentId,
       'freightAmount': freightAmount,
@@ -242,6 +259,9 @@ class TileOrder {
     final disc = (map['discount'] ?? 0.0).toDouble();
     final tx = (map['tax'] ?? 0.0).toDouble();
     final tot = (map['total'] ?? (sub - disc + tx)).toDouble();
+    final tBoxes = (map['totalBoxes'] ?? 0).toInt();
+    final tKg = (map['totalWeightKg'] ?? 0.0).toDouble();
+    final tTons = (map['totalWeightTons'] ?? (tKg / 1000.0)).toDouble();
 
     final delLoc = map['deliveryLocation'] is Map
         ? Map<String, dynamic>.from(map['deliveryLocation'])
@@ -265,6 +285,9 @@ class TileOrder {
       discount: disc,
       tax: tx,
       total: tot,
+      totalBoxes: tBoxes,
+      totalWeightKg: tKg,
+      totalWeightTons: tTons,
       items: (map['items'] as List<dynamic>?)
               ?.map((item) => OrderItem.fromMap(Map<String, dynamic>.from(item)))
               .toList() ??
@@ -302,6 +325,9 @@ class TileOrder {
     double? discount,
     double? tax,
     double? total,
+    int? totalBoxes,
+    double? totalWeightKg,
+    double? totalWeightTons,
     List<OrderItem>? items,
     String? stateCode,
     String? priceApprovalStatus,
@@ -330,6 +356,9 @@ class TileOrder {
       discount: discount ?? this.discount,
       tax: tax ?? this.tax,
       total: total ?? this.total,
+      totalBoxes: totalBoxes ?? this.totalBoxes,
+      totalWeightKg: totalWeightKg ?? this.totalWeightKg,
+      totalWeightTons: totalWeightTons ?? this.totalWeightTons,
       items: items ?? this.items,
       stateCode: stateCode ?? this.stateCode,
       priceApprovalStatus: priceApprovalStatus ?? this.priceApprovalStatus,

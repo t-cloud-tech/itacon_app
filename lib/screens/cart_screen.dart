@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
+import '../widgets/order_summary_card.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -124,54 +125,75 @@ class CartScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '${item.selectedSize} • ${item.selectedFinish}',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppTheme.textSubtle,
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${item.selectedSize} • ${item.selectedFinish}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppTheme.textSubtle,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryNavy.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '${item.itemWeightKg.toStringAsFixed(0)} kg',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryNavy,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 const SizedBox(height: 8),
-                                 Row(
-                                   mainAxisAlignment:
-                                       MainAxisAlignment.spaceBetween,
-                                   children: [
-                                     Builder(
-                                       builder: (context) {
-                                         final resolved = PricingService.instance.resolvePrice(item.product);
-                                         return Row(
-                                           children: [
-                                             if (resolved.hasDiscount) ...[
-                                               Text(
-                                                 '₹${resolved.basePrice.toStringAsFixed(0)}',
-                                                 style: const TextStyle(
-                                                   fontSize: 11,
-                                                   color: Colors.grey,
-                                                   decoration: TextDecoration.lineThrough,
-                                                 ),
-                                               ),
-                                               const SizedBox(width: 4),
-                                             ],
-                                             Text(
-                                               '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/sq.ft',
-                                               style: const TextStyle(
-                                                 fontSize: 15,
-                                                 fontWeight: FontWeight.w800,
-                                                 color: AppTheme.accentOrange,
-                                               ),
-                                             ),
-                                           ],
-                                         );
-                                       },
-                                     ),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Builder(
+                                      builder: (context) {
+                                        final resolved = PricingService.instance.resolvePrice(item.product);
+                                        return Row(
+                                          children: [
+                                            if (resolved.hasDiscount) ...[
+                                              Text(
+                                                '₹${resolved.basePrice.toStringAsFixed(0)}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey,
+                                                  decoration: TextDecoration.lineThrough,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                            ],
+                                            Text(
+                                              '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/sq.ft',
+                                              style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w800,
+                                                color: AppTheme.accentOrange,
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
                                     Container(
                                       height: 32,
                                       decoration: BoxDecoration(
@@ -221,9 +243,9 @@ class CartScreen extends StatelessWidget {
                 ),
               ),
 
-              // Bottom Summary Card
+              // Bottom Summary Card with Tonnage & Box Details
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: const BorderRadius.vertical(
@@ -238,93 +260,24 @@ class CartScreen extends StatelessWidget {
                   ],
                 ),
                 child: SafeArea(
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Subtotal',
-                              style: TextStyle(color: AppTheme.textSubtle)),
-                          Text(
-                            '₹${appState.subtotal.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Delivery & Freight',
-                              style: TextStyle(color: AppTheme.textSubtle)),
-                          Text(
-                            appState.freightFee == 0
-                                ? 'FREE'
-                                : '₹${appState.freightFee.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: appState.freightFee == 0
-                                  ? AppTheme.statusSuccess
-                                  : AppTheme.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Divider(color: AppTheme.borderSubtle),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total Amount',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                          Text(
-                            '₹${appState.totalAmount.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.primaryNavy,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accentOrange,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const CheckoutScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'PROCEED TO CHECKOUT →',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
+                  child: OrderSummaryCard(
+                    subtotal: appState.subtotal,
+                    freightFee: appState.freightFee,
+                    grandTotal: appState.totalAmount,
+                    totalBoxes: appState.totalBoxes,
+                    totalWeightTons: appState.totalWeightTons,
+                    totalWeightKg: appState.totalWeightKg,
+                    title: 'Cart & Logistics Summary',
+                    showActionButton: true,
+                    actionButtonText: 'PROCEED TO CHECKOUT →',
+                    onActionButtonPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CheckoutScreen(),
                         ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),

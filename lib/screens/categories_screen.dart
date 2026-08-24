@@ -51,6 +51,7 @@ class CategoriesScreen extends StatelessWidget {
     final appState = AppStateService();
 
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Categories'),
         actions: [
@@ -194,7 +195,7 @@ class CategoriesScreen extends StatelessWidget {
                         Text(
                           title,
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: isComingSoon
                                 ? AppTheme.textSubtle

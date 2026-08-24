@@ -4,6 +4,7 @@ import '../services/app_state_service.dart';
 import '../widgets/floating_bottom_bar.dart';
 import 'home_screen.dart';
 import 'categories_screen.dart';
+import 'product_listing_screen.dart';
 import 'favorites_screen.dart';
 import 'orders_screen.dart';
 import 'profile_screen.dart';
@@ -57,7 +58,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       HomeScreen(onNavigateTab: _onTabSelected),
-      const CategoriesScreen(),
+      const ProductListingScreen(subcategoryTitle: 'Products Collection'),
       const FavoritesScreen(),
       const OrdersScreen(),
       const ProfileScreen(),

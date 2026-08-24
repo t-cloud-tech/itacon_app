@@ -24,7 +24,7 @@ class ProfileTierCard extends StatelessWidget {
     // Salesperson info lookup or default fallback
     final salespersonName = user.salesPersonId != null && user.salesPersonId!.isNotEmpty
         ? 'Rajesh Varma'
-        : 'Ramesh Patel (Key Account Executive)';
+        : 'Ramesh Patel (Salesperson)';
     final salespersonPhone = '+919825012345';
     final salespersonWhatsapp = '919825012345';
 
@@ -152,7 +152,7 @@ class ProfileTierCard extends StatelessWidget {
                       child: Text(
                         discountRatio > 0
                             ? 'Privilege: Enjoy $discountPct% partner discount on all standard tile collections.'
-                            : 'Standard Partner Rates applied. Contact account manager for volume discount.',
+                            : 'Standard Partner Rates applied. Contact salesperson for volume discount.',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white.withOpacity(0.87),
@@ -191,7 +191,7 @@ class ProfileTierCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Assigned Account Manager',
+                              'Assigned Salesperson',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.white60,
@@ -215,7 +215,7 @@ class ProfileTierCard extends StatelessWidget {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Calling Account Manager: $salespersonPhone'),
+                              content: Text('Calling Salesperson: $salespersonPhone'),
                               backgroundColor: AppTheme.primaryNavy,
                             ),
                           );
@@ -229,7 +229,7 @@ class ProfileTierCard extends StatelessWidget {
                           child: const Icon(Icons.phone,
                               size: 16, color: Colors.white),
                         ),
-                        tooltip: 'Call Account Manager',
+                        tooltip: 'Call Salesperson',
                       ),
 
                       // One-Tap WhatsApp Button
@@ -251,7 +251,7 @@ class ProfileTierCard extends StatelessWidget {
                           child: const Icon(Icons.chat_bubble,
                               size: 16, color: Colors.white),
                         ),
-                        tooltip: 'WhatsApp Account Manager',
+                        tooltip: 'WhatsApp Salesperson',
                       ),
                     ],
                   ),

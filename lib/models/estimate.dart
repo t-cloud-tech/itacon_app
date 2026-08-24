@@ -59,6 +59,9 @@ class Estimate {
   final double discount;
   final double tax;
   final double total;
+  final int totalBoxes;
+  final double totalWeightKg;
+  final double totalWeightTons;
   final DateTime? validUntil;
   final String customerResponse; // approved / rejected
   final DateTime? respondedAt;
@@ -80,6 +83,9 @@ class Estimate {
     this.discount = 0.0,
     required this.tax,
     required this.total,
+    this.totalBoxes = 0,
+    this.totalWeightKg = 0.0,
+    this.totalWeightTons = 0.0,
     this.validUntil,
     this.customerResponse = '',
     this.respondedAt,
@@ -103,6 +109,9 @@ class Estimate {
       'discount': discount,
       'tax': tax,
       'total': total,
+      'totalBoxes': totalBoxes,
+      'totalWeightKg': totalWeightKg,
+      'totalWeightTons': totalWeightTons,
       'validUntil': validUntil != null ? Timestamp.fromDate(validUntil!) : null,
       'customerResponse': customerResponse,
       'respondedAt': respondedAt != null ? Timestamp.fromDate(respondedAt!) : null,
@@ -117,6 +126,8 @@ class Estimate {
   }
 
   factory Estimate.fromMap(Map<String, dynamic> map, String docId) {
+    final tKg = (map['totalWeightKg'] ?? 0.0).toDouble();
+
     return Estimate(
       estimateId: docId,
       estimateNumber: map['estimateNumber'] ?? 'EST-2026-${docId.substring(0, 5).toUpperCase()}',
@@ -129,6 +140,9 @@ class Estimate {
       discount: (map['discount'] ?? 0.0).toDouble(),
       tax: (map['tax'] ?? 0.0).toDouble(),
       total: (map['total'] ?? 0.0).toDouble(),
+      totalBoxes: (map['totalBoxes'] ?? 0).toInt(),
+      totalWeightKg: tKg,
+      totalWeightTons: (map['totalWeightTons'] ?? (tKg / 1000.0)).toDouble(),
       validUntil: map['validUntil'] is Timestamp
           ? (map['validUntil'] as Timestamp).toDate()
           : null,

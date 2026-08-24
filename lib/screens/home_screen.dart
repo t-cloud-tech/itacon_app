@@ -4,6 +4,7 @@ import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import '../models/product_enums.dart';
 import 'categories_screen.dart';
+import 'size_catalogue_screen.dart';
 import 'product_listing_screen.dart';
 import 'product_detail_screen.dart';
 import 'favorites_screen.dart';
@@ -281,6 +282,19 @@ class HomeScreen extends StatelessWidget {
                             builder: (_) => const ProductListingScreen()),
                       );
                     }
+                  },
+                ),
+                _buildQuickAction(
+                  icon: Icons.aspect_ratio_rounded,
+                  label: 'Size Hub',
+                  bgColor: Colors.teal.shade50,
+                  iconColor: Colors.teal.shade700,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SizeCatalogueScreen()),
+                    );
                   },
                 ),
                 _buildQuickAction(

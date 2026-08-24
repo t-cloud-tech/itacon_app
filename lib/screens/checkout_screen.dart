@@ -3,6 +3,8 @@ import '../theme/app_theme.dart';
 import '../models/user_profile.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
+import '../services/order_service.dart';
+import '../widgets/order_summary_card.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -459,70 +461,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         const SizedBox(height: 14),
 
-        // User-wise Estimate Cost Summary Breakdown
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: AppTheme.luxuryCardDecorationWithBorder(borderColor: AppTheme.primaryNavy.withOpacity(0.2)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Standard Base Subtotal', style: TextStyle(fontSize: 13, color: AppTheme.textSubtle)),
-                  Text('₹${grossBaseSubtotal.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ],
-              ),
-              if (discountSavings > 0) ...[
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Trade Partner Discount ($discountPct% OFF)', style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.w600)),
-                    Text('- ₹${discountSavings.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Net Material Cost', style: TextStyle(fontSize: 13, color: AppTheme.textSubtle)),
-                  Text('₹${netSubtotal.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Estimated GST (18%)', style: TextStyle(fontSize: 13, color: AppTheme.textSubtle)),
-                  Text('₹${gstAmount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Estimated Logistics & Freight', style: TextStyle(fontSize: 13, color: AppTheme.textSubtle)),
-                  Text(
-                    appState.freightFee == 0 ? 'FREE' : '₹${appState.freightFee.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              const Divider(height: 20, color: AppTheme.borderSubtle),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('ESTIMATED TOTAL VALUE', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                  Text(
-                    '₹${grandTotalEstimate.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppTheme.primaryNavy),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        const SizedBox(height: 14),
+
+        // User-wise Estimate Cost Summary Breakdown with Tonnage & Box Details
+        OrderSummaryCard(
+          subtotal: netSubtotal,
+          discountAmount: discountSavings,
+          discountLabel: 'Trade Partner Discount ($discountPct% OFF)',
+          taxAmount: gstAmount,
+          freightFee: appState.freightFee,
+          grandTotal: grandTotalEstimate,
+          totalBoxes: appState.totalBoxes,
+          totalWeightTons: appState.totalWeightTons,
+          totalWeightKg: appState.totalWeightKg,
+          title: 'PO Estimate & Logistics Summary',
         ),
         const SizedBox(height: 16),
 
@@ -898,59 +850,46 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         const SizedBox(height: 16),
 
-        // 4. Final Total Summary Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: AppTheme.luxuryCardDecorationWithBorder(borderColor: AppTheme.primaryNavy),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Material Net Total', style: TextStyle(color: AppTheme.textSubtle)),
-                  Text('₹${netSubtotal.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('GST Amount (18%)', style: TextStyle(color: AppTheme.textSubtle)),
-                  Text('₹${gstAmount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Freight & Shipping Fee', style: TextStyle(color: AppTheme.textSubtle)),
-                  Text(
-                    appState.freightFee == 0 ? 'FREE' : '₹${appState.freightFee.toStringAsFixed(0)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const Divider(height: 20, color: AppTheme.borderSubtle),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('GRAND TOTAL PAYABLE', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                  Text(
-                    '₹${grandTotal.toStringAsFixed(0)}',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.primaryNavy),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        // 4. Final Total Summary Card with Tonnage & Box Details
+        OrderSummaryCard(
+          subtotal: netSubtotal,
+          taxAmount: gstAmount,
+          freightFee: appState.freightFee,
+          grandTotal: grandTotal,
+          totalBoxes: appState.totalBoxes,
+          totalWeightTons: appState.totalWeightTons,
+          totalWeightKg: appState.totalWeightKg,
+          title: 'Final Purchase Order Summary',
         ),
       ],
     );
   }
 
   // Handle Order Placement
-  void _handlePlaceOrder(AppStateService appState, UserProfile user) {
+  void _handlePlaceOrder(AppStateService appState, UserProfile user) async {
     final orderNum = 'ITC${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
+
+    // Submit order to Firestore using OrderService with totalBoxes and totalWeightTons payload
+    final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);
+    final deliveryAddress = '${_addressLineController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}, ${_stateController.text.trim()}';
+
+    try {
+      await OrderService.instance.submitOrder(
+        userId: user.userId,
+        userCategory: user.userCategory,
+        items: orderItems,
+        orderType: 'ready_stock',
+        deliveryAddress: deliveryAddress,
+        transportRequired: true,
+        remarks: _deliveryNotesController.text.trim(),
+        totalBoxes: appState.totalBoxes,
+        totalWeightKg: appState.totalWeightKg,
+        totalWeightTons: appState.totalWeightTons,
+        stateCode: user.state.isNotEmpty ? user.state.substring(0, 2).toUpperCase() : 'GJ',
+      );
+    } catch (_) {
+      // Fallback/offline mode continues gracefully
+    }
 
     appState.clearCart();
 

@@ -28,6 +28,7 @@ import '../models/system_config_model.dart';
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
 class FirestoreService {
+  static final FirestoreService instance = FirestoreService();
   final FirebaseFirestore _db;
 
   FirestoreService({FirebaseFirestore? firestore})
@@ -792,14 +793,23 @@ class FirestoreService {
     required String remarks,
     String stateCode = 'GJ',
     String? salespersonId,
+    int? totalBoxes,
+    double? totalWeightKg,
+    double? totalWeightTons,
   }) async {
     final docRef = _ordersRef.doc();
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
 
     double subtotal = 0.0;
+    int computedBoxes = 0;
     for (var i in items) {
       subtotal += (i.basePrice * i.quantity);
+      computedBoxes += i.quantity;
     }
+
+    final boxes = totalBoxes ?? computedBoxes;
+    final weightKg = totalWeightKg ?? (boxes * 28.0);
+    final weightTons = totalWeightTons ?? (weightKg / 1000.0);
 
     final order = TileOrder(
       id: docRef.id,
@@ -815,6 +825,9 @@ class FirestoreService {
       remarks: remarks,
       subtotal: subtotal,
       total: subtotal,
+      totalBoxes: boxes,
+      totalWeightKg: weightKg,
+      totalWeightTons: weightTons,
       items: items,
       stateCode: stateCode.toUpperCase(),
       createdAt: DateTime.now(),
@@ -897,9 +910,20 @@ class FirestoreService {
     required double subtotal,
     required double discount,
     required double tax,
+    int? totalBoxes,
+    double? totalWeightKg,
+    double? totalWeightTons,
   }) async {
     final docRef = _estimatesRef.doc();
     final total = (subtotal - discount) + tax;
+    int computedBoxes = 0;
+    for (var i in items) {
+      computedBoxes += i.quantity;
+    }
+    final boxes = totalBoxes ?? computedBoxes;
+    final weightKg = totalWeightKg ?? (boxes * 28.0);
+    final weightTons = totalWeightTons ?? (weightKg / 1000.0);
+
     final estimate = Estimate(
       estimateId: docRef.id,
       estimateNumber: 'EST-2026-${docRef.id.substring(0, 5).toUpperCase()}',
@@ -911,6 +935,9 @@ class FirestoreService {
       discount: discount,
       tax: tax,
       total: total,
+      totalBoxes: boxes,
+      totalWeightKg: weightKg,
+      totalWeightTons: weightTons,
       validUntil: DateTime.now().add(const Duration(days: 7)),
       items: items,
       createdAt: DateTime.now(),
@@ -928,6 +955,9 @@ class FirestoreService {
       'discount': discount,
       'tax': tax,
       'total': total,
+      'totalBoxes': boxes,
+      'totalWeightKg': weightKg,
+      'totalWeightTons': weightTons,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
