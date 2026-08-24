@@ -171,13 +171,7 @@ class FavoritesScreen extends StatelessWidget {
                             messenger.clearSnackBars();
                             messenger.showSnackBar(
                               SnackBar(
-                                duration: const Duration(milliseconds: 1800),
-                                dismissDirection: DismissDirection.down,
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.only(bottom: 84, left: 16, right: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                                duration: const Duration(seconds: 3),
                                 content: Text('${product.name} added to cart!'),
                                 action: SnackBarAction(
                                   label: 'VIEW CART',
@@ -193,7 +187,7 @@ class FavoritesScreen extends StatelessWidget {
                                 ),
                               ),
                             );
-                            Timer(const Duration(milliseconds: 1800), () {
+                            Timer(const Duration(seconds: 3), () {
                               messenger.clearSnackBars();
                             });
                           },

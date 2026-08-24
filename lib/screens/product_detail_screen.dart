@@ -566,13 +566,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     messenger.clearSnackBars();
                     messenger.showSnackBar(
                       SnackBar(
-                        duration: const Duration(milliseconds: 1800),
-                        dismissDirection: DismissDirection.down,
-                        behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.only(bottom: 84, left: 16, right: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        duration: const Duration(seconds: 3),
                         content: Text('${_product.name} added to cart!'),
                         action: SnackBarAction(
                           label: 'VIEW CART',
@@ -588,7 +582,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                     );
-                    Timer(const Duration(milliseconds: 1800), () {
+                    Timer(const Duration(seconds: 3), () {
                       messenger.clearSnackBars();
                     });
                   },
