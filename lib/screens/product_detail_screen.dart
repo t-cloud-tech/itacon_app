@@ -561,13 +561,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       finish: _selectedFinish,
                       quantity: _quantity,
                     );
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
+                        duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                         content: Text('${_product.name} added to cart!'),
                         action: SnackBarAction(
                           label: 'VIEW CART',
                           textColor: AppTheme.accentOrange,
                           onPressed: () {
+                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
                             Navigator.push(
                               context,
                               MaterialPageRoute(
