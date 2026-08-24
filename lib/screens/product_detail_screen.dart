@@ -565,11 +565,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         duration: const Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                        margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
                         content: Text('${_product.name} added to cart!'),
                         action: SnackBarAction(
                           label: 'VIEW CART',
