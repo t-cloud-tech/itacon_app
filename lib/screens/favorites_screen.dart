@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
@@ -166,16 +167,23 @@ class FavoritesScreen extends StatelessWidget {
                               color: AppTheme.primaryNavy),
                           onPressed: () {
                             appState.addToCart(product);
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            final messenger = ScaffoldMessenger.of(context);
+                            messenger.clearSnackBars();
+                            messenger.showSnackBar(
                               SnackBar(
-                                duration: const Duration(seconds: 2),
+                                duration: const Duration(milliseconds: 1800),
+                                dismissDirection: DismissDirection.down,
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.only(bottom: 84, left: 16, right: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                                 content: Text('${product.name} added to cart!'),
                                 action: SnackBarAction(
                                   label: 'VIEW CART',
                                   textColor: AppTheme.accentOrange,
                                   onPressed: () {
-                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    messenger.clearSnackBars();
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -185,6 +193,9 @@ class FavoritesScreen extends StatelessWidget {
                                 ),
                               ),
                             );
+                            Timer(const Duration(milliseconds: 1800), () {
+                              messenger.clearSnackBars();
+                            });
                           },
                         ),
                       ],
