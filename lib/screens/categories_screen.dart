@@ -12,25 +12,25 @@ class CategoriesScreen extends StatelessWidget {
       'title': 'Floor Tiles',
       'count': '42 Products',
       'isComingSoon': false,
-      'image': 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
+      'image': 'assets/images/Home/Floor_tile.jpg',
     },
     {
       'title': 'Wall Tiles',
       'count': '38 Products',
       'isComingSoon': false,
-      'image': 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=600&q=80',
+      'image': 'assets/images/Home/Wall_tile.jpg',
     },
     {
       'title': 'Slab Tiles',
       'count': 'Coming Soon',
       'isComingSoon': true,
-      'image': 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80',
+      'image': 'assets/images/Home/Slab_tile.jpg',
     },
     {
       'title': 'Heavy Duty Parkings',
       'count': 'Coming Soon',
       'isComingSoon': true,
-      'image': 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
+      'image': 'assets/images/Home/Parking_tile.jpg',
     },
     {
       'title': 'Marble Collection',
@@ -140,17 +140,29 @@ class CategoriesScreen extends StatelessWidget {
                   Expanded(
                     child: Stack(
                       children: [
-                        Image.network(
-                          cat['image'] as String,
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFF0E274D).withValues(alpha: 0.1),
-                            child: const Icon(Icons.grid_view_rounded,
-                                color: AppTheme.primaryNavy, size: 36),
-                          ),
-                        ),
+                        (cat['image'] as String).startsWith('assets/')
+                            ? Image.asset(
+                                cat['image'] as String,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: const Color(0xFF0E274D).withValues(alpha: 0.1),
+                                  child: const Icon(Icons.grid_view_rounded,
+                                      color: AppTheme.primaryNavy, size: 36),
+                                ),
+                              )
+                            : Image.network(
+                                cat['image'] as String,
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: const Color(0xFF0E274D).withValues(alpha: 0.1),
+                                  child: const Icon(Icons.grid_view_rounded,
+                                      color: AppTheme.primaryNavy, size: 36),
+                                ),
+                              ),
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

@@ -348,7 +348,7 @@ class HomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 28),
 
-            // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parkings)
+            // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -372,112 +372,44 @@ class HomeScreen extends StatelessWidget {
                       );
                     }
                   },
-                  child: const Text(
-                    'View All →',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentOrange,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.accentOrange,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppTheme.accentOrange,
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 14),
 
-            // 4 Category Cards Grid
+            // 4 Category Cards Grid (2x2 styled layout)
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: ProductEnums.tileCategories.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 1.4,
+                childAspectRatio: 0.96,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
               itemBuilder: (context, index) {
                 final cat = ProductEnums.tileCategories[index];
-                final isComingSoon = cat['isComingSoon'] as bool;
-                final label = cat['label'] as String;
-
-                return GestureDetector(
-                  onTap: isComingSoon
-                      ? null
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ProductListingScreen(
-                                subcategoryTitle: label,
-                              ),
-                            ),
-                          );
-                        },
-                  child: Container(
-                    decoration: AppTheme.luxuryCardDecorationWithBorder(
-                      borderColor: isComingSoon
-                          ? Colors.grey.shade300
-                          : AppTheme.primaryNavy.withValues(alpha: 0.1),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Stack(
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: isComingSoon
-                                  ? Colors.grey.shade200
-                                  : AppTheme.primaryNavy.withValues(alpha: 0.1),
-                              child: Icon(
-                                _getCategoryIcon(cat['id'] as String),
-                                size: 18,
-                                color: isComingSoon
-                                    ? Colors.grey
-                                    : AppTheme.primaryNavy,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              label,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: isComingSoon
-                                    ? AppTheme.textSubtle
-                                    : AppTheme.textDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (isComingSoon)
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentOrange,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: const Text(
-                                'Coming Soon',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
+                return _buildShopByCategoryCard(context, cat);
               },
             ),
             const SizedBox(height: 28),
@@ -694,19 +626,244 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  IconData _getCategoryIcon(String catId) {
-    switch (catId) {
-      case 'floor_tiles':
-        return Icons.grid_view_rounded;
-      case 'wall_tiles':
-        return Icons.wallpaper_rounded;
-      case 'slab_tiles':
-        return Icons.crop_landscape_rounded;
-      case 'heavy_duty_parkings':
-        return Icons.local_parking_rounded;
-      default:
-        return Icons.layers_rounded;
+  Widget _buildShopByCategoryCard(BuildContext context, Map<String, dynamic> cat) {
+    final label = cat['label'] as String;
+    final subtitle = (cat['subtitle'] as String?) ?? '';
+    final imageUrl = cat['image'] as String? ?? '';
+    final isComingSoon = cat['isComingSoon'] as bool? ?? false;
+
+    return GestureDetector(
+      onTap: isComingSoon
+          ? null
+          : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ProductListingScreen(
+                    subcategoryTitle: label,
+                  ),
+                ),
+              );
+            },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            // Lifestyle Background Image
+            Positioned.fill(
+              child: imageUrl.startsWith('assets/')
+                  ? Image.asset(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppTheme.primaryNavy,
+                        child: Center(
+                          child: Icon(
+                            Icons.terrain_rounded,
+                            color: Colors.white.withValues(alpha: 0.3),
+                            size: 32,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: AppTheme.primaryNavy,
+                        child: Center(
+                          child: Icon(
+                            Icons.terrain_rounded,
+                            color: Colors.white.withValues(alpha: 0.3),
+                            size: 32,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+
+            // Subtle Bottom Navy Gradient Scrim (Lightened so image stays clear)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.35, 0.65, 1.0],
+                    colors: [
+                      Colors.transparent,
+                      AppTheme.primaryNavy.withValues(alpha: 0.38),
+                      AppTheme.primaryNavy.withValues(alpha: 0.82),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Top-Left Circular Dark Icon Badge
+            Positioned(
+              top: 10,
+              left: 10,
+              child: _buildCategoryBadge(cat),
+            ),
+
+            // Top-Right Coming Soon Tag (if applicable)
+            if (isComingSoon)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentOrange,
+                    borderRadius: BorderRadius.circular(6),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.accentOrange.withValues(alpha: 0.35),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Text(
+                    'Soon',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ),
+
+            // Bottom Content: White Title, White Subtitle, and Orange Arrow
+            Positioned(
+              left: 10,
+              right: 10,
+              bottom: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.2,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          offset: Offset(0, 1),
+                          blurRadius: 3,
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withValues(alpha: 0.92),
+                            height: 1.2,
+                            shadows: const [
+                              Shadow(
+                                color: Colors.black54,
+                                offset: Offset(0, 1),
+                                blurRadius: 3,
+                              ),
+                            ],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: AppTheme.accentOrange,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryBadge(Map<String, dynamic> cat) {
+    final catId = cat['id'] as String;
+    Widget child;
+    if (catId == 'heavy_duty_parkings') {
+      child = const Text(
+        'P',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w800,
+        ),
+      );
+    } else if (catId == 'slab_tiles') {
+      child = const Icon(
+        Icons.crop_landscape_rounded,
+        size: 17,
+        color: Colors.white,
+      );
+    } else if (catId == 'wall_tiles') {
+      child = const Icon(
+        Icons.dashboard_customize_rounded,
+        size: 17,
+        color: Colors.white,
+      );
+    } else {
+      child = const Icon(
+        Icons.grid_view_rounded,
+        size: 17,
+        color: Colors.white,
+      );
     }
+
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A29),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(child: child),
+    );
   }
 
   IconData _getSpaceIcon(String spaceName) {
