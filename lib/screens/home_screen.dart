@@ -4,21 +4,130 @@ import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import '../models/product_enums.dart';
 import 'categories_screen.dart';
-import 'size_catalogue_screen.dart';
 import 'product_listing_screen.dart';
 import 'product_detail_screen.dart';
-import 'favorites_screen.dart';
-import 'orders_screen.dart';
 import 'cart_screen.dart';
 import '../widgets/app_navigation_drawer.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
 
   const HomeScreen({
     super.key,
     this.onNavigateTab,
   });
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  final List<_PopularChip> _popularChips = const [
+    _PopularChip(
+      label: 'Glossy',
+      icon: Icons.auto_awesome_rounded,
+      iconColor: AppTheme.accentOrange,
+      surface: 'Glossy',
+      query: 'Glossy',
+    ),
+    _PopularChip(
+      label: 'Statuario Marble',
+      icon: Icons.filter_hdr_rounded,
+      iconColor: Colors.teal,
+      query: 'Statuario',
+    ),
+    _PopularChip(
+      label: '600x1200 mm',
+      icon: Icons.aspect_ratio_rounded,
+      iconColor: Colors.blue,
+      size: '600x1200 mm',
+      query: '600x1200',
+    ),
+    _PopularChip(
+      label: 'Matt - Carving',
+      icon: Icons.layers_rounded,
+      iconColor: Colors.deepPurple,
+      surface: 'Matt - Carving',
+      query: 'Carving',
+    ),
+    _PopularChip(
+      label: 'High Gloss',
+      icon: Icons.flare_rounded,
+      iconColor: Colors.amber,
+      surface: 'High Gloss',
+      query: 'High Gloss',
+    ),
+    _PopularChip(
+      label: 'Book Match',
+      icon: Icons.menu_book_rounded,
+      iconColor: Colors.indigo,
+      query: 'Book Match',
+    ),
+    _PopularChip(
+      label: 'Rustic Wood',
+      icon: Icons.forest_rounded,
+      iconColor: Colors.brown,
+      surface: 'Rustic Wood',
+      query: 'Rustic Wood',
+    ),
+    _PopularChip(
+      label: '600x600 mm',
+      icon: Icons.crop_square_rounded,
+      iconColor: Colors.cyan,
+      size: '600x600 mm',
+      query: '600x600',
+    ),
+    _PopularChip(
+      label: 'Endless Tiles',
+      icon: Icons.all_inclusive_rounded,
+      iconColor: Colors.purple,
+      query: 'Endless',
+    ),
+    _PopularChip(
+      label: 'Anti-Skid',
+      icon: Icons.shield_outlined,
+      iconColor: Colors.green,
+      surface: 'Anti - Skid',
+      query: 'Anti - Skid',
+    ),
+    _PopularChip(
+      label: 'Satin Matt',
+      icon: Icons.texture_rounded,
+      iconColor: Colors.orange,
+      surface: 'Satin Matt',
+      query: 'Satin Matt',
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _navigateToProductListing({
+    String? query,
+    String? surface,
+    String? size,
+    String? title,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductListingScreen(
+          subcategoryTitle: title ??
+              (query != null && query.isNotEmpty
+                  ? 'Results for "$query"'
+                  : 'All Products'),
+          initialSearchQuery: query,
+          initialSurface: surface,
+          initialSize: size,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +203,7 @@ class HomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      drawer: AppNavigationDrawer(onSelectTab: onNavigateTab),
+      drawer: AppNavigationDrawer(onSelectTab: widget.onNavigateTab),
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
@@ -242,8 +351,8 @@ class HomeScreen extends StatelessWidget {
                             horizontal: 16, vertical: 10),
                       ),
                       onPressed: () {
-                        if (onNavigateTab != null) {
-                          onNavigateTab!(1);
+                        if (widget.onNavigateTab != null) {
+                          widget.onNavigateTab!(1);
                         } else {
                           Navigator.push(
                             context,
@@ -261,92 +370,11 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // Quick Action Row (4 circular cards)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildQuickAction(
-                  icon: Icons.grid_view_rounded,
-                  label: 'All Products',
-                  bgColor: Colors.blue.shade50,
-                  iconColor: Colors.blue.shade700,
-                  onTap: () {
-                    if (onNavigateTab != null) {
-                      onNavigateTab!(1);
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const ProductListingScreen()),
-                      );
-                    }
-                  },
-                ),
-                _buildQuickAction(
-                  icon: Icons.aspect_ratio_rounded,
-                  label: 'Size Hub',
-                  bgColor: Colors.teal.shade50,
-                  iconColor: Colors.teal.shade700,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const SizeCatalogueScreen()),
-                    );
-                  },
-                ),
-                _buildQuickAction(
-                  icon: Icons.category_outlined,
-                  label: 'Categories',
-                  bgColor: Colors.orange.shade50,
-                  iconColor: AppTheme.accentOrange,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const CategoriesScreen()),
-                    );
-                  },
-                ),
-                _buildQuickAction(
-                  icon: Icons.favorite_outline_rounded,
-                  label: 'Favorites',
-                  bgColor: Colors.purple.shade50,
-                  iconColor: Colors.purple.shade700,
-                  onTap: () {
-                    if (onNavigateTab != null) {
-                      onNavigateTab!(2);
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const FavoritesScreen()),
-                      );
-                    }
-                  },
-                ),
-                _buildQuickAction(
-                  icon: Icons.receipt_long_outlined,
-                  label: 'Orders',
-                  bgColor: Colors.indigo.shade50,
-                  iconColor: AppTheme.primaryNavy,
-                  onTap: () {
-                    if (onNavigateTab != null) {
-                      onNavigateTab!(3);
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const OrdersScreen()),
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
+            // Search Bar + Popular Material / Search Chips (Replaces Top Shortcut Row)
+            _buildSearchAndPopularChips(context),
+            const SizedBox(height: 26),
 
             // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
             Row(
@@ -362,8 +390,8 @@ class HomeScreen extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    if (onNavigateTab != null) {
-                      onNavigateTab!(1);
+                    if (widget.onNavigateTab != null) {
+                      widget.onNavigateTab!(1);
                     } else {
                       Navigator.push(
                         context,
@@ -399,6 +427,7 @@ class HomeScreen extends StatelessWidget {
             // 4 Category Cards Grid (2x2 styled layout)
             GridView.builder(
               shrinkWrap: true,
+              padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: ProductEnums.tileCategories.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -412,7 +441,7 @@ class HomeScreen extends StatelessWidget {
                 return _buildShopByCategoryCard(context, cat);
               },
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
 
             // Shop by Space Section (Living Room, Bath Room, Bedroom, Outdoor)
             const Text(
@@ -517,6 +546,7 @@ class HomeScreen extends StatelessWidget {
             // Featured Products Grid
             GridView.builder(
               shrinkWrap: true,
+              padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: featuredProducts.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -881,37 +911,238 @@ class HomeScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String label,
-    required Color bgColor,
-    required Color iconColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
-              border: Border.all(color: iconColor.withValues(alpha: 0.2)),
-            ),
-            child: Icon(icon, color: iconColor, size: 24),
+  Widget _buildSearchAndPopularChips(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Luxury Live Search Bar Container
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E9F0)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryNavy.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textDark,
-            ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          child: Row(
+            children: [
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.search_rounded,
+                color: AppTheme.primaryNavy,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (query) {
+                    if (query.trim().isNotEmpty) {
+                      _navigateToProductListing(query: query.trim());
+                    }
+                  },
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    color: AppTheme.textDark,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search tiles, marble, size, finishes...',
+                    hintStyle: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _searchController,
+                builder: (context, value, _) {
+                  if (value.text.isNotEmpty) {
+                    return IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          size: 18, color: AppTheme.textSubtle),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        _searchController.clear();
+                      },
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () {
+                  final text = _searchController.text.trim();
+                  _navigateToProductListing(
+                    query: text.isNotEmpty ? text : null,
+                  );
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryNavy.withValues(alpha: 0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Search',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: AppTheme.accentOrange,
+                        size: 14,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // 2. Popular Searches / Trending Materials Section Header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppTheme.accentOrange.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(
+                Icons.local_fire_department_rounded,
+                color: AppTheme.accentOrange,
+                size: 14,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              'Popular Searches & Materials',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textSubtle,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // 3. Horizontal Scrollable Popular Material & Search Chips
+        SizedBox(
+          height: 34,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _popularChips.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final chip = _popularChips[index];
+              return InkWell(
+                onTap: () {
+                  _navigateToProductListing(
+                    query: chip.query,
+                    surface: chip.surface,
+                    size: chip.size,
+                    title: chip.label,
+                  );
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        chip.icon,
+                        size: 13,
+                        color: chip.iconColor,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        chip.label,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
+}
+
+class _PopularChip {
+  final String label;
+  final IconData icon;
+  final Color iconColor;
+  final String? query;
+  final String? surface;
+  final String? size;
+
+  const _PopularChip({
+    required this.label,
+    required this.icon,
+    required this.iconColor,
+    this.query,
+    this.surface,
+    this.size,
+  });
 }

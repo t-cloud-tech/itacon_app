@@ -14,12 +14,14 @@ class ProductListingScreen extends StatefulWidget {
   final String subcategoryTitle;
   final String? initialSize;
   final String? initialSurface;
+  final String? initialSearchQuery;
 
   const ProductListingScreen({
     super.key,
     this.subcategoryTitle = 'Products Collection',
     this.initialSize,
     this.initialSurface,
+    this.initialSearchQuery,
   });
 
   @override
@@ -29,7 +31,7 @@ class ProductListingScreen extends StatefulWidget {
 class _ProductListingScreenState extends State<ProductListingScreen> {
   final AppStateService _appState = AppStateService();
   late ProductFilterCriteria _activeFilter;
-  final TextEditingController _searchController = TextEditingController();
+  late final TextEditingController _searchController;
   String _searchQuery = '';
 
   late final List<TileProduct> _allProducts;
@@ -45,6 +47,8 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   @override
   void initState() {
     super.initState();
+    _searchQuery = widget.initialSearchQuery ?? '';
+    _searchController = TextEditingController(text: _searchQuery);
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
