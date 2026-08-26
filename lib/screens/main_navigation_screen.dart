@@ -3,7 +3,6 @@ import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../widgets/floating_bottom_bar.dart';
 import 'home_screen.dart';
-import 'categories_screen.dart';
 import 'product_listing_screen.dart';
 import 'favorites_screen.dart';
 import 'orders_screen.dart';
@@ -33,10 +32,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _onTabSelected(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _isCapsule = false;
+    });
   }
 
   bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) {
+      return false;
+    }
     if (notification.metrics.pixels <= 15) {
       if (_isCapsule) {
         setState(() => _isCapsule = false);
