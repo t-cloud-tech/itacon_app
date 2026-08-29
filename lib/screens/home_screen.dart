@@ -456,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Horizontal Scrollable Space Cards
             SizedBox(
-              height: 100,
+              height: 110,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: ProductEnums.spaces.length,
@@ -477,24 +477,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 120,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: AppTheme.luxuryCardDecoration,
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircleAvatar(
-                            radius: 20,
-                            backgroundColor:
-                                AppTheme.accentOrange.withValues(alpha: 0.1),
-                            child: Icon(
-                              _getSpaceIcon(spaceName),
-                              color: AppTheme.accentOrange,
-                              size: 20,
+                          SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Image.asset(
+                              _getSpaceImagePath(spaceName),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                _getSpaceIcon(spaceName),
+                                color: AppTheme.primaryNavy,
+                                size: 36,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             spaceName,
                             textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -894,6 +903,21 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Center(child: child),
     );
+  }
+
+  String _getSpaceImagePath(String spaceName) {
+    switch (spaceName) {
+      case 'Living Room':
+        return 'assets/images/Home/Shop_by_space/Living_room.png';
+      case 'Bath Room':
+        return 'assets/images/Home/Shop_by_space/Bath_area.png';
+      case 'Bedroom':
+        return 'assets/images/Home/Shop_by_space/Bed.png';
+      case 'Outdoor':
+        return 'assets/images/Home/Shop_by_space/Outdoor.png';
+      default:
+        return 'assets/images/Home/Shop_by_space/Living_room.png';
+    }
   }
 
   IconData _getSpaceIcon(String spaceName) {
