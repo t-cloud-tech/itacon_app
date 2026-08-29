@@ -652,6 +652,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+            const SizedBox(height: 30),
+
+            // Why ITACON Trust Section (Brand Pillars & Quality Promise)
+            _buildWhyItaconSection(context),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1144,6 +1149,235 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+
+  Widget _buildWhyItaconSection(BuildContext context) {
+    const trustItems = [
+      _TrustPillar(
+        icon: Icons.diamond_outlined,
+        title: 'Premium Quality',
+        subtitle: 'Direct-from-plant vitrified surfaces with flawless finish.',
+      ),
+      _TrustPillar(
+        icon: Icons.domain_rounded,
+        title: 'Modern Spaces',
+        subtitle: 'Curated architectural solutions for luxury projects.',
+      ),
+      _TrustPillar(
+        icon: Icons.shield_outlined,
+        title: 'Built to Last',
+        subtitle: 'Stain, scratch & moisture resistant engineered surfaces.',
+      ),
+      _TrustPillar(
+        icon: Icons.workspace_premium_outlined,
+        title: 'Trusted Expertise',
+        subtitle: 'Decades of manufacturing mastery & dedicated support.',
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE5E9F0),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryNavy.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Header: Title & Subtitle
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 3.5,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentOrange,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Text(
+                    'Why ITACON',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primaryNavy,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  SizedBox(height: 1.5),
+                  Text(
+                    'The ITACON Promise',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textSubtle,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Responsive Pillars: 4-column for desktop/tablet, 2x2 grid for mobile
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 650) {
+                // Wide layout: 4 columns with vertical dividers
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (int i = 0; i < trustItems.length; i++) ...[
+                      if (i > 0)
+                        Container(
+                          width: 1,
+                          height: 65,
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          color: const Color(0xFFEAEFF5),
+                        ),
+                      Expanded(
+                        child: _buildTrustPillarItem(trustItems[i]),
+                      ),
+                    ],
+                  ],
+                );
+              }
+
+              // Mobile Layout: 2x2 Clean Quadrant Grid
+              return Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildTrustPillarItem(trustItems[0])),
+                      Container(
+                        width: 1,
+                        height: 72,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        color: const Color(0xFFEAEFF5),
+                      ),
+                      Expanded(child: _buildTrustPillarItem(trustItems[1])),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Container(
+                      height: 1,
+                      color: const Color(0xFFEAEFF5),
+                    ),
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildTrustPillarItem(trustItems[2])),
+                      Container(
+                        width: 1,
+                        height: 72,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        color: const Color(0xFFEAEFF5),
+                      ),
+                      Expanded(child: _buildTrustPillarItem(trustItems[3])),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTrustPillarItem(_TrustPillar item) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryNavy,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryNavy.withValues(alpha: 0.2),
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              item.icon,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.primaryNavy,
+                  letterSpacing: -0.1,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.subtitle,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppTheme.textSubtle,
+                  height: 1.25,
+                  fontWeight: FontWeight.w400,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TrustPillar {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _TrustPillar({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
 }
 
 class _PopularChip {
@@ -1163,3 +1397,4 @@ class _PopularChip {
     this.size,
   });
 }
+
