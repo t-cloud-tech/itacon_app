@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Single item snapshot within `orders/{orderId}/orderItems/{productId}` per PDF schema
+/// Single item snapshot within `orders/{orderId}/orderItems/{productId}` per PO quotation schema
 class OrderItem {
   final String productId;
   final String sku;
@@ -9,12 +9,15 @@ class OrderItem {
   final String size;
   final String surface;
   final String color;
-  final int quantity;
+  final int quantity; // Total box count (quantityBoxes)
+  final int quantityBoxes;
+  final double quantitySqFt;
   final String unit;
   final int moq;
   final double basePrice;
   final double finalPrice;
-  final double lineTotal;
+  final double? unitPrice; // Quoted unit rate (₹/Sq.Ft), nullable when pending_rate
+  final double? lineTotal; // Line total amount, nullable when pending_rate
   final String orderType; // ready_stock / made_to_order
 
   const OrderItem({
@@ -25,18 +28,21 @@ class OrderItem {
     required this.surface,
     this.color = 'White',
     required this.quantity,
+    int? quantityBoxes,
+    double? quantitySqFt,
     this.unit = 'box',
     required this.moq,
     this.basePrice = 0.0,
     this.finalPrice = 0.0,
-    double? lineTotal,
+    this.unitPrice,
+    this.lineTotal,
     this.orderType = 'ready_stock',
-  }) : lineTotal = lineTotal ?? (quantity * finalPrice);
+  })  : quantityBoxes = quantityBoxes ?? quantity,
+        quantitySqFt = quantitySqFt ?? (quantity * 15.5); // Default coverage approx 15.5 sq.ft/box
 
   String get tileId => productId;
   String get tileName => productName;
-  double? get unitPrice => finalPrice > 0 ? finalPrice : null;
-  double? get totalPrice => lineTotal > 0 ? lineTotal : null;
+  double? get totalPrice => lineTotal;
 
   Map<String, dynamic> toMap() {
     return {
@@ -48,12 +54,14 @@ class OrderItem {
       'size': size,
       'surface': surface,
       'color': color,
-      'quantity': quantity,
+      'quantity': quantityBoxes,
+      'quantityBoxes': quantityBoxes,
+      'quantitySqFt': quantitySqFt,
       'unit': unit,
       'moq': moq,
       'basePrice': basePrice,
       'finalPrice': finalPrice,
-      'unitPrice': finalPrice,
+      'unitPrice': unitPrice,
       'lineTotal': lineTotal,
       'totalPrice': lineTotal,
       'orderType': orderType,
@@ -62,10 +70,23 @@ class OrderItem {
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
     final pId = map['productId'] ?? map['tileId'] ?? '';
-    final qty = (map['quantity'] ?? 1).toInt();
-    final bPrice = (map['basePrice'] ?? map['unitPrice'] ?? 0.0).toDouble();
-    final fPrice = (map['finalPrice'] ?? map['unitPrice'] ?? bPrice).toDouble();
-    final lTotal = (map['lineTotal'] ?? map['totalPrice'] ?? (qty * fPrice)).toDouble();
+    final qBoxes = (map['quantityBoxes'] ?? map['quantity'] ?? 1).toInt();
+    final qSqFt = (map['quantitySqFt'] ?? (qBoxes * 15.5)).toDouble();
+    final bPrice = (map['basePrice'] ?? 0.0).toDouble();
+    final fPrice = (map['finalPrice'] ?? bPrice).toDouble();
+
+    double? uPrice;
+    if (map['unitPrice'] != null) {
+      uPrice = (map['unitPrice'] as num).toDouble();
+    }
+    double? lTotal;
+    if (map['lineTotal'] != null) {
+      lTotal = (map['lineTotal'] as num).toDouble();
+    } else if (map['totalPrice'] != null) {
+      lTotal = (map['totalPrice'] as num).toDouble();
+    } else if (uPrice != null && uPrice > 0) {
+      lTotal = qSqFt * uPrice;
+    }
 
     return OrderItem(
       productId: pId,
@@ -74,11 +95,14 @@ class OrderItem {
       size: map['size'] ?? '600x1200',
       surface: map['surface'] ?? 'Glossy',
       color: map['color'] ?? map['baseColor'] ?? 'White',
-      quantity: qty,
+      quantity: qBoxes,
+      quantityBoxes: qBoxes,
+      quantitySqFt: qSqFt,
       unit: map['unit'] ?? 'box',
       moq: (map['moq'] ?? 10).toInt(),
       basePrice: bPrice,
       finalPrice: fPrice,
+      unitPrice: uPrice,
       lineTotal: lTotal,
       orderType: map['orderType'] ?? 'ready_stock',
     );
@@ -130,25 +154,25 @@ class OrderStatusHistory {
   }
 }
 
-/// Represents an Order document in `orders` collection per PDF schema
+/// Represents an Order document in `orders` collection per 2-way PO workflow schema
 class TileOrder {
   final String id; // orderId / id
   final String orderId; // PDF schema: orderId
-  final String orderReference; // Business order number (e.g. PO-GJ-2026-98104)
+  final String orderReference; // Business order number (e.g. ITC-PO-2026-98104)
   final String userId; // Customer ID
   final String salesPersonId; // Assigned salesperson ID
   final String userCategory; // Customer category (Dealer / Wholesale / Retail / Contractor)
-  final String status; // Current order status
+  final String status; // pending_rate, rate_quoted, confirmed, rejected
   final String orderType; // ready_stock / made_to_order
   final String poNumber; // Customer PO number
-  final String poDocumentUrl; // Uploaded PO document URL
+  final String poDocumentUrl; // Generated PO PDF document URL
   final Map<String, dynamic> deliveryLocation; // Delivery address Map
   final bool transportRequired; // Transport required
   final String remarks; // Customer remarks
   final double subtotal; // Order subtotal
-  final double discount; // Discount amount
-  final double tax; // Tax amount
-  final double total; // Final total
+  final double discount; // Discount amount (default 0)
+  final double taxAmount; // 18% GST Amount
+  final double totalAmount; // Final Total = subtotal - discount + taxAmount
   final int totalBoxes; // Logistics: Total box count
   final double totalWeightKg; // Logistics: Total weight in kg
   final double totalWeightTons; // Logistics: Total weight in metric tonnes
@@ -159,6 +183,8 @@ class TileOrder {
   final String? shipmentId;
   final double? freightAmount;
   final String dispatchStatus; // unassigned, assigned, dispatched, delivered
+  final DateTime? rateQuotedAt;
+  final DateTime? confirmedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -178,8 +204,8 @@ class TileOrder {
     required this.remarks,
     this.subtotal = 0.0,
     this.discount = 0.0,
-    this.tax = 0.0,
-    this.total = 0.0,
+    double? taxAmount,
+    double? totalAmount,
     this.totalBoxes = 0,
     this.totalWeightKg = 0.0,
     this.totalWeightTons = 0.0,
@@ -190,13 +216,19 @@ class TileOrder {
     this.shipmentId,
     this.freightAmount,
     this.dispatchStatus = 'unassigned',
+    this.rateQuotedAt,
+    this.confirmedAt,
     this.createdAt,
     this.updatedAt,
-  }) : orderId = orderId ?? id;
+  })  : taxAmount = taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18),
+        totalAmount = totalAmount ?? (subtotal - discount + (taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18))),
+        orderId = orderId ?? id;
 
   String get orderReferenceNumber => orderReference;
   String? get salespersonId => salesPersonId.isNotEmpty ? salesPersonId : null;
   String get deliveryAddress => deliveryLocation['address'] ?? deliveryLocation['deliveryAddress'] ?? '';
+  double get tax => taxAmount;
+  double get total => totalAmount;
 
   Map<String, dynamic> toMap() {
     return {
@@ -217,11 +249,14 @@ class TileOrder {
       'remarks': remarks,
       'subtotal': subtotal,
       'discount': discount,
-      'tax': tax,
-      'total': total,
+      'taxAmount': taxAmount,
+      'tax': taxAmount,
+      'totalAmount': totalAmount,
+      'total': totalAmount,
       'totalBoxes': totalBoxes,
       'totalWeightKg': totalWeightKg,
       'totalWeightTons': totalWeightTons,
+      'orderItems': items.map((item) => item.toMap()).toList(),
       'items': items.map((item) => item.toMap()).toList(),
       'stateCode': stateCode,
       'priceApprovalStatus': priceApprovalStatus,
@@ -235,16 +270,18 @@ class TileOrder {
           : {
               'discountPercent': discount > 0 && subtotal > 0 ? (discount / subtotal) * 100 : 0.0,
               'discountAmount': discount,
-              'taxAmount': tax,
+              'taxAmount': taxAmount,
               'subtotal': subtotal,
-              'grandTotal': total,
+              'grandTotal': totalAmount,
               'totalBoxes': totalBoxes,
               'totalWeightTons': totalWeightTons,
               'totalWeightKg': totalWeightKg,
             },
       'shipmentId': shipmentId,
-      'freightAmount': freightAmount,
+      'freightAmount': null, // Freight charges explicitly removed
       'dispatchStatus': dispatchStatus,
+      'rateQuotedAt': rateQuotedAt != null ? Timestamp.fromDate(rateQuotedAt!) : null,
+      'confirmedAt': confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -254,11 +291,11 @@ class TileOrder {
 
   factory TileOrder.fromMap(Map<String, dynamic> map, String docId) {
     final oId = map['orderId'] ?? docId;
-    final ref = map['orderReference'] ?? map['orderReferenceNumber'] ?? 'PO-GJ-2026-${docId.substring(0, min(5, docId.length)).toUpperCase()}';
+    final ref = map['orderReference'] ?? map['orderReferenceNumber'] ?? 'ITC-PO-2026-${docId.substring(0, min(5, docId.length)).toUpperCase()}';
     final sub = (map['subtotal'] ?? 0.0).toDouble();
     final disc = (map['discount'] ?? 0.0).toDouble();
-    final tx = (map['tax'] ?? 0.0).toDouble();
-    final tot = (map['total'] ?? (sub - disc + tx)).toDouble();
+    final tx = (map['taxAmount'] ?? map['tax'] ?? ((sub - disc > 0 ? sub - disc : 0.0) * 0.18)).toDouble();
+    final tot = (map['totalAmount'] ?? map['total'] ?? (sub - disc + tx)).toDouble();
     final tBoxes = (map['totalBoxes'] ?? 0).toInt();
     final tKg = (map['totalWeightKg'] ?? 0.0).toDouble();
     final tTons = (map['totalWeightTons'] ?? (tKg / 1000.0)).toDouble();
@@ -267,6 +304,8 @@ class TileOrder {
         ? Map<String, dynamic>.from(map['deliveryLocation'])
         : {'address': map['deliveryAddress'] ?? ''};
 
+    final rawItems = map['orderItems'] ?? map['items'];
+
     return TileOrder(
       id: docId,
       orderId: oId,
@@ -274,7 +313,7 @@ class TileOrder {
       userId: map['userId'] ?? '',
       salesPersonId: map['salesPersonId'] ?? map['salespersonId'] ?? '',
       userCategory: map['userCategory'] ?? map['role'] ?? 'dealer',
-      status: map['status'] ?? 'pending_salesperson_review',
+      status: map['status'] ?? 'pending_rate',
       orderType: map['orderType'] ?? 'ready_stock',
       poNumber: map['poNumber'] ?? '',
       poDocumentUrl: map['poDocumentUrl'] ?? '',
@@ -283,12 +322,12 @@ class TileOrder {
       remarks: map['remarks'] ?? map['notes'] ?? '',
       subtotal: sub,
       discount: disc,
-      tax: tx,
-      total: tot,
+      taxAmount: tx,
+      totalAmount: tot,
       totalBoxes: tBoxes,
       totalWeightKg: tKg,
       totalWeightTons: tTons,
-      items: (map['items'] as List<dynamic>?)
+      items: (rawItems as List<dynamic>?)
               ?.map((item) => OrderItem.fromMap(Map<String, dynamic>.from(item)))
               .toList() ??
           [],
@@ -296,8 +335,14 @@ class TileOrder {
       priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
       estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {}),
       shipmentId: map['shipmentId'] as String?,
-      freightAmount: (map['freightAmount'] as num?)?.toDouble(),
+      freightAmount: null,
       dispatchStatus: map['dispatchStatus'] as String? ?? 'unassigned',
+      rateQuotedAt: map['rateQuotedAt'] is Timestamp
+          ? (map['rateQuotedAt'] as Timestamp).toDate()
+          : null,
+      confirmedAt: map['confirmedAt'] is Timestamp
+          ? (map['confirmedAt'] as Timestamp).toDate()
+          : null,
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
@@ -323,8 +368,8 @@ class TileOrder {
     String? remarks,
     double? subtotal,
     double? discount,
-    double? tax,
-    double? total,
+    double? taxAmount,
+    double? totalAmount,
     int? totalBoxes,
     double? totalWeightKg,
     double? totalWeightTons,
@@ -335,6 +380,8 @@ class TileOrder {
     String? shipmentId,
     double? freightAmount,
     String? dispatchStatus,
+    DateTime? rateQuotedAt,
+    DateTime? confirmedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -354,8 +401,8 @@ class TileOrder {
       remarks: remarks ?? this.remarks,
       subtotal: subtotal ?? this.subtotal,
       discount: discount ?? this.discount,
-      tax: tax ?? this.tax,
-      total: total ?? this.total,
+      taxAmount: taxAmount ?? this.taxAmount,
+      totalAmount: totalAmount ?? this.totalAmount,
       totalBoxes: totalBoxes ?? this.totalBoxes,
       totalWeightKg: totalWeightKg ?? this.totalWeightKg,
       totalWeightTons: totalWeightTons ?? this.totalWeightTons,
@@ -366,6 +413,8 @@ class TileOrder {
       shipmentId: shipmentId ?? this.shipmentId,
       freightAmount: freightAmount ?? this.freightAmount,
       dispatchStatus: dispatchStatus ?? this.dispatchStatus,
+      rateQuotedAt: rateQuotedAt ?? this.rateQuotedAt,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

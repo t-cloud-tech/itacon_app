@@ -517,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Featured Collection',
+                  'Trending Collection',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -591,18 +591,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                   builder: (context, _) {
                                     final isFav =
                                         appState.isFavorite(product.id);
-                                    return CircleAvatar(
-                                      radius: 14,
-                                      backgroundColor:
-                                          Colors.white.withValues(alpha: 0.9),
-                                      child: Icon(
-                                        isFav
-                                            ? Icons.favorite_rounded
-                                            : Icons.favorite_outline_rounded,
-                                        color: isFav
-                                            ? Colors.red
-                                            : AppTheme.primaryNavy,
-                                        size: 16,
+                                    return GestureDetector(
+                                      onTap: () => appState.toggleFavorite(product),
+                                      child: CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor:
+                                            Colors.white.withValues(alpha: 0.9),
+                                        child: Icon(
+                                          isFav
+                                              ? Icons.favorite_rounded
+                                              : Icons.favorite_outline_rounded,
+                                          color: isFav
+                                              ? Colors.red
+                                              : AppTheme.primaryNavy,
+                                          size: 16,
+                                        ),
                                       ),
                                     );
                                   },

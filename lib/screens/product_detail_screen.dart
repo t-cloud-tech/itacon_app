@@ -113,7 +113,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   isFav ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
                   color: isFav ? Colors.red : AppTheme.primaryNavy,
                 ),
-                onPressed: () => _appState.toggleFavorite(_product.id),
+                onPressed: () => _appState.toggleFavorite(_product),
               );
             },
           ),

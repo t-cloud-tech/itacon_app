@@ -83,7 +83,6 @@ class OrderService {
   List<OrderItem> cartToOrderItems(List<CartItem> cartItems) {
     return cartItems.map((cartItem) {
       final product = cartItem.product;
-      final effectiveRate = cartItem.effectiveUnitPrice;
       return OrderItem(
         productId: product.id,
         sku: product.sku,
@@ -92,12 +91,16 @@ class OrderService {
         surface: cartItem.selectedFinish,
         color: product.color,
         quantity: cartItem.quantity,
+        quantityBoxes: cartItem.quantity,
+        quantitySqFt: cartItem.quantity * 15.5,
         unit: product.unit,
         moq: product.moq,
         basePrice: product.basePrice,
-        finalPrice: effectiveRate,
-        lineTotal: cartItem.itemTotal,
+        finalPrice: 0.0,
+        unitPrice: null, // Null on PO creation, to be quoted by salesperson
+        lineTotal: null,
       );
     }).toList();
   }
 }
+

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../models/tile_order.dart';
+import '../services/firestore_service.dart';
+import '../services/app_state_service.dart';
+import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -12,36 +16,6 @@ class _OrdersScreenState extends State<OrdersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final List<Map<String, dynamic>> _allOrders = const [
-    {
-      'orderId': '#ITC12345',
-      'date': '18 Aug 2026',
-      'product': 'Black Galaxy Granite (1200 sq.ft)',
-      'total': '₹1,44,000',
-      'status': 'Delivered',
-      'statusColor': AppTheme.statusSuccess,
-      'image': 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=300&q=80',
-    },
-    {
-      'orderId': '#ITC12346',
-      'date': '15 Aug 2026',
-      'product': 'Statuario White Marble (800 sq.ft)',
-      'total': '₹2,20,000',
-      'status': 'Shipped',
-      'statusColor': AppTheme.accentOrange,
-      'image': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=300&q=80',
-    },
-    {
-      'orderId': '#ITC12347',
-      'date': '12 Aug 2026',
-      'product': 'Calacatta Quartz Slab (500 sq.ft)',
-      'total': '₹95,000',
-      'status': 'Processing',
-      'statusColor': AppTheme.statusWarning,
-      'image': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=300&q=80',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -50,6 +24,8 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   @override
   Widget build(BuildContext context) {
+    final userId = AppStateService.instance.currentUserProfile.userId;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Orders'),
@@ -62,57 +38,58 @@ class _OrdersScreenState extends State<OrdersScreen>
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(text: 'All'),
-            Tab(text: 'Processing'),
-            Tab(text: 'Shipped'),
-            Tab(text: 'Delivered'),
+            Tab(text: 'Pending Quote'),
+            Tab(text: 'Rates Quoted'),
+            Tab(text: 'Confirmed'),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search order number or product...',
-                prefixIcon: const Icon(Icons.search_rounded,
-                    color: AppTheme.textSubtle),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
+      body: StreamBuilder<List<TileOrder>>(
+        stream: FirestoreService.instance.getUserOrdersStream(userId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy));
+          }
 
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOrderList(_allOrders),
-                _buildOrderList(_allOrders
-                    .where((o) => o['status'] == 'Processing')
-                    .toList()),
-                _buildOrderList(_allOrders
-                    .where((o) => o['status'] == 'Shipped')
-                    .toList()),
-                _buildOrderList(_allOrders
-                    .where((o) => o['status'] == 'Delivered')
-                    .toList()),
-              ],
-            ),
-          ),
-        ],
+          final allOrders = snapshot.data ?? [];
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search PO reference or product...',
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSubtle),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildOrderList(allOrders),
+                    _buildOrderList(allOrders.where((o) => o.status == 'pending_rate').toList()),
+                    _buildOrderList(allOrders.where((o) => o.status == 'rate_quoted').toList()),
+                    _buildOrderList(allOrders.where((o) => o.status == 'confirmed').toList()),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildOrderList(List<Map<String, dynamic>> orders) {
+  Widget _buildOrderList(List<TileOrder> orders) {
     if (orders.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.assignment_outlined,
-                size: 64, color: AppTheme.textLight.withValues(alpha: 0.5)),
+            Icon(Icons.assignment_outlined, size: 64, color: AppTheme.textLight.withValues(alpha: 0.5)),
             const SizedBox(height: 12),
             const Text(
               'No Orders Found',
@@ -133,122 +110,139 @@ class _OrdersScreenState extends State<OrdersScreen>
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final order = orders[index];
-        final Color statusColor = order['statusColor'] as Color;
+        final String displayStatus = order.status == 'pending_rate'
+            ? 'Awaiting Quote'
+            : (order.status == 'rate_quoted'
+                ? 'Rates Quoted'
+                : (order.status == 'confirmed' ? 'PO Confirmed' : order.status.toUpperCase()));
 
-        return Container(
-          decoration: AppTheme.luxuryCardDecoration,
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Order ID & Status Chip
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    order['orderId'] as String,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.primaryNavy,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      order['status'] as String,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
+        final Color statusColor = order.status == 'confirmed'
+            ? AppTheme.statusSuccess
+            : (order.status == 'rate_quoted'
+                ? AppTheme.accentOrange
+                : AppTheme.primaryNavy);
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OrderDetailsScreen(orderId: order.id, initialOrder: order),
+              ),
+            );
+          },
+          child: Container(
+            decoration: AppTheme.luxuryCardDecoration,
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      order.orderReference,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryNavy,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Product Info
-              Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      order['image'] as String,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 60,
-                        height: 60,
-                        color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                        child: const Icon(Icons.terrain_rounded,
-                            color: AppTheme.primaryNavy),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        displayStatus,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          order['product'] as String,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.inventory_2_rounded, color: AppTheme.primaryNavy),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${order.items.length} Item(s) • ${order.totalBoxes} Boxes (${order.totalWeightTons.toStringAsFixed(2)} Tonnes)',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Ordered on ${order['date']}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textSubtle,
+                          const SizedBox(height: 4),
+                          Text(
+                            order.items.isNotEmpty ? order.items.first.productName : 'Tile Products',
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const Divider(height: 20, color: AppTheme.borderSubtle),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Total Amount: ${order['total']}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textDark,
+                  ],
+                ),
+                const Divider(height: 20, color: AppTheme.borderSubtle),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      order.status == 'pending_rate'
+                          ? 'Total: Rate Quote Pending'
+                          : 'Total: ₹${order.totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textDark,
+                      ),
                     ),
-                  ),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      minimumSize: Size.zero,
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: order.status == 'rate_quoted' ? AppTheme.accentOrange : AppTheme.primaryNavy,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderDetailsScreen(orderId: order.id, initialOrder: order),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        order.status == 'rate_quoted' ? 'REVIEW RATES →' : 'VIEW PO DETAILS',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    onPressed: () {},
-                    child: const Text('View Details',
-                        style: TextStyle(fontSize: 11)),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
 }
+
+

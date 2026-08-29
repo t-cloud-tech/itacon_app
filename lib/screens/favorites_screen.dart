@@ -12,45 +12,6 @@ class FavoritesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = AppStateService();
 
-    final List<TileProduct> sampleFavorites = [
-      TileProduct(
-        id: 'PROD_BG_01',
-        name: 'Black Galaxy Granite',
-        size: '600x1200 mm',
-        surface: 'Polished',
-        color: 'Black',
-        pattern: 'Gold Speckled',
-        basePrice: 120.0,
-        moq: 50,
-        stockStatus: 'available_now',
-        images: [
-          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-        ],
-        finish: 'Polished',
-        thickness: '15 mm',
-        shape: 'rectangle',
-        aspectRatio: '0.5',
-      ),
-      TileProduct(
-        id: 'PROD_BG_02',
-        name: 'Statuario Marble White',
-        size: '800x1600 mm',
-        surface: 'High Polish',
-        color: 'White',
-        pattern: 'Grey Vein',
-        basePrice: 240.0,
-        moq: 30,
-        stockStatus: 'available_now',
-        images: [
-          'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80',
-        ],
-        finish: 'Polished',
-        thickness: '18 mm',
-        shape: 'rectangle',
-        aspectRatio: '0.5',
-      ),
-    ];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Favorites'),
@@ -58,11 +19,7 @@ class FavoritesScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: appState,
         builder: (context, _) {
-          final favIds = appState.favoriteProductIds;
-
-          final favList = sampleFavorites
-              .where((p) => favIds.isEmpty || favIds.contains(p.id))
-              .toList();
+          final favList = appState.favoriteProducts;
 
           if (favList.isEmpty) {
             return Center(

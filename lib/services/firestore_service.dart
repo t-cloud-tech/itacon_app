@@ -778,9 +778,8 @@ class FirestoreService {
 
   String generateStateWiseOrderReferenceNumber(String stateCode) {
     final random = Random();
-    final number = random.nextInt(900000) + 100000;
-    final cleanState = stateCode.trim().toUpperCase();
-    return 'PO-$cleanState-${DateTime.now().year}-$number';
+    final number = random.nextInt(9000) + 1000;
+    return 'ITC-PO-2026-$number';
   }
 
   Future<TileOrder> placeOrder({
@@ -800,12 +799,30 @@ class FirestoreService {
     final docRef = _ordersRef.doc();
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
 
-    double subtotal = 0.0;
     int computedBoxes = 0;
-    for (var i in items) {
-      subtotal += (i.basePrice * i.quantity);
-      computedBoxes += i.quantity;
-    }
+    double computedSqFt = 0.0;
+    final pendingItems = items.map((i) {
+      computedBoxes += i.quantityBoxes;
+      computedSqFt += i.quantitySqFt;
+      return OrderItem(
+        productId: i.productId,
+        sku: i.sku,
+        productName: i.productName,
+        size: i.size,
+        surface: i.surface,
+        color: i.color,
+        quantity: i.quantityBoxes,
+        quantityBoxes: i.quantityBoxes,
+        quantitySqFt: i.quantitySqFt,
+        unit: i.unit,
+        moq: i.moq,
+        basePrice: i.basePrice,
+        finalPrice: 0.0,
+        unitPrice: null, // Null when pending_rate quote
+        lineTotal: null, // Null when pending_rate quote
+        orderType: i.orderType,
+      );
+    }).toList();
 
     final boxes = totalBoxes ?? computedBoxes;
     final weightKg = totalWeightKg ?? (boxes * 28.0);
@@ -817,18 +834,20 @@ class FirestoreService {
       userId: userId,
       salesPersonId: salespersonId ?? '',
       userCategory: userCategory,
-      status: 'pending_salesperson_review',
+      status: 'pending_rate',
       orderType: orderType,
       poNumber: poRef,
       deliveryLocation: {'address': deliveryAddress},
       transportRequired: transportRequired,
       remarks: remarks,
-      subtotal: subtotal,
-      total: subtotal,
+      subtotal: 0.0,
+      discount: 0.0,
+      taxAmount: 0.0,
+      totalAmount: 0.0,
       totalBoxes: boxes,
       totalWeightKg: weightKg,
       totalWeightTons: weightTons,
-      items: items,
+      items: pendingItems,
       stateCode: stateCode.toUpperCase(),
       createdAt: DateTime.now(),
     );
@@ -836,32 +855,124 @@ class FirestoreService {
     await docRef.set(order.toMap());
 
     // Save order items in subcollection orders/{orderId}/orderItems/{productId}
-    for (var item in items) {
+    for (var item in pendingItems) {
       await _ordersRef.doc(order.id).collection('orderItems').doc(item.productId).set(item.toMap());
     }
 
     // Save history entry in orders/{orderId}/orderStatusHistory/{historyId}
     final history = OrderStatusHistory(
       fromStatus: 'new',
-      toStatus: 'pending_salesperson_review',
+      toStatus: 'pending_rate',
       changedBy: userId,
       changedByRole: 'customer',
-      remarks: 'Order PO submitted by customer',
+      remarks: 'Purchase Order submitted, awaiting salesperson rate quote',
       timestamp: DateTime.now(),
     );
     await _ordersRef.doc(order.id).collection('orderStatusHistory').add(history.toMap());
 
-    // Send notification
-    await sendNotification(
-      recipientId: salespersonId ?? 'company_admin',
-      type: 'order',
-      event: 'order_placed',
-      title: 'New PO Order Placed: $poRef',
-      message: 'New order $poRef received from $userCategory.',
-      relatedOrderId: order.id,
-    );
-
     return order;
+  }
+
+  /// Salesperson submits quoted unit rates and discount for PO
+  Future<void> updateQuotedRates({
+    required String orderId,
+    required List<OrderItem> itemsWithRates,
+    required double subtotal,
+    required double discount,
+    required double taxAmount,
+    required double totalAmount,
+    required String salespersonId,
+  }) async {
+    final docRef = _ordersRef.doc(orderId);
+    final updatedData = {
+      'status': 'rate_quoted',
+      'items': itemsWithRates.map((i) => i.toMap()).toList(),
+      'orderItems': itemsWithRates.map((i) => i.toMap()).toList(),
+      'subtotal': subtotal,
+      'discount': discount,
+      'taxAmount': taxAmount,
+      'tax': taxAmount,
+      'totalAmount': totalAmount,
+      'total': totalAmount,
+      'rateQuotedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    await docRef.set(updatedData, SetOptions(merge: true));
+
+    for (var item in itemsWithRates) {
+      await docRef.collection('orderItems').doc(item.productId).set(item.toMap(), SetOptions(merge: true));
+    }
+
+    final history = OrderStatusHistory(
+      fromStatus: 'pending_rate',
+      toStatus: 'rate_quoted',
+      changedBy: salespersonId,
+      changedByRole: 'salesperson',
+      remarks: 'Salesperson submitted unit rates and GST calculations',
+      timestamp: DateTime.now(),
+    );
+    await docRef.collection('orderStatusHistory').add(history.toMap());
+  }
+
+  /// Customer confirms PO rates
+  Future<void> confirmOrder({required String orderId, required String userId}) async {
+    final docRef = _ordersRef.doc(orderId);
+    await docRef.update({
+      'status': 'confirmed',
+      'confirmedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final history = OrderStatusHistory(
+      fromStatus: 'rate_quoted',
+      toStatus: 'confirmed',
+      changedBy: userId,
+      changedByRole: 'customer',
+      remarks: 'Customer accepted quoted unit rates & confirmed PO',
+      timestamp: DateTime.now(),
+    );
+    await docRef.collection('orderStatusHistory').add(history.toMap());
+  }
+
+  /// Customer rejects PO rates
+  Future<void> rejectOrder({required String orderId, required String userId, String reason = ''}) async {
+    final docRef = _ordersRef.doc(orderId);
+    await docRef.update({
+      'status': 'rejected',
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final history = OrderStatusHistory(
+      fromStatus: 'rate_quoted',
+      toStatus: 'rejected',
+      changedBy: userId,
+      changedByRole: 'customer',
+      remarks: 'Customer declined quoted rate estimate. $reason',
+      timestamp: DateTime.now(),
+    );
+    await docRef.collection('orderStatusHistory').add(history.toMap());
+  }
+
+  /// Stream real-time orders for a specific user ID
+  Stream<List<TileOrder>> getUserOrdersStream(String userId) {
+    if (userId.isEmpty) {
+      return _ordersRef.snapshots().map(
+            (snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList(),
+          );
+    }
+    return _ordersRef
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList());
+  }
+
+  /// Stream a single real-time TileOrder document by orderId
+  Stream<TileOrder?> getOrderStream(String orderId) {
+    return _ordersRef.doc(orderId).snapshots().map((snapshot) {
+      if (!snapshot.exists || snapshot.data() == null) return null;
+      return TileOrder.fromMap(snapshot.data()!, snapshot.id);
+    });
   }
 
   Future<void> saveCustomerPricing(CustomerPricing pricing) async {

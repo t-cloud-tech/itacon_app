@@ -36,15 +36,16 @@ class AppStateService extends ChangeNotifier {
   factory AppStateService() => instance;
 
   final List<CartItem> _cartItems = [];
-  final Set<String> _favoriteProductIds = {};
+  final Map<String, TileProduct> _favoriteProductsMap = {};
 
   UserProfile? _currentUserProfile;
 
   List<CartItem> get cartItems => List.unmodifiable(_cartItems);
-  Set<String> get favoriteProductIds => Set.unmodifiable(_favoriteProductIds);
+  List<TileProduct> get favoriteProducts => List.unmodifiable(_favoriteProductsMap.values.toList());
+  Set<String> get favoriteProductIds => Set.unmodifiable(_favoriteProductsMap.keys);
 
   int get cartCount => _cartItems.fold(0, (sum, item) => sum + item.quantity);
-  int get favoritesCount => _favoriteProductIds.length;
+  int get favoritesCount => _favoriteProductsMap.length;
   int get ordersCount => 0;
 
   int get totalBoxes => _cartItems.fold(0, (sum, item) => sum + item.quantityInBoxes);
@@ -56,7 +57,7 @@ class AppStateService extends ChangeNotifier {
   double get freightFee => subtotal > 0 ? (subtotal > 10000 ? 0.0 : 450.0) : 0.0;
   double get totalAmount => subtotal + freightFee;
 
-  bool isFavorite(String productId) => _favoriteProductIds.contains(productId);
+  bool isFavorite(String productId) => _favoriteProductsMap.containsKey(productId);
 
   // User Profile Getters & State Management
   UserProfile get currentUserProfile {
@@ -181,11 +182,17 @@ class AppStateService extends ChangeNotifier {
     return pending;
   }
 
-  void toggleFavorite(String productId) {
-    if (_favoriteProductIds.contains(productId)) {
-      _favoriteProductIds.remove(productId);
-    } else {
-      _favoriteProductIds.add(productId);
+  void toggleFavorite(dynamic target) {
+    if (target is TileProduct) {
+      if (_favoriteProductsMap.containsKey(target.id)) {
+        _favoriteProductsMap.remove(target.id);
+      } else {
+        _favoriteProductsMap[target.id] = target;
+      }
+    } else if (target is String) {
+      if (_favoriteProductsMap.containsKey(target)) {
+        _favoriteProductsMap.remove(target);
+      }
     }
     notifyListeners();
   }

@@ -766,7 +766,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                             _appState.isFavorite(product.id);
                                         return GestureDetector(
                                           onTap: () => _appState
-                                              .toggleFavorite(product.id),
+                                              .toggleFavorite(product),
                                           child: CircleAvatar(
                                             radius: 14,
                                             backgroundColor: Colors.white

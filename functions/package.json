@@ -1,0 +1,16 @@
+{
+  "name": "itacon-cloud-functions",
+  "version": "1.0.0",
+  "description": "ITACON Purchase Order PDF Generator & Multi-Party WhatsApp Notifications",
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^11.11.1",
+    "firebase-functions": "^4.5.0",
+    "pdfkit": "^0.13.0",
+    "axios": "^1.6.2"
+  },
+  "engines": {
+    "node": "18"
+  },
+  "private": true
+}

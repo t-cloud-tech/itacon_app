@@ -4,7 +4,11 @@ import '../models/user_profile.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../services/order_service.dart';
+import '../models/tile_order.dart';
 import '../widgets/order_summary_card.dart';
+import 'order_details_screen.dart';
+
+
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -16,6 +20,8 @@ class CheckoutScreen extends StatefulWidget {
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _currentStep = 0; // 0: PO Estimate, 1: Address, 2: Payment, 3: Review
   bool _isEstimateApproved = true;
+
+  final ScrollController _scrollController = ScrollController();
 
   // Shipping Address Form State
   final _addressLineController = TextEditingController();
@@ -68,6 +74,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _addressLineController.dispose();
     _cityController.dispose();
     _stateController.dispose();
@@ -77,123 +84,155 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  void _changeStep(int newStep) {
+    setState(() => _currentStep = newStep);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = AppStateService.instance;
     final user = appState.currentUserProfile;
 
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: Text(
-          _currentStep == 0
-              ? 'Purchase Order Estimate'
-              : (_currentStep == 1
-                  ? 'Delivery Address'
-                  : (_currentStep == 2 ? 'Payment Terms' : 'Order Review & Confirmation')),
-        ),
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          // 4-Step Luxury Progress Bar Header
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            color: Colors.white,
-            child: Row(
-              children: [
-                _buildStepItem(0, '1. Estimate'),
-                _buildStepConnector(0),
-                _buildStepItem(1, '2. Address'),
-                _buildStepConnector(1),
-                _buildStepItem(2, '3. Payment'),
-                _buildStepConnector(2),
-                _buildStepItem(3, '4. Review'),
-              ],
-            ),
+    return PopScope(
+      canPop: _currentStep == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _currentStep > 0) {
+          _changeStep(_currentStep - 1);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        appBar: AppBar(
+          title: Text(
+            _currentStep == 0
+                ? 'Purchase Order Estimate'
+                : (_currentStep == 1
+                    ? 'Delivery Address'
+                    : (_currentStep == 2 ? 'Payment Terms' : 'Order Review & Confirmation')),
           ),
-          const Divider(height: 1, color: AppTheme.borderSubtle),
-
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: IndexedStack(
-                index: _currentStep,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (_currentStep > 0) {
+                _changeStep(_currentStep - 1);
+              } else {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          elevation: 0,
+        ),
+        body: Column(
+          children: [
+            // 4-Step Luxury Progress Bar Header
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              color: Colors.white,
+              child: Row(
                 children: [
-                  _buildEstimateStep(appState, user),
-                  _buildAddressStep(user),
-                  _buildPaymentStep(),
-                  _buildReviewStep(appState, user),
+                  _buildStepItem(0, '1. Estimate'),
+                  _buildStepConnector(0),
+                  _buildStepItem(1, '2. Address'),
+                  _buildStepConnector(1),
+                  _buildStepItem(2, '3. Payment'),
+                  _buildStepConnector(2),
+                  _buildStepItem(3, '4. Review'),
                 ],
               ),
             ),
-          ),
-        ],
-      ),
+            const Divider(height: 1, color: AppTheme.borderSubtle),
 
-      // Bottom Navigation Bar Action
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, -4),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                padding: const EdgeInsets.all(16),
+                child: IndexedStack(
+                  index: _currentStep,
+                  children: [
+                    _buildEstimateStep(appState, user),
+                    _buildAddressStep(user),
+                    _buildPaymentStep(),
+                    _buildReviewStep(appState, user),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-        child: SafeArea(
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryNavy,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+
+        // Bottom Navigation Bar Action
+        bottomNavigationBar: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
               ),
-              onPressed: () {
-                if (_currentStep == 0) {
-                  if (!_isEstimateApproved) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please approve the Purchase Order Estimate to proceed.'),
-                        backgroundColor: AppTheme.statusWarning,
-                      ),
-                    );
-                    return;
+            ],
+          ),
+          child: SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryNavy,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  if (_currentStep == 0) {
+                    if (!_isEstimateApproved) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please approve the Purchase Order Estimate to proceed.'),
+                          backgroundColor: AppTheme.statusWarning,
+                        ),
+                      );
+                      return;
+                    }
+                    _changeStep(1);
+                  } else if (_currentStep == 1) {
+                    if (_addressLineController.text.trim().isEmpty || _cityController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter valid delivery address details.'),
+                          backgroundColor: AppTheme.statusWarning,
+                        ),
+                      );
+                      return;
+                    }
+                    _changeStep(2);
+                  } else if (_currentStep == 2) {
+                    _changeStep(3);
+                  } else {
+                    _handlePlaceOrder(appState, user);
                   }
-                  setState(() => _currentStep = 1);
-                } else if (_currentStep == 1) {
-                  if (_addressLineController.text.trim().isEmpty || _cityController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter valid delivery address details.'),
-                        backgroundColor: AppTheme.statusWarning,
-                      ),
-                    );
-                    return;
-                  }
-                  setState(() => _currentStep = 2);
-                } else if (_currentStep == 2) {
-                  setState(() => _currentStep = 3);
-                } else {
-                  _handlePlaceOrder(appState, user);
-                }
-              },
-              child: Text(
-                _currentStep == 0
-                    ? 'APPROVE ESTIMATE & CONTINUE →'
-                    : (_currentStep == 1
-                        ? 'CONFIRM ADDRESS & PROCEED →'
-                        : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
+                },
+                child: Text(
+                  _currentStep == 0
+                      ? 'APPROVE ESTIMATE & CONTINUE →'
+                      : (_currentStep == 1
+                          ? 'CONFIRM ADDRESS & PROCEED →'
+                          : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ),
@@ -208,33 +247,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final isActive = _currentStep >= stepIndex;
     final isCurrent = _currentStep == stepIndex;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CircleAvatar(
-          radius: 12,
-          backgroundColor: isActive ? AppTheme.primaryNavy : Colors.grey.shade300,
-          child: isCurrent
-              ? const Icon(Icons.circle, size: 8, color: AppTheme.accentOrange)
-              : Text(
-                  '${stepIndex + 1}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: isActive ? Colors.white : AppTheme.textSubtle,
-                  ),
-                ),
+    return InkWell(
+      onTap: () {
+        if (stepIndex < _currentStep) {
+          _changeStep(stepIndex);
+        }
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: isActive ? AppTheme.primaryNavy : Colors.grey.shade300,
+              child: isCurrent
+                  ? const Icon(Icons.circle, size: 8, color: AppTheme.accentOrange)
+                  : Text(
+                      '${stepIndex + 1}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isActive ? Colors.white : AppTheme.textSubtle,
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                color: isActive ? AppTheme.primaryNavy : AppTheme.textSubtle,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            color: isActive ? AppTheme.primaryNavy : AppTheme.textSubtle,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -867,14 +917,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   // Handle Order Placement
   void _handlePlaceOrder(AppStateService appState, UserProfile user) async {
-    final orderNum = 'ITC${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}';
-
-    // Submit order to Firestore using OrderService with totalBoxes and totalWeightTons payload
     final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);
     final deliveryAddress = '${_addressLineController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}, ${_stateController.text.trim()}';
 
+    String orderRef = 'ITC-PO-2026-9810';
+    TileOrder? createdOrder;
     try {
-      await OrderService.instance.submitOrder(
+      createdOrder = await OrderService.instance.submitOrder(
         userId: user.userId,
         userCategory: user.userCategory,
         items: orderItems,
@@ -887,12 +936,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         totalWeightTons: appState.totalWeightTons,
         stateCode: user.state.isNotEmpty ? user.state.substring(0, 2).toUpperCase() : 'GJ',
       );
+      orderRef = createdOrder.orderReference;
     } catch (_) {
       // Fallback/offline mode continues gracefully
     }
 
+
     appState.clearCart();
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -902,63 +954,75 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         title: const Column(
           children: [
-            Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 64),
+            Icon(Icons.mark_email_read_rounded, color: AppTheme.accentOrange, size: 64),
             SizedBox(height: 12),
-            Text('Purchase Order Placed!', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('PO Submitted!', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Thank you, ${user.name}! Your official Purchase Order #$orderNum has been created and sent to dispatch.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.accentOrange.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'PO Submitted - Awaiting Salesperson Rate Quote',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.accentOrange,
+                ),
+              ),
             ),
             const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryNavy.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.picture_as_pdf_rounded, color: AppTheme.primaryNavy, size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('PO Estimate & Invoice PDF generated', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Downloading PO Estimate PDF...')),
-                      );
-                    },
-                    child: const Text('Download', style: TextStyle(fontSize: 11)),
-                  ),
-                ],
-              ),
+            Text(
+              'Thank you, ${user.name}! Your Purchase Order #$orderRef has been sent to your assigned salesperson for rate quotation.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle),
             ),
           ],
         ),
         actions: [
-          Center(
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryNavy,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(dialogCtx);
+                  Navigator.pop(context);
+                },
+                child: const Text('BACK TO HOME'),
               ),
-              onPressed: () {
-                Navigator.pop(dialogCtx);
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('BACK TO HOME'),
-            ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryNavy,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                onPressed: () {
+                  Navigator.pop(dialogCtx);
+                  Navigator.pop(context);
+                  final targetOrder = createdOrder;
+                  if (targetOrder != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => OrderDetailsScreen(orderId: targetOrder.id, initialOrder: targetOrder),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('VIEW ORDER DETAILS →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 }
+
+
