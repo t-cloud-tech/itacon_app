@@ -26,14 +26,18 @@ class AppNavigationDrawer extends StatelessWidget {
     return Drawer(
       backgroundColor: AppTheme.backgroundColor,
       elevation: 16,
-      child: ListenableBuilder(
-        listenable: appState,
-        builder: (context, _) {
-          final user = appState.currentUserProfile;
-          final completionPct = appState.profileCompletionPercentage;
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) => true,
+        child: ListenableBuilder(
+          listenable: appState,
+          builder: (context, _) {
+            final user = appState.currentUserProfile;
+            final completionPct = appState.profileCompletionPercentage;
+            final filledCount = appState.profileFilledFieldsCount;
+            final totalCount = appState.profileTotalFieldsCount;
 
-          return Column(
-            children: [
+            return Column(
+              children: [
               // 1. Luxury Profile Header Card
               Container(
                 width: double.infinity,
@@ -65,7 +69,7 @@ class AppNavigationDrawer extends StatelessWidget {
                             border: Border.all(color: Colors.white, width: 2),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Colors.black.withValues(alpha: 0.2),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3),
                               ),
@@ -104,7 +108,7 @@ class AppNavigationDrawer extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.white.withValues(alpha: 0.8),
                                   ),
                                 ),
                               ],
@@ -133,48 +137,47 @@ class AppNavigationDrawer extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Profile Completion Bar
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white.withOpacity(0.15)),
-                      ),
+                    // Profile Completion Tracker
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Rounded Orange Progress Bar
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: completionPct / 100.0,
+                              minHeight: 6,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.22),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                AppTheme.accentOrange,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          // Stats row: 60% and 6 / 10 data profile is filled in
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                'Profile Completion',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
                               Text(
                                 '$completionPct%',
                                 style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.accentOrange,
+                                  fontSize: 11.5,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                '$filledCount / $totalCount data profile is filled in',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white.withValues(alpha: 0.85),
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 6),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: completionPct / 100.0,
-                              minHeight: 4,
-                              backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                  AppTheme.accentOrange),
-                            ),
                           ),
                         ],
                       ),
@@ -344,7 +347,7 @@ class AppNavigationDrawer extends StatelessWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      backgroundColor: Colors.red.withOpacity(0.06),
+                      backgroundColor: Colors.red.withValues(alpha: 0.06),
                     ),
                     icon: const Icon(Icons.logout_rounded, size: 20),
                     label: const Text(
@@ -376,8 +379,9 @@ class AppNavigationDrawer extends StatelessWidget {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDrawerItem({
     required IconData icon,

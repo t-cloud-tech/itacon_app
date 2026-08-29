@@ -122,32 +122,58 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Total number of tracked profile data points (10 fields)
+  int get profileTotalFieldsCount => 10;
+
+  /// Number of completed profile data fields
+  int get profileFilledFieldsCount {
+    final p = currentUserProfile;
+    int count = 0;
+    if (p.name.trim().isNotEmpty) count++;
+    if (p.phone.trim().isNotEmpty) count++;
+    if (p.userCategory.trim().isNotEmpty) count++;
+    if (p.email.trim().isNotEmpty) count++;
+    if (p.companyName.trim().isNotEmpty) count++;
+    if (p.gstNumber.trim().isNotEmpty) count++;
+    if (p.address.isNotEmpty) count++;
+    if (p.city.trim().isNotEmpty) count++;
+    if (p.state.trim().isNotEmpty) count++;
+    if (p.pincode.trim().isNotEmpty) count++;
+    return count;
+  }
+
   /// Calculates Profile Completion Percentage (0% - 100%)
   int get profileCompletionPercentage {
-    final p = currentUserProfile;
-    int percentage = 0;
-    if (p.name.trim().isNotEmpty) percentage += 20; // Full Name
-    if (p.phone.trim().isNotEmpty) percentage += 20; // Phone Number
-    if (p.userCategory.trim().isNotEmpty) percentage += 15; // Category
-    if (p.email.trim().isNotEmpty) percentage += 15; // Email Address
-    if (p.companyName.trim().isNotEmpty) percentage += 10; // Company Name
-    if (p.city.trim().isNotEmpty || p.pincode.trim().isNotEmpty || p.address.isNotEmpty) percentage += 10; // Delivery Address
-    if (p.gstNumber.trim().isNotEmpty) percentage += 10; // GST Number
-    return percentage.clamp(0, 100);
+    return ((profileFilledFieldsCount / profileTotalFieldsCount) * 100).round().clamp(0, 100);
   }
 
   /// Returns list of pending details required to complete 100% profile
   List<Map<String, String>> get pendingProfileFields {
     final p = currentUserProfile;
     final List<Map<String, String>> pending = [];
+    if (p.name.trim().isEmpty) {
+      pending.add({'title': 'Full Name', 'field': 'name', 'points': '10%'});
+    }
+    if (p.phone.trim().isEmpty) {
+      pending.add({'title': 'Phone Number', 'field': 'phone', 'points': '10%'});
+    }
     if (p.email.trim().isEmpty) {
-      pending.add({'title': 'Email Address', 'field': 'email', 'points': '15%'});
+      pending.add({'title': 'Email Address', 'field': 'email', 'points': '10%'});
     }
     if (p.companyName.trim().isEmpty) {
       pending.add({'title': 'Company / Firm Name', 'field': 'companyName', 'points': '10%'});
     }
-    if (p.city.trim().isEmpty && p.pincode.trim().isEmpty && p.address.isEmpty) {
-      pending.add({'title': 'Delivery Address & City', 'field': 'address', 'points': '10%'});
+    if (p.address.isEmpty) {
+      pending.add({'title': 'Street Address', 'field': 'address', 'points': '10%'});
+    }
+    if (p.city.trim().isEmpty) {
+      pending.add({'title': 'City', 'field': 'city', 'points': '10%'});
+    }
+    if (p.state.trim().isEmpty) {
+      pending.add({'title': 'State', 'field': 'state', 'points': '10%'});
+    }
+    if (p.pincode.trim().isEmpty) {
+      pending.add({'title': 'PIN Code', 'field': 'pincode', 'points': '10%'});
     }
     if (p.gstNumber.trim().isEmpty) {
       pending.add({'title': 'GST Number', 'field': 'gstNumber', 'points': '10%'});
