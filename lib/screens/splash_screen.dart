@@ -190,7 +190,7 @@ class _SplashScreenState extends State<SplashScreen> {
       fit: BoxFit.contain,
       errorBuilder: (context, error, stackTrace) {
         return Image.asset(
-          'assets/images/itacon_logo.png',
+          'assets/images/itacon-logo.png',
           width: 250,
           fit: BoxFit.contain,
         );

@@ -213,20 +213,13 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
         ),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryNavy,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.terrain_rounded,
-                  color: AppTheme.accentOrange, size: 20),
-            ),
-            const SizedBox(width: 8),
-            const Text(
+        centerTitle: true,
+        title: Image.asset(
+          'assets/images/itacon-logo.png',
+          height: 36,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return const Text(
               'ITACON GRANITO',
               style: TextStyle(
                 fontSize: 16,
@@ -234,8 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppTheme.primaryNavy,
                 letterSpacing: 1.2,
               ),
-            ),
-          ],
+            );
+          },
         ),
         actions: [
           IconButton(
