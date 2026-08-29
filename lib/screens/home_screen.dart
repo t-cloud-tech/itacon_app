@@ -369,73 +369,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildSearchAndPopularChips(context),
             const SizedBox(height: 26),
 
-            // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Shop by Category',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    if (widget.onNavigateTab != null) {
-                      widget.onNavigateTab!(1);
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const CategoriesScreen()),
-                      );
-                    }
-                  },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.accentOrange,
-                        ),
-                      ),
-                      SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: AppTheme.accentOrange,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // 4 Category Cards Grid (2x2 styled layout)
-            GridView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: ProductEnums.tileCategories.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.96,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemBuilder: (context, index) {
-                final cat = ProductEnums.tileCategories[index];
-                return _buildShopByCategoryCard(context, cat);
-              },
-            ),
-            const SizedBox(height: 16),
-
             // Shop by Space Section (Living Room, Bath Room, Bedroom, Outdoor)
             const Text(
               'Shop by Space',
@@ -509,6 +442,73 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Shop by Category',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    if (widget.onNavigateTab != null) {
+                      widget.onNavigateTab!(1);
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const CategoriesScreen()),
+                      );
+                    }
+                  },
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.accentOrange,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: AppTheme.accentOrange,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // 4 Category Cards Grid (2x2 styled layout)
+            GridView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: ProductEnums.tileCategories.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.96,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemBuilder: (context, index) {
+                final cat = ProductEnums.tileCategories[index];
+                return _buildShopByCategoryCard(context, cat);
+              },
             ),
             const SizedBox(height: 28),
 
