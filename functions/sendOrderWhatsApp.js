@@ -110,7 +110,7 @@ async function sendWhatsAppApi(phone, textMessage, token, phoneAccountId) {
       url,
       {
         messaging_product: 'whatsapp',
-        to: phone.replace(/[^0-9+]/g, ''),
+        to: phone.replace(/[^0-9]/g, ''),
         type: 'text',
         text: { body: textMessage }
       },

@@ -66,9 +66,9 @@ class CartScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                   itemCount: appState.cartItems.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
                     final item = appState.cartItems[index];
                     return Container(
@@ -86,7 +86,7 @@ class CartScreen extends StatelessWidget {
                               width: 80,
                               height: 80,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 width: 80,
                                 height: 80,
                                 color: AppTheme.primaryNavy
@@ -147,7 +147,7 @@ class CartScreen extends StatelessWidget {
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: AppTheme.primaryNavy.withOpacity(0.08),
+                                        color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(

@@ -8,7 +8,6 @@ import 'models/tile_order.dart';
 import 'models/estimate.dart';
 import 'models/design_request.dart';
 import 'firebase_options.dart';
-import 'screens/auth_screen.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {

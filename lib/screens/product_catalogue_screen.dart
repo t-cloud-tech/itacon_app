@@ -4,6 +4,7 @@ import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 import '../models/tile_product.dart';
 import 'auth_screen.dart';
+import '../services/user_session_service.dart';
 
 class ProductCatalogueScreen extends StatefulWidget {
   const ProductCatalogueScreen({super.key});
@@ -64,17 +65,16 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
   }
 
   void _handleSignOut() async {
-    await _authService.signOut();
+    await UserSessionService.clearUserSession();
     if (!mounted) return;
-    Navigator.pushReplacement(
+    Navigator.pushAndRemoveUntil(
       context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const AuthScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 500),
+      MaterialPageRoute(
+        builder: (_) => const AuthScreen(
+          initialMode: AuthViewMode.login,
+        ),
       ),
+      (route) => false,
     );
   }
 

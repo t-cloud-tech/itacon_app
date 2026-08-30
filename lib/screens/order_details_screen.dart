@@ -331,7 +331,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: order.items.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, color: AppTheme.borderSubtle),
+        separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.borderSubtle),
         itemBuilder: (context, index) {
           final item = order.items[index];
 

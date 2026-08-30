@@ -482,7 +482,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
                 itemCount: TileCategoriesMatrix.surfaceFinishes.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final surface = TileCategoriesMatrix.surfaceFinishes[index];
                   final isSelected = (surface == 'All Surfaces' && _activeFilter.selectedSurface == null) ||
@@ -527,7 +527,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
                 itemCount: _quickSizes.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final sz = _quickSizes[index];
                   final isSelected = (sz == 'All Sizes' && _activeFilter.selectedSize == null) ||
@@ -658,7 +658,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     ),
                   )
                 : MasonryGridView.count(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 120),
                     crossAxisCount: 2,
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
@@ -698,7 +698,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                           : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
                                       width: double.infinity,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => Container(
+                                      errorBuilder: (_, _, _) => Container(
                                         color: AppTheme.primaryNavy
                                             .withValues(alpha: 0.1),
                                         child: const Icon(

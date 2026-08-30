@@ -63,23 +63,13 @@ class AppStateService extends ChangeNotifier {
   UserProfile get currentUserProfile {
     return _currentUserProfile ??
         const UserProfile(
-          userId: 'GUEST_USER',
-          name: 'Anil Kumar',
-          companyName: 'Anil Granites & Tiles',
-          phone: '+91 98765 43210',
-          email: 'anil.kumar@itacongranito.com',
+          userId: '',
+          name: '',
+          companyName: '',
+          phone: '',
+          email: '',
           userCategory: 'Dealer',
           role: 'customer',
-          city: 'Morbi',
-          state: 'Gujarat',
-          pincode: '363642',
-          gstNumber: '24AAAAA0000A1Z5',
-          address: {
-            'line1': 'Plot 42, Ceramic Industrial Zone',
-            'city': 'Morbi',
-            'state': 'Gujarat',
-            'pincode': '363642',
-          },
         );
   }
 
@@ -92,6 +82,12 @@ class AppStateService extends ChangeNotifier {
 
   void clearUserProfile() {
     _currentUserProfile = null;
+    notifyListeners();
+  }
+
+  void clearCartAndFavorites() {
+    _cartItems.clear();
+    _favoriteProductsMap.clear();
     notifyListeners();
   }
 

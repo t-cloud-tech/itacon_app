@@ -162,7 +162,7 @@ class _SizeCatalogueScreenState extends State<SizeCatalogueScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     scrollDirection: Axis.horizontal,
                     itemCount: TileCategoriesMatrix.surfaceFinishes.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final surface = TileCategoriesMatrix.surfaceFinishes[index];
                       final isSelected = _selectedSurface == surface;
@@ -255,7 +255,7 @@ class _SizeCatalogueScreenState extends State<SizeCatalogueScreen> {
                               cat.imageUrl,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                                 child: const Icon(Icons.terrain_rounded, size: 48, color: AppTheme.primaryNavy),
                               ),

@@ -4,8 +4,6 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
 import 'auth_screen.dart';
-import 'referral_gate_screen.dart';
-import 'product_catalogue_screen.dart';
 import 'main_navigation_screen.dart';
 
 /// Splash loading screen displaying ITACON GRANITO luxury branding,

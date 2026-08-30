@@ -278,7 +278,7 @@ class TileOrder {
               'totalWeightKg': totalWeightKg,
             },
       'shipmentId': shipmentId,
-      'freightAmount': null, // Freight charges explicitly removed
+      'freightAmount': freightAmount,
       'dispatchStatus': dispatchStatus,
       'rateQuotedAt': rateQuotedAt != null ? Timestamp.fromDate(rateQuotedAt!) : null,
       'confirmedAt': confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
@@ -335,7 +335,7 @@ class TileOrder {
       priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
       estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {}),
       shipmentId: map['shipmentId'] as String?,
-      freightAmount: null,
+      freightAmount: (map['freightAmount'] as num?)?.toDouble(),
       dispatchStatus: map['dispatchStatus'] as String? ?? 'unassigned',
       rateQuotedAt: map['rateQuotedAt'] is Timestamp
           ? (map['rateQuotedAt'] as Timestamp).toDate()

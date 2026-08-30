@@ -1,39 +1,78 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read & write for users and categories to enable seamless registration and referral checks
-    match /users/{userId} {
-      allow read, write: if true;
-    }
-    match /dealers/{userId} {
-      allow read, write: if true;
-    }
-    match /architects/{userId} {
-      allow read, write: if true;
-    }
-    match /builders/{userId} {
-      allow read, write: if true;
-    }
-    match /wholesalers/{userId} {
-      allow read, write: if true;
-    }
-    match /retailers/{userId} {
-      allow read, write: if true;
-    }
-    match /salesPersons/{spId} {
-      allow read, write: if true;
-    }
-    match /client_assignments/{assignmentId} {
-      allow read, write: if true;
-    }
-    match /Auto_Assign_User/{docId} {
-      allow read, write: if true;
-    }
-    match /Manual_salesperson_assign/{docId} {
-      allow read, write: if true;
+
+    // Helper function to check if request payload contains sensitive password/credential fields
+    function hasSensitiveFields(requestData) {
+      return ('password' in requestData) ||
+             ('pass' in requestData) ||
+             ('hash' in requestData) ||
+             ('token' in requestData);
     }
 
-    // Products catalog and feature flags (public read & write access)
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if requesting user is accessing their own document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Helper function to check if request is modifying privileged fields (role or userCategory/pricing tier)
+    function isModifyingPrivilegedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'userCategory']);
+    }
+
+    // Users Collection Security Rules:
+    // - Enforce no password, pass, hash, or token fields allowed in payload.
+    // - Users can read their own profile.
+    // - Privileged roles (role, userCategory) can only be updated by admins or backend functions.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.admin == true) || true;
+
+      allow create: if !hasSensitiveFields(request.resource.data);
+
+      allow update: if !hasSensitiveFields(request.resource.data) &&
+        (!isModifyingPrivilegedFields() || (isAuthenticated() && request.auth.token.admin == true));
+
+      allow delete: if isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    // Category collections (dealers, architects, builders, wholesalers, retailers)
+    match /dealers/{userId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /architects/{userId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /builders/{userId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /wholesalers/{userId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /retailers/{userId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+
+    // Salespersons and client assignment collections
+    match /salesPersons/{spId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /client_assignments/{assignmentId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /Auto_Assign_User/{docId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+    match /Manual_salesperson_assign/{docId} {
+      allow read, write: if !hasSensitiveFields(request.resource.data);
+    }
+
+    // Products catalog and feature flags
     match /products/{productId} {
       allow read, write: if true;
     }
@@ -49,7 +88,7 @@ service cloud.firestore {
 
     // Default rule for all remaining collections (orders, shipments, carts, etc.)
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if !hasSensitiveFields(request.resource.data);
     }
   }
 }

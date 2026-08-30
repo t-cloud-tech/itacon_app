@@ -195,38 +195,41 @@ class AppNavigationDrawer extends StatelessWidget {
                       icon: Icons.home_rounded,
                       title: 'Home',
                       onTap: () {
-                        Navigator.pop(context);
-                        if (onSelectTab != null) onSelectTab!(0);
+                        _safeCloseDrawerAndNavigate(context, () {
+                          if (onSelectTab != null) onSelectTab!(0);
+                        });
                       },
                     ),
                     _buildDrawerItem(
                       icon: Icons.grid_view_rounded,
                       title: 'Products Catalogue',
                       onTap: () {
-                        Navigator.pop(context);
-                        if (onSelectTab != null) {
-                          onSelectTab!(1);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProductListingScreen(),
-                            ),
-                          );
-                        }
+                        _safeCloseDrawerAndNavigate(context, () {
+                          if (onSelectTab != null) {
+                            onSelectTab!(1);
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProductListingScreen(),
+                              ),
+                            );
+                          }
+                        });
                       },
                     ),
                     _buildDrawerItem(
                       icon: Icons.category_rounded,
                       title: 'Categories',
                       onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CategoriesScreen(),
-                          ),
-                        );
+                        _safeCloseDrawerAndNavigate(context, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CategoriesScreen(),
+                            ),
+                          );
+                        });
                       },
                     ),
                     _buildDrawerItem(
@@ -234,13 +237,14 @@ class AppNavigationDrawer extends StatelessWidget {
                       title: 'Master Collections',
                       subtitle: 'Marbles, Endless, 3D, Terrazzo',
                       onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ProductListingScreen(),
-                          ),
-                        );
+                        _safeCloseDrawerAndNavigate(context, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProductListingScreen(),
+                            ),
+                          );
+                        });
                       },
                     ),
                     const Padding(
@@ -252,17 +256,18 @@ class AppNavigationDrawer extends StatelessWidget {
                       title: 'My Orders',
                       badgeCount: appState.ordersCount,
                       onTap: () {
-                        Navigator.pop(context);
-                        if (onSelectTab != null) {
-                          onSelectTab!(3);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const OrdersScreen(),
-                            ),
-                          );
-                        }
+                        _safeCloseDrawerAndNavigate(context, () {
+                          if (onSelectTab != null) {
+                            onSelectTab!(3);
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OrdersScreen(),
+                              ),
+                            );
+                          }
+                        });
                       },
                     ),
                     _buildDrawerItem(
@@ -270,17 +275,18 @@ class AppNavigationDrawer extends StatelessWidget {
                       title: 'Favorites',
                       badgeCount: appState.favoritesCount,
                       onTap: () {
-                        Navigator.pop(context);
-                        if (onSelectTab != null) {
-                          onSelectTab!(2);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FavoritesScreen(),
-                            ),
-                          );
-                        }
+                        _safeCloseDrawerAndNavigate(context, () {
+                          if (onSelectTab != null) {
+                            onSelectTab!(2);
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const FavoritesScreen(),
+                              ),
+                            );
+                          }
+                        });
                       },
                     ),
                     _buildDrawerItem(
@@ -288,13 +294,14 @@ class AppNavigationDrawer extends StatelessWidget {
                       title: 'My Cart',
                       badgeCount: appState.cartCount,
                       onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CartScreen(),
-                          ),
-                        );
+                        _safeCloseDrawerAndNavigate(context, () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CartScreen(),
+                            ),
+                          );
+                        });
                       },
                     ),
                     const Padding(
@@ -305,26 +312,39 @@ class AppNavigationDrawer extends StatelessWidget {
                       icon: Icons.person_outline_rounded,
                       title: 'My Profile & Settings',
                       onTap: () {
-                        Navigator.pop(context);
-                        if (onSelectTab != null) {
-                          onSelectTab!(4);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProfileScreen(),
-                            ),
-                          );
-                        }
+                        _safeCloseDrawerAndNavigate(context, () {
+                          if (onSelectTab != null) {
+                            onSelectTab!(4);
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProfileScreen(),
+                              ),
+                            );
+                          }
+                        });
                       },
                     ),
                     _buildDrawerItem(
                       icon: Icons.headset_mic_outlined,
                       title: 'Contact Support',
                       onTap: () {
-                        Navigator.pop(context);
-                        _showSupportDialog(context);
+                        _safeCloseDrawerAndNavigate(context, () {
+                          _showSupportDialog(context);
+                        });
                       },
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(color: AppTheme.borderSubtle),
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.logout_rounded,
+                      title: 'Log Out',
+                      iconColor: Colors.red,
+                      textColor: Colors.red,
+                      onTap: () => _performDirectLogout(context),
                     ),
                   ],
                 ),
@@ -357,21 +377,7 @@ class AppNavigationDrawer extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      await UserSessionService.clearUserSession();
-                      if (context.mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AuthScreen(
-                              initialMode: AuthViewMode.login,
-                            ),
-                          ),
-                          (route) => false,
-                        );
-                      }
-                    },
+                    onPressed: () => _performDirectLogout(context),
                   ),
                 ),
               ),
@@ -383,21 +389,33 @@ class AppNavigationDrawer extends StatelessWidget {
   );
 }
 
+  void _safeCloseDrawerAndNavigate(BuildContext context, VoidCallback action) {
+    try {
+      Scaffold.of(context).closeDrawer();
+    } catch (_) {}
+    if (Navigator.of(context, rootNavigator: false).canPop()) {
+      Navigator.of(context, rootNavigator: false).pop();
+    }
+    action();
+  }
+
   Widget _buildDrawerItem({
     required IconData icon,
     required String title,
     String? subtitle,
     int? badgeCount,
+    Color? iconColor,
+    Color? textColor,
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppTheme.primaryNavy, size: 22),
+      leading: Icon(icon, color: iconColor ?? AppTheme.primaryNavy, size: 22),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: AppTheme.textDark,
+          color: textColor ?? AppTheme.textDark,
         ),
       ),
       subtitle: subtitle != null
@@ -426,6 +444,24 @@ class AppNavigationDrawer extends StatelessWidget {
               size: 18, color: AppTheme.textSubtle),
       onTap: onTap,
     );
+  }
+
+  Future<void> _performDirectLogout(BuildContext context) async {
+    try {
+      Scaffold.of(context).closeDrawer();
+    } catch (_) {}
+    await UserSessionService.clearUserSession();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AuthScreen(
+            initialMode: AuthViewMode.login,
+          ),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   void _showSupportDialog(BuildContext context) {

@@ -39,7 +39,7 @@ class ProfileTierCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryNavy.withOpacity(0.25),
+            color: AppTheme.primaryNavy.withValues(alpha: 0.25),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -54,7 +54,7 @@ class ProfileTierCard extends StatelessWidget {
             child: Icon(
               Icons.verified_user_rounded,
               size: 130,
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
             ),
           ),
 
@@ -72,10 +72,10 @@ class ProfileTierCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppTheme.accentOrange.withOpacity(0.2),
+                            color: AppTheme.accentOrange.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                             border: Border.all(
-                                color: AppTheme.accentOrange.withOpacity(0.5)),
+                                color: AppTheme.accentOrange.withValues(alpha: 0.5)),
                           ),
                           child: const Icon(
                             Icons.stars_rounded,
@@ -120,7 +120,7 @@ class ProfileTierCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.accentOrange.withOpacity(0.4),
+                              color: AppTheme.accentOrange.withValues(alpha: 0.4),
                               blurRadius: 6,
                               offset: const Offset(0, 2),
                             ),
@@ -155,7 +155,7 @@ class ProfileTierCard extends StatelessWidget {
                             : 'Standard Partner Rates applied. Contact salesperson for volume discount.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withOpacity(0.87),
+                          color: Colors.white.withValues(alpha: 0.87),
                           height: 1.3,
                         ),
                       ),
@@ -169,9 +169,9 @@ class ProfileTierCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                   ),
                   child: Row(
                     children: [
@@ -179,7 +179,7 @@ class ProfileTierCard extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
+                          color: Colors.white.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.person_rounded,

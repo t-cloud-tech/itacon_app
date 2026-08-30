@@ -21,7 +21,6 @@ import '../models/transporter_model.dart';
 import '../models/shipment_model.dart';
 import '../models/tracking_history_model.dart';
 import '../models/client_assignment.dart';
-import '../models/assigned_client_snapshot.dart';
 import '../models/promotion_model.dart';
 import '../models/system_config_model.dart';
 
@@ -29,10 +28,12 @@ import '../models/system_config_model.dart';
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
 class FirestoreService {
   static final FirestoreService instance = FirestoreService();
-  final FirebaseFirestore _db;
+  final FirebaseFirestore? _customDb;
 
   FirestoreService({FirebaseFirestore? firestore})
-      : _db = firestore ?? FirebaseFirestore.instance;
+      : _customDb = firestore;
+
+  FirebaseFirestore get _db => _customDb ?? FirebaseFirestore.instance;
 
   // ===========================================================================
   // COLLECTION REFERENCES (Matching Official PDF Schema)
@@ -79,13 +80,13 @@ class FirestoreService {
   // ===========================================================================
 
   /// Saves a UserProfile document in `users` and category-specific collection (`dealers`, `wholesalers`, etc.)
+  /// containing ONLY public business metadata (NO password or credential fields).
   Future<void> createUserProfile({
     required String uid,
     required String phoneNumber,
     required String fullName,
     required String role,
     String? email,
-    String? password,
     String? city,
     String? state,
     String? stateCode,
@@ -98,29 +99,61 @@ class FirestoreService {
   }) async {
     try {
       final categoryLabel = UserCategory.getLabel(role);
-      final profile = UserProfile(
-        userId: uid,
-        name: fullName,
-        companyName: companyName ?? '',
-        phone: phoneNumber,
-        email: email ?? '',
-        userCategory: role,
-        role: role,
-        salesPersonId: assignedSalespersonId,
-        referralCode: userReferralCode,
-        phoneVerified: isVerified,
-        whatsappVerified: isVerified,
-        address: address ?? const {},
-        city: city ?? '',
-        state: state ?? stateCode ?? '',
-        pincode: pincode ?? '',
-        status: 'active',
-        createdAt: DateTime.now(),
-      );
+
+      // Ensure E.164 phone formatting
+      String formattedPhone = phoneNumber.trim();
+      if (!formattedPhone.startsWith('+')) {
+        final digits = formattedPhone.replaceAll(RegExp(r'\D'), '');
+        formattedPhone = digits.length == 10 ? '+91$digits' : '+$digits';
+      }
+
+      String countryCode = '+91';
+      String rawPhone = formattedPhone.replaceAll(RegExp(r'\D'), '');
+      if (formattedPhone.startsWith('+')) {
+        final cleanPhone = formattedPhone.replaceAll(RegExp(r'\s+'), '');
+        final match = RegExp(r'^(\+\d{1,4})(\d{6,12})$').firstMatch(cleanPhone);
+        if (match != null) {
+          countryCode = match.group(1)!;
+          rawPhone = match.group(2)!;
+        } else {
+          final digits = cleanPhone.replaceAll(RegExp(r'\D'), '');
+          if (digits.length > 10) {
+            countryCode = '+${digits.substring(0, digits.length - 10)}';
+            rawPhone = digits.substring(digits.length - 10);
+          } else {
+            countryCode = '+91';
+            rawPhone = digits;
+          }
+        }
+      }
 
       final docData = {
-        ...profile.toMap(),
-        if (password != null && password.isNotEmpty) 'password': password,
+        'userId': uid,
+        'uid': uid,
+        'name': fullName,
+        'fullName': fullName,
+        'companyName': companyName ?? '',
+        'phone': formattedPhone,
+        'phoneNumber': formattedPhone,
+        'countryCode': countryCode,
+        'rawPhone': rawPhone,
+        'email': email ?? '',
+        'userCategory': role,
+        'role': role,
+        'salesPersonId': assignedSalespersonId,
+        'assignedSalespersonId': assignedSalespersonId,
+        'referralCode': userReferralCode,
+        'status': 'active',
+        'phoneVerified': isVerified,
+        'emailVerified': isVerified,
+        'whatsappVerified': isVerified,
+        'address': address ?? const {},
+        'city': city ?? '',
+        'state': state ?? stateCode ?? '',
+        'pincode': pincode ?? '',
+        'isVerified': isVerified,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       // 1. Store in primary `users` collection
@@ -156,18 +189,33 @@ class FirestoreService {
         return {'id': directDoc.id, ...directDoc.data()!};
       }
 
-      // 2. Query by phone / phoneNumber
-      final formattedPhone = clean.startsWith('+91') ? clean : '+91$clean';
-      var phoneQuery = await _usersRef.where('phone', isEqualTo: formattedPhone).limit(1).get();
+      // 2. Query by phone / phoneNumber / rawPhone
+      final cleanDigits = clean.replaceAll(RegExp(r'\D'), '');
+
+      // Check exact phone match
+      var phoneQuery = await _usersRef.where('phone', isEqualTo: clean).limit(1).get();
       if (phoneQuery.docs.isNotEmpty) {
-        final doc = phoneQuery.docs.first;
-        return {'id': doc.id, ...doc.data()};
+        return {'id': phoneQuery.docs.first.id, ...phoneQuery.docs.first.data()};
       }
 
-      var rawPhoneQuery = await _usersRef.where('phone', isEqualTo: clean).limit(1).get();
+      if (!clean.startsWith('+')) {
+        phoneQuery = await _usersRef.where('phone', isEqualTo: '+$clean').limit(1).get();
+        if (phoneQuery.docs.isNotEmpty) {
+          return {'id': phoneQuery.docs.first.id, ...phoneQuery.docs.first.data()};
+        }
+      }
+
+      // Check +91 formatted phone match
+      final formattedPhone91 = clean.startsWith('+') ? clean : '+91$cleanDigits';
+      phoneQuery = await _usersRef.where('phone', isEqualTo: formattedPhone91).limit(1).get();
+      if (phoneQuery.docs.isNotEmpty) {
+        return {'id': phoneQuery.docs.first.id, ...phoneQuery.docs.first.data()};
+      }
+
+      // Check rawPhone match
+      var rawPhoneQuery = await _usersRef.where('rawPhone', isEqualTo: cleanDigits).limit(1).get();
       if (rawPhoneQuery.docs.isNotEmpty) {
-        final doc = rawPhoneQuery.docs.first;
-        return {'id': doc.id, ...doc.data()};
+        return {'id': rawPhoneQuery.docs.first.id, ...rawPhoneQuery.docs.first.data()};
       }
 
       var phoneNumberQuery = await _usersRef.where('phoneNumber', isEqualTo: clean).limit(1).get();
@@ -504,7 +552,6 @@ class FirestoreService {
   }) async {
     try {
       final clientDoc = await getUserProfile(clientId);
-      final existingSpId = clientDoc?.salesPersonId;
 
       final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(clientId).get();
       final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(clientId).get();
@@ -800,10 +847,8 @@ class FirestoreService {
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
 
     int computedBoxes = 0;
-    double computedSqFt = 0.0;
     final pendingItems = items.map((i) {
       computedBoxes += i.quantityBoxes;
-      computedSqFt += i.quantitySqFt;
       return OrderItem(
         productId: i.productId,
         sku: i.sku,
@@ -1379,7 +1424,7 @@ class FirestoreService {
         'enteredAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error saving customer referral code: $e');
+      debugPrint('Error saving customer referral code: $e');
     }
   }
 

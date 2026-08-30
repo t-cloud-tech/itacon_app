@@ -24,6 +24,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   late int _currentIndex;
   final AppStateService _appState = AppStateService();
   bool _isCapsule = false;
+  final GlobalKey<ScaffoldState> _homeScaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -32,6 +33,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _onTabSelected(int index) {
+    if (_homeScaffoldKey.currentState?.isDrawerOpen == true) {
+      _homeScaffoldKey.currentState?.closeDrawer();
+    }
     setState(() {
       _currentIndex = index;
       _isCapsule = false;
@@ -62,7 +66,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      HomeScreen(onNavigateTab: _onTabSelected),
+      HomeScreen(
+        onNavigateTab: _onTabSelected,
+        scaffoldKey: _homeScaffoldKey,
+      ),
       const ProductListingScreen(subcategoryTitle: 'Products Collection'),
       const FavoritesScreen(),
       const OrdersScreen(),

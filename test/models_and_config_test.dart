@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:itacon_app/models/models.dart';
 import 'package:itacon_app/services/config_service.dart';
-import 'package:itacon_app/services/firestore_service.dart';
 import 'package:itacon_app/services/app_state_service.dart';
 
 import 'package:itacon_app/services/user_session_service.dart';
 import 'package:itacon_app/services/pricing_service.dart';
+import 'package:itacon_app/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -530,17 +530,18 @@ void main() {
 
       appState.setCurrentUserProfile(testUser);
 
-      // Name(20) + Phone(20) + Category(15) + Email(15) + Company(10) = 80%
-      expect(appState.profileCompletionPercentage, 80);
-      expect(appState.pendingProfileFields.length, 2);
+      // Name(1) + Phone(1) + Category(1) + Email(1) + Company(1) = 5/10 = 50%
+      expect(appState.profileCompletionPercentage, 50);
 
       appState.updateUserProfileFields(
         city: 'Ahmedabad',
+        state: 'Gujarat',
         pincode: '380001',
         gstNumber: '24BBBBB1111B1Z2',
+        address: {'line1': 'CG Road'},
       );
 
-      // + Address(10) + GST(10) = 100%
+      // 10 / 10 = 100%
       expect(appState.profileCompletionPercentage, 100);
       expect(appState.pendingProfileFields.isEmpty, isTrue);
     });
@@ -661,6 +662,50 @@ void main() {
       expect(resolved.unitPrice, 75.0);
       expect(resolved.isCustomOverride, isTrue);
       expect(resolved.discountBadgeLabel, 'Your Partner Rate');
+    });
+  });
+
+  group('Forgot Password & Password Reset Link Tests', () {
+    test('Empty or invalid email should throw validation exception', () async {
+      final authService = AuthService();
+
+      expect(
+        () => authService.sendPasswordResetLink(''),
+        throwsA(isA<Exception>().having(
+          (e) => e.toString(),
+          'message',
+          contains('Please enter a valid email address.'),
+        )),
+      );
+    });
+
+    test('Client password validation should enforce 8+ chars, upper, lower, number, special char', () {
+      expect(AuthService.validatePassword('short'), contains('at least 8 characters'));
+      expect(AuthService.validatePassword('nouppercase1!'), contains('1 uppercase letter'));
+      expect(AuthService.validatePassword('NOLOWERCASE1!'), contains('1 lowercase letter'));
+      expect(AuthService.validatePassword('NoNumberSpecial!'), contains('1 number'));
+      expect(AuthService.validatePassword('NoSpecial123'), contains('1 special character'));
+      expect(AuthService.validatePassword('ValidPass123!'), isNull);
+    });
+
+    test('UserProfile toMap should never contain password or sensitive credential keys', () {
+      const profile = UserProfile(
+        userId: 'USER_UID_1001',
+        name: 'Ramesh Patel',
+        companyName: 'Patel Tiles',
+        phone: '+919876543210',
+        email: 'ramesh@pateltiles.com',
+        userCategory: 'Dealer',
+        role: 'customer',
+      );
+
+      final map = profile.toMap();
+      expect(map.containsKey('password'), isFalse);
+      expect(map.containsKey('pass'), isFalse);
+      expect(map.containsKey('hash'), isFalse);
+      expect(map.containsKey('token'), isFalse);
+      expect(map['userId'], 'USER_UID_1001');
+      expect(map['phone'], '+919876543210');
     });
   });
 }

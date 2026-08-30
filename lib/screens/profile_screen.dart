@@ -3,7 +3,6 @@ import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
-import '../services/pricing_service.dart';
 import '../models/user_profile.dart';
 import '../widgets/profile_tier_card.dart';
 import 'auth_screen.dart';
@@ -220,13 +219,17 @@ class ProfileScreen extends StatelessWidget {
                               );
                             } catch (_) {}
 
-                            Navigator.pop(modalCtx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Profile details updated successfully!'),
-                                backgroundColor: AppTheme.primaryNavy,
-                              ),
-                            );
+                            if (modalCtx.mounted) {
+                              Navigator.pop(modalCtx);
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Profile details updated successfully!'),
+                                  backgroundColor: AppTheme.primaryNavy,
+                                ),
+                              );
+                            }
                           },
                           child: const Text('Save Profile Changes'),
                         ),
@@ -589,27 +592,14 @@ class ProfileScreen extends StatelessWidget {
                         _buildTile(
                           Icons.logout_rounded,
                           'Log Out',
-                          () async {
-                            await UserSessionService.clearUserSession();
-                            if (context.mounted) {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const AuthScreen(
-                                    initialMode: AuthViewMode.login,
-                                  ),
-                                ),
-                                (route) => false,
-                              );
-                            }
-                          },
+                          () => _performDirectLogout(context),
                           isDestructive: true,
                         ),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 120),
               ],
             ),
           );
@@ -646,6 +636,21 @@ class ProfileScreen extends StatelessWidget {
             ),
       onTap: onTap,
     );
+  }
+
+  Future<void> _performDirectLogout(BuildContext context) async {
+    await UserSessionService.clearUserSession();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AuthScreen(
+            initialMode: AuthViewMode.login,
+          ),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   void _openContractRatesBottomSheet(BuildContext context, UserProfile profile) {

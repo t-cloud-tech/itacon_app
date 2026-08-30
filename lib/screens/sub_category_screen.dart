@@ -164,7 +164,7 @@ class SubCategoryScreen extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: subCats.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, _) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final item = subCats[index];
                 return GestureDetector(
@@ -190,7 +190,7 @@ class SubCategoryScreen extends StatelessWidget {
                             width: 64,
                             height: 64,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               width: 64,
                               height: 64,
                               color: AppTheme.primaryNavy.withValues(alpha: 0.1),

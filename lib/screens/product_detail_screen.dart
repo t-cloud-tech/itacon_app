@@ -152,7 +152,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         width: double.infinity,
                         height: calculatedFrameHeight,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        errorBuilder: (_, _, _) => Container(
                           color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                           child: const Icon(Icons.terrain_rounded,
                               size: 64, color: AppTheme.primaryNavy),
@@ -339,7 +339,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       ),
                                     ),
                                     Text(
-                                      '(${sqFtPerBox} sq.ft / Box)',
+                                      '($sqFtPerBox sq.ft / Box)',
                                       style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                                     ),
                                   ],
@@ -349,7 +349,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      'Est. Coverage (${_quantity} Boxes)',
+                                      'Est. Coverage ($_quantity Boxes)',
                                       style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
                                     ),
                                     Text(

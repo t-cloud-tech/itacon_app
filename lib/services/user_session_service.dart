@@ -100,25 +100,14 @@ class UserSessionService {
   /// Clears user session and logs out completely
   static Future<void> clearUserSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyIsLoggedIn, false);
-    await prefs.remove(_keyUserId);
-    await prefs.remove(_keyUserName);
-    await prefs.remove(_keyUserPhone);
-    await prefs.remove(_keyUserEmail);
-    await prefs.remove(_keyUserCompany);
-    await prefs.remove(_keyUserCategory);
-    await prefs.remove(_keyUserRole);
-    await prefs.remove(_keyUserCity);
-    await prefs.remove(_keyUserState);
-    await prefs.remove(_keyUserPincode);
-    await prefs.remove(_keyUserGst);
-    await prefs.remove(_keyUserAddressJson);
+    await prefs.clear();
 
     try {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
 
-    // Reset AppStateService user profile to null
+    // Reset AppStateService user profile, cart, and favorites
     AppStateService.instance.clearUserProfile();
+    AppStateService.instance.clearCartAndFavorites();
   }
 }

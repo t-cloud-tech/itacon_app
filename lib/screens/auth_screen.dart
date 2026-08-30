@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import '../theme/app_theme.dart';
 import '../models/user_category.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
-import 'home_screen.dart';
 import 'referral_gate_screen.dart';
 import 'main_navigation_screen.dart';
+import 'auth/forgot_password_screen.dart';
 
 enum AuthViewMode { choice, login, signup }
 
@@ -34,6 +36,9 @@ class _AuthScreenState extends State<AuthScreen> {
   final _loginPasswordController = TextEditingController();
   final _loginReferralCodeController = TextEditingController();
 
+  String _loginE164Phone = '';
+  String _regE164Phone = '';
+
   final _loginFormKey = GlobalKey<FormState>();
 
   // Login Step & OTP state
@@ -41,17 +46,21 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _loginOtpSent = false;
 
   void _requestLoginOtp() async {
-    final phone = _loginPhoneController.text.trim();
-    if (phone.length < 10) {
+    final rawPhone = _loginPhoneController.text.trim();
+    if (rawPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please enter a valid 10-digit mobile number.')),
+            content: Text('Please enter a valid mobile number.')),
       );
       return;
     }
+    final formattedPhone = _loginE164Phone.isNotEmpty
+        ? _loginE164Phone
+        : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
+
     setState(() => _isLoading = true);
     await _authService.sendOtp(
-      phoneNumber: '+91$phone',
+      phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
         setState(() {
@@ -119,17 +128,21 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _requestOtp() async {
-    final phone = _regPhoneController.text.trim();
-    if (phone.length < 10) {
+    final rawPhone = _regPhoneController.text.trim();
+    if (rawPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please enter a valid 10-digit mobile number.')),
+            content: Text('Please enter a valid mobile number.')),
       );
       return;
     }
+    final formattedPhone = _regE164Phone.isNotEmpty
+        ? _regE164Phone
+        : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
+
     setState(() => _isLoading = true);
     await _authService.sendOtp(
-      phoneNumber: '+91$phone',
+      phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
         setState(() {
@@ -158,8 +171,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-
-
   void _handleRegistration() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -170,11 +181,17 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
+    final formattedPhone = _regE164Phone.isNotEmpty
+        ? _regE164Phone
+        : (_regPhoneController.text.trim().startsWith('+')
+            ? _regPhoneController.text.trim()
+            : '+91${_regPhoneController.text.trim()}');
+
     setState(() => _isLoading = true);
     try {
       await _authService.registerUser(
         fullName: _regFullNameController.text.trim(),
-        phoneNumber: '+91${_regPhoneController.text.trim()}',
+        phoneNumber: formattedPhone,
         categoryId: _selectedCategory ?? UserCategory.allCategories.first.id,
         password: _regPasswordController.text.trim(),
         companyName: _regCompanyNameController.text.trim(),
@@ -525,8 +542,14 @@ class _AuthScreenState extends State<AuthScreen> {
   // 2. LOGIN VIEW SCREEN
   // ===========================================================================
   Widget _buildLoginView() {
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final double bannerHeight = isKeyboardOpen ? 75.0 : 220.0;
+    final double cardTopPadding = isKeyboardOpen ? 60.0 : 190.0;
+    final double lockBadgeTop = isKeyboardOpen ? 45.0 : 179.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -535,7 +558,7 @@ class _AuthScreenState extends State<AuthScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
               child: SizedBox(
-                height: 54,
+                height: 50,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -553,23 +576,16 @@ class _AuthScreenState extends State<AuthScreen> {
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 4.0, vertical: 2.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.arrow_back_rounded,
-                                  color: Color(0xFF1B365D), size: 20),
-                              SizedBox(width: 4),
-                            ],
-                          ),
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.arrow_back_rounded,
+                              color: Color(0xFF1B365D), size: 20),
                         ),
                       ),
                     ),
                     Center(
                       child: Image.asset(
                         'assets/images/itacon-logo.png',
-                        height: 48,
+                        height: 44,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) =>
                             _buildHeaderLogoSmall(),
@@ -585,12 +601,12 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // 2.1 Header Banner (Height: 230)
+                  // 2.1 Header Banner (Adaptive Height)
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 230,
+                    height: bannerHeight,
                     child: Stack(
                       children: [
                         Positioned.fill(
@@ -601,68 +617,55 @@ class _AuthScreenState extends State<AuthScreen> {
                                 Container(color: Colors.white),
                           ),
                         ),
-                        Positioned.fill(
-                          child: ClipPath(
-                            clipper: CurvedBannerClipper(),
-                            child: Image.asset(
-                              'assets/images/signup_banner.png',
-                              fit: BoxFit.cover,
-                              alignment: Alignment.centerLeft,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/signup_banner.jpeg',
-                                  fit: BoxFit.cover,
-                                  alignment: Alignment.centerLeft,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: const Color(0xFF1B365D),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.home_outlined,
-                                          color: Colors.white24,
-                                          size: 48,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
+                        if (!isKeyboardOpen)
+                          Positioned.fill(
+                            child: ClipPath(
+                              clipper: CurvedBannerClipper(),
+                              child: Image.asset(
+                                'assets/images/signup_banner.png',
+                                fit: BoxFit.cover,
+                                alignment: Alignment.centerLeft,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(color: const Color(0xFF1B365D));
+                                },
+                              ),
                             ),
                           ),
-                        ),
                         Positioned(
                           left: 20,
-                          top: 25,
+                          top: isKeyboardOpen ? 12 : 25,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Welcome\nBack!',
+                              Text(
+                                isKeyboardOpen ? 'Welcome Back!' : 'Welcome\nBack!',
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: isKeyboardOpen ? 20 : 26,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1B365D),
+                                  color: const Color(0xFF1B365D),
                                   height: 1.15,
                                 ),
                               ),
-                              Container(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 5),
-                                width: 36,
-                                height: 3.5,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF16528),
-                                  borderRadius: BorderRadius.circular(2),
+                              if (!isKeyboardOpen) ...[
+                                Container(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 5),
+                                  width: 36,
+                                  height: 3.5,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF16528),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
-                              ),
-                              const Text(
-                                'Sign in to your account',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Color(0xFF757575),
-                                  fontWeight: FontWeight.w400,
+                                const Text(
+                                  'Sign in to your account',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Color(0xFF757575),
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -670,9 +673,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // 2.2 White Form Sheet Container (Overlaps 30px over bottom of banner)
+                  // 2.2 White Form Sheet Container (Scrollable Form Body)
                   Positioned.fill(
-                    top: 200,
+                    top: cardTopPadding,
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -688,89 +691,85 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.fromLTRB(20, 38, 20, 14),
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
                       child: Form(
                         key: _loginFormKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // 2-Step Timeline Indicator for Login
-                            _buildLoginTimelineIndicator(),
-                            const SizedBox(height: 12),
-
-                            Expanded(
-                              child: SingleChildScrollView(
-                                physics: const ClampingScrollPhysics(),
-                                child: _buildLoginFormFields(),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-
-                            // Login Action Button
-                            _buildLoginActionButton(),
-                            const SizedBox(height: 8),
-
-                            // Footer Sign Up Link
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Don't have an account? ",
-                                  style: TextStyle(
-                                      color: Color(0xFF6B7280), fontSize: 13),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _viewMode = AuthViewMode.signup;
-                                    });
-                                  },
-                                  child: const Text(
-                                    'Sign up',
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildLoginTimelineIndicator(),
+                              const SizedBox(height: 12),
+                              _buildLoginFormFields(),
+                              const SizedBox(height: 16),
+                              _buildLoginActionButton(),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "Don't have an account? ",
                                     style: TextStyle(
-                                      color: Color(0xFF1B365D),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                        color: Color(0xFF6B7280), fontSize: 13),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _viewMode = AuthViewMode.signup;
+                                      });
+                                    },
+                                    child: const Text(
+                                      'Sign up',
+                                      style: TextStyle(
+                                        color: Color(0xFF1B365D),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
 
-                  // 2.3 Centered Floating Avatar Badge (Centered at top edge of white sheet)
-                  Positioned(
-                    top: 179,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B365D),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.white, width: 2.5),
-                        ),
-                        child: const Icon(
-                          Icons.lock_outline_rounded,
-                          color: Colors.white,
-                          size: 21,
+                  // 2.3 Centered Floating Lock Badge
+                  if (!isKeyboardOpen)
+                    Positioned(
+                      top: lockBadgeTop,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1B365D),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.white, width: 2.5),
+                          ),
+                          child: const Icon(
+                            Icons.lock_outline_rounded,
+                            color: Colors.white,
+                            size: 21,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -880,20 +879,63 @@ class _AuthScreenState extends State<AuthScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _buildCustomInputField(
+                child: IntlPhoneField(
                   controller: _loginPhoneController,
-                  hintText: '9876543210',
-                  prefixIcon: Icons.phone_iphone_outlined,
-                  prefixText: '+91 ',
-                  keyboardType: TextInputType.phone,
-                  validator: (v) => v == null || v.trim().length < 10
-                      ? 'Enter 10-digit mobile number'
-                      : null,
+                  initialCountryCode: 'IN',
+                  showCountryFlag: true,
+                  showDropdownIcon: true,
+                  dropdownIconPosition: IconPosition.trailing,
+                  dropdownIcon: const Icon(Icons.arrow_drop_down_rounded,
+                      color: AppTheme.primaryNavy, size: 20),
+                  flagsButtonMargin: const EdgeInsets.only(left: 6),
+                  disableLengthCheck: false,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textDark,
+                      fontWeight: FontWeight.w500),
+                  dropdownTextStyle: const TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textDark,
+                      fontWeight: FontWeight.w600),
+                  decoration: InputDecoration(
+                    hintText: 'Enter Mobile Number',
+                    hintStyle: TextStyle(
+                        fontSize: 12, color: Colors.grey.shade400),
+                    fillColor: Colors.grey.shade50,
+                    filled: true,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 8),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                          color: AppTheme.primaryNavy, width: 2),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: Colors.red, width: 1),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: Colors.red, width: 2),
+                    ),
+                  ),
+                  onChanged: (phone) {
+                    setState(() {
+                      _loginE164Phone = phone.completeNumber;
+                    });
+                  },
                 ),
               ),
               const SizedBox(width: 6),
               SizedBox(
-                height: 38,
+                height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1B365D),
@@ -954,6 +996,32 @@ class _AuthScreenState extends State<AuthScreen> {
             validator: (v) => v == null || v.isEmpty
                 ? 'Enter your password'
                 : null,
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: () {
+                ForgotPasswordScreen.showAsBottomSheet(
+                  context,
+                  initialEmail: _loginUsernameController.text.contains('@')
+                      ? _loginUsernameController.text.trim()
+                      : null,
+                );
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                child: Text(
+                  'Forgot Password?',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFFF16528),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       );
@@ -1046,8 +1114,14 @@ class _AuthScreenState extends State<AuthScreen> {
   // 3. SIGNUP VIEW SCREEN (Redesigned matching requested mockup)
   // ===========================================================================
   Widget _buildSignupView() {
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final double bannerHeight = isKeyboardOpen ? 75.0 : 220.0;
+    final double cardTopPadding = isKeyboardOpen ? 60.0 : 190.0;
+    final double badgeTop = isKeyboardOpen ? 45.0 : 179.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -1056,7 +1130,7 @@ class _AuthScreenState extends State<AuthScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
               child: SizedBox(
-                height: 54,
+                height: 50,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -1072,31 +1146,16 @@ class _AuthScreenState extends State<AuthScreen> {
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 4.0, vertical: 2.0),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.arrow_back_rounded,
-                                  color: Color(0xFF1B365D), size: 20),
-                              SizedBox(width: 4),
-                              // Text(
-                              //   'Back',
-                              //   style: TextStyle(
-                              //     fontSize: 14,
-                              //     fontWeight: FontWeight.w600,
-                              //     color: Color(0xFF1B365D),
-                              //   ),
-                              // ),
-                            ],
-                          ),
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.arrow_back_rounded,
+                              color: Color(0xFF1B365D), size: 20),
                         ),
                       ),
                     ),
                     Center(
                       child: Image.asset(
                         'assets/images/itacon-logo.png',
-                        height: 48,
+                        height: 44,
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) =>
                             _buildHeaderLogoSmall(),
@@ -1112,15 +1171,14 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // 2.1 Header Banner (Height: 230)
+                  // 2.1 Header Banner (Adaptive Height)
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 230,
+                    height: bannerHeight,
                     child: Stack(
                       children: [
-                        // Texture background image
                         Positioned.fill(
                           child: Image.asset(
                             'assets/images/auth_bg.png',
@@ -1129,70 +1187,55 @@ class _AuthScreenState extends State<AuthScreen> {
                                 Container(color: Colors.white),
                           ),
                         ),
-                        // Right side curved image clip spanning full width
-                        Positioned.fill(
-                          child: ClipPath(
-                            clipper: CurvedBannerClipper(),
-                            child: Image.asset(
-                              'assets/images/signup_banner.png',
-                              fit: BoxFit.cover,
-                              alignment: Alignment.centerLeft,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
-                                  'assets/images/signup_banner.jpeg',
-                                  fit: BoxFit.cover,
-                                  alignment: Alignment.centerLeft,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: const Color(0xFF1B365D),
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.home_outlined,
-                                          color: Colors.white24,
-                                          size: 48,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
+                        if (!isKeyboardOpen)
+                          Positioned.fill(
+                            child: ClipPath(
+                              clipper: CurvedBannerClipper(),
+                              child: Image.asset(
+                                'assets/images/signup_banner.png',
+                                fit: BoxFit.cover,
+                                alignment: Alignment.centerLeft,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(color: const Color(0xFF1B365D));
+                                },
+                              ),
                             ),
                           ),
-                        ),
-                        // Left side text block
                         Positioned(
                           left: 20,
-                          top: 25,
+                          top: isKeyboardOpen ? 12 : 25,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Create your\naccount',
+                              Text(
+                                isKeyboardOpen ? 'Create Account' : 'Create your\naccount',
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: isKeyboardOpen ? 20 : 26,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1B365D),
+                                  color: const Color(0xFF1B365D),
                                   height: 1.15,
                                 ),
                               ),
-                              Container(
-                                margin:
-                                    const EdgeInsets.symmetric(vertical: 5),
-                                width: 36,
-                                height: 3.5,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF16528),
-                                  borderRadius: BorderRadius.circular(2),
+                              if (!isKeyboardOpen) ...[
+                                Container(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 5),
+                                  width: 36,
+                                  height: 3.5,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF16528),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
-                              ),
-                              const Text(
-                                "Let's get you started",
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Color(0xFF757575),
-                                  fontWeight: FontWeight.w400,
+                                const Text(
+                                  "Let's get you started",
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Color(0xFF757575),
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -1200,9 +1243,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
 
-                  // 2.2 White Form Sheet Container (Overlaps 30px over bottom of banner!)
+                  // 2.2 White Form Sheet Container (Scrollable Form Body)
                   Positioned.fill(
-                    top: 200,
+                    top: cardTopPadding,
                     child: Container(
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -1218,90 +1261,85 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.fromLTRB(20, 38, 20, 14),
+                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
                       child: Form(
                         key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // 3.1 TIMELINE STEP INDICATOR (BEFORE ALL FIELDS)
-                            _buildTimelineIndicator(),
-                            const SizedBox(height: 12),
-
-                            // 3.2 STEP FIELD INPUTS
-                            Expanded(
-                              child: SingleChildScrollView(
-                                physics: const ClampingScrollPhysics(),
-                                child: _buildStepFields(),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-
-                            // 3.3 CONTINUE / ACTION BUTTON
-                            _buildSignupActionButton(),
-                            const SizedBox(height: 8),
-
-                            // 3.4 FOOTER LOG IN LINK
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  "Already have an account? ",
-                                  style: TextStyle(
-                                      color: Color(0xFF6B7280), fontSize: 13),
-                                ),
-                                GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _viewMode = AuthViewMode.login;
-                                    });
-                                  },
-                                  child: const Text(
-                                    'Log in',
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _buildTimelineIndicator(),
+                              const SizedBox(height: 12),
+                              _buildStepFields(),
+                              const SizedBox(height: 16),
+                              _buildSignupActionButton(),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "Already have an account? ",
                                     style: TextStyle(
-                                      color: Color(0xFF1B365D),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
+                                        color: Color(0xFF6B7280), fontSize: 13),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _viewMode = AuthViewMode.login;
+                                      });
+                                    },
+                                    child: const Text(
+                                      'Log in',
+                                      style: TextStyle(
+                                        color: Color(0xFF1B365D),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
 
-                  // 2.3 Centered Floating Avatar Badge (Centered at top edge of white sheet)
-                  Positioned(
-                    top: 179, // Centered vertically on y = 200 seam
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1B365D),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.white, width: 2.5),
-                        ),
-                        child: const Icon(
-                          Icons.person_outline_rounded,
-                          color: Colors.white,
-                          size: 21,
+                  // 2.3 Centered Floating Avatar Badge
+                  if (!isKeyboardOpen)
+                    Positioned(
+                      top: badgeTop,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1B365D),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                            border: Border.all(color: Colors.white, width: 2.5),
+                          ),
+                          child: const Icon(
+                            Icons.person_outline_rounded,
+                            color: Colors.white,
+                            size: 21,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -1501,20 +1539,63 @@ class _AuthScreenState extends State<AuthScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _buildCustomInputField(
+              child: IntlPhoneField(
                 controller: _regPhoneController,
-                hintText: '9876543210',
-                prefixIcon: Icons.phone_iphone_outlined,
-                prefixText: '+91 ',
-                keyboardType: TextInputType.phone,
-                validator: (v) => v == null || v.trim().length < 10
-                    ? 'Enter 10-digit number'
-                    : null,
+                initialCountryCode: 'IN',
+                showCountryFlag: true,
+                showDropdownIcon: true,
+                dropdownIconPosition: IconPosition.trailing,
+                dropdownIcon: const Icon(Icons.arrow_drop_down_rounded,
+                    color: AppTheme.primaryNavy, size: 20),
+                flagsButtonMargin: const EdgeInsets.only(left: 6),
+                disableLengthCheck: false,
+                style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textDark,
+                    fontWeight: FontWeight.w500),
+                dropdownTextStyle: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textDark,
+                    fontWeight: FontWeight.w600),
+                decoration: InputDecoration(
+                  hintText: 'Enter Mobile Number',
+                  hintStyle: TextStyle(
+                      fontSize: 12, color: Colors.grey.shade400),
+                  fillColor: Colors.grey.shade50,
+                  filled: true,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                        color: AppTheme.primaryNavy, width: 2),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Colors.red, width: 1),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Colors.red, width: 2),
+                  ),
+                ),
+                onChanged: (phone) {
+                  setState(() {
+                    _regE164Phone = phone.completeNumber;
+                  });
+                },
               ),
             ),
             const SizedBox(width: 6),
             SizedBox(
-              height: 38,
+              height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1B365D),
@@ -1551,10 +1632,10 @@ class _AuthScreenState extends State<AuthScreen> {
         ],
 
         // Password
-        _buildFieldLabel('Password'),
+        _buildFieldLabel('Password * (Min 8 chars, 1 Upper, 1 Lower, 1 Num, 1 Symbol)'),
         _buildCustomInputField(
           controller: _regPasswordController,
-          hintText: 'Create a password',
+          hintText: 'Create password (e.g. Itacon@2026)',
           prefixIcon: Icons.lock_outline_rounded,
           obscureText: _obscurePassword,
           suffixIcon: IconButton(
@@ -1569,14 +1650,12 @@ class _AuthScreenState extends State<AuthScreen> {
             onPressed: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
           ),
-          validator: (v) => v == null || v.length < 6
-              ? 'Password must be at least 6 characters'
-              : null,
+          validator: AuthService.validatePassword,
         ),
         const SizedBox(height: 8),
 
         // Confirm Password
-        _buildFieldLabel('Confirm Password'),
+        _buildFieldLabel('Confirm Password *'),
         _buildCustomInputField(
           controller: _regConfirmPasswordController,
           hintText: 'Confirm your password',
@@ -1594,9 +1673,14 @@ class _AuthScreenState extends State<AuthScreen> {
             onPressed: () => setState(
                 () => _obscureConfirmPassword = !_obscureConfirmPassword),
           ),
-          validator: (v) => v != _regPasswordController.text
-              ? 'Passwords do not match'
-              : null,
+          validator: (v) {
+            final passErr = AuthService.validatePassword(_regPasswordController.text);
+            if (passErr != null) return passErr;
+            if (v != _regPasswordController.text) {
+              return 'Passwords do not match';
+            }
+            return null;
+          },
         ),
       ],
     );
@@ -1614,7 +1698,7 @@ class _AuthScreenState extends State<AuthScreen> {
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: DropdownButtonFormField<String>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             hint: Text(
               'Select Category',
               style: TextStyle(

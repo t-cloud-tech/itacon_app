@@ -11,10 +11,12 @@ import '../widgets/app_navigation_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   const HomeScreen({
     super.key,
     this.onNavigateTab,
+    this.scaffoldKey,
   });
 
   @override
@@ -22,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final GlobalKey<ScaffoldState> _internalScaffoldKey = GlobalKey<ScaffoldState>();
+  GlobalKey<ScaffoldState> get _scaffoldKey => widget.scaffoldKey ?? _internalScaffoldKey;
   final TextEditingController _searchController = TextEditingController();
 
   final List<_PopularChip> _popularChips = const [
@@ -203,7 +207,17 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
-      drawer: AppNavigationDrawer(onSelectTab: widget.onNavigateTab),
+      key: _scaffoldKey,
+      drawer: AppNavigationDrawer(
+        onSelectTab: (idx) {
+          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+            _scaffoldKey.currentState?.closeDrawer();
+          }
+          if (widget.onNavigateTab != null) {
+            widget.onNavigateTab!(idx);
+          }
+        },
+      ),
       appBar: AppBar(
         leading: Builder(
           builder: (context) => IconButton(
@@ -659,7 +673,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Why ITACON Trust Section (Brand Pillars & Quality Promise)
             _buildWhyItaconSection(context),
-            const SizedBox(height: 16),
+            const SizedBox(height: 120),
           ],
         ),
       ),

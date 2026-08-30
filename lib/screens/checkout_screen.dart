@@ -338,7 +338,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.request_quote_rounded, color: AppTheme.accentOrange, size: 28),
@@ -398,7 +398,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryNavy.withOpacity(0.08),
+                      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -450,10 +450,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       width: 55,
                       height: 55,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         width: 55,
                         height: 55,
-                        color: AppTheme.primaryNavy.withOpacity(0.1),
+                        color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                         child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy, size: 24),
                       ),
                     ),
@@ -671,7 +671,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               child: RadioListTile<String>(
                 value: title,
+                // ignore: deprecated_member_use
                 groupValue: _selectedPaymentMethod,
+                // ignore: deprecated_member_use
                 onChanged: (val) {
                   if (val != null) setState(() => _selectedPaymentMethod = val);
                 },
@@ -760,10 +762,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             width: 60,
                             height: 60,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
+                            errorBuilder: (_, _, _) => Container(
                               width: 60,
                               height: 60,
-                              color: AppTheme.primaryNavy.withOpacity(0.1),
+                              color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                               child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy, size: 28),
                             ),
                           ),
@@ -792,7 +794,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primaryNavy.withOpacity(0.08),
+                                      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
