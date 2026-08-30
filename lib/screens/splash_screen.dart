@@ -86,20 +86,19 @@ class _SplashScreenState extends State<SplashScreen> {
       body: Stack(
         children: [
           // 1. Bottom Section: Background Photo with Top Portion Visible
-          Positioned(
+          Positioned.fill(
             top: screenSize.height * 0.22,
-            left: 0,
-            right: 0,
-            bottom: 0,
             child: Image.asset(
               'assets/images/splash_img.jpg',
               fit: BoxFit.cover,
               alignment: Alignment.topCenter,
+              filterQuality: FilterQuality.high,
               errorBuilder: (context, error, stackTrace) {
                 return Image.asset(
                   'assets/images/splash_kitchen.jpg',
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
+                  filterQuality: FilterQuality.high,
                   errorBuilder: (context, error, stackTrace) =>
                       Container(color: const Color(0xFF152642)),
                 );
@@ -136,10 +135,12 @@ class _SplashScreenState extends State<SplashScreen> {
                       children: [
                         const Spacer(flex: 2),
 
-                        // ITACON GRANITO Branding Logo
-                        _buildBrandingLogo(),
+                        // ITACON GRANITO Branding Logo (Constrained & aspect-ratio preserved)
+                        _buildBrandingLogo(screenSize),
 
-                        const SizedBox(height: 44),
+                        SizedBox(
+                          height: (screenSize.height * 0.045).clamp(16.0, 44.0),
+                        ),
 
                         // Tagline 1
                         const Text(
@@ -181,18 +182,30 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  Widget _buildBrandingLogo() {
-    return Image.asset(
-      'assets/images/itacon-logo-white.png',
-      width: 250,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/images/itacon-logo.png',
-          width: 250,
-          fit: BoxFit.contain,
-        );
-      },
+  Widget _buildBrandingLogo(Size screenSize) {
+    // Keep logo proportionally scaled with bounds so it never stretches or overflows
+    final double maxLogoWidth = (screenSize.width * 0.65).clamp(180.0, 300.0);
+    final double maxLogoHeight = (screenSize.height * 0.16).clamp(60.0, 130.0);
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: maxLogoWidth,
+        maxHeight: maxLogoHeight,
+      ),
+      child: Image.asset(
+        'assets/images/itacon-logo-white.png',
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset(
+            'assets/images/itacon-logo.png',
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            filterQuality: FilterQuality.high,
+          );
+        },
+      ),
     );
   }
 }
