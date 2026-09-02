@@ -7,6 +7,7 @@ import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
 import '../widgets/product_filter_bottom_sheet.dart';
+import '../widgets/floating_bottom_bar.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 
@@ -15,6 +16,7 @@ class ProductListingScreen extends StatefulWidget {
   final String? initialSize;
   final String? initialSurface;
   final String? initialSearchQuery;
+  final bool showBottomNavBar;
 
   const ProductListingScreen({
     super.key,
@@ -22,6 +24,7 @@ class ProductListingScreen extends StatefulWidget {
     this.initialSize,
     this.initialSurface,
     this.initialSearchQuery,
+    this.showBottomNavBar = true,
   });
 
   @override
@@ -860,6 +863,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: widget.showBottomNavBar
+          ? const AppFloatingBottomBar(currentIndex: 1)
+          : null,
     );
   }
 }

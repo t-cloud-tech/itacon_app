@@ -104,6 +104,7 @@ class AuthService {
     required String phoneNumber,
     required String categoryId,
     required String password,
+    String? religion,
     String? email,
     String? companyName,
     String? referralCode,
@@ -178,6 +179,7 @@ class AuthService {
       phoneNumber: phoneNumber,
       fullName: fullName,
       role: categoryId,
+      religion: religion,
       email: registrationEmail,
       companyName: companyName,
       assignedSalespersonId: assignedSpId,
@@ -188,6 +190,7 @@ class AuthService {
     final registeredProfile = UserProfile(
       userId: uid,
       name: fullName,
+      religion: religion ?? '',
       companyName: companyName ?? '',
       phone: phoneNumber,
       email: registrationEmail,

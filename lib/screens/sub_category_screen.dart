@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
+import '../widgets/floating_bottom_bar.dart';
 import 'product_listing_screen.dart';
 import 'cart_screen.dart';
 
@@ -104,7 +105,7 @@ class SubCategoryScreen extends StatelessWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         child: Column(
           children: [
             // Top Collection Banner
@@ -236,6 +237,7 @@ class SubCategoryScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const AppFloatingBottomBar(currentIndex: 1),
     );
   }
 }

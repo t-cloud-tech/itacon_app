@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UserProfile {
   final String userId; // Firebase Auth UID
   final String name; // User name
+  final String religion; // Religion of user
   final String companyName; // Business/company name
   final String phone; // Mobile number
   final String email; // Email
@@ -29,6 +30,7 @@ class UserProfile {
   const UserProfile({
     required this.userId,
     required this.name,
+    this.religion = '',
     required this.companyName,
     required this.phone,
     required this.email,
@@ -66,6 +68,7 @@ class UserProfile {
   UserProfile copyWith({
     String? userId,
     String? name,
+    String? religion,
     String? companyName,
     String? phone,
     String? email,
@@ -91,6 +94,7 @@ class UserProfile {
     return UserProfile(
       userId: userId ?? this.userId,
       name: name ?? this.name,
+      religion: religion ?? this.religion,
       companyName: companyName ?? this.companyName,
       phone: phone ?? this.phone,
       email: email ?? this.email,
@@ -121,6 +125,7 @@ class UserProfile {
       'uid': userId,
       'name': name,
       'fullName': name,
+      'religion': religion,
       'companyName': companyName,
       'phone': phone,
       'phoneNumber': phone,
@@ -157,6 +162,7 @@ class UserProfile {
     return UserProfile(
       userId: docId,
       name: map['name'] ?? map['fullName'] ?? '',
+      religion: map['religion'] ?? '',
       companyName: map['companyName'] ?? '',
       phone: map['phone'] ?? map['phoneNumber'] ?? '',
       email: map['email'] ?? '',

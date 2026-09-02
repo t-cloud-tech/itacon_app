@@ -65,6 +65,7 @@ class AppStateService extends ChangeNotifier {
         const UserProfile(
           userId: '',
           name: '',
+          religion: '',
           companyName: '',
           phone: '',
           email: '',
@@ -93,6 +94,7 @@ class AppStateService extends ChangeNotifier {
 
   void updateUserProfileFields({
     String? name,
+    String? religion,
     String? email,
     String? phone,
     String? companyName,
@@ -106,6 +108,7 @@ class AppStateService extends ChangeNotifier {
     final current = currentUserProfile;
     _currentUserProfile = current.copyWith(
       name: name ?? current.name,
+      religion: religion ?? current.religion,
       email: email ?? current.email,
       phone: phone ?? current.phone,
       companyName: companyName ?? current.companyName,
@@ -119,14 +122,15 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Total number of tracked profile data points (10 fields)
-  int get profileTotalFieldsCount => 10;
+  /// Total number of tracked profile data points (11 fields)
+  int get profileTotalFieldsCount => 11;
 
   /// Number of completed profile data fields
   int get profileFilledFieldsCount {
     final p = currentUserProfile;
     int count = 0;
     if (p.name.trim().isNotEmpty) count++;
+    if (p.religion.trim().isNotEmpty) count++;
     if (p.phone.trim().isNotEmpty) count++;
     if (p.userCategory.trim().isNotEmpty) count++;
     if (p.email.trim().isNotEmpty) count++;
@@ -149,31 +153,34 @@ class AppStateService extends ChangeNotifier {
     final p = currentUserProfile;
     final List<Map<String, String>> pending = [];
     if (p.name.trim().isEmpty) {
-      pending.add({'title': 'Full Name', 'field': 'name', 'points': '10%'});
+      pending.add({'title': 'Full Name', 'field': 'name', 'points': '9%'});
+    }
+    if (p.religion.trim().isEmpty) {
+      pending.add({'title': 'Religion', 'field': 'religion', 'points': '9%'});
     }
     if (p.phone.trim().isEmpty) {
-      pending.add({'title': 'Phone Number', 'field': 'phone', 'points': '10%'});
+      pending.add({'title': 'Phone Number', 'field': 'phone', 'points': '9%'});
     }
     if (p.email.trim().isEmpty) {
-      pending.add({'title': 'Email Address', 'field': 'email', 'points': '10%'});
+      pending.add({'title': 'Email Address', 'field': 'email', 'points': '9%'});
     }
     if (p.companyName.trim().isEmpty) {
-      pending.add({'title': 'Company / Firm Name', 'field': 'companyName', 'points': '10%'});
+      pending.add({'title': 'Company / Firm Name', 'field': 'companyName', 'points': '9%'});
     }
     if (p.address.isEmpty) {
-      pending.add({'title': 'Street Address', 'field': 'address', 'points': '10%'});
+      pending.add({'title': 'Street Address', 'field': 'address', 'points': '9%'});
     }
     if (p.city.trim().isEmpty) {
-      pending.add({'title': 'City', 'field': 'city', 'points': '10%'});
+      pending.add({'title': 'City', 'field': 'city', 'points': '9%'});
     }
     if (p.state.trim().isEmpty) {
-      pending.add({'title': 'State', 'field': 'state', 'points': '10%'});
+      pending.add({'title': 'State', 'field': 'state', 'points': '9%'});
     }
     if (p.pincode.trim().isEmpty) {
-      pending.add({'title': 'PIN Code', 'field': 'pincode', 'points': '10%'});
+      pending.add({'title': 'PIN Code', 'field': 'pincode', 'points': '9%'});
     }
     if (p.gstNumber.trim().isEmpty) {
-      pending.add({'title': 'GST Number', 'field': 'gstNumber', 'points': '10%'});
+      pending.add({'title': 'GST Number', 'field': 'gstNumber', 'points': '9%'});
     }
     return pending;
   }

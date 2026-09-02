@@ -9,6 +9,7 @@ class UserSessionService {
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyUserId = 'user_id';
   static const String _keyUserName = 'user_name';
+  static const String _keyUserReligion = 'user_religion';
   static const String _keyUserPhone = 'user_phone';
   static const String _keyUserEmail = 'user_email';
   static const String _keyUserCompany = 'user_company';
@@ -26,6 +27,7 @@ class UserSessionService {
     await prefs.setBool(_keyIsLoggedIn, true);
     await prefs.setString(_keyUserId, profile.userId);
     await prefs.setString(_keyUserName, profile.name);
+    await prefs.setString(_keyUserReligion, profile.religion);
     await prefs.setString(_keyUserPhone, profile.phone);
     await prefs.setString(_keyUserEmail, profile.email);
     await prefs.setString(_keyUserCompany, profile.companyName);
@@ -56,6 +58,7 @@ class UserSessionService {
 
     final userId = prefs.getString(_keyUserId) ?? firebaseUser?.uid ?? 'RESTORED_USER';
     final name = prefs.getString(_keyUserName) ?? firebaseUser?.displayName ?? 'Valued Customer';
+    final religion = prefs.getString(_keyUserReligion) ?? '';
     final phone = prefs.getString(_keyUserPhone) ?? firebaseUser?.phoneNumber ?? '';
     final email = prefs.getString(_keyUserEmail) ?? firebaseUser?.email ?? '';
     final companyName = prefs.getString(_keyUserCompany) ?? '';
@@ -77,6 +80,7 @@ class UserSessionService {
     final profile = UserProfile(
       userId: userId,
       name: name,
+      religion: religion,
       companyName: companyName,
       phone: phone,
       email: email,

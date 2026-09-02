@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
+import '../widgets/floating_bottom_bar.dart';
 import 'product_listing_screen.dart';
 import 'cart_screen.dart';
 
@@ -245,6 +246,7 @@ class CategoriesScreen extends StatelessWidget {
           );
         },
       ),
+      bottomNavigationBar: const AppFloatingBottomBar(currentIndex: 1),
     );
   }
 }

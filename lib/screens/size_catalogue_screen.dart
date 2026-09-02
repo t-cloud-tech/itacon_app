@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../constants/tile_categories.dart';
 import '../services/app_state_service.dart';
+import '../widgets/floating_bottom_bar.dart';
 import 'product_listing_screen.dart';
 import 'cart_screen.dart';
 
@@ -233,7 +234,7 @@ class _SizeCatalogueScreenState extends State<SizeCatalogueScreen> {
           // 4 Visual Size Category Cards Grid / List
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
               itemCount: TileCategoriesMatrix.sizeCategories.length,
               itemBuilder: (context, index) {
                 final cat = TileCategoriesMatrix.sizeCategories[index];
@@ -416,6 +417,7 @@ class _SizeCatalogueScreenState extends State<SizeCatalogueScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: const AppFloatingBottomBar(currentIndex: 1),
     );
   }
 }

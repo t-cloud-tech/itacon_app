@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
+import '../models/user_profile.dart';
 import '../services/user_session_service.dart';
 import '../screens/product_listing_screen.dart';
 import '../screens/categories_screen.dart';
@@ -327,6 +329,26 @@ class AppNavigationDrawer extends StatelessWidget {
                       },
                     ),
                     _buildDrawerItem(
+                      icon: Icons.card_giftcard_rounded,
+                      title: 'Refer & Earn',
+                      subtitle: 'Invite partners & earn 500 pts',
+                      onTap: () {
+                        _safeCloseDrawerAndNavigate(context, () {
+                          _showReferAndEarnModal(context, user);
+                        });
+                      },
+                    ),
+                    _buildDrawerItem(
+                      icon: Icons.stars_rounded,
+                      title: 'Loyalty Benefits',
+                      subtitle: 'Tier privileges & points',
+                      onTap: () {
+                        _safeCloseDrawerAndNavigate(context, () {
+                          _showLoyaltyBenefitsModal(context, user);
+                        });
+                      },
+                    ),
+                    _buildDrawerItem(
                       icon: Icons.headset_mic_outlined,
                       title: 'Contact Support',
                       onTap: () {
@@ -334,17 +356,6 @@ class AppNavigationDrawer extends StatelessWidget {
                           _showSupportDialog(context);
                         });
                       },
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Divider(color: AppTheme.borderSubtle),
-                    ),
-                    _buildDrawerItem(
-                      icon: Icons.logout_rounded,
-                      title: 'Log Out',
-                      iconColor: Colors.red,
-                      textColor: Colors.red,
-                      onTap: () => _performDirectLogout(context),
                     ),
                   ],
                 ),
@@ -506,6 +517,624 @@ class AppNavigationDrawer extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Close', style: TextStyle(color: AppTheme.primaryNavy)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReferAndEarnModal(BuildContext context, UserProfile user) {
+    final code = user.referralCode?.isNotEmpty == true
+        ? user.referralCode!
+        : 'ITA-${user.userId.isNotEmpty ? (user.userId.length > 6 ? user.userId.substring(0, 6).toUpperCase() : user.userId.toUpperCase()) : "PARTNER"}';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => Container(
+        height: MediaQuery.of(modalCtx).size.height * 0.78,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Handle Bar
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.card_giftcard_rounded,
+                          color: AppTheme.accentOrange, size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'Refer & Earn',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryNavy,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppTheme.textSubtle),
+                    onPressed: () => Navigator.pop(modalCtx),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppTheme.borderSubtle),
+
+            // Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Banner Hero Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.primaryNavy, Color(0xFF1E3A8A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryNavy.withValues(alpha: 0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentOrange,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'TRADE NETWORK REWARD',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Earn 500 Loyalty Points for Every Referral!',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Invite fellow dealers, architects, contractors & builders to experience ITACON Granito.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Referral Code Box
+                    const Text(
+                      'Your Unique Referral Code',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.backgroundColor,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            code,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 2,
+                              color: AppTheme.primaryNavy,
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryNavy,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 8),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            icon: const Icon(Icons.copy_rounded, size: 14),
+                            label: const Text(
+                              'Copy',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: code));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Referral Code copied to clipboard!'),
+                                  backgroundColor: AppTheme.primaryNavy,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // 3 Steps
+                    const Text(
+                      'How It Works',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildStepRow(
+                      number: '1',
+                      title: 'Share your code',
+                      description:
+                          'Send your code to partners, contractors, or clients.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildStepRow(
+                      number: '2',
+                      title: 'Partner registers',
+                      description:
+                          'They enter your code during onboarding or profile registration.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildStepRow(
+                      number: '3',
+                      title: 'Both receive rewards',
+                      description:
+                          'Get 500 loyalty points credited automatically to your account.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Action
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: AppTheme.borderSubtle),
+                ),
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                    label: const Text(
+                      'Share Code via WhatsApp',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    onPressed: () {
+                      Clipboard.setData(
+                        ClipboardData(
+                          text:
+                              'Join ITACON Granito with my referral code $code to unlock exclusive trade partner prices and points!',
+                        ),
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                              'Referral message copied! Open WhatsApp to share.'),
+                          backgroundColor: Color(0xFF25D366),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLoyaltyBenefitsModal(BuildContext context, UserProfile user) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => Container(
+        height: MediaQuery.of(modalCtx).size.height * 0.78,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Handle Bar
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.stars_rounded,
+                          color: AppTheme.accentOrange, size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'Loyalty Benefits',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryNavy,
+                        ),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppTheme.textSubtle),
+                    onPressed: () => Navigator.pop(modalCtx),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: AppTheme.borderSubtle),
+
+            // Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Member Tier Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [AppTheme.primaryNavy, Color(0xFF1E3A8A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentOrange.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppTheme.accentOrange
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: const Icon(Icons.stars_rounded,
+                                color: AppTheme.accentOrange, size: 28),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'TRADE PARTNER LEVEL',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white60,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                                Text(
+                                  '${user.userCategory.toUpperCase()} TIER',
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Active Trade Status • Verified Member',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.white.withValues(alpha: 0.75),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    const Text(
+                      'Your Exclusive Member Privileges',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildBenefitTile(
+                      icon: Icons.percent_rounded,
+                      title: 'Direct Contract Pricing',
+                      subtitle:
+                          'Special discounted rates on all vitrified slab & tile collections.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBenefitTile(
+                      icon: Icons.local_shipping_outlined,
+                      title: 'Priority Dispatch Queue',
+                      subtitle:
+                          'Fast-track truck loading from Morbi factory warehouse.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBenefitTile(
+                      icon: Icons.view_in_ar_rounded,
+                      title: 'Complimentary 3D Renderings',
+                      subtitle:
+                          'Free realistic architectural tile simulations for your projects.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBenefitTile(
+                      icon: Icons.support_agent_rounded,
+                      title: 'Dedicated Account Manager',
+                      subtitle:
+                          'Direct hotline & WhatsApp desk for instant quotes and samples.',
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBenefitTile(
+                      icon: Icons.redeem_rounded,
+                      title: 'Points Redemption on Invoices',
+                      subtitle:
+                          'Use your accumulated loyalty points as instant checkout discounts.',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Bottom Action
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: AppTheme.borderSubtle),
+                ),
+              ),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryNavy,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(modalCtx);
+                      if (onSelectTab != null) {
+                        onSelectTab!(4);
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileScreen(),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'View Profile & Tier Status',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepRow({
+    required String number,
+    required String title,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 12,
+          backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.1),
+          child: Text(
+            number,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryNavy,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSubtle,
+                  height: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBenefitTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppTheme.primaryNavy, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryNavy,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSubtle,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

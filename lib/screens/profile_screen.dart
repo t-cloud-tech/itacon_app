@@ -14,6 +14,7 @@ class ProfileScreen extends StatelessWidget {
 
   void _openEditProfileModal(BuildContext context, UserProfile profile) {
     final nameController = TextEditingController(text: profile.name);
+    final religionController = TextEditingController(text: profile.religion);
     final emailController = TextEditingController(text: profile.email);
     final phoneController = TextEditingController(text: profile.phone);
     final companyController = TextEditingController(text: profile.companyName);
@@ -81,6 +82,8 @@ class ProfileScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildTextField('Full Name', nameController, Icons.person_outlined),
+                          const SizedBox(height: 14),
+                          _buildTextField('Religion', religionController, Icons.diversity_3_outlined),
                           const SizedBox(height: 14),
                           _buildTextField('Mobile Number', phoneController, Icons.phone_outlined, keyboardType: TextInputType.phone),
                           const SizedBox(height: 14),
@@ -172,6 +175,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           onPressed: () async {
                             final newName = nameController.text.trim();
+                            final newReligion = religionController.text.trim();
                             final newEmail = emailController.text.trim();
                             final newPhone = phoneController.text.trim();
                             final newCompany = companyController.text.trim();
@@ -191,6 +195,7 @@ class ProfileScreen extends StatelessWidget {
                             // Update live AppStateService
                             AppStateService.instance.updateUserProfileFields(
                               name: newName.isNotEmpty ? newName : null,
+                              religion: newReligion,
                               email: newEmail,
                               phone: newPhone.isNotEmpty ? newPhone : null,
                               companyName: newCompany,
@@ -202,12 +207,18 @@ class ProfileScreen extends StatelessWidget {
                               address: updatedAddr,
                             );
 
+                            // Save to persistent SharedPreferences session
+                            await UserSessionService.saveUserSession(
+                              AppStateService.instance.currentUserProfile,
+                            );
+
                             // Update Firestore in background
                             try {
                               await FirestoreService().createUserProfile(
                                 uid: profile.userId,
                                 phoneNumber: newPhone.isNotEmpty ? newPhone : profile.phone,
                                 fullName: newName.isNotEmpty ? newName : profile.name,
+                                religion: newReligion,
                                 role: selectedCategory,
                                 email: newEmail,
                                 companyName: newCompany,

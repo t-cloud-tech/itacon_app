@@ -5,6 +5,7 @@ import '../models/user_profile.dart';
 import '../models/tile_product.dart';
 import 'auth_screen.dart';
 import '../services/user_session_service.dart';
+import '../widgets/floating_bottom_bar.dart';
 
 class ProductCatalogueScreen extends StatefulWidget {
   const ProductCatalogueScreen({super.key});
@@ -288,7 +289,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                             ),
                           )
                         : GridView.builder(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
                               childAspectRatio: 0.72,
@@ -305,6 +306,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                 ],
               ),
             ),
+      bottomNavigationBar: const AppFloatingBottomBar(currentIndex: 1),
     );
   }
 

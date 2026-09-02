@@ -622,7 +622,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: ClipPath(
                               clipper: CurvedBannerClipper(),
                               child: Image.asset(
-                                'assets/images/signup_banner.png',
+                                'assets/images/signup_banner.jpeg',
                                 fit: BoxFit.cover,
                                 alignment: Alignment.centerLeft,
                                 errorBuilder: (context, error, stackTrace) {
@@ -1192,7 +1192,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: ClipPath(
                               clipper: CurvedBannerClipper(),
                               child: Image.asset(
-                                'assets/images/signup_banner.png',
+                                'assets/images/signup_banner.jpeg',
                                 fit: BoxFit.cover,
                                 alignment: Alignment.centerLeft,
                                 errorBuilder: (context, error, stackTrace) {

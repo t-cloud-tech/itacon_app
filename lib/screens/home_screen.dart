@@ -8,6 +8,7 @@ import 'product_listing_screen.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 import '../widgets/app_navigation_drawer.dart';
+import '../widgets/adhesive_section_widget.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -669,6 +670,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+            const SizedBox(height: 30),
+
+            // High-Bond Tile Adhesive Bags Section
+            const AdhesiveSectionWidget(),
             const SizedBox(height: 30),
 
             // Why ITACON Trust Section (Brand Pillars & Quality Promise)
