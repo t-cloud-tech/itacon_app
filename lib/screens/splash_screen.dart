@@ -183,9 +183,9 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Widget _buildBrandingLogo(Size screenSize) {
-    // Keep logo proportionally scaled with bounds so it never stretches or overflows
-    final double maxLogoWidth = (screenSize.width * 0.65).clamp(180.0, 300.0);
-    final double maxLogoHeight = (screenSize.height * 0.16).clamp(60.0, 130.0);
+    // Keep logo proportionally scaled with full breadth from left and right sides
+    final double maxLogoWidth = (screenSize.width * 0.78).clamp(240.0, 350.0);
+    final double maxLogoHeight = (screenSize.height * 0.18).clamp(75.0, 140.0);
 
     return ConstrainedBox(
       constraints: BoxConstraints(
