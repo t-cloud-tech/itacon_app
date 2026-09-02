@@ -43,9 +43,27 @@ class ProductEnums {
   // Tile Sizes
   static const List<Map<String, dynamic>> sizes = [
     {
+      'label': '1200x1800 mm',
+      'aspectRatio': 0.667,
+      'pcsPerBox': 1,
+      'sqFtPerBox': 23.25,
+    },
+    {
+      'label': '800x1600 mm',
+      'aspectRatio': 0.5,
+      'pcsPerBox': 2,
+      'sqFtPerBox': 27.55,
+    },
+    {
       'label': '600x1200 mm',
       'aspectRatio': 0.5,
       'pcsPerBox': 2,
+      'sqFtPerBox': 15.5,
+    },
+    {
+      'label': '600x800 mm',
+      'aspectRatio': 0.75,
+      'pcsPerBox': 3,
       'sqFtPerBox': 15.5,
     },
     {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../theme/app_theme.dart';
-import '../constants/tile_categories.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
@@ -40,18 +38,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   late final ScrollController _scrollController;
   
   String _searchQuery = '';
-  bool _isHeaderExpanded = true;
   String _sortOption = 'default'; // 'default', 'price_asc', 'price_desc', 'name_asc'
 
   late final List<TileProduct> _allProducts;
-
-  final List<String> _quickSizes = const [
-    '1200x1800 mm',
-    '800x1600 mm',
-    '600x1200 mm',
-    '600x800 mm',
-    '600x600 mm',
-  ];
 
   @override
   void initState() {
@@ -59,7 +48,6 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     _searchQuery = widget.initialSearchQuery ?? '';
     _searchController = TextEditingController(text: _searchQuery);
     _scrollController = ScrollController();
-    _scrollController.addListener(_handleScroll);
 
     _searchController.addListener(() {
       setState(() {
@@ -487,29 +475,8 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     ];
   }
 
-  void _handleScroll() {
-    if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    final direction = position.userScrollDirection;
-
-    if (position.pixels <= 20) {
-      if (!_isHeaderExpanded) {
-        setState(() => _isHeaderExpanded = true);
-      }
-    } else if (direction == ScrollDirection.reverse) {
-      if (_isHeaderExpanded) {
-        setState(() => _isHeaderExpanded = false);
-      }
-    } else if (direction == ScrollDirection.forward) {
-      if (!_isHeaderExpanded) {
-        setState(() => _isHeaderExpanded = true);
-      }
-    }
-  }
-
   @override
   void dispose() {
-    _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -786,102 +753,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
             ),
           ),
 
-          // 2. Auto-Hiding Collapsible Dual-Tier Header Rows (Size + Surface)
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            child: _isHeaderExpanded
-                ? Column(
-                    children: [
-                      // Row 1: Size Category Matrix Chips (Multi-Selectable)
-                      Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: SizedBox(
-                          height: 34,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _quickSizes.length,
-                            separatorBuilder: (_, _) => const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final sz = _quickSizes[index];
-                              final isSelected = _activeFilter.selectedSizes.contains(sz);
-
-                              return ChoiceChip(
-                                avatar: isSelected
-                                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                                    : null,
-                                label: Text(sz),
-                                selected: isSelected,
-                                onSelected: (_) => _toggleSizeFilter(sz),
-                                selectedColor: AppTheme.accentOrange,
-                                backgroundColor: Colors.grey.shade100,
-                                labelStyle: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected ? Colors.white : AppTheme.textDark,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                    color: isSelected ? AppTheme.accentOrange : AppTheme.borderSubtle,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-
-                      // Row 2: Surface Finish Filter Pill Tabs (Multi-Selectable)
-                      Container(
-                        color: Colors.white,
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: SizedBox(
-                          height: 34,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: TileCategoriesMatrix.surfaceFinishes.length,
-                            separatorBuilder: (_, _) => const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final surface = TileCategoriesMatrix.surfaceFinishes[index];
-                              final isAll = surface == 'All Surfaces';
-                              final isSelected = isAll
-                                  ? _activeFilter.selectedSurfaces.isEmpty
-                                  : _activeFilter.selectedSurfaces.contains(surface);
-
-                              return ChoiceChip(
-                                avatar: isSelected && !isAll
-                                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                                    : null,
-                                label: Text(surface),
-                                selected: isSelected,
-                                onSelected: (_) => _toggleSurfaceFilter(surface),
-                                selectedColor: AppTheme.primaryNavy,
-                                backgroundColor: Colors.grey.shade100,
-                                labelStyle: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                  color: isSelected ? Colors.white : AppTheme.textDark,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                    color: isSelected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const Divider(height: 1, color: AppTheme.borderSubtle),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
+          const Divider(height: 1, color: AppTheme.borderSubtle),
 
           // 3. Pinned Lightweight Control Line (44px)
           Container(
