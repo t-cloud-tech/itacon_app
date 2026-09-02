@@ -55,6 +55,22 @@ class PricingService extends ChangeNotifier {
     'Retail': 0.00,
   };
 
+  /// Static helper calculating effective unit price given base price, size, surface, and optional user profile
+  static double getEffectivePrice({
+    required double basePrice,
+    required String size,
+    required String surface,
+    UserProfile? userProfile,
+  }) {
+    final user = userProfile ?? AppStateService.instance.currentUserProfile;
+    final category = user.userCategory;
+    final tierDiscountRatio = tierDiscountMap[category] ?? 0.0;
+    if (tierDiscountRatio > 0.0) {
+      return basePrice * (1.0 - tierDiscountRatio);
+    }
+    return basePrice;
+  }
+
   /// Registers a custom SKU price override for a specific user
   void setCustomPriceOverride(String userId, String productId, double customPrice) {
     _customPriceCache['${userId}_$productId'] = customPrice;

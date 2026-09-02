@@ -526,12 +526,13 @@ void main() {
         city: '',
         pincode: '',
         gstNumber: '',
+        religion: '',
       );
 
       appState.setCurrentUserProfile(testUser);
 
-      // Name(1) + Phone(1) + Category(1) + Email(1) + Company(1) = 5/10 = 50%
-      expect(appState.profileCompletionPercentage, 50);
+      // Name(1) + Phone(1) + Category(1) + Email(1) + Company(1) = 5/11 = 45%
+      expect(appState.profileCompletionPercentage, 45);
 
       appState.updateUserProfileFields(
         city: 'Ahmedabad',
@@ -539,9 +540,10 @@ void main() {
         pincode: '380001',
         gstNumber: '24BBBBB1111B1Z2',
         address: {'line1': 'CG Road'},
+        religion: 'Hinduism',
       );
 
-      // 10 / 10 = 100%
+      // 11 / 11 = 100%
       expect(appState.profileCompletionPercentage, 100);
       expect(appState.pendingProfileFields.isEmpty, isTrue);
     });
@@ -706,6 +708,88 @@ void main() {
       expect(map.containsKey('token'), isFalse);
       expect(map['userId'], 'USER_UID_1001');
       expect(map['phone'], '+919876543210');
+    });
+
+    test('FestivalGreeting and UserProfile region mapping should serialize cleanly', () {
+      const profile = UserProfile(
+        userId: 'USER_REGIONAL_101',
+        name: 'Siddharth Shah',
+        companyName: 'Shah Granito',
+        phone: '+919988776655',
+        email: 'sid@shahgranito.com',
+        userCategory: 'Dealer',
+        role: 'customer',
+        region: 'West India (Gujarat/Maharashtra)',
+        fcmToken: 'FCM_DEVICE_TOKEN_SAMPLE_123',
+      );
+
+      final profileMap = profile.toMap();
+      expect(profileMap['region'], 'West India (Gujarat/Maharashtra)');
+      expect(profileMap['fcmToken'], 'FCM_DEVICE_TOKEN_SAMPLE_123');
+
+      final deserializedProfile = UserProfile.fromMap(profileMap, 'USER_REGIONAL_101');
+      expect(deserializedProfile.region, 'West India (Gujarat/Maharashtra)');
+      expect(deserializedProfile.fcmToken, 'FCM_DEVICE_TOKEN_SAMPLE_123');
+
+      const greeting = FestivalGreeting(
+        greetingId: 'GREET_DIWALI_2026',
+        title: 'Happy Diwali & Prosperous New Year! 🪔',
+        message: 'Wishing you & your family abundance and success.',
+        bannerImageUrl: 'https://example.com/banner.jpg',
+        targetDate: '2026-11-08',
+        applicableRegions: ['West India (Gujarat/Maharashtra)', 'North India'],
+        type: 'festival_greeting',
+        isActive: true,
+      );
+
+      final greetingMap = greeting.toMap();
+      expect(greetingMap['greetingId'], 'GREET_DIWALI_2026');
+      expect(greetingMap['type'], 'festival_greeting');
+      expect(greetingMap['applicableRegions'], contains('West India (Gujarat/Maharashtra)'));
+
+      final deserializedGreeting = FestivalGreeting.fromMap(greetingMap, 'GREET_DIWALI_2026');
+      expect(deserializedGreeting.title, 'Happy Diwali & Prosperous New Year! 🪔');
+      expect(deserializedGreeting.applicableRegions.length, 2);
+    });
+
+    test('UserProfile profilePhotoUrl and showroomImages should serialize cleanly', () {
+      const profile = UserProfile(
+        userId: 'USER_GALLERY_101',
+        name: 'Anita Desai',
+        companyName: 'Desai Ceramics',
+        phone: '+919898989898',
+        email: 'anita@desaiceramics.com',
+        userCategory: 'Dealer',
+        role: 'customer',
+        profilePhotoUrl: 'https://example.com/avatar.jpg',
+        showroomImages: [
+          'https://example.com/showroom1.jpg',
+          'https://example.com/showroom2.jpg',
+        ],
+      );
+
+      final map = profile.toMap();
+      expect(map['profilePhotoUrl'], 'https://example.com/avatar.jpg');
+      expect((map['showroomImages'] as List).length, 2);
+
+      final deserialized = UserProfile.fromMap(map, 'USER_GALLERY_101');
+      expect(deserialized.profilePhotoUrl, 'https://example.com/avatar.jpg');
+      expect(deserialized.showroomImages.length, 2);
+    });
+
+    test('SurfaceContractRate discount calculation and default matrix generator should work correctly', () {
+      const rate = SurfaceContractRate(
+        size: '600x1200 mm',
+        surface: 'Glossy',
+        contractRate: 120.0,
+        mrp: 160.0,
+      );
+
+      expect(rate.discountPercent, closeTo(25.0, 0.1));
+
+      final matrix = SurfaceContractRate.getDefaultContractMatrix();
+      expect(matrix.isNotEmpty, isTrue);
+      expect(matrix.any((r) => r.surface == 'High Gloss' && r.size == '600x1200 mm'), isTrue);
     });
   });
 }

@@ -10,7 +10,7 @@ class TileProduct {
   final String categoryId; // Category ID
   final String tileCategory; // Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parkings
   final String size; // e.g. '600x1200 mm'
-  final String surface; // Glossy, Satin Matt, Matt - Carving, Rustic Wood, Semi High Gloss, High Gloss, Anti - Skid
+  final String surface; // Glossy, Satin Matt, Matt - Carving, Rustic Wood, Inky Colors, High Gloss, Anti - Skid, Matt Punch, Sugar Lapato, Pastel Colors
   final String color; // Product color
   final String baseColour; // White, Beige - Brown, Bianco - Grey, Nero, Black
   final String pattern; // Design/pattern

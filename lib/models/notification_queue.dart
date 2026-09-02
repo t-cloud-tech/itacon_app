@@ -4,10 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class NotificationQueueItem {
   final String notificationId; // Notification ID
   final String recipientId; // User receiving notification
-  final String type; // order / estimate / price_list etc.
-  final String event; // order_placed / estimate_ready etc.
+  final String type; // order / estimate / festival_greeting / price_list etc.
+  final String event; // order_placed / estimate_ready / festival_greeting etc.
   final String title; // Notification title
   final String message; // Notification message
+  final String? bannerImageUrl; // Optional graphic for festival greeting
+  final String? region; // Applicable region
+  final bool isRead; // Read status
   final String relatedOrderId; // Related order ID
   final String relatedEstimateId; // Related estimate ID
   final Map<String, dynamic> channels; // inApp / email / whatsapp
@@ -26,6 +29,9 @@ class NotificationQueueItem {
     required this.event,
     required this.title,
     required this.message,
+    this.bannerImageUrl,
+    this.region,
+    this.isRead = false,
     this.relatedOrderId = '',
     this.relatedEstimateId = '',
     this.channels = const {'inApp': true, 'email': true, 'whatsapp': true},
@@ -45,11 +51,15 @@ class NotificationQueueItem {
       'notificationId': notificationId,
       'id': notificationId,
       'recipientId': recipientId,
+      'userId': recipientId,
       'type': type,
       'event': event,
       'eventType': event,
       'title': title,
       'message': message,
+      if (bannerImageUrl != null && bannerImageUrl!.isNotEmpty) 'bannerImageUrl': bannerImageUrl,
+      if (region != null && region!.isNotEmpty) 'region': region,
+      'isRead': isRead,
       'relatedOrderId': relatedOrderId.isNotEmpty ? relatedOrderId : orderId,
       'relatedEstimateId': relatedEstimateId,
       'channels': channels,
@@ -63,6 +73,7 @@ class NotificationQueueItem {
               'title': title,
               'message': message,
               'orderId': relatedOrderId,
+              'bannerImageUrl': bannerImageUrl,
             },
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
@@ -77,8 +88,11 @@ class NotificationQueueItem {
       recipientId: map['recipientId'] ?? map['userId'] ?? '',
       type: map['type'] ?? 'order',
       event: map['event'] ?? map['eventType'] ?? 'order_placed',
-      title: map['title'] ?? 'Order Notification',
+      title: map['title'] ?? 'Notification',
       message: map['message'] ?? '',
+      bannerImageUrl: map['bannerImageUrl'] as String?,
+      region: map['region'] as String?,
+      isRead: map['isRead'] ?? map['read'] ?? false,
       relatedOrderId: map['relatedOrderId'] ?? map['orderId'] ?? '',
       relatedEstimateId: map['relatedEstimateId'] ?? '',
       channels: Map<String, dynamic>.from(map['channels'] ?? {'inApp': true, 'email': true, 'whatsapp': true}),

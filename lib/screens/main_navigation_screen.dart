@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/floating_bottom_bar.dart';
+import '../utils/app_notification_utils.dart';
 import 'home_screen.dart';
 import 'product_listing_screen.dart';
 import 'favorites_screen.dart';
@@ -33,6 +34,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (_homeScaffoldKey.currentState?.isDrawerOpen == true) {
       _homeScaffoldKey.currentState?.closeDrawer();
     }
+    AppNotificationUtils.dismissAll(context);
     setState(() {
       _currentIndex = index;
     });

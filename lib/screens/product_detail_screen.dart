@@ -1,11 +1,10 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
-import 'cart_screen.dart';
+import '../utils/app_notification_utils.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final TileProduct? product;
@@ -35,9 +34,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     'Satin Matt',
     'Matt - Carving',
     'Rustic Wood',
-    'Semi High Gloss',
+    'Inky Colors',
     'High Gloss',
-    'Anti - Skid'
+    'Anti - Skid',
+    'Matt Punch',
+    'Sugar Lapato',
+    'Pastel Colors',
   ];
 
   @override
@@ -76,6 +78,64 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _selectedFinish = _product.surface;
   }
 
+  void _showManualQuantityDialog() {
+    final controller = TextEditingController(text: '$_quantity');
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Enter Box Quantity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Quantity (Boxes)',
+                  suffixText: 'Boxes',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 6,
+                children: [10, 50, 100, 500].map((preset) {
+                  return ActionChip(
+                    label: Text('+$preset'),
+                    onPressed: () {
+                      final current = int.tryParse(controller.text) ?? 0;
+                      controller.text = '${current + preset}';
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryNavy),
+              onPressed: () {
+                final parsed = int.tryParse(controller.text.trim());
+                if (parsed != null && parsed > 0) {
+                  setState(() => _quantity = parsed);
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: const Text('SET QUANTITY'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Color _getColorForBaseName(String colorName) {
     switch (colorName) {
       case 'White':
@@ -90,6 +150,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   @override
@@ -529,11 +595,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ? () => setState(() => _quantity--)
                           : null,
                     ),
-                    Text(
-                      '$_quantity',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                    InkWell(
+                      onTap: _showManualQuantityDialog,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryNavy.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              '$_quantity',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryNavy,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.edit_outlined, size: 13, color: AppTheme.accentOrange),
+                          ],
+                        ),
                       ),
                     ),
                     IconButton(
@@ -562,29 +646,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       finish: _selectedFinish,
                       quantity: _quantity,
                     );
-                    final messenger = ScaffoldMessenger.of(context);
-                    messenger.clearSnackBars();
-                    messenger.showSnackBar(
-                      SnackBar(
-                        duration: const Duration(seconds: 3),
-                        content: Text('${_product.name} added to cart!'),
-                        action: SnackBarAction(
-                          label: 'VIEW CART',
-                          textColor: AppTheme.accentOrange,
-                          onPressed: () {
-                            messenger.clearSnackBars();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const CartScreen()),
-                            );
-                          },
-                        ),
-                      ),
+                    AppNotificationUtils.showAddToCartSnackBar(
+                      context,
+                      productName: _product.name,
                     );
-                    Timer(const Duration(seconds: 3), () {
-                      messenger.clearSnackBars();
-                    });
                   },
                 ),
               ),

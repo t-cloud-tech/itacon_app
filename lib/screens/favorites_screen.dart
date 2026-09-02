@@ -1,8 +1,7 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
-import 'cart_screen.dart';
+import '../utils/app_notification_utils.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
@@ -50,7 +49,7 @@ class FavoritesScreen extends StatelessWidget {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
             itemCount: favList.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -123,29 +122,10 @@ class FavoritesScreen extends StatelessWidget {
                               color: AppTheme.primaryNavy),
                           onPressed: () {
                             appState.addToCart(product);
-                            final messenger = ScaffoldMessenger.of(context);
-                            messenger.clearSnackBars();
-                            messenger.showSnackBar(
-                              SnackBar(
-                                duration: const Duration(seconds: 3),
-                                content: Text('${product.name} added to cart!'),
-                                action: SnackBarAction(
-                                  label: 'VIEW CART',
-                                  textColor: AppTheme.accentOrange,
-                                  onPressed: () {
-                                    messenger.clearSnackBars();
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => const CartScreen()),
-                                    );
-                                  },
-                                ),
-                              ),
+                            AppNotificationUtils.showAddToCartSnackBar(
+                              context,
+                              productName: product.name,
                             );
-                            Timer(const Duration(seconds: 3), () {
-                              messenger.clearSnackBars();
-                            });
                           },
                         ),
                       ],

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
@@ -8,9 +10,174 @@ import '../widgets/profile_tier_card.dart';
 import 'auth_screen.dart';
 import 'orders_screen.dart';
 import 'favorites_screen.dart';
+import 'notifications_screen.dart';
+import 'contract_rates_screen.dart';
+import 'profile/edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  Future<bool?> _requestGalleryPermission(BuildContext context) async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(22),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.perm_media_rounded,
+                  size: 34,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Allow "ITACON Granito" to Access Your Photos?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'ITACON Granito requires photo library access so you can select and set your personal profile picture directly from your device gallery.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSubtle,
+              height: 1.4,
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text(
+                "Don't Allow",
+                style: TextStyle(
+                  color: AppTheme.textSubtle,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryNavy,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text(
+                'Allow Access',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickProfilePhotoFromGallery(BuildContext context) async {
+    final granted = await _requestGalleryPermission(context);
+    if (granted != true) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gallery permission denied. Access is required to select photos.'),
+            backgroundColor: AppTheme.accentOrange,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bsContext) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Select Profile Photo Source',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: AppTheme.primaryNavy),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(bsContext);
+                try {
+                  final picker = ImagePicker();
+                  final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                  if (image != null) {
+                    AppStateService.instance.updateUserProfileFields(profilePhotoUrl: image.path);
+                    UserSessionService.saveUserSession(
+                      AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: image.path),
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Profile photo updated successfully from gallery!'),
+                          backgroundColor: AppTheme.primaryNavy,
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  AppStateService.instance.updateUserProfileFields(
+                    profilePhotoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined, color: AppTheme.primaryNavy),
+              title: const Text('Take a Photo'),
+              onTap: () async {
+                Navigator.pop(bsContext);
+                try {
+                  final picker = ImagePicker();
+                  final image = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+                  if (image != null) {
+                    AppStateService.instance.updateUserProfileFields(profilePhotoUrl: image.path);
+                  }
+                } catch (e) {
+                  AppStateService.instance.updateUserProfileFields(
+                    profilePhotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _openEditProfileModal(BuildContext context, UserProfile profile) {
     final nameController = TextEditingController(text: profile.name);
@@ -28,6 +195,16 @@ class ProfileScreen extends StatelessWidget {
 
     String selectedCategory = profile.userCategory.isNotEmpty ? profile.userCategory : 'Dealer';
     final categories = ['Dealer', 'Architect', 'Builder', 'Contractor', 'Wholesaler', 'Retailer'];
+
+    String selectedRegion = profile.region.isNotEmpty ? profile.region : 'West India (Gujarat/Maharashtra)';
+    final regions = [
+      'West India (Gujarat/Maharashtra)',
+      'North India',
+      'South India',
+      'East India',
+      'Middle East / UAE',
+      'International / Other',
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -129,6 +306,43 @@ class ProfileScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 14),
 
+                          // Region Selection Dropdown
+                          const Text(
+                            'Region / Geographic Hub (For Festival Greetings)',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: AppTheme.backgroundColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.borderSubtle),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: regions.contains(selectedRegion) ? selectedRegion : 'West India (Gujarat/Maharashtra)',
+                                isExpanded: true,
+                                items: regions.map((reg) {
+                                  return DropdownMenuItem(
+                                    value: reg,
+                                    child: Text(reg, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setModalState(() => selectedRegion = val);
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
                           _buildTextField('Delivery Address (Line 1)', addressLineController, Icons.home_outlined),
                           const SizedBox(height: 14),
                           Row(
@@ -202,6 +416,7 @@ class ProfileScreen extends StatelessWidget {
                               userCategory: selectedCategory,
                               city: newCity,
                               state: newState,
+                              region: selectedRegion,
                               pincode: newPincode,
                               gstNumber: newGst,
                               address: updatedAddr,
@@ -228,6 +443,10 @@ class ProfileScreen extends StatelessWidget {
                                 address: updatedAddr,
                                 isVerified: true,
                               );
+                              await FirestoreService.instance.updateUserRegionAndToken(
+                                profile.userId,
+                                region: selectedRegion,
+                              );
                             } catch (_) {}
 
                             if (modalCtx.mounted) {
@@ -253,7 +472,17 @@ class ProfileScreen extends StatelessWidget {
           },
         );
       },
-    );
+    ).whenComplete(() {
+      nameController.dispose();
+      emailController.dispose();
+      phoneController.dispose();
+      companyController.dispose();
+      cityController.dispose();
+      stateController.dispose();
+      pincodeController.dispose();
+      gstController.dispose();
+      addressLineController.dispose();
+    });
   }
 
   Widget _buildTextField(
@@ -324,38 +553,53 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Stack(
-                        alignment: Alignment.bottomRight,
-                        children: [
-                          CircleAvatar(
-                            radius: 44,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              radius: 41,
-                              backgroundColor: AppTheme.accentOrange,
-                              child: Text(
-                                profile.initials,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                      GestureDetector(
+                        onTap: () => _pickProfilePhotoFromGallery(context),
+                        child: Stack(
+                          alignment: Alignment.bottomRight,
+                          children: [
+                            CircleAvatar(
+                              radius: 44,
+                              backgroundColor: Colors.white,
+                              child: CircleAvatar(
+                                radius: 41,
+                                backgroundColor: AppTheme.accentOrange,
+                                backgroundImage: (profile.profilePhotoUrl != null &&
+                                        profile.profilePhotoUrl!.isNotEmpty)
+                                    ? (profile.profilePhotoUrl!.startsWith('http')
+                                        ? NetworkImage(profile.profilePhotoUrl!)
+                                        : FileImage(File(profile.profilePhotoUrl!)) as ImageProvider)
+                                    : (profile.avatarUrl.isNotEmpty
+                                        ? NetworkImage(profile.avatarUrl)
+                                        : null),
+                                child: (profile.profilePhotoUrl == null ||
+                                            profile.profilePhotoUrl!.isEmpty) &&
+                                        profile.avatarUrl.isEmpty
+                                    ? Text(
+                                        profile.initials,
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : null,
                               ),
                             ),
-                          ),
-                          GestureDetector(
-                            onTap: () => _openEditProfileModal(context, profile),
-                            child: const CircleAvatar(
-                              radius: 14,
-                              backgroundColor: Colors.white,
-                              child: Icon(
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
                                 Icons.edit_rounded,
                                 size: 14,
                                 color: AppTheme.primaryNavy,
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -575,15 +819,21 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         _buildTile(Icons.person_outline_rounded, 'My Profile & Details', () {
-                          _openEditProfileModal(context, profile);
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.location_on_outlined, 'Delivery Addresses', () {
-                          _openEditProfileModal(context, profile);
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
+                        _buildTile(
+                          Icons.map_rounded,
+                          'Region / Hub: ${profile.region}',
+                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                        ),
+                        const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.sell_outlined, 'My Contract Rates', () {
-                          _openContractRatesBottomSheet(context, profile);
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ContractRatesScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.shopping_bag_outlined, 'My Orders', () {
@@ -594,7 +844,9 @@ class ProfileScreen extends StatelessWidget {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
-                        _buildTile(Icons.notifications_none_rounded, 'Notifications', () {}),
+                        _buildTile(Icons.notifications_none_rounded, 'Notifications', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                        }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.headset_mic_outlined, 'Help & Support', () {}),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
@@ -610,7 +862,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 120),
+                const SizedBox(height: 24),
               ],
             ),
           );
@@ -662,198 +914,5 @@ class ProfileScreen extends StatelessWidget {
         (route) => false,
       );
     }
-  }
-
-  void _openContractRatesBottomSheet(BuildContext context, UserProfile profile) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.70,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.sell_outlined, color: AppTheme.primaryNavy),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'My Contract Rates',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryNavy,
-                          ),
-                        ),
-                        Text(
-                          'Approved Partner Rates for ${profile.companyName.isNotEmpty ? profile.companyName : profile.name}',
-                          style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const Divider(color: AppTheme.borderSubtle),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView(
-                  children: [
-                    _buildContractRateCard(
-                      sku: 'ITA-STAT-6012',
-                      productName: 'Statuario Marble Vitrified',
-                      standardRate: 120.0,
-                      approvedRate: 98.0,
-                      size: '600x1200 mm',
-                      category: 'Floor Tiles',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildContractRateCard(
-                      sku: 'ITA-ROYA-6012',
-                      productName: 'Royal Beige Carving Tile',
-                      standardRate: 135.0,
-                      approvedRate: 115.0,
-                      size: '600x1200 mm',
-                      category: 'Floor Tiles',
-                    ),
-                    const SizedBox(height: 12),
-                    _buildContractRateCard(
-                      sku: 'ITA-NERO-6060',
-                      productName: 'Nero Marquina Square Tile',
-                      standardRate: 95.0,
-                      approvedRate: 82.0,
-                      size: '600x600 mm',
-                      category: 'Floor Tiles',
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildContractRateCard({
-    required String sku,
-    required String productName,
-    required double standardRate,
-    required double approvedRate,
-    required String size,
-    required String category,
-  }) {
-    final savingsPct = (((standardRate - approvedRate) / standardRate) * 100).toStringAsFixed(0);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.borderSubtle),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryNavy.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.grid_on_rounded, color: AppTheme.primaryNavy),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  productName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryNavy,
-                  ),
-                ),
-                Text(
-                  'SKU: $sku • $size',
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      '₹${standardRate.toStringAsFixed(0)}/sq.ft',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                        decoration: TextDecoration.lineThrough,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '₹${approvedRate.toStringAsFixed(0)}/sq.ft',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.accentOrange,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.statusSuccess.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppTheme.statusSuccess.withValues(alpha: 0.3)),
-            ),
-            child: Text(
-              '$savingsPct% SAVINGS',
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.statusSuccess,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

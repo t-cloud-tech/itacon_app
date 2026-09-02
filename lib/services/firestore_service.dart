@@ -23,6 +23,7 @@ import '../models/tracking_history_model.dart';
 import '../models/client_assignment.dart';
 import '../models/promotion_model.dart';
 import '../models/system_config_model.dart';
+import '../models/festival_greeting.dart';
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
@@ -50,6 +51,7 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _priceApprovalsRef => _db.collection('priceApprovals');
   CollectionReference<Map<String, dynamic>> get _estimatesRef => _db.collection('estimates');
   CollectionReference<Map<String, dynamic>> get _notificationsRef => _db.collection('notifications');
+  CollectionReference<Map<String, dynamic>> get _festivalGreetingsRef => _db.collection('festivalGreetings');
   CollectionReference<Map<String, dynamic>> get _handoffsRef => _db.collection('handoffs');
   CollectionReference<Map<String, dynamic>> get _customerSummaryRef => _db.collection('customerSummary');
   CollectionReference<Map<String, dynamic>> get _loyaltyTransactionsRef => _db.collection('loyaltyTransactions');
@@ -1493,6 +1495,121 @@ class FirestoreService {
       }
     } catch (_) {}
     return const SystemConfigModel();
+  }
+
+  /// Updates user region and FCM device push token in `users/{userId}`
+  Future<void> updateUserRegionAndToken(
+    String userId, {
+    required String region,
+    String? fcmToken,
+  }) async {
+    if (userId.isEmpty) return;
+    final data = <String, dynamic>{
+      'region': region,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      data['fcmToken'] = fcmToken;
+    }
+    await _usersRef.doc(userId).set(data, SetOptions(merge: true));
+  }
+
+  /// Streams active festival greetings from `festivalGreetings` collection
+  Stream<List<FestivalGreeting>> streamFestivalGreetings() {
+    return _festivalGreetingsRef
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => FestivalGreeting.fromMap(doc.data(), doc.id))
+            .toList());
+  }
+
+  /// Seeds default festival greetings into `festivalGreetings` master collection
+  Future<void> seedDefaultFestivalGreetings() async {
+    final List<FestivalGreeting> defaults = [
+      FestivalGreeting(
+        greetingId: 'GREET_DIWALI_2026',
+        title: 'Happy Diwali & Prosperous New Year! 🪔',
+        message: 'Wishing you & your family abundance, happiness, and timeless elegance from the ITACON Granito family.',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1605807646983-377bc5a76493?auto=format&fit=crop&w=800&q=80',
+        targetDate: '2026-11-08',
+        applicableRegions: const ['All'],
+        type: 'festival_greeting',
+        isActive: true,
+      ),
+      FestivalGreeting(
+        greetingId: 'GREET_NAVRATRI_WEST_2026',
+        title: 'Shubh Navratri & Garba Celebrations! 💃',
+        message: 'May Goddess Durga shower divine grace and victory on your business and home spaces!',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1602701830206-8d69780072b2?auto=format&fit=crop&w=800&q=80',
+        targetDate: '2026-10-11',
+        applicableRegions: const ['West India (Gujarat/Maharashtra)'],
+        type: 'festival_greeting',
+        isActive: true,
+      ),
+      FestivalGreeting(
+        greetingId: 'GREET_PONGAL_SOUTH_2026',
+        title: 'Happy Pongal & Sankranti! 🌾',
+        message: 'Celebrating nature, harvest, and new architectural beginnings with supreme vitrified quality.',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1548625361-18da88e622b7?auto=format&fit=crop&w=800&q=80',
+        targetDate: '2026-01-14',
+        applicableRegions: const ['South India'],
+        type: 'festival_greeting',
+        isActive: true,
+      ),
+    ];
+
+    for (var item in defaults) {
+      await _festivalGreetingsRef.doc(item.greetingId).set(item.toMap(), SetOptions(merge: true));
+    }
+  }
+
+  /// Streams notifications for a specific recipient user from `users/{userId}/notifications`
+  Stream<List<NotificationQueueItem>> getUserNotificationsStream(String userId) {
+    if (userId.isEmpty) return Stream.value([]);
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .snapshots()
+        .map((snap) {
+          final items = snap.docs
+              .map((doc) => NotificationQueueItem.fromMap(doc.data(), doc.id))
+              .toList();
+          items.sort((a, b) => (b.createdAt ?? DateTime.now()).compareTo(a.createdAt ?? DateTime.now()));
+          return items;
+        });
+  }
+
+  /// Marks a specific notification as read for a user
+  Future<void> markNotificationAsRead(String userId, String notificationId) async {
+    if (userId.isEmpty || notificationId.isEmpty) return;
+    try {
+      await _db
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .doc(notificationId)
+          .set({'isRead': true, 'read': true}, SetOptions(merge: true));
+    } catch (_) {
+      try {
+        await _notificationsRef.doc(notificationId).set({'isRead': true, 'read': true}, SetOptions(merge: true));
+      } catch (_) {}
+    }
+  }
+
+  /// Streams unread notification count for a user
+  Stream<int> streamUnreadNotificationCount(String userId) {
+    if (userId.isEmpty) return Stream.value(0);
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .snapshots()
+        .map((snap) => snap.docs.where((doc) {
+              final data = doc.data();
+              return (data['isRead'] != true) && (data['read'] != true);
+            }).length);
   }
 }
 

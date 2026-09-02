@@ -4,6 +4,7 @@ export 'design_request.dart';
 export 'estimate.dart';
 export 'loyalty_transaction.dart';
 export 'notification_queue.dart';
+export 'festival_greeting.dart';
 export 'price_approval.dart';
 export 'price_list.dart';
 export 'product_category.dart';

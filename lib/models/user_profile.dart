@@ -18,9 +18,13 @@ class UserProfile {
   final Map<String, dynamic> address; // Default address
   final String city; // City
   final String state; // State
+  final String region; // West India (Gujarat/Maharashtra) / North India / South India / East India / Middle East / UAE / International / Other
+  final String? fcmToken; // Firebase Cloud Messaging Device Push Token
   final String pincode; // PIN code
   final String gstNumber; // GSTIN Number
   final String avatarUrl; // Avatar URL
+  final String? profilePhotoUrl; // Profile photo URL
+  final List<String> showroomImages; // Array of Firebase Storage URLs for showroom/display pictures
   final String status; // active / inactive / blocked
   final int assignedClientsCount;
   final int activeClientsCount;
@@ -44,9 +48,13 @@ class UserProfile {
     this.address = const {},
     this.city = '',
     this.state = '',
+    this.region = 'West India (Gujarat/Maharashtra)',
+    this.fcmToken,
     this.pincode = '',
     this.gstNumber = '',
     this.avatarUrl = '',
+    this.profilePhotoUrl,
+    this.showroomImages = const [],
     this.status = 'active',
     this.assignedClientsCount = 0,
     this.activeClientsCount = 0,
@@ -82,9 +90,13 @@ class UserProfile {
     Map<String, dynamic>? address,
     String? city,
     String? state,
+    String? region,
+    String? fcmToken,
     String? pincode,
     String? gstNumber,
     String? avatarUrl,
+    String? profilePhotoUrl,
+    List<String>? showroomImages,
     String? status,
     int? assignedClientsCount,
     int? activeClientsCount,
@@ -108,9 +120,13 @@ class UserProfile {
       address: address ?? this.address,
       city: city ?? this.city,
       state: state ?? this.state,
+      region: region ?? this.region,
+      fcmToken: fcmToken ?? this.fcmToken,
       pincode: pincode ?? this.pincode,
       gstNumber: gstNumber ?? this.gstNumber,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+      showroomImages: showroomImages ?? this.showroomImages,
       status: status ?? this.status,
       assignedClientsCount: assignedClientsCount ?? this.assignedClientsCount,
       activeClientsCount: activeClientsCount ?? this.activeClientsCount,
@@ -142,9 +158,13 @@ class UserProfile {
       'city': city,
       'state': state,
       'stateCode': state.isNotEmpty && state.length >= 2 ? state.substring(0, 2).toUpperCase() : '',
+      'region': region,
+      if (fcmToken != null && fcmToken!.isNotEmpty) 'fcmToken': fcmToken,
       'pincode': pincode,
       'gstNumber': gstNumber,
       'avatarUrl': avatarUrl,
+      'profilePhotoUrl': profilePhotoUrl ?? avatarUrl,
+      'showroomImages': showroomImages,
       'status': status,
       if (role == 'salesperson' || userCategory == 'salesperson') ...{
         'assignedClientsCount': assignedClientsCount,
@@ -176,9 +196,13 @@ class UserProfile {
       address: Map<String, dynamic>.from(map['address'] ?? {}),
       city: map['city'] ?? '',
       state: map['state'] ?? map['stateCode'] ?? '',
+      region: map['region'] ?? 'West India (Gujarat/Maharashtra)',
+      fcmToken: map['fcmToken'] as String?,
       pincode: map['pincode'] ?? '',
       gstNumber: map['gstNumber'] ?? map['gstin'] ?? '',
-      avatarUrl: map['avatarUrl'] ?? '',
+      avatarUrl: map['avatarUrl'] ?? map['profilePhotoUrl'] ?? '',
+      profilePhotoUrl: map['profilePhotoUrl'] ?? map['avatarUrl'],
+      showroomImages: List<String>.from(map['showroomImages'] ?? []),
       status: map['status'] ?? 'active',
       assignedClientsCount: (map['assignedClientsCount'] as num?)?.toInt() ?? 0,
       activeClientsCount: (map['activeClientsCount'] as num?)?.toInt() ?? 0,

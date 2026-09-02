@@ -85,8 +85,11 @@ class TileCategoriesMatrix {
     'Satin Matt',
     'Matt - Carving',
     'Rustic Wood',
-    'Semi High Gloss',
+    'Inky Colors',
     'High Gloss',
     'Anti - Skid',
+    'Matt Punch',
+    'Sugar Lapato',
+    'Pastel Colors',
   ];
 }

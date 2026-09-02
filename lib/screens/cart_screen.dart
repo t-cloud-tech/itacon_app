@@ -8,6 +8,113 @@ import 'checkout_screen.dart';
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
+  void _showManualQuantityDialog(
+    BuildContext context,
+    AppStateService appState,
+    CartItem item,
+  ) {
+    final controller = TextEditingController(text: '${item.quantity}');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.edit_note_rounded, color: AppTheme.primaryNavy, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Enter Quantity',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.product.name,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${item.selectedSize} • ${item.selectedFinish}',
+                style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Box Quantity (Boxes)',
+                  hintText: 'Enter number of boxes',
+                  suffixText: 'Boxes',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Quick Add Presets:',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textSubtle),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                children: [10, 50, 100, 500].map((preset) {
+                  return ActionChip(
+                    label: Text('+$preset'),
+                    labelStyle: const TextStyle(fontSize: 11, color: AppTheme.primaryNavy, fontWeight: FontWeight.bold),
+                    backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.06),
+                    onPressed: () {
+                      final current = int.tryParse(controller.text) ?? 0;
+                      controller.text = '${current + preset}';
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('CANCEL', style: TextStyle(color: AppTheme.textSubtle)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryNavy,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: () {
+                final parsed = int.tryParse(controller.text.trim());
+                if (parsed != null && parsed >= 0) {
+                  appState.setQuantity(item, parsed);
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: const Text('UPDATE'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = AppStateService();
@@ -66,7 +173,7 @@ class CartScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
                   itemCount: appState.cartItems.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (context, index) {
@@ -89,10 +196,8 @@ class CartScreen extends StatelessWidget {
                               errorBuilder: (_, _, _) => Container(
                                 width: 80,
                                 height: 80,
-                                color: AppTheme.primaryNavy
-                                    .withValues(alpha: 0.1),
-                                child: const Icon(Icons.terrain_rounded,
-                                    color: AppTheme.primaryNavy),
+                                color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                                child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy),
                               ),
                             ),
                           ),
@@ -102,8 +207,7 @@ class CartScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
@@ -120,16 +224,14 @@ class CartScreen extends StatelessWidget {
                                     IconButton(
                                       icon: const Icon(Icons.delete_outline,
                                           color: AppTheme.statusError, size: 20),
-                                      onPressed: () =>
-                                          appState.removeFromCart(item),
+                                      onPressed: () => appState.removeFromCart(item),
                                     ),
                                   ],
                                 ),
                                 Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: Colors.grey.shade100,
                                         borderRadius: BorderRadius.circular(6),
@@ -144,8 +246,7 @@ class CartScreen extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 3),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(4),
@@ -163,8 +264,7 @@ class CartScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 8),
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Builder(
                                       builder: (context) {
@@ -194,39 +294,60 @@ class CartScreen extends StatelessWidget {
                                         );
                                       },
                                     ),
+
+                                    // Interactive Quantity Stepper with Manual Input Target
                                     Container(
-                                      height: 32,
+                                      height: 34,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                            color: AppTheme.borderSubtle),
+                                        border: Border.all(color: AppTheme.borderSubtle),
                                       ),
                                       child: Row(
                                         children: [
                                           IconButton(
-                                            icon: const Icon(Icons.remove,
-                                                size: 14),
+                                            icon: const Icon(Icons.remove, size: 14),
                                             padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(
-                                                minWidth: 28),
-                                            onPressed: () => appState
-                                                .updateQuantity(item, -1),
+                                            constraints: const BoxConstraints(minWidth: 28),
+                                            onPressed: () => appState.updateQuantity(item, -1),
                                           ),
-                                          Text(
-                                            '${item.quantity}',
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.bold,
+                                          Tooltip(
+                                            message: 'Tap to edit quantity manually',
+                                            child: InkWell(
+                                              onTap: () => _showManualQuantityDialog(context, appState, item),
+                                              borderRadius: BorderRadius.circular(4),
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primaryNavy.withValues(alpha: 0.06),
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      '${item.quantity}',
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: AppTheme.primaryNavy,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    const Icon(
+                                                      Icons.edit_outlined,
+                                                      size: 12,
+                                                      color: AppTheme.accentOrange,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                             ),
                                           ),
                                           IconButton(
-                                            icon: const Icon(Icons.add,
-                                                size: 14),
+                                            icon: const Icon(Icons.add, size: 14),
                                             padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(
-                                                minWidth: 28),
-                                            onPressed: () => appState
-                                                .updateQuantity(item, 1),
+                                            constraints: const BoxConstraints(minWidth: 28),
+                                            onPressed: () => appState.updateQuantity(item, 1),
                                           ),
                                         ],
                                       ),
@@ -248,9 +369,7 @@ class CartScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),

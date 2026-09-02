@@ -101,8 +101,12 @@ class AppStateService extends ChangeNotifier {
     String? userCategory,
     String? city,
     String? state,
+    String? region,
+    String? fcmToken,
     String? pincode,
     String? gstNumber,
+    String? profilePhotoUrl,
+    List<String>? showroomImages,
     Map<String, dynamic>? address,
   }) {
     final current = currentUserProfile;
@@ -115,8 +119,12 @@ class AppStateService extends ChangeNotifier {
       userCategory: userCategory ?? current.userCategory,
       city: city ?? current.city,
       state: state ?? current.state,
+      region: region ?? current.region,
+      fcmToken: fcmToken ?? current.fcmToken,
       pincode: pincode ?? current.pincode,
       gstNumber: gstNumber ?? current.gstNumber,
+      profilePhotoUrl: profilePhotoUrl ?? current.profilePhotoUrl,
+      showroomImages: showroomImages ?? current.showroomImages,
       address: address ?? current.address,
     );
     notifyListeners();
@@ -232,6 +240,15 @@ class AppStateService extends ChangeNotifier {
     item.quantity += delta;
     if (item.quantity <= 0) {
       _cartItems.remove(item);
+    }
+    notifyListeners();
+  }
+
+  void setQuantity(CartItem item, int newQuantity) {
+    if (newQuantity <= 0) {
+      _cartItems.remove(item);
+    } else {
+      item.quantity = newQuantity;
     }
     notifyListeners();
   }

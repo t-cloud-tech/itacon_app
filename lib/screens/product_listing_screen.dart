@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../theme/app_theme.dart';
 import '../constants/tile_categories.dart';
@@ -6,6 +7,7 @@ import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
+import '../utils/app_notification_utils.dart';
 import '../widgets/product_filter_bottom_sheet.dart';
 import '../widgets/floating_bottom_bar.dart';
 import 'product_detail_screen.dart';
@@ -35,16 +37,20 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   final AppStateService _appState = AppStateService();
   late ProductFilterCriteria _activeFilter;
   late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
+  
   String _searchQuery = '';
+  bool _isHeaderExpanded = true;
+  String _sortOption = 'default'; // 'default', 'price_asc', 'price_desc', 'name_asc'
 
   late final List<TileProduct> _allProducts;
 
   final List<String> _quickSizes = const [
-    'All Sizes',
     '1200x1800 mm',
     '800x1600 mm',
     '600x1200 mm',
     '600x800 mm',
+    '600x600 mm',
   ];
 
   @override
@@ -52,17 +58,30 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     super.initState();
     _searchQuery = widget.initialSearchQuery ?? '';
     _searchController = TextEditingController(text: _searchQuery);
+    _scrollController = ScrollController();
+    _scrollController.addListener(_handleScroll);
+
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
       });
     });
 
+    final initialSurfaces = <String>{};
+    if (widget.initialSurface != null &&
+        widget.initialSurface!.isNotEmpty &&
+        widget.initialSurface != 'All Surfaces') {
+      initialSurfaces.add(widget.initialSurface!);
+    }
+
+    final initialSizes = <String>{};
+    if (widget.initialSize != null && widget.initialSize!.isNotEmpty) {
+      initialSizes.add(widget.initialSize!);
+    }
+
     _activeFilter = ProductFilterCriteria(
-      selectedSize: widget.initialSize,
-      selectedSurface: (widget.initialSurface != null && widget.initialSurface != 'All Surfaces')
-          ? widget.initialSurface
-          : null,
+      selectedSurfaces: initialSurfaces,
+      selectedSizes: initialSizes,
     );
 
     _allProducts = [
@@ -95,9 +114,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       ),
       TileProduct(
         id: 'PROD_1218_02',
-        name: 'Statuario Grand Onyx Slab',
+        name: 'Statuario Inky Colors Grand Slab',
         size: '1200x1800 mm',
-        surface: 'Semi High Gloss',
+        surface: 'Inky Colors',
         color: 'White',
         baseColour: 'White',
         pattern: 'Gold Vein',
@@ -107,7 +126,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         images: [
           'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
         ],
-        finish: 'Semi High Gloss',
+        finish: 'Inky Colors',
         thickness: '9 mm',
         thicknessMm: 9.0,
         boxWeightKg: 42.0,
@@ -115,6 +134,32 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         tileCategory: 'Slab Tiles',
         collection: 'Endless',
         spaces: ['Living Room'],
+        shape: 'rectangle',
+        aspectRatio: '0.667',
+        aspectRatioValue: 0.667,
+      ),
+      TileProduct(
+        id: 'PROD_1218_03',
+        name: 'Onyx Pastel Rose Grand Slab',
+        size: '1200x1800 mm',
+        surface: 'Pastel Colors',
+        color: 'White',
+        baseColour: 'White',
+        pattern: 'Onyx Soft',
+        basePrice: 250.0,
+        moq: 15,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'Pastel Colors',
+        thickness: '9 mm',
+        thicknessMm: 9.0,
+        boxWeightKg: 42.0,
+        productType: 'Vitrified',
+        tileCategory: 'Slab Tiles',
+        collection: 'Golden',
+        spaces: ['Living Room', 'Bedroom'],
         shape: 'rectangle',
         aspectRatio: '0.667',
         aspectRatioValue: 0.667,
@@ -173,6 +218,32 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         aspectRatio: '0.5',
         aspectRatioValue: 0.5,
       ),
+      TileProduct(
+        id: 'PROD_8016_03',
+        name: 'Carrara Sugar Lapato Luxury',
+        size: '800x1600 mm',
+        surface: 'Sugar Lapato',
+        color: 'White',
+        baseColour: 'White',
+        pattern: 'Sugar Sparkle',
+        basePrice: 185.0,
+        moq: 20,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'Sugar Lapato',
+        thickness: '9 mm',
+        thicknessMm: 9.0,
+        boxWeightKg: 34.0,
+        productType: 'Vitrified',
+        tileCategory: 'Slab Tiles',
+        collection: 'Marbles',
+        spaces: ['Living Room'],
+        shape: 'rectangle',
+        aspectRatio: '0.5',
+        aspectRatioValue: 0.5,
+      ),
 
       // 600x1200 mm Standard Vertical Slabs (Ratio 0.50 / 1:2)
       TileProduct(
@@ -182,14 +253,66 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         surface: 'Glossy',
         color: 'White',
         baseColour: 'White',
-        pattern: 'Grey Vein',
-        basePrice: 120.0,
-        moq: 50,
+        pattern: 'Marble',
+        basePrice: 145.0,
+        moq: 30,
         stockStatus: 'available_now',
         images: [
           'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
         ],
         finish: 'Glossy',
+        thickness: '9 mm',
+        thicknessMm: 9.0,
+        boxWeightKg: 28.0,
+        productType: 'Vitrified',
+        tileCategory: 'Floor Tiles',
+        collection: 'Marbles',
+        spaces: ['Living Room', 'Bath Room'],
+        shape: 'rectangle',
+        aspectRatio: '0.5',
+        aspectRatioValue: 0.5,
+      ),
+      TileProduct(
+        id: 'PROD_6012_02',
+        name: 'Onyx Crystal Carving',
+        size: '600x1200 mm',
+        surface: 'Matt - Carving',
+        color: 'Beige - Brown',
+        baseColour: 'Beige - Brown',
+        pattern: 'Carving Vein',
+        basePrice: 155.0,
+        moq: 30,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'Matt - Carving',
+        thickness: '9 mm',
+        thicknessMm: 9.0,
+        boxWeightKg: 28.0,
+        productType: 'Vitrified',
+        tileCategory: 'Floor Tiles',
+        collection: 'Golden',
+        spaces: ['Living Room'],
+        shape: 'rectangle',
+        aspectRatio: '0.5',
+        aspectRatioValue: 0.5,
+      ),
+      TileProduct(
+        id: 'PROD_6012_03',
+        name: 'Royal Botticino High Gloss',
+        size: '600x1200 mm',
+        surface: 'High Gloss',
+        color: 'Beige - Brown',
+        baseColour: 'Beige - Brown',
+        pattern: 'Classic Italian',
+        basePrice: 150.0,
+        moq: 30,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'High Gloss',
         thickness: '9 mm',
         thicknessMm: 9.0,
         boxWeightKg: 28.0,
@@ -202,50 +325,24 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         aspectRatioValue: 0.5,
       ),
       TileProduct(
-        id: 'PROD_6012_02',
-        name: 'Royal Beige Carving Tile',
-        size: '600x1200 mm',
-        surface: 'Matt - Carving',
-        color: 'Beige - Brown',
-        baseColour: 'Beige - Brown',
-        pattern: 'Carved Texture',
-        basePrice: 135.0,
-        moq: 30,
-        stockStatus: 'available_now',
-        images: [
-          'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        ],
-        finish: 'Matt - Carving',
-        thickness: '9 mm',
-        thicknessMm: 9.0,
-        boxWeightKg: 28.0,
-        productType: 'Vitrified',
-        tileCategory: 'Floor Tiles',
-        collection: 'Terrazzo',
-        spaces: ['Living Room', 'Outdoor'],
-        shape: 'rectangle',
-        aspectRatio: '0.5',
-        aspectRatioValue: 0.5,
-      ),
-      TileProduct(
-        id: 'PROD_6012_03',
-        name: 'Rustic Wood Plank Tile',
+        id: 'PROD_6012_04',
+        name: 'Nordic Wood Rustic Planks',
         size: '600x1200 mm',
         surface: 'Rustic Wood',
         color: 'Beige - Brown',
         baseColour: 'Beige - Brown',
-        pattern: 'Wood Texture',
-        basePrice: 105.0,
+        pattern: 'Timber Grain',
+        basePrice: 140.0,
         moq: 40,
         stockStatus: 'available_now',
         images: [
-          'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=600&q=80',
+          'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
         ],
         finish: 'Rustic Wood',
         thickness: '9 mm',
         thicknessMm: 9.0,
         boxWeightKg: 28.0,
-        productType: 'Ceramic',
+        productType: 'Vitrified',
         tileCategory: 'Floor Tiles',
         collection: '3D',
         spaces: ['Outdoor', 'Bedroom'],
@@ -253,56 +350,136 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         aspectRatio: '0.5',
         aspectRatioValue: 0.5,
       ),
-
-      // 600x800 mm Medium Vertical Format (Ratio 0.75 / 3:4)
       TileProduct(
-        id: 'PROD_6080_01',
-        name: 'Carrara White Bath Vertical',
-        size: '600x800 mm',
-        surface: 'Glossy',
-        color: 'White',
-        baseColour: 'White',
-        pattern: 'Fine Vein',
-        basePrice: 88.0,
-        moq: 40,
+        id: 'PROD_6012_05',
+        name: 'Concrete Texture Matt Punch',
+        size: '600x1200 mm',
+        surface: 'Matt Punch',
+        color: 'Bianco - Grey',
+        baseColour: 'Bianco - Grey',
+        pattern: 'Industrial Concrete',
+        basePrice: 148.0,
+        moq: 35,
         stockStatus: 'available_now',
         images: [
-          'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=600&q=80',
+          'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'Matt Punch',
+        thickness: '9 mm',
+        thicknessMm: 9.0,
+        boxWeightKg: 28.0,
+        productType: 'Vitrified',
+        tileCategory: 'Floor Tiles',
+        collection: '3D',
+        spaces: ['Living Room', 'Outdoor'],
+        shape: 'rectangle',
+        aspectRatio: '0.5',
+        aspectRatioValue: 0.5,
+      ),
+
+      // 600x600 mm Square Formats (Ratio 1.0 / 1:1)
+      TileProduct(
+        id: 'PROD_6060_01',
+        name: 'Breccia Beige Vitrified',
+        size: '600x600 mm',
+        surface: 'Glossy',
+        color: 'Beige - Brown',
+        baseColour: 'Beige - Brown',
+        pattern: 'Breccia',
+        basePrice: 95.0,
+        moq: 50,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=600&q=80',
         ],
         finish: 'Glossy',
         thickness: '8.5 mm',
         thicknessMm: 8.5,
-        boxWeightKg: 22.0,
-        productType: 'Ceramic',
-        tileCategory: 'Wall Tiles',
-        collection: 'Moracan',
-        spaces: ['Bath Room'],
-        shape: 'rectangle',
-        aspectRatio: '0.75',
-        aspectRatioValue: 0.75,
+        boxWeightKg: 26.0,
+        productType: 'Vitrified',
+        tileCategory: 'Floor Tiles',
+        collection: 'Marbles',
+        spaces: ['Living Room', 'Bath Room'],
+        shape: 'square',
+        aspectRatio: '1.0',
+        aspectRatioValue: 1.0,
       ),
       TileProduct(
-        id: 'PROD_6080_02',
-        name: 'Granito Grey Anti-Skid Floor',
-        size: '600x800 mm',
+        id: 'PROD_6060_02',
+        name: 'Granite Grey Anti-Skid',
+        size: '600x600 mm',
         surface: 'Anti - Skid',
         color: 'Bianco - Grey',
         baseColour: 'Bianco - Grey',
-        pattern: 'Textured Surface',
-        basePrice: 92.0,
+        pattern: 'Grip Texture',
+        basePrice: 88.0,
         moq: 50,
         stockStatus: 'available_now',
         images: [
-          'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&q=80',
+          'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
         ],
         finish: 'Anti - Skid',
-        thickness: '9 mm',
-        thicknessMm: 9.0,
-        boxWeightKg: 22.0,
+        thickness: '8.5 mm',
+        thicknessMm: 8.5,
+        boxWeightKg: 26.0,
         productType: 'Ceramic',
         tileCategory: 'Floor Tiles',
         collection: '3D',
-        spaces: ['Outdoor', 'Bath Room'],
+        spaces: ['Bath Room', 'Outdoor'],
+        shape: 'square',
+        aspectRatio: '1.0',
+        aspectRatioValue: 1.0,
+      ),
+      TileProduct(
+        id: 'PROD_6060_03',
+        name: 'Pearl Grey Sugar Lapato',
+        size: '600x600 mm',
+        surface: 'Sugar Lapato',
+        color: 'Bianco - Grey',
+        baseColour: 'Bianco - Grey',
+        pattern: 'Sugar Sparkle',
+        basePrice: 110.0,
+        moq: 40,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'Sugar Lapato',
+        thickness: '8.5 mm',
+        thicknessMm: 8.5,
+        boxWeightKg: 26.0,
+        productType: 'Vitrified',
+        tileCategory: 'Floor Tiles',
+        collection: 'Endless',
+        spaces: ['Living Room', 'Bedroom'],
+        shape: 'square',
+        aspectRatio: '1.0',
+        aspectRatioValue: 1.0,
+      ),
+
+      // 600x800 mm Medium Vertical Format (Ratio 0.75 / 3:4)
+      TileProduct(
+        id: 'PROD_6080_01',
+        name: 'Venato White Matt Punch',
+        size: '600x800 mm',
+        surface: 'Matt Punch',
+        color: 'White',
+        baseColour: 'White',
+        pattern: 'Venato Vein',
+        basePrice: 125.0,
+        moq: 40,
+        stockStatus: 'available_now',
+        images: [
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
+        ],
+        finish: 'Matt Punch',
+        thickness: '8.8 mm',
+        thicknessMm: 8.8,
+        boxWeightKg: 27.0,
+        productType: 'Vitrified',
+        tileCategory: 'Wall Tiles',
+        collection: 'Wall Decore',
+        spaces: ['Bath Room'],
         shape: 'rectangle',
         aspectRatio: '0.75',
         aspectRatioValue: 0.75,
@@ -310,14 +487,37 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     ];
   }
 
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    final direction = position.userScrollDirection;
+
+    if (position.pixels <= 20) {
+      if (!_isHeaderExpanded) {
+        setState(() => _isHeaderExpanded = true);
+      }
+    } else if (direction == ScrollDirection.reverse) {
+      if (_isHeaderExpanded) {
+        setState(() => _isHeaderExpanded = false);
+      }
+    } else if (direction == ScrollDirection.forward) {
+      if (!_isHeaderExpanded) {
+        setState(() => _isHeaderExpanded = true);
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
   List<TileProduct> get _filteredProducts {
-    return _allProducts.where((p) {
+    var filtered = _allProducts.where((p) {
+      // 1. Live Search
       if (_searchQuery.trim().isNotEmpty) {
         final query = _searchQuery.toLowerCase().trim();
         final matchName = p.name.toLowerCase().contains(query);
@@ -337,33 +537,52 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           return false;
         }
       }
-      if (_activeFilter.selectedSpace != null &&
-          !p.spaces.contains(_activeFilter.selectedSpace)) {
+      // 2. Spaces Multi-Select
+      if (_activeFilter.selectedSpaces.isNotEmpty &&
+          !p.spaces.any((sp) => _activeFilter.selectedSpaces.contains(sp))) {
         return false;
       }
-      if (_activeFilter.selectedSurface != null &&
-          p.surface != _activeFilter.selectedSurface) {
+      // 3. Surfaces Multi-Select
+      if (_activeFilter.selectedSurfaces.isNotEmpty &&
+          !_activeFilter.selectedSurfaces.contains(p.surface) &&
+          !_activeFilter.selectedSurfaces.contains(p.finish)) {
         return false;
       }
-      if (_activeFilter.selectedBaseColour != null &&
-          p.baseColour != _activeFilter.selectedBaseColour) {
+      // 4. Base Colours Multi-Select
+      if (_activeFilter.selectedBaseColours.isNotEmpty &&
+          !_activeFilter.selectedBaseColours.contains(p.baseColour) &&
+          !_activeFilter.selectedBaseColours.contains(p.color)) {
         return false;
       }
-      if (_activeFilter.selectedCollection != null &&
-          p.collection != _activeFilter.selectedCollection) {
+      // 5. Collections Multi-Select
+      if (_activeFilter.selectedCollections.isNotEmpty &&
+          !_activeFilter.selectedCollections.contains(p.collection)) {
         return false;
       }
-      if (_activeFilter.selectedProductType != null &&
-          _activeFilter.selectedProductType != 'All' &&
+      // 6. Product Type Segment
+      if (_activeFilter.selectedProductType != 'All' &&
+          _activeFilter.selectedProductType.isNotEmpty &&
           p.productType != _activeFilter.selectedProductType) {
         return false;
       }
-      if (_activeFilter.selectedSize != null &&
-          p.size != _activeFilter.selectedSize) {
+      // 7. Sizes Multi-Select
+      if (_activeFilter.selectedSizes.isNotEmpty &&
+          !_activeFilter.selectedSizes.contains(p.size)) {
         return false;
       }
       return true;
     }).toList();
+
+    // Apply Sorting
+    if (_sortOption == 'price_asc') {
+      filtered.sort((a, b) => a.basePrice.compareTo(b.basePrice));
+    } else if (_sortOption == 'price_desc') {
+      filtered.sort((a, b) => b.basePrice.compareTo(a.basePrice));
+    } else if (_sortOption == 'name_asc') {
+      filtered.sort((a, b) => a.name.compareTo(b.name));
+    }
+
+    return filtered;
   }
 
   void _openFilterBottomSheet() {
@@ -382,11 +601,104 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     );
   }
 
+  void _showSortMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Sort Products',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryNavy,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              _buildSortOptionTile('Default (Recommended)', 'default'),
+              _buildSortOptionTile('Price: Low to High', 'price_asc'),
+              _buildSortOptionTile('Price: High to Low', 'price_desc'),
+              _buildSortOptionTile('Product Name: A to Z', 'name_asc'),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSortOptionTile(String label, String value) {
+    final isSelected = _sortOption == value;
+    return ListTile(
+      title: Text(
+        label,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          color: isSelected ? AppTheme.accentOrange : AppTheme.textDark,
+        ),
+      ),
+      trailing: isSelected
+          ? const Icon(Icons.check_circle_rounded, color: AppTheme.accentOrange, size: 20)
+          : null,
+      onTap: () {
+        setState(() => _sortOption = value);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _activeFilter = ProductFilterCriteria();
+      _searchController.clear();
+      _sortOption = 'default';
+    });
+  }
+
+  void _toggleSizeFilter(String sz) {
+    setState(() {
+      final updatedSizes = Set<String>.from(_activeFilter.selectedSizes);
+      if (updatedSizes.contains(sz)) {
+        updatedSizes.remove(sz);
+      } else {
+        updatedSizes.add(sz);
+      }
+      _activeFilter = _activeFilter.copyWith(selectedSizes: updatedSizes);
+    });
+  }
+
+  void _toggleSurfaceFilter(String surf) {
+    setState(() {
+      final updatedSurfaces = Set<String>.from(_activeFilter.selectedSurfaces);
+      if (surf == 'All Surfaces') {
+        updatedSurfaces.clear();
+      } else {
+        if (updatedSurfaces.contains(surf)) {
+          updatedSurfaces.remove(surf);
+        } else {
+          updatedSurfaces.add(surf);
+        }
+      }
+      _activeFilter = _activeFilter.copyWith(selectedSurfaces: updatedSurfaces);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredProducts;
-    final currentSurfaceLabel = _activeFilter.selectedSurface ?? 'All Surfaces';
-    final currentSizeLabel = _activeFilter.selectedSize ?? 'All Sizes';
+    final hasActiveFilters = !_activeFilter.isEmpty || _searchQuery.isNotEmpty;
+    final activeCount = _activeFilter.activeFilterCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -399,8 +711,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                 alignment: Alignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.shopping_bag_outlined,
-                        color: AppTheme.primaryNavy),
+                    icon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryNavy),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -445,7 +756,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           // 1. Live Search Bar Header Widget
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -475,146 +786,214 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
             ),
           ),
 
-          // 2. Surface Finish Filter Pill Tabs (Level 1 Hierarchical Drilling)
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.only(bottom: 6),
-            child: SizedBox(
-              height: 34,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: TileCategoriesMatrix.surfaceFinishes.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final surface = TileCategoriesMatrix.surfaceFinishes[index];
-                  final isSelected = (surface == 'All Surfaces' && _activeFilter.selectedSurface == null) ||
-                      (_activeFilter.selectedSurface == surface);
+          // 2. Auto-Hiding Collapsible Dual-Tier Header Rows (Size + Surface)
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: _isHeaderExpanded
+                ? Column(
+                    children: [
+                      // Row 1: Size Category Matrix Chips (Multi-Selectable)
+                      Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: SizedBox(
+                          height: 34,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _quickSizes.length,
+                            separatorBuilder: (_, _) => const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final sz = _quickSizes[index];
+                              final isSelected = _activeFilter.selectedSizes.contains(sz);
 
-                  return ChoiceChip(
-                    label: Text(surface),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _activeFilter = _activeFilter.copyWith(
-                          selectedSurface: surface == 'All Surfaces' ? null : surface,
-                        );
-                      });
-                    },
-                    selectedColor: AppTheme.primaryNavy,
-                    backgroundColor: Colors.grey.shade100,
-                    labelStyle: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? Colors.white : AppTheme.textDark,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isSelected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                              return ChoiceChip(
+                                avatar: isSelected
+                                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                                    : null,
+                                label: Text(sz),
+                                selected: isSelected,
+                                onSelected: (_) => _toggleSizeFilter(sz),
+                                selectedColor: AppTheme.accentOrange,
+                                backgroundColor: Colors.grey.shade100,
+                                labelStyle: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected ? Colors.white : AppTheme.textDark,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: isSelected ? AppTheme.accentOrange : AppTheme.borderSubtle,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
+
+                      // Row 2: Surface Finish Filter Pill Tabs (Multi-Selectable)
+                      Container(
+                        color: Colors.white,
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: SizedBox(
+                          height: 34,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            scrollDirection: Axis.horizontal,
+                            itemCount: TileCategoriesMatrix.surfaceFinishes.length,
+                            separatorBuilder: (_, _) => const SizedBox(width: 8),
+                            itemBuilder: (context, index) {
+                              final surface = TileCategoriesMatrix.surfaceFinishes[index];
+                              final isAll = surface == 'All Surfaces';
+                              final isSelected = isAll
+                                  ? _activeFilter.selectedSurfaces.isEmpty
+                                  : _activeFilter.selectedSurfaces.contains(surface);
+
+                              return ChoiceChip(
+                                avatar: isSelected && !isAll
+                                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                                    : null,
+                                label: Text(surface),
+                                selected: isSelected,
+                                onSelected: (_) => _toggleSurfaceFilter(surface),
+                                selectedColor: AppTheme.primaryNavy,
+                                backgroundColor: Colors.grey.shade100,
+                                labelStyle: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected ? Colors.white : AppTheme.textDark,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: isSelected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1, color: AppTheme.borderSubtle),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
 
-          // 3. Size Category Standard Matrix Chips (Level 2 Format Drilling)
+          // 3. Pinned Lightweight Control Line (44px)
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.only(bottom: 10),
-            child: SizedBox(
-              height: 34,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: _quickSizes.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final sz = _quickSizes[index];
-                  final isSelected = (sz == 'All Sizes' && _activeFilter.selectedSize == null) ||
-                      (_activeFilter.selectedSize == sz);
-
-                  return ChoiceChip(
-                    label: Text(sz),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _activeFilter = _activeFilter.copyWith(
-                          selectedSize: sz == 'All Sizes' ? null : sz,
-                        );
-                      });
-                    },
-                    selectedColor: AppTheme.accentOrange,
-                    backgroundColor: Colors.grey.shade100,
-                    labelStyle: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? Colors.white : AppTheme.textDark,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: BorderSide(
-                        color: isSelected ? AppTheme.accentOrange : AppTheme.borderSubtle,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const Divider(height: 1, color: AppTheme.borderSubtle),
-
-          // 4. Filter Summary & Count Header Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: Colors.white,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Left: Count + Active Filter summary pills
                 Expanded(
-                  child: Text(
-                    '$currentSurfaceLabel • $currentSizeLabel • ${filtered.length} Products',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryNavy,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Text(
+                          '${filtered.length} Tiles Found',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryNavy,
+                          ),
+                        ),
+                        if (_activeFilter.selectedSurfaces.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          ..._activeFilter.selectedSurfaces.map(
+                            (surf) => Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Chip(
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: EdgeInsets.zero,
+                                labelPadding: const EdgeInsets.only(left: 8, right: 2),
+                                label: Text(surf, style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                backgroundColor: AppTheme.primaryNavy,
+                                deleteIcon: const Icon(Icons.cancel_rounded, size: 14, color: Colors.white),
+                                onDeleted: () => _toggleSurfaceFilter(surf),
+                              ),
+                            ),
+                          ),
+                        ],
+                        if (_activeFilter.selectedSizes.isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          ..._activeFilter.selectedSizes.map(
+                            (sz) => Padding(
+                              padding: const EdgeInsets.only(right: 4),
+                              child: Chip(
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: EdgeInsets.zero,
+                                labelPadding: const EdgeInsets.only(left: 8, right: 2),
+                                label: Text(sz, style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                                backgroundColor: AppTheme.accentOrange,
+                                deleteIcon: const Icon(Icons.cancel_rounded, size: 14, color: Colors.white),
+                                onDeleted: () => _toggleSizeFilter(sz),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
+
+                // Right: Clear All (if active) + Sort + Filter Trigger
                 Row(
                   children: [
+                    if (hasActiveFilters)
+                      InkWell(
+                        onTap: _clearAllFilters,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          child: Text(
+                            'Clear All',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.accentOrange,
+                            ),
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.swap_vert_rounded, color: AppTheme.primaryNavy, size: 20),
+                      tooltip: 'Sort Products',
+                      onPressed: _showSortMenu,
+                    ),
                     InkWell(
                       onTap: _openFilterBottomSheet,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: !_activeFilter.isEmpty
+                          color: activeCount > 0
                               ? AppTheme.primaryNavy.withValues(alpha: 0.1)
-                              : Colors.transparent,
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                          ),
                         ),
                         child: Row(
                           children: [
                             Icon(
-                              Icons.filter_list_rounded,
-                              size: 18,
-                              color: !_activeFilter.isEmpty
-                                  ? AppTheme.accentOrange
-                                  : AppTheme.primaryNavy,
+                              Icons.tune_rounded,
+                              size: 16,
+                              color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.textSubtle,
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              !_activeFilter.isEmpty ? 'Filter (Active)' : 'Filter',
+                              activeCount > 0 ? 'Filter ($activeCount)' : 'Filter',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: !_activeFilter.isEmpty
-                                    ? AppTheme.accentOrange
-                                    : AppTheme.primaryNavy,
+                                color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.textDark,
                               ),
                             ),
                           ],
@@ -628,236 +1007,58 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           ),
           const Divider(height: 1, color: AppTheme.borderSubtle),
 
-          // 5. Staggered Masonry Grid View matching physical tile proportions!
+          // 4. Staggered Masonry Grid View matching physical tile proportions
           Expanded(
             child: filtered.isEmpty
                 ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.grid_off_rounded,
-                            size: 64,
-                            color: AppTheme.textLight.withValues(alpha: 0.5)),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'No Products Match Selection',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.style_outlined,
+                              size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No tiles matching selected criteria',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        OutlinedButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {
-                              _activeFilter = ProductFilterCriteria();
-                            });
-                          },
-                          child: const Text('Reset All Filters'),
-                        ),
-                      ],
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Try resetting your multi-select surface or size filters.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryNavy,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            ),
+                            onPressed: _clearAllFilters,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: const Text('Reset All Filters'),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : MasonryGridView.count(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 120),
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                     crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final product = filtered[index];
-                      final calculatedRatio =
-                          TileDimensionHelper.calculateTileAspectRatio(
-                              product.size);
-                      final resolvedPrice =
-                          PricingService.instance.resolvePrice(product);
+                      final calculatedAspectRatio = TileDimensionHelper.calculateTileAspectRatio(product.size);
 
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ProductDetailScreen(product: product),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          decoration: AppTheme.luxuryCardDecoration,
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Tile Image Thumbnail wrapped in AspectRatio matching physical proportions
-                              Stack(
-                                children: [
-                                  AspectRatio(
-                                    aspectRatio: calculatedRatio,
-                                    child: Image.network(
-                                      product.images.isNotEmpty
-                                          ? product.images.first
-                                          : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Container(
-                                        color: AppTheme.primaryNavy
-                                            .withValues(alpha: 0.1),
-                                        child: const Icon(
-                                            Icons.terrain_rounded,
-                                            color: AppTheme.primaryNavy,
-                                            size: 36),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Surface Finish Badge
-                                  Positioned(
-                                    top: 6,
-                                    left: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryNavy
-                                            .withValues(alpha: 0.85),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        product.surface,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Watermark Size Badge over thumbnail corner
-                                  Positioned(
-                                    bottom: 6,
-                                    left: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black
-                                            .withValues(alpha: 0.7),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        product.size,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Favorite Heart Button
-                                  Positioned(
-                                    top: 6,
-                                    right: 6,
-                                    child: ListenableBuilder(
-                                      listenable: _appState,
-                                      builder: (context, _) {
-                                        final isFav =
-                                            _appState.isFavorite(product.id);
-                                        return GestureDetector(
-                                          onTap: () => _appState
-                                              .toggleFavorite(product),
-                                          child: CircleAvatar(
-                                            radius: 14,
-                                            backgroundColor: Colors.white
-                                                .withValues(alpha: 0.9),
-                                            child: Icon(
-                                              isFav
-                                                  ? Icons.favorite_rounded
-                                                  : Icons
-                                                      .favorite_outline_rounded,
-                                              color: isFav
-                                                  ? Colors.red
-                                                  : AppTheme.primaryNavy,
-                                              size: 16,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                              // Details Padding
-                              Padding(
-                                padding: const EdgeInsets.all(10),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      product.name,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.textDark,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${product.productType} • ${product.finish}',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: AppTheme.textSubtle,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          '₹${resolvedPrice.unitPrice.toStringAsFixed(0)} / sq.ft',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w800,
-                                            color: AppTheme.accentOrange,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 6, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.accentOrange
-                                                .withValues(alpha: 0.12),
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: const Text(
-                                            'MOQ 20+',
-                                            style: TextStyle(
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold,
-                                              color: AppTheme.accentOrange,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                      return _buildLuxuryTileCard(context, product, calculatedAspectRatio);
                     },
                   ),
           ),
@@ -866,6 +1067,206 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       bottomNavigationBar: widget.showBottomNavBar
           ? const AppFloatingBottomBar(currentIndex: 1)
           : null,
+    );
+  }
+
+  Widget _buildLuxuryTileCard(BuildContext context, TileProduct product, double aspectRatio) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: product),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.8)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Dynamic Aspect-Ratio Responsive Tile Showcase Image
+            AspectRatio(
+              aspectRatio: aspectRatio,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.network(
+                      product.images.isNotEmpty ? product.images.first : '',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade100,
+                        child: const Icon(Icons.dashboard, color: Colors.grey, size: 36),
+                      ),
+                    ),
+                  ),
+
+                  // Surface Finish Badge
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryNavy.withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        product.surface,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Quick Favorite Button
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: ListenableBuilder(
+                      listenable: _appState,
+                      builder: (context, _) {
+                        final isFav = _appState.isFavorite(product.id);
+                        return InkWell(
+                          onTap: () => _appState.toggleFavorite(product),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: isFav ? Colors.red : AppTheme.textSubtle,
+                              size: 16,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Product Details Block
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.straighten_rounded, size: 12, color: AppTheme.textSubtle),
+                      const SizedBox(width: 4),
+                      Text(
+                        product.size,
+                        style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Pricing & Add Button
+                  ListenableBuilder(
+                    listenable: _appState,
+                    builder: (context, _) {
+                      final effectivePrice = PricingService.getEffectivePrice(
+                        basePrice: product.basePrice,
+                        size: product.size,
+                        surface: product.surface,
+                        userProfile: _appState.currentUserProfile,
+                      );
+                      final hasDiscount = effectivePrice < product.basePrice;
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '₹${effectivePrice.toStringAsFixed(0)}/sq.ft',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.accentOrange,
+                                ),
+                              ),
+                              if (hasDiscount)
+                                Text(
+                                  'MRP ₹${product.basePrice.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          InkWell(
+                            onTap: () {
+                              _appState.addToCart(
+                                product,
+                                size: product.size,
+                                finish: product.surface,
+                                quantity: 10,
+                              );
+                              AppNotificationUtils.showAddToCartSnackBar(
+                                context,
+                                productName: product.name,
+                              );
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryNavy,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.add_shopping_cart_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

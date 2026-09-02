@@ -23,6 +23,12 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final userId = AppStateService.instance.currentUserProfile.userId;
 
@@ -105,7 +111,7 @@ class _OrdersScreenState extends State<OrdersScreen>
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       itemCount: orders.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

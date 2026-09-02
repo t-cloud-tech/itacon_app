@@ -16,6 +16,12 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
   bool _isLoading = false;
   String? _error;
 
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
   void _showSmsConfirmationDialog({
     required String spName,
     required String spPhone,

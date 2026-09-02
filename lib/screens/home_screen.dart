@@ -7,6 +7,8 @@ import 'categories_screen.dart';
 import 'product_listing_screen.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
+import 'notifications_screen.dart';
+import '../services/firestore_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/adhesive_section_widget.dart';
 
@@ -246,10 +248,53 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded,
-                color: AppTheme.primaryNavy),
-            onPressed: () {},
+          StreamBuilder<int>(
+            stream: FirestoreService.instance.streamUnreadNotificationCount(
+              appState.currentUserProfile.userId,
+            ),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded,
+                        color: AppTheme.primaryNavy),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.accentOrange,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
           ListenableBuilder(
             listenable: appState,
@@ -597,6 +642,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 width: double.infinity,
                                 height: double.infinity,
                                 fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                                  child: const Center(
+                                    child: Icon(Icons.terrain_rounded,
+                                        color: AppTheme.primaryNavy, size: 36),
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 top: 8,
@@ -678,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Why ITACON Trust Section (Brand Pillars & Quality Promise)
             _buildWhyItaconSection(context),
-            const SizedBox(height: 120),
+            const SizedBox(height: 24),
           ],
         ),
       ),
