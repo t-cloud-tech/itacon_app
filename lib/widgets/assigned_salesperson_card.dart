@@ -15,9 +15,8 @@ class AssignedSalespersonCard extends StatelessWidget {
 
   // Realistic mock fallback executive data per project specification
   static const String _defaultName = 'Rajesh Sharma';
-  static const String _defaultRole = 'Senior Sales Executive (Surat & Gujarat Region)';
+  static const String _defaultRole = 'Senior Sales Executive';
   static const String _defaultPhone = '+91 93744 90901';
-  static const String _defaultEmail = 'rajesh.sharma@itacongranito.com';
   static const String _defaultEmpId = 'EMP-ITACON-408';
 
   Future<void> _makeCall(String phone) async {
@@ -47,13 +46,10 @@ class AssignedSalespersonCard extends StatelessWidget {
     final phone = (salesPerson != null && salesPerson!.phone.isNotEmpty)
         ? salesPerson!.phone
         : _defaultPhone;
-    final email = (salesPerson != null && salesPerson!.email.isNotEmpty)
-        ? salesPerson!.email
-        : _defaultEmail;
     final empId = (salesPerson != null && salesPerson!.salesPersonId.isNotEmpty)
         ? salesPerson!.salesPersonId
         : _defaultEmpId;
-    final roleStr = (salesPerson != null && salesPerson!.region.isNotEmpty)
+    final roleStr = (salesPerson != null && salesPerson!.role.isNotEmpty)
         ? salesPerson!.role
         : _defaultRole;
 
@@ -161,14 +157,6 @@ class AssignedSalespersonCard extends StatelessWidget {
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      email,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textSubtle,
                       ),
                     ),
                   ],

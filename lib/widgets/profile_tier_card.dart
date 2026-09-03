@@ -18,9 +18,8 @@ class ProfileTierCard extends StatelessWidget {
 
   // Default executive fallback credentials
   static const String _defaultSalespersonName = 'Rajesh Sharma';
-  static const String _defaultRole = 'Senior Sales Executive (Surat & Gujarat Region)';
+  static const String _defaultRole = 'Senior Sales Executive';
   static const String _defaultPhone = '+91 93744 90901';
-  static const String _defaultEmail = 'rajesh.sharma@itacongranito.com';
   static const String _defaultEmpId = 'EMP-ITACON-408';
 
   Future<void> _makeCall(String phone) async {
@@ -50,7 +49,6 @@ class ProfileTierCard extends StatelessWidget {
 
     const salespersonName = _defaultSalespersonName;
     const salespersonPhone = _defaultPhone;
-    const salespersonEmail = _defaultEmail;
     const salespersonRole = _defaultRole;
     const salespersonEmpId = _defaultEmpId;
 
@@ -294,13 +292,6 @@ class ProfileTierCard extends StatelessWidget {
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,
-                                  ),
-                                ),
-                                Text(
-                                  salespersonEmail,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.white60,
                                   ),
                                 ),
                               ],

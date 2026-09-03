@@ -32,7 +32,7 @@ class SalesPerson {
     this.updatedAt,
   });
 
-  String get role => 'Senior Sales Executive ($region)';
+  String get role => 'Senior Sales Executive';
 
   Map<String, dynamic> toMap() {
     return {

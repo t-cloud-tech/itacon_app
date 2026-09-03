@@ -66,6 +66,7 @@ class AppStateService extends ChangeNotifier {
           userId: '',
           name: '',
           religion: '',
+          dateOfBirth: '',
           companyName: '',
           phone: '',
           email: '',
@@ -95,6 +96,7 @@ class AppStateService extends ChangeNotifier {
   void updateUserProfileFields({
     String? name,
     String? religion,
+    String? dateOfBirth,
     String? email,
     String? phone,
     String? companyName,
@@ -113,6 +115,7 @@ class AppStateService extends ChangeNotifier {
     _currentUserProfile = current.copyWith(
       name: name ?? current.name,
       religion: religion ?? current.religion,
+      dateOfBirth: dateOfBirth ?? current.dateOfBirth,
       email: email ?? current.email,
       phone: phone ?? current.phone,
       companyName: companyName ?? current.companyName,
@@ -130,8 +133,8 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Total number of tracked profile data points (11 fields)
-  int get profileTotalFieldsCount => 11;
+  /// Total number of tracked profile data points (12 fields)
+  int get profileTotalFieldsCount => 12;
 
   /// Number of completed profile data fields
   int get profileFilledFieldsCount {
@@ -139,6 +142,7 @@ class AppStateService extends ChangeNotifier {
     int count = 0;
     if (p.name.trim().isNotEmpty) count++;
     if (p.religion.trim().isNotEmpty) count++;
+    if (p.dateOfBirth.trim().isNotEmpty) count++;
     if (p.phone.trim().isNotEmpty) count++;
     if (p.userCategory.trim().isNotEmpty) count++;
     if (p.email.trim().isNotEmpty) count++;
@@ -161,10 +165,13 @@ class AppStateService extends ChangeNotifier {
     final p = currentUserProfile;
     final List<Map<String, String>> pending = [];
     if (p.name.trim().isEmpty) {
-      pending.add({'title': 'Full Name', 'field': 'name', 'points': '9%'});
+      pending.add({'title': 'Full Name', 'field': 'name', 'points': '8%'});
     }
     if (p.religion.trim().isEmpty) {
-      pending.add({'title': 'Religion', 'field': 'religion', 'points': '9%'});
+      pending.add({'title': 'Religion', 'field': 'religion', 'points': '8%'});
+    }
+    if (p.dateOfBirth.trim().isEmpty) {
+      pending.add({'title': 'Date of Birth', 'field': 'dateOfBirth', 'points': '8%'});
     }
     if (p.phone.trim().isEmpty) {
       pending.add({'title': 'Phone Number', 'field': 'phone', 'points': '9%'});

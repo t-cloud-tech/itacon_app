@@ -180,349 +180,11 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _openEditProfileModal(BuildContext context, UserProfile profile) {
-    final nameController = TextEditingController(text: profile.name);
-    final religionController = TextEditingController(text: profile.religion);
-    final emailController = TextEditingController(text: profile.email);
-    final phoneController = TextEditingController(text: profile.phone);
-    final companyController = TextEditingController(text: profile.companyName);
-    final cityController = TextEditingController(text: profile.city);
-    final stateController = TextEditingController(text: profile.state);
-    final pincodeController = TextEditingController(text: profile.pincode);
-    final gstController = TextEditingController(text: profile.gstNumber);
-    final addressLineController = TextEditingController(
-      text: (profile.address['line1'] ?? profile.address['addressLine'] ?? '') as String,
-    );
-
-    String selectedCategory = profile.userCategory.isNotEmpty ? profile.userCategory : 'Dealer';
-    final categories = ['Dealer', 'Architect', 'Builder', 'Contractor', 'Wholesaler', 'Retailer'];
-
-    String selectedRegion = profile.region.isNotEmpty ? profile.region : 'West India (Gujarat/Maharashtra)';
-    final regions = [
-      'West India (Gujarat/Maharashtra)',
-      'North India',
-      'South India',
-      'East India',
-      'Middle East / UAE',
-      'International / Other',
-    ];
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (modalCtx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.88,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(Icons.edit_note_rounded,
-                                color: AppTheme.primaryNavy, size: 24),
-                            SizedBox(width: 8),
-                            Text(
-                              'Edit Profile & Details',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryNavy,
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close_rounded, color: AppTheme.textSubtle),
-                          onPressed: () => Navigator.pop(modalCtx),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1, color: AppTheme.borderSubtle),
-
-                  // Form Fields
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildTextField('Full Name', nameController, Icons.person_outlined),
-                          const SizedBox(height: 14),
-                          _buildTextField('Religion', religionController, Icons.diversity_3_outlined),
-                          const SizedBox(height: 14),
-                          _buildTextField('Mobile Number', phoneController, Icons.phone_outlined, keyboardType: TextInputType.phone),
-                          const SizedBox(height: 14),
-                          _buildTextField('Email Address', emailController, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-                          const SizedBox(height: 14),
-                          _buildTextField('Company / Business Name', companyController, Icons.business_outlined),
-                          const SizedBox(height: 14),
-
-                          // User Category Dropdown
-                          const Text(
-                            'User / Business Category',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: AppTheme.backgroundColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppTheme.borderSubtle),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: categories.contains(selectedCategory) ? selectedCategory : 'Dealer',
-                                isExpanded: true,
-                                items: categories.map((cat) {
-                                  return DropdownMenuItem(
-                                    value: cat,
-                                    child: Text(cat, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setModalState(() => selectedCategory = val);
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Region Selection Dropdown
-                          const Text(
-                            'Region / Geographic Hub (For Festival Greetings)',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              color: AppTheme.backgroundColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppTheme.borderSubtle),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: regions.contains(selectedRegion) ? selectedRegion : 'West India (Gujarat/Maharashtra)',
-                                isExpanded: true,
-                                items: regions.map((reg) {
-                                  return DropdownMenuItem(
-                                    value: reg,
-                                    child: Text(reg, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) {
-                                    setModalState(() => selectedRegion = val);
-                                  }
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          _buildTextField('Delivery Address (Line 1)', addressLineController, Icons.home_outlined),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(child: _buildTextField('City', cityController, Icons.location_city_outlined)),
-                              const SizedBox(width: 10),
-                              Expanded(child: _buildTextField('State', stateController, Icons.map_outlined)),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          Row(
-                            children: [
-                              Expanded(child: _buildTextField('Pincode', pincodeController, Icons.pin_drop_outlined, keyboardType: TextInputType.number)),
-                              const SizedBox(width: 10),
-                              Expanded(child: _buildTextField('GSTIN Number', gstController, Icons.receipt_long_outlined)),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Bottom Save Action
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 10,
-                          offset: const Offset(0, -4),
-                        ),
-                      ],
-                    ),
-                    child: SafeArea(
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryNavy,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onPressed: () async {
-                            final newName = nameController.text.trim();
-                            final newReligion = religionController.text.trim();
-                            final newEmail = emailController.text.trim();
-                            final newPhone = phoneController.text.trim();
-                            final newCompany = companyController.text.trim();
-                            final newCity = cityController.text.trim();
-                            final newState = stateController.text.trim();
-                            final newPincode = pincodeController.text.trim();
-                            final newGst = gstController.text.trim();
-                            final newAddrLine = addressLineController.text.trim();
-
-                            final updatedAddr = {
-                              'line1': newAddrLine,
-                              'city': newCity,
-                              'state': newState,
-                              'pincode': newPincode,
-                            };
-
-                            // Update live AppStateService
-                            AppStateService.instance.updateUserProfileFields(
-                              name: newName.isNotEmpty ? newName : null,
-                              religion: newReligion,
-                              email: newEmail,
-                              phone: newPhone.isNotEmpty ? newPhone : null,
-                              companyName: newCompany,
-                              userCategory: selectedCategory,
-                              city: newCity,
-                              state: newState,
-                              region: selectedRegion,
-                              pincode: newPincode,
-                              gstNumber: newGst,
-                              address: updatedAddr,
-                            );
-
-                            // Save to persistent SharedPreferences session
-                            await UserSessionService.saveUserSession(
-                              AppStateService.instance.currentUserProfile,
-                            );
-
-                            // Update Firestore in background
-                            try {
-                              await FirestoreService().createUserProfile(
-                                uid: profile.userId,
-                                phoneNumber: newPhone.isNotEmpty ? newPhone : profile.phone,
-                                fullName: newName.isNotEmpty ? newName : profile.name,
-                                religion: newReligion,
-                                role: selectedCategory,
-                                email: newEmail,
-                                companyName: newCompany,
-                                city: newCity,
-                                state: newState,
-                                pincode: newPincode,
-                                address: updatedAddr,
-                                isVerified: true,
-                              );
-                              await FirestoreService.instance.updateUserRegionAndToken(
-                                profile.userId,
-                                region: selectedRegion,
-                              );
-                            } catch (_) {}
-
-                            if (modalCtx.mounted) {
-                              Navigator.pop(modalCtx);
-                            }
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Profile details updated successfully!'),
-                                  backgroundColor: AppTheme.primaryNavy,
-                                ),
-                              );
-                            }
-                          },
-                          child: const Text('Save Profile Changes'),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    ).whenComplete(() {
-      nameController.dispose();
-      emailController.dispose();
-      phoneController.dispose();
-      companyController.dispose();
-      cityController.dispose();
-      stateController.dispose();
-      pincodeController.dispose();
-      gstController.dispose();
-      addressLineController.dispose();
-    });
-  }
-
-  Widget _buildTextField(
-    String label,
-    TextEditingController controller,
-    IconData icon, {
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textDark,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
-            hintText: 'Enter $label',
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.borderSubtle),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppTheme.borderSubtle),
-            ),
-          ),
-        ),
-      ],
+      builder: (modalCtx) => _EditProfileBottomSheet(profile: profile),
     );
   }
 
@@ -639,6 +301,23 @@ class ProfileScreen extends StatelessWidget {
                           color: Colors.white70,
                         ),
                       ),
+                      if (profile.dateOfBirth.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.cake_outlined, size: 13, color: Colors.white70),
+                            const SizedBox(width: 5),
+                            Text(
+                              'DOB: ${profile.dateOfBirth}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       if (profile.companyName.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
@@ -877,27 +556,30 @@ class ProfileScreen extends StatelessWidget {
     VoidCallback onTap, {
     bool isDestructive = false,
   }) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isDestructive ? Colors.red : AppTheme.primaryNavy,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: isDestructive ? Colors.red : AppTheme.textDark,
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isDestructive ? Colors.red : AppTheme.primaryNavy,
         ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: isDestructive ? Colors.red : AppTheme.textDark,
+          ),
+        ),
+        trailing: isDestructive
+            ? null
+            : const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 14,
+                color: AppTheme.textSubtle,
+              ),
+        onTap: onTap,
       ),
-      trailing: isDestructive
-          ? null
-          : const Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppTheme.textSubtle,
-            ),
-      onTap: onTap,
     );
   }
 
@@ -914,5 +596,455 @@ class ProfileScreen extends StatelessWidget {
         (route) => false,
       );
     }
+  }
+}
+
+class _EditProfileBottomSheet extends StatefulWidget {
+  final UserProfile profile;
+
+  const _EditProfileBottomSheet({required this.profile});
+
+  @override
+  State<_EditProfileBottomSheet> createState() => _EditProfileBottomSheetState();
+}
+
+class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
+  late TextEditingController _nameController;
+  late TextEditingController _religionController;
+  late TextEditingController _dobController;
+  late TextEditingController _emailController;
+  late TextEditingController _phoneController;
+  late TextEditingController _companyController;
+  late TextEditingController _cityController;
+  late TextEditingController _stateController;
+  late TextEditingController _pincodeController;
+  late TextEditingController _gstController;
+  late TextEditingController _addressLineController;
+
+  late String _selectedCategory;
+  late String _selectedRegion;
+
+  final List<String> _categories = [
+    'Dealer',
+    'Architect',
+    'Builder',
+    'Contractor',
+    'Wholesaler',
+    'Retailer',
+  ];
+
+  final List<String> _regions = [
+    'West India (Gujarat/Maharashtra)',
+    'North India',
+    'South India',
+    'East India',
+    'Middle East / UAE',
+    'International / Other',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.profile;
+    _nameController = TextEditingController(text: p.name);
+    _religionController = TextEditingController(text: p.religion);
+    _dobController = TextEditingController(text: p.dateOfBirth);
+    _emailController = TextEditingController(text: p.email);
+    _phoneController = TextEditingController(text: p.phone);
+    _companyController = TextEditingController(text: p.companyName);
+    _cityController = TextEditingController(text: p.city);
+    _stateController = TextEditingController(text: p.state);
+    _pincodeController = TextEditingController(text: p.pincode);
+    _gstController = TextEditingController(text: p.gstNumber);
+    _addressLineController = TextEditingController(
+      text: (p.address['line1'] ?? p.address['addressLine'] ?? '') as String,
+    );
+
+    _selectedCategory = p.userCategory.isNotEmpty ? p.userCategory : 'Dealer';
+    _selectedRegion = p.region.isNotEmpty ? p.region : 'West India (Gujarat/Maharashtra)';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _religionController.dispose();
+    _dobController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _companyController.dispose();
+    _cityController.dispose();
+    _stateController.dispose();
+    _pincodeController.dispose();
+    _gstController.dispose();
+    _addressLineController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildDateField(
+    BuildContext context,
+    String label,
+    TextEditingController controller,
+    IconData icon,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          readOnly: true,
+          onTap: () async {
+            DateTime initialDate = DateTime(1995, 1, 1);
+            if (controller.text.trim().isNotEmpty) {
+              try {
+                final parts = controller.text.trim().split(RegExp(r'[-/]'));
+                if (parts.length == 3) {
+                  if (parts[0].length == 4) {
+                    initialDate = DateTime(
+                        int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+                  } else {
+                    initialDate = DateTime(
+                        int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+                  }
+                }
+              } catch (_) {}
+            }
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: DateTime(1920),
+              lastDate: DateTime.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: AppTheme.primaryNavy,
+                      onPrimary: Colors.white,
+                      onSurface: AppTheme.textDark,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              final day = picked.day.toString().padLeft(2, '0');
+              final month = picked.month.toString().padLeft(2, '0');
+              final year = picked.year.toString();
+              controller.text = '$day/$month/$year';
+            }
+          },
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
+            suffixIcon: const Icon(Icons.calendar_today_rounded,
+                color: AppTheme.primaryNavy, size: 18),
+            hintText: 'Select $label (DD/MM/YYYY)',
+            filled: true,
+            fillColor: AppTheme.backgroundColor,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
+            hintText: 'Enter $label',
+            filled: true,
+            fillColor: AppTheme.backgroundColor,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.88,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.edit_note_rounded,
+                        color: AppTheme.primaryNavy, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Edit Profile & Details',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryNavy,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: AppTheme.textSubtle),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: AppTheme.borderSubtle),
+
+          // Form Fields
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTextField('Full Name', _nameController, Icons.person_outlined),
+                  const SizedBox(height: 14),
+                  _buildDateField(context, 'Date of Birth', _dobController, Icons.cake_outlined),
+                  const SizedBox(height: 14),
+                  _buildTextField('Religion', _religionController, Icons.diversity_3_outlined),
+                  const SizedBox(height: 14),
+                  _buildTextField('Mobile Number', _phoneController, Icons.phone_outlined, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 14),
+                  _buildTextField('Email Address', _emailController, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                  const SizedBox(height: 14),
+                  _buildTextField('Company / Business Name', _companyController, Icons.business_outlined),
+                  const SizedBox(height: 14),
+
+                  // User Category Dropdown
+                  const Text(
+                    'User / Business Category',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderSubtle),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _categories.contains(_selectedCategory) ? _selectedCategory : 'Dealer',
+                        isExpanded: true,
+                        items: _categories.map((cat) {
+                          return DropdownMenuItem(
+                            value: cat,
+                            child: Text(cat, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedCategory = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Region Selection Dropdown
+                  const Text(
+                    'Geographic Region / Hub',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.backgroundColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderSubtle),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _regions.contains(_selectedRegion)
+                            ? _selectedRegion
+                            : 'West India (Gujarat/Maharashtra)',
+                        isExpanded: true,
+                        items: _regions.map((reg) {
+                          return DropdownMenuItem(
+                            value: reg,
+                            child: Text(reg, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedRegion = val);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  _buildTextField('Street / Office Address', _addressLineController, Icons.location_on_outlined),
+                  const SizedBox(height: 14),
+                  _buildTextField('City', _cityController, Icons.location_city_outlined),
+                  const SizedBox(height: 14),
+                  _buildTextField('State', _stateController, Icons.map_outlined),
+                  const SizedBox(height: 14),
+                  _buildTextField('PIN Code', _pincodeController, Icons.pin_drop_outlined, keyboardType: TextInputType.number),
+                  const SizedBox(height: 14),
+                  _buildTextField('GSTIN Number', _gstController, Icons.receipt_long_outlined),
+                  const SizedBox(height: 24),
+
+                  // Save Action Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryNavy,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        final newName = _nameController.text.trim();
+                        final newReligion = _religionController.text.trim();
+                        final newDob = _dobController.text.trim();
+                        final newEmail = _emailController.text.trim();
+                        final newPhone = _phoneController.text.trim();
+                        final newCompany = _companyController.text.trim();
+                        final newCity = _cityController.text.trim();
+                        final newState = _stateController.text.trim();
+                        final newPincode = _pincodeController.text.trim();
+                        final newGst = _gstController.text.trim();
+                        final newAddrLine = _addressLineController.text.trim();
+
+                        final updatedAddr = {
+                          'line1': newAddrLine,
+                          'city': newCity,
+                          'state': newState,
+                          'pincode': newPincode,
+                        };
+
+                        // Update live AppStateService
+                        AppStateService.instance.updateUserProfileFields(
+                          name: newName.isNotEmpty ? newName : null,
+                          religion: newReligion,
+                          dateOfBirth: newDob,
+                          email: newEmail,
+                          phone: newPhone.isNotEmpty ? newPhone : null,
+                          companyName: newCompany,
+                          userCategory: _selectedCategory,
+                          city: newCity,
+                          state: newState,
+                          region: _selectedRegion,
+                          pincode: newPincode,
+                          gstNumber: newGst,
+                          address: updatedAddr,
+                        );
+
+                        // Save to persistent SharedPreferences session
+                        await UserSessionService.saveUserSession(
+                          AppStateService.instance.currentUserProfile,
+                        );
+
+                        // Update Firestore in background
+                        try {
+                          await FirestoreService().createUserProfile(
+                            uid: widget.profile.userId,
+                            phoneNumber: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
+                            fullName: newName.isNotEmpty ? newName : widget.profile.name,
+                            religion: newReligion,
+                            dateOfBirth: newDob,
+                            role: _selectedCategory,
+                            email: newEmail,
+                            companyName: newCompany,
+                            city: newCity,
+                            state: newState,
+                            pincode: newPincode,
+                            address: updatedAddr,
+                            isVerified: true,
+                          );
+                          await FirestoreService.instance.updateUserRegionAndToken(
+                            widget.profile.userId,
+                            region: _selectedRegion,
+                          );
+                        } catch (_) {}
+
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Profile details updated successfully!'),
+                              backgroundColor: AppTheme.primaryNavy,
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Save Profile Changes'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

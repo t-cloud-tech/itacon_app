@@ -90,6 +90,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // Registration Controllers
   final _regFullNameController = TextEditingController();
   final _regCompanyNameController = TextEditingController();
+  final _regDobController = TextEditingController();
   final _regPhoneController = TextEditingController();
   final _regOtpController = TextEditingController();
   final _regPasswordController = TextEditingController();
@@ -120,6 +121,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _loginReferralCodeController.dispose();
     _regFullNameController.dispose();
     _regCompanyNameController.dispose();
+    _regDobController.dispose();
     _regPhoneController.dispose();
     _regOtpController.dispose();
     _regPasswordController.dispose();
@@ -195,6 +197,7 @@ class _AuthScreenState extends State<AuthScreen> {
         categoryId: _selectedCategory ?? UserCategory.allCategories.first.id,
         password: _regPasswordController.text.trim(),
         companyName: _regCompanyNameController.text.trim(),
+        dateOfBirth: _regDobController.text.trim(),
         verificationId: _verificationId,
         smsCode: _regOtpController.text.trim(),
       );
@@ -1733,10 +1736,64 @@ class _AuthScreenState extends State<AuthScreen> {
           hintText: 'e.g., Royal Ceramics Pvt Ltd',
           prefixIcon: Icons.business_outlined,
         ),
+        const SizedBox(height: 12),
+        _buildFieldLabel('Date of Birth (Optional)'),
+        _buildCustomInputField(
+          controller: _regDobController,
+          hintText: 'Select Date of Birth (DD/MM/YYYY)',
+          prefixIcon: Icons.cake_outlined,
+          readOnly: true,
+          onTap: _selectRegistrationDob,
+          suffixIcon: const Icon(Icons.calendar_today_rounded,
+              color: Color(0xFF1B365D), size: 18),
+        ),
       ],
     );
   }
 
+  Future<void> _selectRegistrationDob() async {
+    DateTime initialDate = DateTime(1995, 1, 1);
+    if (_regDobController.text.trim().isNotEmpty) {
+      try {
+        final parts = _regDobController.text.trim().split(RegExp(r'[-/]'));
+        if (parts.length == 3) {
+          if (parts[0].length == 4) {
+            initialDate = DateTime(
+                int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+          } else {
+            initialDate = DateTime(
+                int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+          }
+        }
+      } catch (_) {}
+    }
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(1920),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF1B365D),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1B365D),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      final day = picked.day.toString().padLeft(2, '0');
+      final month = picked.month.toString().padLeft(2, '0');
+      final year = picked.year.toString();
+      setState(() {
+        _regDobController.text = '$day/$month/$year';
+      });
+    }
+  }
 
   Widget _buildFieldLabel(String text) {
     return Padding(
@@ -1758,6 +1815,8 @@ class _AuthScreenState extends State<AuthScreen> {
     required IconData prefixIcon,
     String? prefixText,
     bool obscureText = false,
+    bool readOnly = false,
+    VoidCallback? onTap,
     Widget? suffixIcon,
     TextInputType? keyboardType,
     TextCapitalization textCapitalization = TextCapitalization.none,
@@ -1766,6 +1825,8 @@ class _AuthScreenState extends State<AuthScreen> {
   }) {
     return TextFormField(
       controller: controller,
+      readOnly: readOnly,
+      onTap: onTap,
       obscureText: obscureText,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,

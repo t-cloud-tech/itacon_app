@@ -5,6 +5,7 @@ class UserProfile {
   final String userId; // Firebase Auth UID
   final String name; // User name
   final String religion; // Religion of user
+  final String dateOfBirth; // Date of birth (DD/MM/YYYY)
   final String companyName; // Business/company name
   final String phone; // Mobile number
   final String email; // Email
@@ -35,6 +36,7 @@ class UserProfile {
     required this.userId,
     required this.name,
     this.religion = '',
+    this.dateOfBirth = '',
     required this.companyName,
     required this.phone,
     required this.email,
@@ -77,6 +79,7 @@ class UserProfile {
     String? userId,
     String? name,
     String? religion,
+    String? dateOfBirth,
     String? companyName,
     String? phone,
     String? email,
@@ -107,6 +110,7 @@ class UserProfile {
       userId: userId ?? this.userId,
       name: name ?? this.name,
       religion: religion ?? this.religion,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       companyName: companyName ?? this.companyName,
       phone: phone ?? this.phone,
       email: email ?? this.email,
@@ -142,6 +146,8 @@ class UserProfile {
       'name': name,
       'fullName': name,
       'religion': religion,
+      'dateOfBirth': dateOfBirth,
+      'dob': dateOfBirth,
       'companyName': companyName,
       'phone': phone,
       'phoneNumber': phone,
@@ -183,6 +189,7 @@ class UserProfile {
       userId: docId,
       name: map['name'] ?? map['fullName'] ?? '',
       religion: map['religion'] ?? '',
+      dateOfBirth: map['dateOfBirth'] ?? map['dob'] ?? '',
       companyName: map['companyName'] ?? '',
       phone: map['phone'] ?? map['phoneNumber'] ?? '',
       email: map['email'] ?? '',

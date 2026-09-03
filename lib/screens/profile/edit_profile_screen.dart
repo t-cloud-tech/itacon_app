@@ -19,6 +19,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final FirestoreService _firestoreService = FirestoreService.instance;
 
   late TextEditingController _nameController;
+  late TextEditingController _dobController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _companyController;
@@ -64,6 +65,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     final profile = _appState.currentUserProfile;
     _nameController = TextEditingController(text: profile.name);
+    _dobController = TextEditingController(text: profile.dateOfBirth);
     _emailController = TextEditingController(text: profile.email);
     _phoneController = TextEditingController(text: profile.phone);
     _companyController = TextEditingController(text: profile.companyName);
@@ -88,6 +90,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _dobController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _companyController.dispose();
@@ -338,6 +341,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // Update live AppStateService
     _appState.updateUserProfileFields(
       name: _nameController.text.trim(),
+      dateOfBirth: _dobController.text.trim(),
       email: _emailController.text.trim(),
       phone: _phoneController.text.trim(),
       companyName: _companyController.text.trim(),
@@ -358,6 +362,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         uid: profile.userId,
         phoneNumber: _phoneController.text.trim(),
         fullName: _nameController.text.trim(),
+        dateOfBirth: _dobController.text.trim(),
         role: _selectedCategory,
         email: _emailController.text.trim(),
         companyName: _companyController.text.trim(),
@@ -583,6 +588,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               // ---------------------------------------------------------------
               _buildInputField('Full Name', _nameController, Icons.person_outlined),
               const SizedBox(height: 14),
+              _buildDateField('Date of Birth', _dobController, Icons.cake_outlined),
+              const SizedBox(height: 14),
               _buildInputField('Mobile Number', _phoneController, Icons.phone_outlined,
                   keyboardType: TextInputType.phone),
               const SizedBox(height: 14),
@@ -714,6 +721,96 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDateField(
+    String label,
+    TextEditingController controller,
+    IconData icon,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          readOnly: true,
+          onTap: () async {
+            DateTime initialDate = DateTime(1995, 1, 1);
+            if (controller.text.trim().isNotEmpty) {
+              try {
+                final parts = controller.text.trim().split(RegExp(r'[-/]'));
+                if (parts.length == 3) {
+                  if (parts[0].length == 4) {
+                    initialDate = DateTime(
+                        int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+                  } else {
+                    initialDate = DateTime(
+                        int.parse(parts[2]), int.parse(parts[1]), int.parse(parts[0]));
+                  }
+                }
+              } catch (_) {}
+            }
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: initialDate,
+              firstDate: DateTime(1920),
+              lastDate: DateTime.now(),
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.light(
+                      primary: AppTheme.primaryNavy,
+                      onPrimary: Colors.white,
+                      onSurface: AppTheme.textDark,
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (picked != null) {
+              final day = picked.day.toString().padLeft(2, '0');
+              final month = picked.month.toString().padLeft(2, '0');
+              final year = picked.year.toString();
+              controller.text = '$day/$month/$year';
+            }
+          },
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
+            suffixIcon: const Icon(Icons.calendar_today_rounded,
+                color: AppTheme.primaryNavy, size: 18),
+            hintText: 'Select $label (DD/MM/YYYY)',
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
