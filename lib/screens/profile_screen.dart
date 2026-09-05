@@ -15,7 +15,12 @@ import 'contract_rates_screen.dart';
 import 'profile/edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const ProfileScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   Future<bool?> _requestGalleryPermission(BuildContext context) async {
     return showDialog<bool>(
@@ -206,7 +211,7 @@ class ProfileScreen extends StatelessWidget {
                 // Curved Header Card with Live User Info
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 60, 20, 26),
+                  padding: const EdgeInsets.fromLTRB(12, 44, 20, 26),
                   decoration: const BoxDecoration(
                     color: AppTheme.primaryNavy,
                     borderRadius: BorderRadius.vertical(
@@ -215,6 +220,20 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                          tooltip: 'Back',
+                          onPressed: () {
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            } else if (onBackToHome != null) {
+                              onBackToHome!();
+                            }
+                          },
+                        ),
+                      ),
                       GestureDetector(
                         onTap: () => _pickProfilePhotoFromGallery(context),
                         child: Stack(

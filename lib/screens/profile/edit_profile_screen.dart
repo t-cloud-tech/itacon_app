@@ -396,6 +396,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+          tooltip: 'Back',
+          onPressed: () => Navigator.maybePop(context),
+        ),
         title: const Text('Edit Profile & Showroom'),
         elevation: 0,
       ),
@@ -505,7 +510,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
                   itemCount: _showroomImages.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     if (index == _showroomImages.length) {
                       // Dashed Add Photo Tile

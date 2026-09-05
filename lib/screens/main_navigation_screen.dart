@@ -47,13 +47,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onNavigateTab: _onTabSelected,
         scaffoldKey: _homeScaffoldKey,
       ),
-      const ProductListingScreen(
+      ProductListingScreen(
         subcategoryTitle: 'Products Collection',
         showBottomNavBar: false,
+        onBackToHome: () => _onTabSelected(0),
       ),
-      const FavoritesScreen(),
-      const OrdersScreen(),
-      const ProfileScreen(),
+      FavoritesScreen(
+        onBackToHome: () => _onTabSelected(0),
+      ),
+      OrdersScreen(
+        onBackToHome: () => _onTabSelected(0),
+      ),
+      ProfileScreen(
+        onBackToHome: () => _onTabSelected(0),
+      ),
     ];
 
     return Scaffold(

@@ -17,6 +17,7 @@ class ProductListingScreen extends StatefulWidget {
   final String? initialSurface;
   final String? initialSearchQuery;
   final bool showBottomNavBar;
+  final VoidCallback? onBackToHome;
 
   const ProductListingScreen({
     super.key,
@@ -25,6 +26,7 @@ class ProductListingScreen extends StatefulWidget {
     this.initialSurface,
     this.initialSearchQuery,
     this.showBottomNavBar = true,
+    this.onBackToHome,
   });
 
   @override
@@ -669,6 +671,17 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else if (widget.onBackToHome != null) {
+              widget.onBackToHome!();
+            }
+          },
+        ),
         title: Text(widget.subcategoryTitle),
         actions: [
           ListenableBuilder(
@@ -978,7 +991,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     child: Image.network(
                       product.images.isNotEmpty ? product.images.first : '',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (context, error, stackTrace) => Container(
                         color: Colors.grey.shade100,
                         child: const Icon(Icons.dashboard, color: Colors.grey, size: 36),
                       ),

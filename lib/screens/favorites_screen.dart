@@ -4,7 +4,12 @@ import '../services/app_state_service.dart';
 import '../utils/app_notification_utils.dart';
 
 class FavoritesScreen extends StatelessWidget {
-  const FavoritesScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const FavoritesScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -12,6 +17,17 @@ class FavoritesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else if (onBackToHome != null) {
+              onBackToHome!();
+            }
+          },
+        ),
         title: const Text('My Favorites'),
       ),
       body: ListenableBuilder(

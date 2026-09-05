@@ -122,14 +122,28 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
         if (snapshot.connectionState == ConnectionState.waiting && order == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Order Details')),
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+                tooltip: 'Back',
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              title: const Text('Order Details'),
+            ),
             body: const Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy)),
           );
         }
 
         if (order == null) {
           return Scaffold(
-            appBar: AppBar(title: const Text('Order Details')),
+            appBar: AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+                tooltip: 'Back',
+                onPressed: () => Navigator.maybePop(context),
+              ),
+              title: const Text('Order Details'),
+            ),
             body: const Center(child: Text('Order document not found.')),
           );
         }
@@ -142,6 +156,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         return Scaffold(
           backgroundColor: AppTheme.backgroundColor,
           appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+              tooltip: 'Back',
+              onPressed: () => Navigator.maybePop(context),
+            ),
             title: Text('PO Details (${order.orderReference})'),
             elevation: 0,
           ),

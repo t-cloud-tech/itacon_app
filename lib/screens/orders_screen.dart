@@ -6,7 +6,12 @@ import '../services/app_state_service.dart';
 import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
-  const OrdersScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const OrdersScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -34,6 +39,17 @@ class _OrdersScreenState extends State<OrdersScreen>
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else if (widget.onBackToHome != null) {
+              widget.onBackToHome!();
+            }
+          },
+        ),
         title: const Text('My Orders'),
         bottom: TabBar(
           controller: _tabController,

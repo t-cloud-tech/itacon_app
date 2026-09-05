@@ -103,6 +103,15 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A237E),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
+        ),
         title: const Row(
           children: [
             Icon(Icons.grid_view_rounded, color: Color(0xFFFF8F00), size: 24),
