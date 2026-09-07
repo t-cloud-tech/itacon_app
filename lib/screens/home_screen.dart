@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
@@ -11,6 +12,7 @@ import 'notifications_screen.dart';
 import '../services/firestore_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/adhesive_section_widget.dart';
+import '../widgets/interactive_pressable.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -223,11 +225,16 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       appBar: AppBar(
         leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppTheme.primaryNavy),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
+          builder: (context) => Center(
+            child: AppPressable(
+              onTap: () => Scaffold.of(context).openDrawer(),
+              scaleDown: 0.88,
+              borderRadius: BorderRadius.circular(20),
+              child: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Icon(Icons.menu_rounded, color: AppTheme.primaryNavy),
+              ),
+            ),
           ),
         ),
         centerTitle: true,
@@ -236,9 +243,9 @@ class _HomeScreenState extends State<HomeScreen> {
           height: 36,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
-            return const Text(
+            return Text(
               'ITACON GRANITO',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.primaryNavy,
@@ -254,90 +261,101 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             builder: (context, snapshot) {
               final unreadCount = snapshot.data ?? 0;
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded,
-                        color: AppTheme.primaryNavy),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                      );
-                    },
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppTheme.accentOrange,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '$unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+              return AppPressable(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const NotificationsScreen()),
+                  );
+                },
+                scaleDown: 0.88,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.notifications_none_rounded,
+                          color: AppTheme.primaryNavy, size: 24),
+                      if (unreadCount > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.accentOrange,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 15,
+                              minHeight: 15,
+                            ),
+                            child: Text(
+                              '$unreadCount',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               );
             },
           ),
           ListenableBuilder(
             listenable: appState,
             builder: (context, _) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.shopping_bag_outlined,
-                        color: AppTheme.primaryNavy),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()),
-                      );
-                    },
-                  ),
-                  if (appState.cartCount > 0)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppTheme.accentOrange,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '${appState.cartCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+              return AppPressable(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CartScreen()),
+                  );
+                },
+                scaleDown: 0.88,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.shopping_bag_outlined,
+                          color: AppTheme.primaryNavy, size: 24),
+                      if (appState.cartCount > 0)
+                        Positioned(
+                          top: -2,
+                          right: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.accentOrange,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 15,
+                              minHeight: 15,
+                            ),
+                            child: Text(
+                              '${appState.cartCount}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               );
             },
           ),
@@ -397,12 +415,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accentOrange,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                      ),
+                    AppButton(
+                      text: 'Explore Collection →',
+                      variant: AppButtonVariant.secondary,
+                      height: 40,
+                      fontSize: 13,
                       onPressed: () {
                         if (widget.onNavigateTab != null) {
                           widget.onNavigateTab!(1);
@@ -414,10 +431,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           );
                         }
                       },
-                      child: const Text(
-                        'Explore Collection →',
-                        style: TextStyle(fontSize: 13),
-                      ),
                     ),
                   ],
                 ),
@@ -430,17 +443,18 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 26),
 
             // Shop by Space Section (Living Room, Bath Room, Bedroom, Outdoor)
-            const Text(
+            Text(
               'Shop by Space',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textDark,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 14),
 
-            // Horizontal Scrollable Space Cards
+            // Horizontal Scrollable Space Cards with Tactile AppPressable
             SizedBox(
               height: 110,
               child: ListView.builder(
@@ -448,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemCount: ProductEnums.spaces.length,
                 itemBuilder: (context, index) {
                   final spaceName = ProductEnums.spaces[index];
-                  return GestureDetector(
+                  return AppPressable(
                     onTap: () {
                       Navigator.push(
                         context,
@@ -459,6 +473,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     },
+                    scaleDown: 0.95,
+                    borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: 120,
                       margin: const EdgeInsets.only(right: 12),
@@ -490,9 +506,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             textAlign: TextAlign.center,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                               color: AppTheme.textDark,
                             ),
                           ),
@@ -509,15 +525,16 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Shop by Category',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.textDark,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                GestureDetector(
+                AppPressable(
                   onTap: () {
                     Navigator.push(
                       context,
@@ -526,24 +543,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'View All',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                  scaleDown: 0.94,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'View All',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.accentOrange,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
                           color: AppTheme.accentOrange,
                         ),
-                      ),
-                      SizedBox(width: 2),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: AppTheme.accentOrange,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -573,15 +595,16 @@ class _HomeScreenState extends State<HomeScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Trending Collection',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.textDark,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                GestureDetector(
+                AppPressable(
                   onTap: () {
                     Navigator.push(
                       context,
@@ -589,12 +612,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (_) => const ProductListingScreen()),
                     );
                   },
-                  child: const Text(
-                    'View All →',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentOrange,
+                  scaleDown: 0.94,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'View All →',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.accentOrange,
+                      ),
                     ),
                   ),
                 ),
@@ -602,7 +630,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Featured Products Grid
+            // Featured Products Grid with AppPressable
             GridView.builder(
               shrinkWrap: true,
               padding: EdgeInsets.zero,
@@ -616,7 +644,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               itemBuilder: (context, index) {
                 final product = featuredProducts[index];
-                return GestureDetector(
+                return AppPressable(
                   onTap: () {
                     Navigator.push(
                       context,
@@ -625,6 +653,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
+                  scaleDown: 0.97,
+                  borderRadius: BorderRadius.circular(16),
                   child: Container(
                     decoration: AppTheme.luxuryCardDecoration,
                     clipBehavior: Clip.antiAlias,
@@ -655,12 +685,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   builder: (context, _) {
                                     final isFav =
                                         appState.isFavorite(product.id);
-                                    return GestureDetector(
+                                    return AppPressable(
                                       onTap: () => appState.toggleFavorite(product),
+                                      scaleDown: 0.84,
+                                      borderRadius: BorderRadius.circular(16),
                                       child: CircleAvatar(
                                         radius: 14,
                                         backgroundColor:
-                                            Colors.white.withValues(alpha: 0.9),
+                                            Colors.white.withValues(alpha: 0.92),
                                         child: Icon(
                                           isFav
                                               ? Icons.favorite_rounded
@@ -685,9 +717,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text(
                                 product.name,
-                                style: const TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w700,
                                   color: AppTheme.textDark,
                                 ),
                                 maxLines: 1,
@@ -696,7 +728,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 product.size,
-                                style: const TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: AppTheme.textSubtle,
                                 ),
@@ -704,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 '₹${product.basePrice.toStringAsFixed(0)} / sq.ft',
-                                style: const TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   color: AppTheme.accentOrange,
@@ -740,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final imageUrl = cat['image'] as String? ?? '';
     final isComingSoon = cat['isComingSoon'] as bool? ?? false;
 
-    return GestureDetector(
+    return AppPressable(
       onTap: isComingSoon
           ? null
           : () {
@@ -753,6 +785,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+      scaleDown: 0.96,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -1077,13 +1111,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(width: 4),
-              GestureDetector(
+              AppPressable(
                 onTap: () {
                   final text = _searchController.text.trim();
                   _navigateToProductListing(
                     query: text.isNotEmpty ? text : null,
                   );
                 },
+                scaleDown: 0.94,
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
@@ -1098,20 +1134,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         'Search',
-                        style: TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.2,
                         ),
                       ),
-                      SizedBox(width: 4),
-                      Icon(
+                      const SizedBox(width: 4),
+                      const Icon(
                         Icons.arrow_forward_rounded,
                         color: AppTheme.accentOrange,
                         size: 14,
@@ -1142,13 +1178,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 6),
-            const Text(
+            Text(
               'Popular Searches & Materials',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.textSubtle,
-                letterSpacing: 0.2,
+                letterSpacing: 0.1,
               ),
             ),
           ],
@@ -1165,7 +1201,7 @@ class _HomeScreenState extends State<HomeScreen> {
             separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final chip = _popularChips[index];
-              return InkWell(
+              return AppPressable(
                 onTap: () {
                   _navigateToProductListing(
                     query: chip.query,
@@ -1174,6 +1210,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: chip.label,
                   );
                 },
+                scaleDown: 0.95,
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding:
@@ -1204,7 +1241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 5),
                       Text(
                         chip.label,
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textDark,

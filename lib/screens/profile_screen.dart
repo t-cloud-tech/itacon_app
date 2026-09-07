@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
+import '../widgets/interactive_pressable.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
@@ -234,7 +236,7 @@ class ProfileScreen extends StatelessWidget {
                           },
                         ),
                       ),
-                      GestureDetector(
+                      AppPressable(
                         onTap: () => _pickProfilePhotoFromGallery(context),
                         child: Stack(
                           alignment: Alignment.bottomRight,
@@ -476,15 +478,31 @@ class ProfileScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.edit_outlined, size: 16),
-                              label: const Text('Complete Pending Details'),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                side: const BorderSide(color: AppTheme.accentOrange),
-                                foregroundColor: AppTheme.accentOrange,
+                            height: 42,
+                            child: AppPressable(
+                              onTap: () => _openEditProfileModal(context, profile),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppTheme.accentOrange),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.edit_outlined, size: 16, color: AppTheme.accentOrange),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Complete Pending Details',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              onPressed: () => _openEditProfileModal(context, profile),
                             ),
                           ),
                         ] else ...[
@@ -575,29 +593,46 @@ class ProfileScreen extends StatelessWidget {
     VoidCallback onTap, {
     bool isDestructive = false,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: isDestructive ? Colors.red : AppTheme.primaryNavy,
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: isDestructive ? Colors.red : AppTheme.textDark,
-          ),
-        ),
-        trailing: isDestructive
-            ? null
-            : const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
+    return AppPressable(
+      onTap: onTap,
+      scaleDown: 0.985,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDestructive
+                    ? Colors.red.withValues(alpha: 0.08)
+                    : AppTheme.primaryNavy.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isDestructive ? Colors.red : AppTheme.primaryNavy,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDestructive ? Colors.red : AppTheme.textDark,
+                ),
+              ),
+            ),
+            if (!isDestructive)
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
                 color: AppTheme.textSubtle,
               ),
-        onTap: onTap,
+          ],
+        ),
       ),
     );
   }

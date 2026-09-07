@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
+import '../widgets/interactive_pressable.dart';
 import '../models/user_profile.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
@@ -185,15 +187,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: SafeArea(
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryNavy,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
+              height: 52,
+              child: AppPressable(
+                onTap: () {
                   if (_currentStep == 0) {
                     if (!_isEstimateApproved) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,16 +218,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     _handlePlaceOrder(appState, user);
                   }
                 },
-                child: Text(
-                  _currentStep == 0
-                      ? 'APPROVE ESTIMATE & CONTINUE →'
-                      : (_currentStep == 1
-                          ? 'CONFIRM ADDRESS & PROCEED →'
-                          : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryNavy.withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _currentStep == 0
+                        ? 'APPROVE ESTIMATE & CONTINUE →'
+                        : (_currentStep == 1
+                            ? 'CONFIRM ADDRESS & PROCEED →'
+                            : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
               ),
@@ -992,19 +1003,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              OutlinedButton(
-                onPressed: () {
+              AppPressable(
+                onTap: () {
                   Navigator.pop(dialogCtx);
                   Navigator.pop(context);
                 },
-                child: const Text('BACK TO HOME'),
-              ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryNavy,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppTheme.borderSubtle),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'BACK TO HOME',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
                 ),
-                onPressed: () {
+              ),
+              AppPressable(
+                onTap: () {
                   Navigator.pop(dialogCtx);
                   Navigator.pop(context);
                   final targetOrder = createdOrder;
@@ -1017,7 +1038,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     );
                   }
                 },
-                child: const Text('VIEW ORDER DETAILS →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'VIEW ORDER DETAILS →',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),

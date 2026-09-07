@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'interactive_pressable.dart';
 
 /// Reusable Order & Estimate Summary Card with automatic weight (tonnage) & box details
 class OrderSummaryCard extends StatelessWidget {
@@ -285,27 +286,14 @@ class OrderSummaryCard extends StatelessWidget {
           ),
 
           if (showActionButton && onActionButtonPressed != null) ...[
-            const SizedBox(height: 14),
-            SizedBox(
+            const SizedBox(height: 16),
+            AppButton(
+              text: actionButtonText ?? 'PROCEED TO CHECKOUT →',
+              onPressed: onActionButtonPressed,
+              height: 50,
               width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryNavy,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: onActionButtonPressed,
-                child: Text(
-                  actionButtonText ?? 'PROCEED TO CHECKOUT →',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
+              variant: AppButtonVariant.primary,
+              fontSize: 14,
             ),
           ],
         ],

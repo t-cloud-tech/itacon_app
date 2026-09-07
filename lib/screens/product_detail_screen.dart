@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
 import '../utils/app_notification_utils.dart';
+import '../widgets/interactive_pressable.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final TileProduct? product;
@@ -168,14 +170,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          },
+        leading: Center(
+          child: AppPressable(
+            onTap: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+            },
+            scaleDown: 0.88,
+            borderRadius: BorderRadius.circular(20),
+            child: const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+            ),
+          ),
         ),
         title: const Text('Product Details'),
         actions: [
@@ -183,18 +191,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             listenable: _appState,
             builder: (context, _) {
               final isFav = _appState.isFavorite(_product.id);
-              return IconButton(
-                icon: Icon(
-                  isFav ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
-                  color: isFav ? Colors.red : AppTheme.primaryNavy,
+              return AppPressable(
+                onTap: () => _appState.toggleFavorite(_product),
+                scaleDown: 0.85,
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Icon(
+                    isFav ? Icons.favorite_rounded : Icons.favorite_outline_rounded,
+                    color: isFav ? Colors.red : AppTheme.primaryNavy,
+                  ),
                 ),
-                onPressed: () => _appState.toggleFavorite(_product),
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined, color: AppTheme.primaryNavy),
-            onPressed: () {},
+          AppPressable(
+            onTap: () {},
+            scaleDown: 0.88,
+            borderRadius: BorderRadius.circular(20),
+            child: const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Icon(Icons.share_outlined, color: AppTheme.primaryNavy),
+            ),
           ),
           const SizedBox(width: 8),
         ],
@@ -590,7 +608,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: SafeArea(
           child: Row(
             children: [
-              // Quantity Controller
+              // Quantity Controller with Tactile AppPressable
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
@@ -598,17 +616,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.remove, size: 18),
-                      onPressed: _quantity > 1
+                    AppPressable(
+                      onTap: _quantity > 1
                           ? () => setState(() => _quantity--)
                           : null,
+                      scaleDown: 0.85,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Icon(
+                          Icons.remove,
+                          size: 18,
+                          color: _quantity > 1 ? AppTheme.primaryNavy : Colors.grey.shade400,
+                        ),
+                      ),
                     ),
-                    InkWell(
+                    AppPressable(
                       onTap: _showManualQuantityDialog,
+                      scaleDown: 0.94,
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: AppTheme.primaryNavy.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(6),
@@ -617,9 +645,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           children: [
                             Text(
                               '$_quantity',
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 color: AppTheme.primaryNavy,
                               ),
                             ),
@@ -629,25 +657,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.add, size: 18),
-                      onPressed: () => setState(() => _quantity++),
+                    AppPressable(
+                      onTap: () => setState(() => _quantity++),
+                      scaleDown: 0.85,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Icon(Icons.add, size: 18, color: AppTheme.primaryNavy),
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 14),
 
-              // Add to Cart Button
+              // Add to Cart Button with Micro-Press Animation
               Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.shopping_bag_outlined,
-                      color: Colors.white),
-                  label: const Text('Add to Cart'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryNavy,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
+                child: AppButton(
+                  text: 'Add to Cart',
+                  icon: Icons.shopping_bag_outlined,
+                  height: 48,
+                  variant: AppButtonVariant.primary,
                   onPressed: () {
                     _appState.addToCart(
                       _product,

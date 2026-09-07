@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../widgets/order_summary_card.dart';
+import '../widgets/interactive_pressable.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -212,19 +214,24 @@ class CartScreen extends StatelessWidget {
                                     Expanded(
                                       child: Text(
                                         item.product.name,
-                                        style: const TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 14,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w700,
                                           color: AppTheme.textDark,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          color: AppTheme.statusError, size: 20),
-                                      onPressed: () => appState.removeFromCart(item),
+                                    AppPressable(
+                                      onTap: () => appState.removeFromCart(item),
+                                      scaleDown: 0.85,
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(4.0),
+                                        child: Icon(Icons.delete_outline,
+                                            color: AppTheme.statusError, size: 20),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -238,7 +245,7 @@ class CartScreen extends StatelessWidget {
                                       ),
                                       child: Text(
                                         '${item.selectedSize} • ${item.selectedFinish}',
-                                        style: const TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 11,
                                           color: AppTheme.textSubtle,
                                         ),
@@ -253,9 +260,9 @@ class CartScreen extends StatelessWidget {
                                       ),
                                       child: Text(
                                         '${item.itemWeightKg.toStringAsFixed(0)} kg',
-                                        style: const TextStyle(
+                                        style: GoogleFonts.inter(
                                           fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                          fontWeight: FontWeight.w700,
                                           color: AppTheme.primaryNavy,
                                         ),
                                       ),
@@ -274,7 +281,7 @@ class CartScreen extends StatelessWidget {
                                             if (resolved.hasDiscount) ...[
                                               Text(
                                                 '₹${resolved.basePrice.toStringAsFixed(0)}',
-                                                style: const TextStyle(
+                                                style: GoogleFonts.inter(
                                                   fontSize: 11,
                                                   color: Colors.grey,
                                                   decoration: TextDecoration.lineThrough,
@@ -284,7 +291,7 @@ class CartScreen extends StatelessWidget {
                                             ],
                                             Text(
                                               '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/sq.ft',
-                                              style: const TextStyle(
+                                              style: GoogleFonts.inter(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,
                                                 color: AppTheme.accentOrange,
@@ -304,16 +311,20 @@ class CartScreen extends StatelessWidget {
                                       ),
                                       child: Row(
                                         children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.remove, size: 14),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(minWidth: 28),
-                                            onPressed: () => appState.updateQuantity(item, -1),
+                                          AppPressable(
+                                            onTap: () => appState.updateQuantity(item, -1),
+                                            scaleDown: 0.85,
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                              child: Icon(Icons.remove, size: 14, color: AppTheme.primaryNavy),
+                                            ),
                                           ),
                                           Tooltip(
                                             message: 'Tap to edit quantity manually',
-                                            child: InkWell(
+                                            child: AppPressable(
                                               onTap: () => _showManualQuantityDialog(context, appState, item),
+                                              scaleDown: 0.93,
                                               borderRadius: BorderRadius.circular(4),
                                               child: Container(
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -326,9 +337,9 @@ class CartScreen extends StatelessWidget {
                                                   children: [
                                                     Text(
                                                       '${item.quantity}',
-                                                      style: const TextStyle(
+                                                      style: GoogleFonts.inter(
                                                         fontSize: 13,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight: FontWeight.w700,
                                                         color: AppTheme.primaryNavy,
                                                       ),
                                                     ),
@@ -343,11 +354,14 @@ class CartScreen extends StatelessWidget {
                                               ),
                                             ),
                                           ),
-                                          IconButton(
-                                            icon: const Icon(Icons.add, size: 14),
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(minWidth: 28),
-                                            onPressed: () => appState.updateQuantity(item, 1),
+                                          AppPressable(
+                                            onTap: () => appState.updateQuantity(item, 1),
+                                            scaleDown: 0.85,
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: const Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                              child: Icon(Icons.add, size: 14, color: AppTheme.primaryNavy),
+                                            ),
                                           ),
                                         ],
                                       ),

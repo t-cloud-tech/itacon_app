@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/sales_person.dart';
+import 'interactive_pressable.dart';
 
 /// Dedicated 'Assigned Sales Person' Card displaying executive credentials
 /// with direct one-tap Call and WhatsApp actions, with realistic mock fallback data.
@@ -54,18 +56,7 @@ class AssignedSalespersonCard extends StatelessWidget {
         : _defaultRole;
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: AppTheme.luxuryCardDecoration,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,17 +65,18 @@ class AssignedSalespersonCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.badge_outlined, color: AppTheme.primaryNavy, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.badge_outlined,
+                      color: AppTheme.primaryNavy, size: 20),
+                  const SizedBox(width: 8),
                   Text(
                     'Assigned Sales Person',
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 15,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.primaryNavy,
-                      letterSpacing: 0.2,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ],
@@ -97,9 +89,9 @@ class AssignedSalespersonCard extends StatelessWidget {
                 ),
                 child: Text(
                   empId,
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.accentOrange,
                   ),
                 ),
@@ -117,12 +109,12 @@ class AssignedSalespersonCard extends StatelessWidget {
               // Avatar Circle
               CircleAvatar(
                 radius: 26,
-                backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.08),
                 child: Text(
                   name.isNotEmpty ? name[0].toUpperCase() : 'R',
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.primaryNavy,
                   ),
                 ),
@@ -136,16 +128,17 @@ class AssignedSalespersonCard extends StatelessWidget {
                   children: [
                     Text(
                       name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF0E274D), // Bold Navy #0E274D
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryNavy,
+                        letterSpacing: -0.1,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       roleStr,
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 12,
                         color: AppTheme.textSubtle,
                       ),
@@ -153,7 +146,7 @@ class AssignedSalespersonCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       phone,
-                      style: const TextStyle(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.textDark,
@@ -163,27 +156,57 @@ class AssignedSalespersonCard extends StatelessWidget {
                 ),
               ),
 
-              // Action Buttons Column: Direct One-Tap Call & WhatsApp
-              Column(
+              // Action Buttons Column: Direct One-Tap Call & WhatsApp with Tactile Press
+              Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.green.shade50,
-                      shape: const CircleBorder(),
+                  AppPressable(
+                    onTap: () => _makeCall(phone),
+                    scaleDown: 0.90,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.phone_in_talk_rounded,
+                        color: Colors.green,
+                        size: 18,
+                      ),
                     ),
-                    icon: const Icon(Icons.phone_in_talk_rounded, color: Colors.green, size: 20),
-                    onPressed: () => _makeCall(phone),
-                    tooltip: 'Call Executive',
                   ),
-                  const SizedBox(height: 4),
-                  IconButton(
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFF25D366).withValues(alpha: 0.1),
-                      shape: const CircleBorder(),
+                  const SizedBox(width: 8),
+                  AppPressable(
+                    onTap: () => _openWhatsApp(phone, name),
+                    scaleDown: 0.90,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF25D366).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color:
+                              const Color(0xFF25D366).withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        color: Color(0xFF25D366),
+                        size: 18,
+                      ),
                     ),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366), size: 20),
-                    onPressed: () => _openWhatsApp(phone, name),
-                    tooltip: 'WhatsApp Executive',
                   ),
                 ],
               ),
@@ -194,3 +217,4 @@ class AssignedSalespersonCard extends StatelessWidget {
     );
   }
 }
+

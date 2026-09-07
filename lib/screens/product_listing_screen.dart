@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
@@ -8,6 +9,7 @@ import '../utils/tile_dimension_helper.dart';
 import '../utils/app_notification_utils.dart';
 import '../widgets/product_filter_bottom_sheet.dart';
 import '../widgets/floating_bottom_bar.dart';
+import '../widgets/interactive_pressable.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 
@@ -847,13 +849,20 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                           ),
                         ),
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.swap_vert_rounded, color: AppTheme.primaryNavy, size: 20),
-                      tooltip: 'Sort Products',
-                      onPressed: _showSortMenu,
+                    AppPressable(
+                      onTap: _showSortMenu,
+                      scaleDown: 0.88,
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Padding(
+                        padding: EdgeInsets.all(6.0),
+                        child: Icon(Icons.swap_vert_rounded, color: AppTheme.primaryNavy, size: 20),
+                      ),
                     ),
-                    InkWell(
+                    const SizedBox(width: 4),
+                    AppPressable(
                       onTap: _openFilterBottomSheet,
+                      scaleDown: 0.94,
+                      borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
@@ -875,9 +884,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                             const SizedBox(width: 4),
                             Text(
                               activeCount > 0 ? 'Filter ($activeCount)' : 'Filter',
-                              style: TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.textDark,
                               ),
                             ),
@@ -906,27 +915,26 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                           const SizedBox(height: 16),
                           Text(
                             'No tiles matching selected criteria',
-                            style: TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: Colors.grey.shade700,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Try resetting your multi-select surface or size filters.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
+                            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSubtle),
                           ),
                           const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryNavy,
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            ),
+                          AppButton(
+                            text: 'Reset All Filters',
+                            icon: Icons.refresh_rounded,
+                            variant: AppButtonVariant.primary,
+                            height: 42,
+                            fontSize: 13,
                             onPressed: _clearAllFilters,
-                            icon: const Icon(Icons.refresh_rounded, size: 18),
-                            label: const Text('Reset All Filters'),
                           ),
                         ],
                       ),
@@ -943,7 +951,10 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       final product = filtered[index];
                       final calculatedAspectRatio = TileDimensionHelper.calculateTileAspectRatio(product.size);
 
-                      return _buildLuxuryTileCard(context, product, calculatedAspectRatio);
+                      return AppFadeSlideTransition(
+                        delay: Duration(milliseconds: (index.clamp(0, 6) * 35)),
+                        child: _buildLuxuryTileCard(context, product, calculatedAspectRatio),
+                      );
                     },
                   ),
           ),
@@ -956,7 +967,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   }
 
   Widget _buildLuxuryTileCard(BuildContext context, TileProduct product, double aspectRatio) {
-    return GestureDetector(
+    return AppPressable(
       onTap: () {
         Navigator.push(
           context,
@@ -965,18 +976,14 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           ),
         );
       },
+      scaleDown: 0.97,
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.8)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: AppTheme.luxuryShadows,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -1010,17 +1017,17 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       ),
                       child: Text(
                         product.surface,
-                        style: const TextStyle(
+                        style: GoogleFonts.inter(
                           color: Colors.white,
                           fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 0.2,
                         ),
                       ),
                     ),
                   ),
 
-                  // Quick Favorite Button
+                  // Quick Favorite Button with Tactile Press
                   Positioned(
                     top: 6,
                     right: 6,
@@ -1028,13 +1035,22 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       listenable: _appState,
                       builder: (context, _) {
                         final isFav = _appState.isFavorite(product.id);
-                        return InkWell(
+                        return AppPressable(
                           onTap: () => _appState.toggleFavorite(product),
+                          scaleDown: 0.84,
+                          borderRadius: BorderRadius.circular(16),
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withValues(alpha: 0.92),
                               shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
                             ),
                             child: Icon(
                               isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -1060,9 +1076,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     product.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: AppTheme.primaryNavy,
                     ),
                   ),
@@ -1073,7 +1089,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       const SizedBox(width: 4),
                       Text(
                         product.size,
-                        style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                        style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSubtle),
                       ),
                     ],
                   ),
@@ -1099,16 +1115,16 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                             children: [
                               Text(
                                 '₹${effectivePrice.toStringAsFixed(0)}/sq.ft',
-                                style: const TextStyle(
+                                style: GoogleFonts.inter(
                                   fontSize: 14,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w800,
                                   color: AppTheme.accentOrange,
                                 ),
                               ),
                               if (hasDiscount)
                                 Text(
                                   'MRP ₹${product.basePrice.toStringAsFixed(0)}',
-                                  style: const TextStyle(
+                                  style: GoogleFonts.inter(
                                     fontSize: 10,
                                     color: Colors.grey,
                                     decoration: TextDecoration.lineThrough,
@@ -1116,7 +1132,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                 ),
                             ],
                           ),
-                          InkWell(
+                          AppPressable(
                             onTap: () {
                               _appState.addToCart(
                                 product,
@@ -1129,11 +1145,20 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                 productName: product.name,
                               );
                             },
+                            scaleDown: 0.88,
+                            borderRadius: BorderRadius.circular(8),
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
                                 color: AppTheme.primaryNavy,
                                 borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryNavy.withValues(alpha: 0.25),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                               child: const Icon(
                                 Icons.add_shopping_cart_rounded,

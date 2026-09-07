@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../screens/main_navigation_screen.dart';
+import 'interactive_pressable.dart';
 
 class FloatingNavBarItem {
   final IconData icon;
@@ -32,51 +34,60 @@ class FloatingBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.primaryNavy,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(22),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryNavy.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.1),
-          width: 1,
-        ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        systemNavigationBarColor: AppTheme.primaryNavy,
+        systemNavigationBarDividerColor: AppTheme.primaryNavy,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final isSelected = index == currentIndex;
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.primaryNavy,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(22),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryNavy.withValues(alpha: 0.30),
+              blurRadius: 18,
+              offset: const Offset(0, -4),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.14),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+          border: Border(
+            top: BorderSide(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: List.generate(items.length, (index) {
+                final item = items[index];
+                final isSelected = index == currentIndex;
 
-              return Expanded(
-                child: _NavBarItemWidget(
-                  item: item,
-                  isSelected: isSelected,
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    onTap(index);
-                  },
-                ),
-              );
-            }),
+                return Expanded(
+                  child: _NavBarItemWidget(
+                    item: item,
+                    isSelected: isSelected,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      onTap(index);
+                    },
+                  ),
+                );
+              }),
+            ),
           ),
         ),
       ),
@@ -165,9 +176,10 @@ class _NavBarItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return AppPressable(
       onTap: onTap,
+      scaleDown: 0.94,
+      borderRadius: BorderRadius.circular(16),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -178,44 +190,68 @@ class _NavBarItemWidget extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     color: isSelected
-                        ? AppTheme.accentOrange.withValues(alpha: 0.22)
+                        ? AppTheme.accentOrange.withValues(alpha: 0.20)
                         : Colors.transparent,
+                    border: isSelected
+                        ? Border.all(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.35),
+                            width: 1,
+                          )
+                        : Border.all(color: Colors.transparent, width: 1),
                   ),
-                  child: Icon(
-                    isSelected ? item.activeIcon : item.icon,
-                    size: 22,
-                    color: isSelected
-                        ? AppTheme.accentOrange
-                        : Colors.white.withValues(alpha: 0.65),
+                  child: AnimatedScale(
+                    scale: isSelected ? 1.08 : 1.0,
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      isSelected ? item.activeIcon : item.icon,
+                      size: 22,
+                      color: isSelected
+                          ? AppTheme.accentOrange
+                          : Colors.white.withValues(alpha: 0.70),
+                    ),
                   ),
                 ),
                 if (item.badgeCount > 0)
                   Positioned(
                     top: -2,
                     right: 4,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: AppTheme.accentOrange,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 14,
-                        minHeight: 14,
-                      ),
-                      child: Text(
-                        '${item.badgeCount}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
+                    child: AnimatedScale(
+                      scale: 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutBack,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentOrange,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.accentOrange.withValues(alpha: 0.4),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                         ),
-                        textAlign: TextAlign.center,
+                        constraints: const BoxConstraints(
+                          minWidth: 15,
+                          minHeight: 15,
+                        ),
+                        child: Text(
+                          item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                   ),
@@ -224,13 +260,14 @@ class _NavBarItemWidget extends StatelessWidget {
             const SizedBox(height: 2),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
-              style: TextStyle(
+              curve: Curves.easeOutCubic,
+              style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
                     ? AppTheme.accentOrange
-                    : Colors.white.withValues(alpha: 0.65),
-                fontFamily: 'Roboto',
+                    : Colors.white.withValues(alpha: 0.70),
+                letterSpacing: 0.1,
               ),
               child: Text(
                 item.label,
@@ -244,3 +281,4 @@ class _NavBarItemWidget extends StatelessWidget {
     );
   }
 }
+

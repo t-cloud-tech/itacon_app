@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/user_category.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../widgets/interactive_pressable.dart';
 import 'referral_gate_screen.dart';
 import 'main_navigation_screen.dart';
 import 'auth/forgot_password_screen.dart';
@@ -336,62 +338,70 @@ class _AuthScreenState extends State<AuthScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 8),
-              // Login Button (Solid Orange)
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF16528),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+              // Login Button (Solid Orange with Tactile Feedback)
+              AppPressable(
+                onTap: () {
+                  setState(() {
+                    _viewMode = AuthViewMode.login;
+                  });
+                },
+                scaleDown: 0.97,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF16528),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFF16528).withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _viewMode = AuthViewMode.login;
-                    });
-                  },
-                  child: const Text(
+                  alignment: Alignment.center,
+                  child: Text(
                     'Login',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              // Sign Up Button (Orange Outline on Blue)
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2C4C94),
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(
-                      color: Color(0xFFF16528),
+              // Sign Up Button (Orange Outline on Blue with Tactile Feedback)
+              AppPressable(
+                onTap: () {
+                  setState(() {
+                    _viewMode = AuthViewMode.signup;
+                  });
+                },
+                scaleDown: 0.97,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C4C94),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFF16528),
                       width: 2.0,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _viewMode = AuthViewMode.signup;
-                    });
-                  },
-                  child: const Text(
+                  alignment: Alignment.center,
+                  child: Text(
                     'Sign Up',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
@@ -939,21 +949,23 @@ class _AuthScreenState extends State<AuthScreen> {
               const SizedBox(width: 6),
               SizedBox(
                 height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B365D),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: _isLoading ? null : _requestLoginOtp,
-                  child: Text(
-                    _loginOtpSent ? 'Resend' : 'Send OTP',
-                    style: const TextStyle(
+                child: AppPressable(
+                  onTap: _isLoading ? null : _requestLoginOtp,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B365D),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _loginOtpSent ? 'Resend' : 'Send OTP',
+                      style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -1077,38 +1089,45 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget _buildLoginActionButton() {
     final isFinalStep = _loginStep == 2;
     return SizedBox(
-      height: 44,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1B365D),
-          foregroundColor: Colors.white,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
+      height: 46,
+      child: AppPressable(
+        onTap: _isLoading ? null : _handleLogin,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1B365D),
             borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: _isLoading ? null : _handleLogin,
-        child: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2))
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    isFinalStep ? 'Sign In' : 'Continue',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 18),
-                ],
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1B365D).withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isFinalStep ? 'Sign In' : 'Continue',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -1599,21 +1618,23 @@ class _AuthScreenState extends State<AuthScreen> {
             const SizedBox(width: 6),
             SizedBox(
               height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B365D),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                onPressed: _isLoading ? null : _requestOtp,
-                child: Text(
-                  _otpSent ? 'Resend' : 'Send OTP',
-                  style: const TextStyle(
+              child: AppPressable(
+                onTap: _isLoading ? null : _requestOtp,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1B365D),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    _otpSent ? 'Resend' : 'Send OTP',
+                    style: GoogleFonts.inter(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1871,17 +1892,9 @@ class _AuthScreenState extends State<AuthScreen> {
     final isFinalStep = _signupStep == 2;
 
     return SizedBox(
-      height: 44,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF1B365D),
-          foregroundColor: Colors.white,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: _isLoading
+      height: 46,
+      child: AppPressable(
+        onTap: _isLoading
             ? null
             : () {
                 if (_signupStep < 2) {
@@ -1895,27 +1908,42 @@ class _AuthScreenState extends State<AuthScreen> {
                   _handleRegistration();
                 }
               },
-        child: _isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2))
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    isFinalStep ? 'Create Account' : 'Continue',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 18),
-                ],
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1B365D),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1B365D).withValues(alpha: 0.25),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
               ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: _isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isFinalStep ? 'Create Account' : 'Continue',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
+                  ],
+                ),
+        ),
       ),
     );
   }
