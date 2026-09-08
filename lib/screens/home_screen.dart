@@ -12,6 +12,7 @@ import 'notifications_screen.dart';
 import '../services/firestore_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/adhesive_section_widget.dart';
+import '../widgets/app_product_image.dart';
 import '../widgets/interactive_pressable.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -636,15 +637,18 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: featuredProducts.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.72,
+                childAspectRatio: MediaQuery.of(context).size.width < 360
+                    ? 0.65
+                    : (MediaQuery.of(context).size.width < 400 ? 0.68 : 0.72),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
               itemBuilder: (context, index) {
                 final product = featuredProducts[index];
-                return AppPressable(
+                return RepaintBoundary(
+                  child: AppPressable(
                   onTap: () {
                     Navigator.push(
                       context,
@@ -664,18 +668,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(
                           child: Stack(
                             children: [
-                              Image.network(
-                                product.images.first,
+                              AppProductImage(
+                                imagePath: product.images.isNotEmpty ? product.images.first : '',
                                 width: double.infinity,
                                 height: double.infinity,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                                  child: const Center(
-                                    child: Icon(Icons.terrain_rounded,
-                                        color: AppTheme.primaryNavy, size: 36),
-                                  ),
-                                ),
                               ),
                               Positioned(
                                 top: 8,
@@ -748,8 +745,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                );
-              },
+                ),
+              );
+            },
             ),
             const SizedBox(height: 30),
 

@@ -5,6 +5,7 @@ import '../models/user_profile.dart';
 import '../models/tile_product.dart';
 import 'auth_screen.dart';
 import '../services/user_session_service.dart';
+import '../widgets/adhesive_card.dart';
 import '../widgets/floating_bottom_bar.dart';
 
 class ProductCatalogueScreen extends StatefulWidget {
@@ -320,6 +321,9 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
   }
 
   Widget _buildProductCard(TileProduct product) {
+    if (product.isAdhesive) {
+      return AdhesiveCard(product: product);
+    }
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

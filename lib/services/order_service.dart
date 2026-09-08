@@ -83,17 +83,18 @@ class OrderService {
   List<OrderItem> cartToOrderItems(List<CartItem> cartItems) {
     return cartItems.map((cartItem) {
       final product = cartItem.product;
+      final isAdh = product.isAdhesive;
       return OrderItem(
         productId: product.id,
         sku: product.sku,
         productName: product.name,
-        size: cartItem.selectedSize,
-        surface: cartItem.selectedFinish,
+        size: isAdh ? '${product.bagWeightKg.toInt()} kg Bag' : cartItem.selectedSize,
+        surface: isAdh ? (product.classification.isNotEmpty ? product.classification : product.surface) : cartItem.selectedFinish,
         color: product.color,
         quantity: cartItem.quantity,
         quantityBoxes: cartItem.quantity,
-        quantitySqFt: cartItem.quantity * 15.5,
-        unit: product.unit,
+        quantitySqFt: isAdh ? 0.0 : cartItem.quantity * 15.5,
+        unit: isAdh ? 'bag' : product.unit,
         moq: product.moq,
         basePrice: product.basePrice,
         finalPrice: 0.0,

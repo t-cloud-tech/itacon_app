@@ -5,6 +5,7 @@ import '../services/app_state_service.dart';
 import '../services/pricing_service.dart';
 import '../widgets/order_summary_card.dart';
 import '../widgets/interactive_pressable.dart';
+import '../widgets/app_product_image.dart';
 import 'checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
@@ -188,19 +189,13 @@ class CartScreen extends StatelessWidget {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: Image.network(
-                              item.product.images.isNotEmpty
+                            child: AppProductImage(
+                              imagePath: item.product.images.isNotEmpty
                                   ? item.product.images.first
-                                  : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=300&q=80',
+                                  : '',
                               width: 80,
                               height: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => Container(
-                                width: 80,
-                                height: 80,
-                                color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                                child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy),
-                              ),
+                              fit: BoxFit.contain,
                             ),
                           ),
                           const SizedBox(width: 12),

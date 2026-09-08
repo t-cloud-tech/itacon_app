@@ -8,16 +8,21 @@ class TileProduct {
   final String sku; // Product SKU (e.g. "ITA-STAT-6012")
   final String name; // Product name
   final String categoryId; // Category ID
-  final String tileCategory; // Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parkings
-  final String size; // e.g. '600x1200 mm'
-  final String surface; // Glossy, Satin Matt, Matt - Carving, Rustic Wood, Inky Colors, High Gloss, Anti - Skid, Matt Punch, Sugar Lapato, Pastel Colors
-  final String color; // Product color
+  final String tileCategory; // Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parkings, Tile Adhesives
+  final String productLine; // 'tiles' | 'adhesives'
+  final String classification; // Technical classification e.g. TYPE-1 (C1T), TYPE-4 (C2TES1)
+  final double bagWeightKg; // Bag weight in Kg for adhesives (default 20.0)
+  final String usageTileSizes; // Compatible tile sizes format (e.g. Floor 2x2, 600x1200)
+  final String applicationNotes; // Application and substrate guide notes
+  final String size; // e.g. '600x1200 mm' or '20 kg Bag'
+  final String surface; // Glossy, Satin Matt, Carving, TYPE-1 (C1T), etc.
+  final String color; // Product color (Grey, White, etc.)
   final String baseColour; // White, Beige - Brown, Bianco - Grey, Nero, Black
   final String pattern; // Design/pattern
   final double basePrice; // Base price
   final int moq; // Minimum order quantity
-  final String unit; // box, sqft, piece
-  final String stockStatus; // available / made_to_order / out_of_stock
+  final String unit; // box, bag, sqft, piece
+  final String stockStatus; // available / available_now / made_to_order / out_of_stock
   final int availableQuantity; // Current ready stock
   final int currentStock; // Inventory tracking: Total stock
   final int reservedStock; // Inventory tracking: Reserved stock for pending orders
@@ -25,10 +30,10 @@ class TileProduct {
   final List<String> images; // Array of product image URLs
   final bool isActive;
   final bool isComingSoon;
-  final String collection; // Endless, Marbles, Golden, Terrazzo, 3D, Book Match, Wall Decore, Moracan
+  final String collection; // Endless, Marbles, Fixing Solutions
   final List<String> spaces; // Living Room, Bath Room, Bedroom, Outdoor
   final String finish;
-  final String productType; // Vitrified | Ceramic
+  final String productType; // Vitrified | Ceramic | Adhesives
   final String bodyType;
   final String thickness;
   final double thicknessMm; // e.g. 9.0
@@ -54,6 +59,11 @@ class TileProduct {
     required this.name,
     this.categoryId = 'CAT_GLAZED_01',
     this.tileCategory = 'Floor Tiles',
+    this.productLine = 'tiles',
+    this.classification = '',
+    this.bagWeightKg = 20.0,
+    this.usageTileSizes = '',
+    this.applicationNotes = '',
     required this.size,
     required this.surface,
     required this.color,
@@ -98,6 +108,9 @@ class TileProduct {
         availableStock = availableStock ?? ((currentStock ?? availableQuantity) - reservedStock),
         aspectRatioValue = aspectRatioValue ?? TileDimensionHelper.calculateTileAspectRatio(size);
 
+  bool get isAdhesive =>
+      productLine == 'adhesives' || unit == 'bag' || categoryId == 'CAT_ADHESIVES' || sku.startsWith('ITA-LX');
+
   String get baseColor => baseColour;
   String get categoryName => collection.isNotEmpty ? collection : categoryId;
   String get sizeCm => size;
@@ -111,6 +124,11 @@ class TileProduct {
       'name': name,
       'categoryId': categoryId,
       'tileCategory': tileCategory,
+      'productLine': productLine,
+      'classification': classification,
+      'bagWeightKg': bagWeightKg,
+      'usageTileSizes': usageTileSizes,
+      'applicationNotes': applicationNotes,
       'size': size,
       'surface': surface,
       'color': color,
@@ -156,13 +174,19 @@ class TileProduct {
 
   factory TileProduct.fromMap(Map<String, dynamic> map, String docId) {
     final pId = map['productId'] ?? docId;
-    final colorVal = map['baseColour'] ?? map['color'] ?? map['baseColor'] ?? 'White';
-    final sz = map['size'] ?? '600x1200 mm';
+    final colorVal = map['baseColour'] ?? map['color'] ?? map['baseColor'] ?? 'Grey';
+    final sz = map['size'] ?? '20 kg Bag';
     final stStatus = map['stockStatus'] ?? 'available';
     final cStock = (map['currentStock'] ?? map['availableQuantity'] ?? 500).toInt();
     final rStock = (map['reservedStock'] ?? 0).toInt();
     final aStock = (map['availableStock'] ?? (cStock - rStock)).toInt();
     final aspVal = TileDimensionHelper.calculateTileAspectRatio(sz);
+
+    final prodLine = map['productLine'] ?? (map['unit'] == 'bag' || docId.contains('ADH') || map['categoryId'] == 'CAT_ADHESIVES' ? 'adhesives' : 'tiles');
+    final classVal = map['classification'] ?? map['surface'] ?? '';
+    final bagWt = (map['bagWeightKg'] ?? map['boxWeightKg'] ?? 20.0).toDouble();
+    final usageVal = map['usageTileSizes'] ?? '';
+    final appNotes = map['applicationNotes'] ?? '';
 
     return TileProduct(
       id: docId,
@@ -170,15 +194,20 @@ class TileProduct {
       sku: map['sku'] ?? 'ITA-PROD-$docId',
       name: map['name'] ?? 'Unnamed Product',
       categoryId: map['categoryId'] ?? 'CAT_GLAZED_01',
-      tileCategory: map['tileCategory'] ?? 'Floor Tiles',
+      tileCategory: map['tileCategory'] ?? (prodLine == 'adhesives' ? 'Tile Adhesives' : 'Floor Tiles'),
+      productLine: prodLine,
+      classification: classVal,
+      bagWeightKg: bagWt,
+      usageTileSizes: usageVal,
+      applicationNotes: appNotes,
       size: sz,
-      surface: map['surface'] ?? 'Glossy',
+      surface: classVal.isNotEmpty ? classVal : (map['surface'] ?? 'Glossy'),
       color: colorVal,
       baseColour: colorVal,
-      pattern: map['pattern'] ?? 'Marble',
+      pattern: map['pattern'] ?? 'Polymer Modified',
       basePrice: (map['basePrice'] ?? 0.0).toDouble(),
-      moq: (map['moq'] ?? 10).toInt(),
-      unit: map['unit'] ?? 'box',
+      moq: (map['moq'] ?? 1).toInt(),
+      unit: map['unit'] ?? (prodLine == 'adhesives' ? 'bag' : 'box'),
       stockStatus: stStatus,
       availableQuantity: aStock,
       currentStock: cStock,
@@ -187,16 +216,16 @@ class TileProduct {
       images: List<String>.from(map['images'] ?? []),
       isActive: map['isActive'] ?? true,
       isComingSoon: map['isComingSoon'] ?? false,
-      collection: map['collection'] ?? 'Endless',
+      collection: map['collection'] ?? (prodLine == 'adhesives' ? 'Fixing Solutions' : 'Endless'),
       spaces: List<String>.from(map['spaces'] ?? ['Living Room', 'Bedroom']),
-      finish: map['finish'] ?? 'Polished',
-      productType: map['productType'] ?? 'Vitrified',
-      bodyType: map['bodyType'] ?? 'Porcelain',
+      finish: map['finish'] ?? (prodLine == 'adhesives' ? classVal : 'Polished'),
+      productType: map['productType'] ?? (prodLine == 'adhesives' ? 'Adhesives' : 'Vitrified'),
+      bodyType: map['bodyType'] ?? (prodLine == 'adhesives' ? 'Polymer Cementitious Matrix' : 'Porcelain'),
       thickness: map['thickness'] ?? '9 mm',
       thicknessMm: (map['thicknessMm'] ?? 9.0).toDouble(),
-      boxWeightKg: (map['boxWeightKg'] ?? 28.0).toDouble(),
+      boxWeightKg: (map['boxWeightKg'] ?? bagWt).toDouble(),
       pcsPerBox: (map['pcsPerBox'] ?? TileDimensionHelper.getPcsPerBox(sz)).toInt(),
-      sqFtPerBox: (map['sqFtPerBox'] ?? 15.5).toDouble(),
+      sqFtPerBox: (map['sqFtPerBox'] ?? 1.0).toDouble(),
       thicknessCategory: map['thicknessCategory'] ?? 'standard',
       shape: map['shape'] ?? 'rectangle',
       aspectRatio: map['aspectRatio']?.toString() ?? '$aspVal',
@@ -206,10 +235,10 @@ class TileProduct {
       shade: map['shade'] ?? 'Light',
       lifestyleImages: List<String>.from(map['lifestyleImages'] ?? []),
       packingDetails: Map<String, dynamic>.from(map['packingDetails'] ?? {
-        'boxWeight': '28 kg',
-        'sqmPerBox': 1.44,
-        'boxesPerPallet': 40,
-        'piecesPerBox': 2,
+        'boxWeight': '$bagWt kg',
+        'sqmPerBox': 1.0,
+        'boxesPerPallet': 50,
+        'piecesPerBox': 1,
       }),
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()

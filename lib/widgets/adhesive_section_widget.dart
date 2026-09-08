@@ -64,12 +64,13 @@ class AdhesiveProduct {
       productId: id,
       sku: sku,
       name: '$name ($selectedWeight)',
-      tileCategory: 'Tile Adhesives',
-      categoryId: 'CAT_ADHESIVES_01',
+      productLine: 'adhesives',
+      tileCategory: 'Fixing Solutions',
+      categoryId: 'CAT_ADHESIVES',
       size: selectedWeight,
       surface: grade,
-      color: 'Grey / White Polymer',
-      baseColour: 'Grey',
+      color: name.contains('WHITE') || name.contains('White') ? 'White' : 'Grey',
+      baseColour: name.contains('WHITE') || name.contains('White') ? 'White' : 'Grey',
       pattern: 'Polymer Modified Powder',
       basePrice: price,
       moq: 1,
@@ -77,12 +78,16 @@ class AdhesiveProduct {
       stockStatus: 'available_now',
       availableQuantity: 1000,
       images: [imageUrl],
-      collection: 'FixBond Adhesive Series',
+      collection: 'ITA LX Series',
       productType: 'Adhesives',
       bodyType: 'Polymer Cementitious Matrix',
       thickness: grade,
+      classification: grade,
+      bagWeightKg: weightKg,
+      usageTileSizes: idealFor,
+      applicationNotes: shortDesc,
       boxWeightKg: weightKg,
-      sqFtPerBox: 1.0, // 1 bag = 1 unit
+      sqFtPerBox: 1.0,
       spaces: const ['Living Room', 'Bath Room', 'Outdoor', 'Commercial'],
       finish: grade,
     );
@@ -93,144 +98,202 @@ class AdhesiveProduct {
 class AdhesiveData {
   static const List<AdhesiveProduct> products = [
     AdhesiveProduct(
-      id: 'ADH_ULTRAGRIP_T02',
-      sku: 'ITA-ADH-T02-PRO',
-      name: 'ITACON UltraGrip™ T-02 Pro',
-      grade: 'Type 2 • Vitrified & Porcelain',
-      badgeText: 'BEST SELLER',
-      badgeColor: AppTheme.accentOrange,
-      shortDesc: 'Polymer-enriched high-shear bond adhesive for vitrified floor & wall tiles.',
-      idealFor: '600x600 & 600x1200 mm Vitrified Tiles, Low Porosity Floor/Walls, Bathrooms & Commercial Floors',
-      coverageText: '50 - 60 sq.ft / 20kg (at 3-4mm trowel)',
+      id: 'PROD_ADH_LX01',
+      sku: 'ITA-LX-01',
+      name: 'ITA LX-01 Tile Adhesive',
+      grade: 'TYPE-1 (C1T)',
+      badgeText: 'C1T TYPE-1',
+      badgeColor: AppTheme.primaryNavy,
+      shortDesc: 'Standard interior floor & wall ceramic/vitrified tiling.',
+      idealFor: 'Floor 2x2, Wall 12x18, Parking Tiles 16x16, 12x12',
+      coverageText: '50 - 60 sq.ft / 20kg Bag',
       coverageSqFtPer20Kg: 55.0,
-      availableWeights: ['20 kg Bag', '40 kg Jumbo Bag'],
+      availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 420.0,
-        '40 kg Jumbo Bag': 790.0,
+        '20 kg Bag': 150.0,
       },
       originalPrices: {
-        '20 kg Bag': 520.0,
-        '40 kg Jumbo Bag': 980.0,
+        '20 kg Bag': 190.0,
       },
       keyFeatures: [
-        'IS 15477:2019 Type 2 Certified formulation',
-        'Zero vertical tile slippage on vertical walls',
-        'Enhanced polymers prevent hollow sound',
-        'Water-resistant and high thermal stability',
+        'TYPE-1 (C1T) Certified formulation',
+        'Grey cementitious polymer powder',
+        'Ideal for floor 2x2 & wall 12x18 tiles',
+        '20 kg Moisture-Lock packaging',
       ],
-      waterRatio: '5.0 to 5.5 Litres per 20 kg bag',
-      potLife: '3 - 4 Hours at 27°C',
-      openTime: '25 - 30 Minutes',
-      tensileStrength: '≥ 1.50 N/mm² (Superior Bond)',
-      rating: 4.9,
-      reviewsCount: 318,
-      packagingColor: Color(0xFF0E274D), // Deep Navy
-      imageUrl: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=600&q=80',
+      waterRatio: '4.5 to 5.0 Litres per 20 kg bag',
+      potLife: '2.5 - 3 Hours at 27°C',
+      openTime: '20 Minutes',
+      tensileStrength: '≥ 0.5 N/mm²',
+      rating: 4.8,
+      reviewsCount: 142,
+      packagingColor: Color(0xFF0E274D),
+      imageUrl: 'assets/images/adhesives/ITA-LX-01.png',
     ),
     AdhesiveProduct(
-      id: 'ADH_PLATINUM_T03',
-      sku: 'ITA-ADH-T03-MAX',
-      name: 'ITACON PlatinumFlex™ T-03 Max',
-      grade: 'Type 4 S2 • Heavy Slabs & Cladding',
-      badgeText: 'HEAVY SLABS',
-      badgeColor: Color(0xFF0D9488), // Teal
-      shortDesc: 'S2 Highly deformable polymer-modified adhesive for extra-large slabs & facade cladding.',
-      idealFor: '800x1600 & 1200x1800 mm Slim Slabs, External Elevations, Tile-on-Tile & Heated Floors',
-      coverageText: '40 - 50 sq.ft / 20kg (at 4-6mm trowel)',
-      coverageSqFtPer20Kg: 45.0,
-      availableWeights: ['20 kg Bag', '40 kg Jumbo Bag'],
+      id: 'PROD_ADH_LX02',
+      sku: 'ITA-LX-02',
+      name: 'ITA LX-02 Tile Adhesive',
+      grade: 'TYPE-2 (C2T)',
+      badgeText: 'C2T TYPE-2',
+      badgeColor: AppTheme.primaryNavy,
+      shortDesc: 'Interior & Exterior Wall or Floor tile-on-tile, high dip elevation.',
+      idealFor: '300x600, 300x450 Wall, 800x800, 600x1200 (upto 10 ft)',
+      coverageText: '45 - 55 sq.ft / 20kg Bag',
+      coverageSqFtPer20Kg: 50.0,
+      availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 680.0,
-        '40 kg Jumbo Bag': 1290.0,
+        '20 kg Bag': 185.0,
       },
       originalPrices: {
-        '20 kg Bag': 840.0,
-        '40 kg Jumbo Bag': 1580.0,
+        '20 kg Bag': 230.0,
       },
       keyFeatures: [
-        'Class S2 extreme flexibility & vibration absorption',
-        'Ideal for direct Tile-over-Tile installations',
-        'Withstands harsh outdoor sun & thermal expansion',
-        'High tensile shear adhesion > 2.0 N/mm²',
+        'TYPE-2 (C2T) High-shear adhesion',
+        'Tile-on-tile & high dip elevation',
+        'Zero vertical tile slippage on walls',
+        '20 kg Moisture-Lock packaging',
+      ],
+      waterRatio: '4.8 to 5.2 Litres per 20 kg bag',
+      potLife: '3 Hours at 27°C',
+      openTime: '25 Minutes',
+      tensileStrength: '≥ 1.0 N/mm²',
+      rating: 4.9,
+      reviewsCount: 210,
+      packagingColor: Color(0xFF1E3A8A),
+      imageUrl: 'assets/images/adhesives/ITA-LX-02.png',
+    ),
+    AdhesiveProduct(
+      id: 'PROD_ADH_LX03',
+      sku: 'ITA-LX-03',
+      name: 'ITA LX-03 Tile Adhesive',
+      grade: 'TYPE-3 (C2TE)',
+      badgeText: 'C2TE TYPE-3',
+      badgeColor: AppTheme.accentOrange,
+      shortDesc: 'Wall & floor heavy vitrified tiles, window/door framing marble, continuous sunlight.',
+      idealFor: '1000x1000, 800x1600 (upto 10 ft), 600x1200 (upto 20 ft), 200x1200 Wooden Plank',
+      coverageText: '40 - 50 sq.ft / 20kg Bag',
+      coverageSqFtPer20Kg: 45.0,
+      availableWeights: ['20 kg Bag'],
+      weightPrices: {
+        '20 kg Bag': 220.0,
+      },
+      originalPrices: {
+        '20 kg Bag': 275.0,
+      },
+      keyFeatures: [
+        'TYPE-3 (C2TE) Heavy polymer formulation',
+        'Window & door framing with marble',
+        'Continuous sunlight & thermal resistance',
+        'Extended open time for large format tiles',
+      ],
+      waterRatio: '5.0 to 5.5 Litres per 20 kg bag',
+      potLife: '3.5 Hours at 27°C',
+      openTime: '30 Minutes',
+      tensileStrength: '≥ 1.5 N/mm²',
+      rating: 4.9,
+      reviewsCount: 184,
+      packagingColor: Color(0xFFD97706),
+      imageUrl: 'assets/images/adhesives/ITA-LX-03.png',
+    ),
+    AdhesiveProduct(
+      id: 'PROD_ADH_LX03W',
+      sku: 'ITA-LX-03W',
+      name: 'ITA LX-03W White Tile Adhesive',
+      grade: 'TYPE-3 (WHITE) (C2TE)',
+      badgeText: 'TYPE-3 WHITE',
+      badgeColor: Color(0xFF0D9488),
+      shortDesc: 'Pure white adhesive for composite marble, glass mosaics, and external walls.',
+      idealFor: 'Composite Marble, Glass Mosaics, White Stones, External Sunlight Walls',
+      coverageText: '40 - 50 sq.ft / 20kg Bag',
+      coverageSqFtPer20Kg: 45.0,
+      availableWeights: ['20 kg Bag'],
+      weightPrices: {
+        '20 kg Bag': 310.0,
+      },
+      originalPrices: {
+        '20 kg Bag': 380.0,
+      },
+      keyFeatures: [
+        'TYPE-3 WHITE (C2TE) Pure white cement base',
+        'Non-staining formulation for translucent stones',
+        'Glass mosaics & composite marble cladding',
+        'High weatherability & UV stability',
+      ],
+      waterRatio: '5.0 to 5.5 Litres per 20 kg bag',
+      potLife: '3.5 Hours at 27°C',
+      openTime: '30 Minutes',
+      tensileStrength: '≥ 1.5 N/mm²',
+      rating: 5.0,
+      reviewsCount: 96,
+      packagingColor: Color(0xFF0F766E),
+      imageUrl: 'assets/images/adhesives/ITA-LX-03W.png',
+    ),
+    AdhesiveProduct(
+      id: 'PROD_ADH_LX04',
+      sku: 'ITA-LX-04',
+      name: 'ITA LX-04 High-Polymer Adhesive',
+      grade: 'TYPE-4 (C2TES1)',
+      badgeText: 'C2TES1 TYPE-4',
+      badgeColor: Color(0xFF854D0E),
+      shortDesc: 'High-flex polymer adhesive for large format slabs, elevation facades, and thermal expansion.',
+      idealFor: '1200x1800, 1200x1200, 1200x1600, 800x2400 Slabs, Marble & Granite',
+      coverageText: '35 - 45 sq.ft / 20kg Bag',
+      coverageSqFtPer20Kg: 40.0,
+      availableWeights: ['20 kg Bag'],
+      weightPrices: {
+        '20 kg Bag': 290.0,
+      },
+      originalPrices: {
+        '20 kg Bag': 360.0,
+      },
+      keyFeatures: [
+        'TYPE-4 (C2TES1) S1 Deformable Class',
+        'Large format extra-heavy slabs & elevation facades',
+        'Extreme vibration & thermal flexibility',
+        'High tensile shear strength > 2.0 N/mm²',
       ],
       waterRatio: '5.2 to 5.8 Litres per 20 kg bag',
       potLife: '4 Hours at 27°C',
-      openTime: '30 - 35 Minutes',
-      tensileStrength: '≥ 2.20 N/mm² (Extreme Heavy Duty)',
+      openTime: '35 Minutes',
+      tensileStrength: '≥ 2.0 N/mm²',
       rating: 5.0,
-      reviewsCount: 184,
-      packagingColor: Color(0xFF1E3A8A), // Royal Blue
-      imageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=600&q=80',
+      reviewsCount: 230,
+      packagingColor: Color(0xFFB45309),
+      imageUrl: 'assets/images/adhesives/ITA-LX-04.png',
     ),
     AdhesiveProduct(
-      id: 'ADH_FIXBOND_T01',
-      sku: 'ITA-ADH-T01-STD',
-      name: 'ITACON FixBond™ T-01 Elite',
-      grade: 'Type 1 • Ceramic & Terracotta',
-      badgeText: 'CERAMIC TILES',
-      badgeColor: Color(0xFF4F46E5), // Indigo
-      shortDesc: 'Economical high-adhesion cementitious adhesive for standard ceramic and clay tiles.',
-      idealFor: 'Interior Ceramic Wall & Floor Tiles, Terracotta, Kitchen Splashes & Domestic Floors',
-      coverageText: '55 - 65 sq.ft / 20kg (at 3mm trowel)',
-      coverageSqFtPer20Kg: 60.0,
-      availableWeights: ['20 kg Bag', '40 kg Jumbo Bag'],
+      id: 'PROD_ADH_LX04W',
+      sku: 'ITA-LX-04W',
+      name: 'ITA LX-04W White Polymer Adhesive',
+      grade: 'TYPE-4 (WHITE) (C2TES1)',
+      badgeText: 'TYPE-4 WHITE',
+      badgeColor: Color(0xFF7C3AED),
+      shortDesc: 'Premium white polymer adhesive for luxury translucent marble slabs & heavy sunlight.',
+      idealFor: '1200x1800 Jumbo Slabs, Onyx Marble, Translucent Stones, External Facades',
+      coverageText: '35 - 45 sq.ft / 20kg Bag',
+      coverageSqFtPer20Kg: 40.0,
+      availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 340.0,
-        '40 kg Jumbo Bag': 630.0,
+        '20 kg Bag': 380.0,
       },
       originalPrices: {
-        '20 kg Bag': 420.0,
-        '40 kg Jumbo Bag': 780.0,
+        '20 kg Bag': 470.0,
       },
       keyFeatures: [
-        'IS 15477:2019 Type 1 Compliant',
-        'No tile pre-soaking required in water',
-        'Smooth trowel workability with easy spread',
-        'High cost-efficiency for residential projects',
+        'TYPE-4 WHITE (C2TES1) S1 Deformable Class',
+        'Pure white matrix for luxury translucent marble',
+        'Maximum UV & extreme weathering protection',
+        'High shear bond strength > 2.0 N/mm²',
       ],
-      waterRatio: '4.8 to 5.2 Litres per 20 kg bag',
-      potLife: '2.5 - 3 Hours at 27°C',
-      openTime: '20 Minutes',
-      tensileStrength: '≥ 1.05 N/mm²',
-      rating: 4.8,
-      reviewsCount: 206,
-      packagingColor: Color(0xFF334155), // Slate Dark
-      imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
-    ),
-    AdhesiveProduct(
-      id: 'ADH_CRYSTAL_T04',
-      sku: 'ITA-ADH-T04-EPX',
-      name: 'ITACON CrystalEpoxy™ T-04 Dual',
-      grade: 'Epoxy Resin • 100% Solid Waterproof',
-      badgeText: 'EPOXY GROUT',
-      badgeColor: Color(0xFF854D0E), // Amber Gold
-      shortDesc: '3-Part 100% solid epoxy adhesive & chemical-proof grout for pools, spas and glass mosaic.',
-      idealFor: 'Glass Mosaic, Swimming Pools, Commercial Kitchens, Chemical Tanks & Cleanrooms',
-      coverageText: '30 - 35 sq.ft / 10kg Bucket',
-      coverageSqFtPer20Kg: 70.0,
-      availableWeights: ['10 kg Bucket', '20 kg Bucket'],
-      weightPrices: {
-        '10 kg Bucket': 950.0,
-        '20 kg Bucket': 1790.0,
-      },
-      originalPrices: {
-        '10 kg Bucket': 1180.0,
-        '20 kg Bucket': 2150.0,
-      },
-      keyFeatures: [
-        '100% Waterproof, Stainproof & Anti-Bacterial',
-        'Unaffected by acids, alkalis, oils and chemicals',
-        'Non-fading sparkling color finish',
-        'Heavy mechanical abrasion resistance',
-      ],
-      waterRatio: 'Pre-dosed 3-Part Epoxy Resin Mix',
-      potLife: '45 - 60 Minutes',
-      openTime: '45 Minutes',
-      tensileStrength: '≥ 6.0 N/mm² (High Epoxy Strength)',
-      rating: 4.9,
-      reviewsCount: 92,
-      packagingColor: Color(0xFF431407), // Amber Dark
-      imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      waterRatio: '5.2 to 5.8 Litres per 20 kg bag',
+      potLife: '4 Hours at 27°C',
+      openTime: '35 Minutes',
+      tensileStrength: '≥ 2.0 N/mm²',
+      rating: 5.0,
+      reviewsCount: 112,
+      packagingColor: Color(0xFF6D28D9),
+      imageUrl: 'assets/images/adhesives/ITA-LX-04W.png',
     ),
   ];
 }
@@ -284,6 +347,8 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
   @override
   Widget build(BuildContext context) {
     final appState = AppStateService.instance;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double cardAspectRatio = screenWidth < 360 ? 0.65 : (screenWidth < 400 ? 0.68 : 0.72);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +358,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Tile Adhesives & FixBond™',
+              'Fixing Solutions (Adhesives)',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -326,15 +391,15 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
         ),
         const SizedBox(height: 14),
 
-        // 2-Column Grid matching EXACT Trending Collection card layout
+        // 2-Column Responsive Grid matching EXACT Trending Collection card layout
         GridView.builder(
           shrinkWrap: true,
           padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: AdhesiveData.products.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 0.72,
+            childAspectRatio: cardAspectRatio,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
@@ -344,8 +409,9 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
             final tileProduct = adhesive.toTileProduct(selectedWeight: selectedWeight);
             final currentPrice = adhesive.weightPrices[selectedWeight] ?? 420.0;
 
-            return GestureDetector(
-              onTap: () => _showProductDetailsModal(context, adhesive),
+            return RepaintBoundary(
+              child: GestureDetector(
+                onTap: () => _showProductDetailsModal(context, adhesive),
               child: Container(
                 decoration: AppTheme.luxuryCardDecoration,
                 clipBehavior: Clip.antiAlias,
@@ -356,22 +422,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                     Expanded(
                       child: Stack(
                         children: [
-                          Image.network(
-                            adhesive.imageUrl,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
-                              color: adhesive.packagingColor,
-                              child: Center(
-                                child: Icon(
-                                  Icons.inventory_2_rounded,
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  size: 48,
-                                ),
-                              ),
-                            ),
-                          ),
+                          _buildAdhesiveSectionImage(adhesive.imageUrl, adhesive.packagingColor),
                           // Subtle Badge in top left
                           Positioned(
                             top: 8,
@@ -467,10 +518,62 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                   ],
                 ),
               ),
-            );
-          },
+            ),
+          );
+        },
         ),
       ],
+    );
+  }
+
+  Widget _buildAdhesiveSectionImage(String path, Color fallbackColor) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackBox(fallbackColor),
+      );
+    }
+
+    String cleanPath = path;
+    if (!cleanPath.startsWith('assets/images/adhesives/') && cleanPath.contains('adhesives/')) {
+      final fileName = cleanPath.split('adhesives/').last;
+      cleanPath = 'assets/images/adhesives/$fileName';
+    }
+
+    final String altPath = cleanPath.contains('assets/images/adhesives')
+        ? cleanPath.replaceFirst('assets/images/adhesives', 'assets/adhesives')
+        : cleanPath;
+
+    return Image.asset(
+      cleanPath,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          altPath,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error2, stackTrace2) => _buildFallbackBox(fallbackColor),
+        );
+      },
+    );
+  }
+
+  Widget _buildFallbackBox(Color fallbackColor) {
+    return Container(
+      color: fallbackColor,
+      child: Center(
+        child: Icon(
+          Icons.inventory_2_rounded,
+          color: Colors.white.withValues(alpha: 0.5),
+          size: 48,
+        ),
+      ),
     );
   }
 }
@@ -508,14 +611,14 @@ class _AdhesiveCalculatorBottomSheetState
 
     // Adhesive recommendation logic
     AdhesiveProduct recProduct;
-    if (_selectedTileType.contains('Large Format')) {
-      recProduct = AdhesiveData.products[1]; // PlatinumFlex T-03
+    if (_selectedTileType.contains('Large Format') || _selectedTileType.contains('Slab')) {
+      recProduct = AdhesiveData.products[4]; // ITA LX-04 High-Polymer
     } else if (_selectedTileType.contains('Ceramic')) {
-      recProduct = AdhesiveData.products[2]; // FixBond T-01
-    } else if (_selectedTileType.contains('Glass Mosaic')) {
-      recProduct = AdhesiveData.products[3]; // CrystalEpoxy T-04
+      recProduct = AdhesiveData.products[0]; // ITA LX-01 Tile Adhesive
+    } else if (_selectedTileType.contains('Glass Mosaic') || _selectedTileType.contains('White Marble')) {
+      recProduct = AdhesiveData.products[3]; // ITA LX-03W White Adhesive
     } else {
-      recProduct = AdhesiveData.products[0]; // UltraGrip T-02 Pro
+      recProduct = AdhesiveData.products[1]; // ITA LX-02 Tile Adhesive
     }
 
     final double coveragePerBag = recProduct.coverageSqFtPer20Kg;

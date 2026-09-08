@@ -20,11 +20,13 @@ class CartItem {
 
   double get effectiveUnitPrice => PricingService.instance.resolvePrice(product).unitPrice;
   double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
-  double get boxPrice => effectiveUnitPrice * sqFtPerBox;
+  double get boxPrice => product.isAdhesive ? effectiveUnitPrice : (effectiveUnitPrice * sqFtPerBox);
   double get itemTotal => boxPrice * quantity;
 
   int get quantityInBoxes => quantity;
-  double get itemWeightKg => quantityInBoxes * (product.boxWeightKg > 0 ? product.boxWeightKg : 28.0);
+  double get itemWeightKg => product.isAdhesive
+      ? quantity * (product.bagWeightKg > 0 ? product.bagWeightKg : 20.0)
+      : quantityInBoxes * (product.boxWeightKg > 0 ? product.boxWeightKg : 28.0);
   double get itemWeightTons => itemWeightKg / 1000.0;
 }
 

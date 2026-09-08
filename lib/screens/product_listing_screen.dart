@@ -10,6 +10,7 @@ import '../utils/app_notification_utils.dart';
 import '../widgets/product_filter_bottom_sheet.dart';
 import '../widgets/floating_bottom_bar.dart';
 import '../widgets/interactive_pressable.dart';
+import '../widgets/adhesive_card.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 
@@ -967,6 +968,10 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   }
 
   Widget _buildLuxuryTileCard(BuildContext context, TileProduct product, double aspectRatio) {
+    if (product.isAdhesive) {
+      return AdhesiveCard(product: product);
+    }
+
     return AppPressable(
       onTap: () {
         Navigator.push(

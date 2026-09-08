@@ -8,6 +8,7 @@ import '../services/pricing_service.dart';
 import '../services/order_service.dart';
 import '../models/tile_order.dart';
 import '../widgets/order_summary_card.dart';
+import '../widgets/app_product_image.dart';
 import 'order_details_screen.dart';
 
 
@@ -454,19 +455,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   // Product Thumbnail Picture
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      item.product.images.isNotEmpty
+                    child: AppProductImage(
+                      imagePath: item.product.images.isNotEmpty
                           ? item.product.images.first
-                          : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=300&q=80',
+                          : '',
                       width: 55,
                       height: 55,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        width: 55,
-                        height: 55,
-                        color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                        child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy, size: 24),
-                      ),
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -766,19 +761,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         // Item Picture Thumbnail
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            item.product.images.isNotEmpty
+                          child: AppProductImage(
+                            imagePath: item.product.images.isNotEmpty
                                 ? item.product.images.first
-                                : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=300&q=80',
+                                : '',
                             width: 60,
                             height: 60,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              width: 60,
-                              height: 60,
-                              color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                              child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy, size: 28),
-                            ),
+                            fit: BoxFit.contain,
                           ),
                         ),
                         const SizedBox(width: 12),

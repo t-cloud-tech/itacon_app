@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../utils/app_notification_utils.dart';
+import '../widgets/app_product_image.dart';
 
 class FavoritesScreen extends StatelessWidget {
   final VoidCallback? onBackToHome;
@@ -77,20 +78,13 @@ class FavoritesScreen extends StatelessWidget {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        product.images.isNotEmpty
+                      child: AppProductImage(
+                        imagePath: product.images.isNotEmpty
                             ? product.images.first
-                            : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=300&q=80',
+                            : '',
                         width: 72,
                         height: 72,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 72,
-                          height: 72,
-                          color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                          child: const Icon(Icons.terrain_rounded,
-                              color: AppTheme.primaryNavy),
-                        ),
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(width: 14),

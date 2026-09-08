@@ -13,10 +13,14 @@ import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      systemNavigationBarColor: Color(0xFF1B365D),
-      systemNavigationBarDividerColor: Color(0xFF1B365D),
+      systemNavigationBarColor: Color(0xFF0E274D),
+      systemNavigationBarDividerColor: Color(0xFF0E274D),
       systemNavigationBarIconBrightness: Brightness.light,
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -32,6 +36,16 @@ void main() async {
   runApp(const MyApp());
 }
 
+class NoGlowScrollBehavior extends ScrollBehavior {
+  const NoGlowScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+      BuildContext context, Widget child, ScrollableDetails details) {
+    return child;
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -41,6 +55,18 @@ class MyApp extends StatelessWidget {
       title: 'ITACON GRANITO',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.luxuryTheme,
+      scrollBehavior: const NoGlowScrollBehavior(),
+      builder: (context, child) {
+        final mediaQueryData = MediaQuery.of(context);
+        final constrainedTextScaler = mediaQueryData.textScaler.clamp(
+          minScaleFactor: 0.85,
+          maxScaleFactor: 1.05,
+        );
+        return MediaQuery(
+          data: mediaQueryData.copyWith(textScaler: constrainedTextScaler),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const SplashScreen(),
     );
   }

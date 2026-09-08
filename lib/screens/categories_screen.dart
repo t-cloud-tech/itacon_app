@@ -34,6 +34,14 @@ class CategoriesScreen extends StatelessWidget {
       'image': 'assets/images/Home/Parking_tile.jpg',
     },
     {
+      'title': 'Fixing Solutions',
+      'subtitle': 'Tile & Stone Adhesives',
+      'count': '6 Products',
+      'isComingSoon': false,
+      'image': 'assets/images/adhesives/ITA-LX-01.png',
+      'categoryKey': 'CAT_ADHESIVES',
+    },
+    {
       'title': 'Marble Collection',
       'count': '29 Products',
       'isComingSoon': false,

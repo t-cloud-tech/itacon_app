@@ -218,8 +218,10 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: cardSurface,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
         centerTitle: true,
-        scrolledUnderElevation: 0.5,
         iconTheme: const IconThemeData(color: primaryNavy),
         titleTextStyle: GoogleFonts.inter(
           color: primaryNavy,

@@ -7,6 +7,7 @@ import '../services/pricing_service.dart';
 import '../utils/tile_dimension_helper.dart';
 import '../utils/app_notification_utils.dart';
 import '../widgets/interactive_pressable.dart';
+import '../widgets/app_product_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final TileProduct? product;
@@ -240,16 +241,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       final img = _product.images.isNotEmpty
                           ? _product.images[index]
                           : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
-                      return Image.network(
-                        img,
+                      return AppProductImage(
+                        imagePath: img,
                         width: double.infinity,
                         height: calculatedFrameHeight,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                          child: const Icon(Icons.terrain_rounded,
-                              size: 64, color: AppTheme.primaryNavy),
-                        ),
+                        fit: BoxFit.contain,
                       );
                     },
                   ),
@@ -328,10 +324,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     listenable: PricingService.instance,
                     builder: (context, _) {
                       final resolved = PricingService.instance.resolvePrice(_product);
+                      final isAdhesive = _product.isAdhesive;
                       final sqFtPerBox = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
-                      final boxCost = resolved.unitPrice * sqFtPerBox;
+                      final boxCost = isAdhesive ? resolved.unitPrice : resolved.unitPrice * sqFtPerBox;
                       final totalArea = _quantity * sqFtPerBox;
                       final totalCost = _quantity * boxCost;
+                      final totalWeightKg = isAdhesive ? (_quantity * 20.0) : (_quantity * _product.boxWeightKg);
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,7 +349,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                         color: AppTheme.textDark,
                                       ),
                                     ),
-                                    if (resolved.hasDiscount) ...[
+                                    const SizedBox(height: 4),
+                                    if (isAdhesive && _product.classification.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryNavy,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          _product.classification,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    if (resolved.hasDiscount && !isAdhesive) ...[
                                       const SizedBox(height: 4),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -376,7 +391,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  if (resolved.hasDiscount)
+                                  if (resolved.hasDiscount && !isAdhesive)
                                     Text(
                                       '₹${resolved.basePrice.toStringAsFixed(0)} / sq.ft',
                                       style: const TextStyle(
@@ -392,7 +407,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      '₹${resolved.unitPrice.toStringAsFixed(0)} / sq.ft',
+                                      isAdhesive
+                                          ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
+                                          : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq.ft',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
@@ -405,7 +422,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          // Dynamic Box Cost & Area Coverage Card
+                          // Dynamic Box / Bag Cost & Area / Weight Card
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
@@ -419,12 +436,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Cost Per Box',
-                                      style: TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                                    Text(
+                                      isAdhesive ? 'Bag Rate' : 'Cost Per Box',
+                                      style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
                                     ),
                                     Text(
-                                      '₹${boxCost.toStringAsFixed(0)} / Box',
+                                      isAdhesive
+                                          ? '₹${boxCost.toStringAsFixed(0)} / Bag'
+                                          : '₹${boxCost.toStringAsFixed(0)} / Box',
                                       style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
@@ -432,7 +451,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       ),
                                     ),
                                     Text(
-                                      '($sqFtPerBox sq.ft / Box)',
+                                      isAdhesive ? '(20 kg / Bag)' : '($sqFtPerBox sq.ft / Box)',
                                       style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                                     ),
                                   ],
@@ -442,11 +461,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      'Est. Coverage ($_quantity Boxes)',
+                                      isAdhesive ? 'Total Order Weight ($_quantity Bags)' : 'Est. Coverage ($_quantity Boxes)',
                                       style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
                                     ),
                                     Text(
-                                      '${totalArea.toStringAsFixed(1)} sq.ft',
+                                      isAdhesive
+                                          ? '${totalWeightKg.toStringAsFixed(0)} kg (${(totalWeightKg / 1000).toStringAsFixed(2)} Tons)'
+                                          : '${totalArea.toStringAsFixed(1)} sq.ft',
                                       style: const TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
@@ -466,6 +487,89 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       );
                     },
                   ),
+                  const SizedBox(height: 16),
+
+                  // Dedicated Adhesive Highlight Cards
+                  if (_product.isAdhesive) ...[
+                    // Suitable Tile Formats & Sizes Card
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: AppTheme.luxuryCardDecorationWithBorder(
+                        borderColor: AppTheme.primaryNavy.withValues(alpha: 0.15),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.grid_view_rounded, color: AppTheme.primaryNavy, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Suitable Tile Formats & Sizes',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primaryNavy,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _product.usageTileSizes.isNotEmpty
+                                ? _product.usageTileSizes
+                                : 'Floor 2x2, Wall 12x18, Parking Tiles 16x16, 12x12',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              height: 1.4,
+                              color: AppTheme.textDark,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Application & Substrate Guide Card
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: AppTheme.luxuryCardDecorationWithBorder(
+                        borderColor: AppTheme.accentOrange.withValues(alpha: 0.25),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.build_circle_outlined, color: AppTheme.accentOrange, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Application & Substrate Guide',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primaryNavy,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _product.applicationNotes.isNotEmpty
+                                ? _product.applicationNotes
+                                : 'Standard interior floor & wall ceramic/vitrified tiling.',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              height: 1.45,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   const SizedBox(height: 16),
 
                   // Master Specification Table
