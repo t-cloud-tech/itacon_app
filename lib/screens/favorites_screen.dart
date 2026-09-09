@@ -156,7 +156,9 @@ class FavoritesScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 6),
                                   Text(
-                                    '₹${product.basePrice.toStringAsFixed(0)} / sq.ft',
+                                    product.isAdhesive
+                                        ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                        : '₹${product.basePrice.toStringAsFixed(0)} / pi',
                                     style: GoogleFonts.inter(
                                       fontSize: 14.5,
                                       fontWeight: FontWeight.w800,
@@ -299,29 +301,6 @@ class FavoritesScreen extends StatelessWidget {
                                   ),
                                   Positioned(
                                     top: 8,
-                                    left: 8,
-                                    right: 42,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.75),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Text(
-                                        rec.reason,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 8,
                                     right: 8,
                                     child: CircleAvatar(
                                       radius: 13,
@@ -377,7 +356,9 @@ class FavoritesScreen extends StatelessWidget {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        '₹${product.basePrice.toStringAsFixed(0)} / sq.ft',
+                                        product.isAdhesive
+                                            ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                            : '₹${product.basePrice.toStringAsFixed(0)} / pi',
                                         style: GoogleFonts.inter(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w800,

@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-    final remainingMs = 3000 - elapsedMs;
+    final remainingMs = 1200 - elapsedMs;
     if (remainingMs > 0) {
       await Future.delayed(Duration(milliseconds: remainingMs));
     }
@@ -72,7 +72,7 @@ class _SplashScreenState extends State<SplashScreen> {
             child: child,
           );
         },
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionDuration: const Duration(milliseconds: 400),
       ),
     );
   }

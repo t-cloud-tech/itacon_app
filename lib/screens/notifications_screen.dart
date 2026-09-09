@@ -31,10 +31,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             tooltip: 'Mark All as Read',
             onPressed: () async {
               if (userId.isNotEmpty) {
+                final messenger = ScaffoldMessenger.of(context);
                 // Seed sample festival greeting if empty and mark notifications read
                 await _firestoreService.seedDefaultFestivalGreetings();
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     const SnackBar(
                       content: Text('All notifications marked as read.'),
                       backgroundColor: AppTheme.primaryNavy,
@@ -121,7 +122,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     width: double.infinity,
                     height: 130,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       height: 80,
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(

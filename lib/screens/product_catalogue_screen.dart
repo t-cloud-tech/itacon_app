@@ -430,7 +430,9 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '₹${product.basePricePerSqFt.toStringAsFixed(0)}/sq.ft',
+                      product.isAdhesive
+                          ? '₹${product.basePricePerPiece.toStringAsFixed(0)}/bag'
+                          : '₹${product.basePricePerPiece.toStringAsFixed(0)}/pi',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,

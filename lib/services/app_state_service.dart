@@ -21,7 +21,8 @@ class CartItem {
 
   double get effectiveUnitPrice => PricingService.instance.resolvePrice(product).unitPrice;
   double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
-  double get boxPrice => product.isAdhesive ? effectiveUnitPrice : (effectiveUnitPrice * sqFtPerBox);
+  int get pcsPerBox => product.pcsPerBox > 0 ? product.pcsPerBox : 2;
+  double get boxPrice => product.isAdhesive ? effectiveUnitPrice : (effectiveUnitPrice * pcsPerBox);
   double get itemTotal => boxPrice * quantity;
 
   int get quantityInBoxes => quantity;
@@ -47,7 +48,7 @@ class AppStateService extends ChangeNotifier {
   List<TileProduct> get favoriteProducts => List.unmodifiable(_favoriteProductsMap.values.toList());
   Set<String> get favoriteProductIds => Set.unmodifiable(_favoriteProductsMap.keys);
 
-  int get cartCount => _cartItems.fold(0, (sum, item) => sum + item.quantity);
+  int get cartCount => _cartItems.length;
   int get favoritesCount => _favoriteProductsMap.length;
   int get ordersCount => 0;
 
@@ -274,15 +275,24 @@ class AppStateService extends ChangeNotifier {
 
   void addToCart(
     TileProduct product, {
-    String size = '2 - 4 sq.ft',
-    String finish = 'Polished',
+    String? size,
+    String? finish,
     int quantity = 1,
   }) {
+    final effectiveSize = (size != null && size.isNotEmpty)
+        ? size
+        : (product.size.isNotEmpty ? product.size : 'Standard');
+    final effectiveFinish = (finish != null && finish.isNotEmpty)
+        ? finish
+        : (product.surface.isNotEmpty
+            ? product.surface
+            : (product.finish.isNotEmpty ? product.finish : 'Standard'));
+
     final existingIndex = _cartItems.indexWhere(
       (item) =>
           item.product.id == product.id &&
-          item.selectedSize == size &&
-          item.selectedFinish == finish,
+          item.selectedSize == effectiveSize &&
+          item.selectedFinish == effectiveFinish,
     );
 
     if (existingIndex >= 0) {
@@ -291,8 +301,8 @@ class AppStateService extends ChangeNotifier {
       _cartItems.add(
         CartItem(
           product: product,
-          selectedSize: size,
-          selectedFinish: finish,
+          selectedSize: effectiveSize,
+          selectedFinish: effectiveFinish,
           quantity: quantity,
         ),
       );

@@ -16,7 +16,7 @@ class OrderItem {
   final int moq;
   final double basePrice;
   final double finalPrice;
-  final double? unitPrice; // Quoted unit rate (₹/Sq.Ft), nullable when pending_rate
+  final double? unitPrice; // Quoted unit rate (₹/Piece or ₹/Bag), nullable when pending_rate
   final double? lineTotal; // Line total amount, nullable when pending_rate
   final String orderType; // ready_stock / made_to_order
 

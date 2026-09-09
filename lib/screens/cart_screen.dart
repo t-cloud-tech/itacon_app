@@ -285,7 +285,9 @@ class CartScreen extends StatelessWidget {
                                               const SizedBox(width: 4),
                                             ],
                                             Text(
-                                              '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/sq.ft',
+                                              item.product.isAdhesive
+                                                  ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
+                                                  : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/pi',
                                               style: GoogleFonts.inter(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,

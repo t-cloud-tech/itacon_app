@@ -531,8 +531,8 @@ void main() {
 
       appState.setCurrentUserProfile(testUser);
 
-      // Name(1) + Phone(1) + Category(1) + Email(1) + Company(1) = 5/11 = 45%
-      expect(appState.profileCompletionPercentage, 45);
+      // Name(1) + Phone(1) + Category(1) + Email(1) + Company(1) = 5/12 = 42%
+      expect(appState.profileCompletionPercentage, 42);
 
       appState.updateUserProfileFields(
         city: 'Ahmedabad',
@@ -541,9 +541,10 @@ void main() {
         gstNumber: '24BBBBB1111B1Z2',
         address: {'line1': 'CG Road'},
         religion: 'Hinduism',
+        dateOfBirth: '1990-01-01',
       );
 
-      // 11 / 11 = 100%
+      // 12 / 12 = 100%
       expect(appState.profileCompletionPercentage, 100);
       expect(appState.pendingProfileFields.isEmpty, isTrue);
     });

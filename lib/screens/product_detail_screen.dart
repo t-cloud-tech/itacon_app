@@ -32,15 +32,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   bool _isMockupMode = false;
 
-  // Smart Box <-> Sq.Ft Tile Estimator state
-  final TextEditingController _sqFtCalcController = TextEditingController();
-  final TextEditingController _boxCalcController = TextEditingController();
-  int _calcWastage = 5; // 0%, 5%, 10%
-  bool _calcByArea = true; // true: user calculates by area, false: by box count
-  int _calculatedBoxes = 50;
-  double _calculatedSqFt = 775.0;
-  double _calculatedWeightKg = 1400.0;
-
   final List<String> _sizes = const ['600x1200 mm', '600x600 mm'];
   final List<String> _finishes = const [
     'Glossy',
@@ -95,82 +86,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     _selectedSize = _product.size;
     _selectedFinish = _product.surface;
-
-    // Initialize calculator with initial quantity & coverage
-    final initialBoxes = _product.moq > 0 ? _product.moq : 50;
-    _quantity = initialBoxes;
-    _calculatedBoxes = initialBoxes;
-    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
-    final weight = _product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0;
-    _calculatedSqFt = initialBoxes * coverage;
-    _calculatedWeightKg = initialBoxes * weight;
-    _boxCalcController.text = '$initialBoxes';
-    _sqFtCalcController.text = _calculatedSqFt.toStringAsFixed(1);
-  }
-
-  void _onSqFtChanged(String val) {
-    final sqFt = double.tryParse(val) ?? 0.0;
-    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
-    final weight = _product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0;
-
-    final effectiveSqFt = sqFt * (1 + _calcWastage / 100.0);
-    final boxes = sqFt > 0 ? (effectiveSqFt / coverage).ceil() : 0;
-    final totalSqFt = boxes * coverage;
-    final totalWeight = boxes * weight;
-
-    setState(() {
-      _calculatedBoxes = boxes;
-      _calculatedSqFt = totalSqFt;
-      _calculatedWeightKg = totalWeight;
-    });
-
-    if (_boxCalcController.text != '$boxes' && boxes > 0) {
-      _boxCalcController.value = TextEditingValue(
-        text: '$boxes',
-        selection: TextSelection.collapsed(offset: '$boxes'.length),
-      );
-    }
-  }
-
-  void _onBoxesChanged(String val) {
-    final boxes = int.tryParse(val) ?? 0;
-    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
-    final weight = _product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0;
-
-    final totalSqFt = boxes * coverage;
-    final totalWeight = boxes * weight;
-
-    setState(() {
-      _calculatedBoxes = boxes;
-      _calculatedSqFt = totalSqFt;
-      _calculatedWeightKg = totalWeight;
-    });
-
-    final sqFtStr = totalSqFt > 0 ? totalSqFt.toStringAsFixed(1) : '';
-    if (_sqFtCalcController.text != sqFtStr && totalSqFt > 0) {
-      _sqFtCalcController.value = TextEditingValue(
-        text: sqFtStr,
-        selection: TextSelection.collapsed(offset: sqFtStr.length),
-      );
-    }
-  }
-
-  void _applyCalculatedToOrder() {
-    if (_calculatedBoxes <= 0) return;
-    setState(() {
-      _quantity = _calculatedBoxes;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Applied $_calculatedBoxes boxes (${_calculatedSqFt.toStringAsFixed(1)} sq.ft) to order!',
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: AppTheme.primaryNavy,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    _quantity = 1;
   }
 
   void _showManualQuantityDialog() {
@@ -221,8 +137,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 if (parsed != null && parsed > 0) {
                   setState(() {
                     _quantity = parsed;
-                    _boxCalcController.text = '$parsed';
-                    _onBoxesChanged('$parsed');
                   });
                   Navigator.pop(dialogContext);
                 }
@@ -254,8 +168,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void dispose() {
     _pageController.dispose();
-    _sqFtCalcController.dispose();
-    _boxCalcController.dispose();
     super.dispose();
   }
 
@@ -354,38 +266,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
-                // Size Watermark Badge over image corner
+                // Pinch to Zoom Hint Pill (Top Left)
                 Positioned(
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryNavy.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.aspect_ratio_rounded,
-                            color: AppTheme.accentOrange, size: 14),
-                        const SizedBox(width: 6),
+                        Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
                         Text(
-                          TileDimensionHelper.getFormattedWatermark(
-                              _selectedSize,
-                              category: _product.tileCategory),
-                          style: const TextStyle(
+                          'Pinch to zoom',
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
@@ -393,7 +294,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
-                // Top Mode Toggle Switch: [ Tile Face ] vs [ Room Mockup ]
+                // Top Mode Toggle Switch: [ Tile Face ] vs [ Room Mockup ] (Top Right)
                 Positioned(
                   top: 12,
                   right: 12,
@@ -449,27 +350,38 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
-                // Pinch to Zoom Hint Pill
+                // Size Watermark Badge (Bottom Left)
                 Positioned(
                   bottom: 12,
-                  right: 12,
+                  left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppTheme.primaryNavy.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
-                        SizedBox(width: 4),
+                        const Icon(Icons.aspect_ratio_rounded,
+                            color: AppTheme.accentOrange, size: 14),
+                        const SizedBox(width: 6),
                         Text(
-                          'Pinch to zoom',
-                          style: TextStyle(
+                          TileDimensionHelper.getFormattedWatermark(
+                              _selectedSize,
+                              category: _product.tileCategory),
+                          style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
@@ -477,29 +389,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
-                // Pagination Dots Indicator
-                Positioned(
-                  bottom: 12,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _activeImages.length,
-                      (index) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        width: _currentImageIndex == index ? 18 : 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: _currentImageIndex == index
-                              ? AppTheme.accentOrange
-                              : Colors.white.withValues(alpha: 0.7),
-                          borderRadius: BorderRadius.circular(3),
+                // Photo Counter Badge (Bottom Right)
+                if (_activeImages.length > 1)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_currentImageIndex + 1}/${_activeImages.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
 
@@ -517,8 +428,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     builder: (context, _) {
                       final resolved = PricingService.instance.resolvePrice(_product);
                       final isAdhesive = _product.isAdhesive;
+                      final pcsPerBox = _product.pcsPerBox > 0 ? _product.pcsPerBox : 2;
                       final sqFtPerBox = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
-                      final boxCost = isAdhesive ? resolved.unitPrice : resolved.unitPrice * sqFtPerBox;
+                      final boxCost = isAdhesive ? resolved.unitPrice : resolved.unitPrice * pcsPerBox;
                       final totalArea = _quantity * sqFtPerBox;
                       final totalCost = _quantity * boxCost;
                       final totalWeightKg = isAdhesive ? (_quantity * 20.0) : (_quantity * _product.boxWeightKg);
@@ -543,7 +455,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     if (isAdhesive && _product.classification.isNotEmpty)
-                                      Container(
+                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
                                           color: AppTheme.primaryNavy,
@@ -583,9 +495,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  if (resolved.hasDiscount && !isAdhesive)
+                                   if (resolved.hasDiscount && !isAdhesive)
                                     Text(
-                                      '₹${resolved.basePrice.toStringAsFixed(0)} / sq.ft',
+                                      '₹${resolved.basePrice.toStringAsFixed(0)} / pi',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey,
@@ -601,7 +513,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     child: Text(
                                       isAdhesive
                                           ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
-                                          : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq.ft',
+                                          : '₹${resolved.unitPrice.toStringAsFixed(0)} / pi',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
@@ -643,7 +555,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       ),
                                     ),
                                     Text(
-                                      isAdhesive ? '(20 kg / Bag)' : '($sqFtPerBox sq.ft / Box)',
+                                      isAdhesive ? '(20 kg / Bag)' : '($pcsPerBox Pcs • $sqFtPerBox sq.ft / Box)',
                                       style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                                     ),
                                   ],
@@ -864,9 +776,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Smart Box <-> Sq.Ft Tile Estimator Calculator
-                  _buildSmartTileEstimatorCalculator(),
-
                   // Trust Badges Row
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -920,8 +829,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ? () {
                               setState(() {
                                 _quantity--;
-                                _boxCalcController.text = '$_quantity';
-                                _onBoxesChanged('$_quantity');
                               });
                             }
                           : null,
@@ -966,8 +873,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       onTap: () {
                         setState(() {
                           _quantity++;
-                          _boxCalcController.text = '$_quantity';
-                          _onBoxesChanged('$_quantity');
                         });
                       },
                       scaleDown: 0.85,
@@ -1165,349 +1070,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 );
               },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmartTileEstimatorCalculator() {
-    final isAdhesive = _product.isAdhesive;
-    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : (isAdhesive ? 50.0 : 15.5);
-    final weight = isAdhesive ? 20.0 : (_product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0);
-    final unitName = isAdhesive ? 'Bag' : 'Box';
-    final unitNamePlural = isAdhesive ? 'Bags' : 'Boxes';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.accentOrange.withValues(alpha: 0.35),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.accentOrange.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentOrange.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.calculate_rounded,
-                  color: AppTheme.accentOrange,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Smart $unitName ↔ Sq.Ft Tile Estimator',
-                      style: GoogleFonts.inter(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.primaryNavy,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '1 $unitName = ${coverage.toStringAsFixed(1)} sq.ft  •  ~$weight kg / $unitName',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textSubtle,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Segmented Calculation Mode Toggle
-          Container(
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.borderSubtle),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      if (!_calcByArea) {
-                        setState(() => _calcByArea = true);
-                      }
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _calcByArea ? AppTheme.primaryNavy : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Input Area (Sq.Ft)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _calcByArea ? Colors.white : AppTheme.textDark,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      if (_calcByArea) {
-                        setState(() => _calcByArea = false);
-                      }
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: !_calcByArea ? AppTheme.primaryNavy : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Input $unitNamePlural',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: !_calcByArea ? Colors.white : AppTheme.textDark,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // Dynamic Input Section
-          if (_calcByArea) ...[
-            const Text(
-              'Enter Total Area Required (Sq.Ft)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textDark,
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _sqFtCalcController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: _onSqFtChanged,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.square_foot_rounded, color: AppTheme.primaryNavy, size: 20),
-                suffixText: 'Sq.Ft',
-                hintText: 'e.g. 775',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Quick preset area chips
-            Wrap(
-              spacing: 6,
-              children: [100, 250, 500, 1000].map((preset) {
-                return ActionChip(
-                  label: Text('+$preset sq.ft'),
-                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                  backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.05),
-                  onPressed: () {
-                    final current = double.tryParse(_sqFtCalcController.text) ?? 0.0;
-                    final updated = current + preset;
-                    _sqFtCalcController.text = updated.toStringAsFixed(0);
-                    _onSqFtChanged(_sqFtCalcController.text);
-                  },
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 10),
-            // Tile Cutting Wastage Allowance
-            Row(
-              children: [
-                const Text(
-                  'Wastage Allowance:',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textSubtle, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    children: [0, 5, 10].map((pct) {
-                      final selected = _calcWastage == pct;
-                      return ChoiceChip(
-                        label: Text('$pct% ${pct == 5 ? '(Rec.)' : ''}'),
-                        selected: selected,
-                        selectedColor: AppTheme.primaryNavy,
-                        labelStyle: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: selected ? Colors.white : AppTheme.textDark,
-                        ),
-                        onSelected: (val) {
-                          if (val) {
-                            setState(() => _calcWastage = pct);
-                            _onSqFtChanged(_sqFtCalcController.text);
-                          }
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            Text(
-              'Enter Quantity in $unitNamePlural',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textDark,
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _boxCalcController,
-              keyboardType: TextInputType.number,
-              onChanged: _onBoxesChanged,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.all_inbox_rounded, color: AppTheme.primaryNavy, size: 20),
-                suffixText: unitNamePlural,
-                hintText: 'e.g. 50',
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Quick preset box chips
-            Wrap(
-              spacing: 6,
-              children: [10, 25, 50, 100].map((preset) {
-                return ActionChip(
-                  label: Text('+$preset $unitNamePlural'),
-                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                  backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.05),
-                  onPressed: () {
-                    final current = int.tryParse(_boxCalcController.text) ?? 0;
-                    final updated = current + preset;
-                    _boxCalcController.text = '$updated';
-                    _onBoxesChanged('$updated');
-                  },
-                );
-              }).toList(),
-            ),
-          ],
-          const SizedBox(height: 14),
-
-          // Dynamic Summary Pill: e.g., 50 Boxes = 775 Sq.Ft | ~1.42 Tonnes
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppTheme.primaryNavy, Color(0xFF1E3A8A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryNavy.withValues(alpha: 0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.check_circle_rounded, color: AppTheme.accentOrange, size: 18),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        '$_calculatedBoxes $unitNamePlural = ${_calculatedSqFt.toStringAsFixed(1)} Sq.Ft | ~${(_calculatedWeightKg / 1000.0).toStringAsFixed(2)} Tonnes',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Total Freight Weight: ${_calculatedWeightKg.toStringAsFixed(0)} kg  •  Coverage: ${_calculatedSqFt.toStringAsFixed(1)} sq.ft',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: Colors.white.withValues(alpha: 0.85),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Apply to Order / PO Button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _calculatedBoxes > 0 ? _applyCalculatedToOrder : null,
-              icon: const Icon(Icons.sync_rounded, size: 18, color: Colors.white),
-              label: Text(
-                'Apply $_calculatedBoxes $unitNamePlural to Order / PO',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accentOrange,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
             ),
           ),
         ],

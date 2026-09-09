@@ -26,36 +26,59 @@ class AppProductImage extends StatelessWidget {
       return _buildFallback();
     }
 
+    // Adaptive decode cache dimension (only computed for finite dimensions)
+    int? effectiveCacheWidth;
+    if (width != null && width!.isFinite && width! > 0) {
+      effectiveCacheWidth = (width! * 2.0).round().clamp(160, 800);
+    } else if (height != null && height!.isFinite && height! > 0) {
+      effectiveCacheWidth = (height! * 2.0).round().clamp(160, 800);
+    }
+
+    // 1. Network Image
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
       return Image.network(
         imagePath,
         width: width,
         height: height,
         fit: fit,
-        cacheWidth: 600,
-        filterQuality: FilterQuality.medium,
+        cacheWidth: effectiveCacheWidth,
+        filterQuality: FilterQuality.low,
+        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+          if (wasSynchronouslyLoaded || frame != null) {
+            return child;
+          }
+          return _buildFallback();
+        },
         errorBuilder: (context, error, stackTrace) => _buildFallback(),
       );
     }
 
-    if (!imagePath.startsWith('assets/') && !imagePath.contains('adhesives/')) {
-      final file = File(imagePath);
+    // 2. Local File (only check if path explicitly looks like a filesystem path)
+    final isExplicitFilePath = imagePath.startsWith('/') ||
+        imagePath.startsWith('file://') ||
+        (Platform.isWindows && imagePath.contains(r':\'));
+
+    if (isExplicitFilePath &&
+        !imagePath.startsWith('assets/') &&
+        !imagePath.contains('adhesives/')) {
+      final file = File(imagePath.replaceFirst('file://', ''));
       if (file.existsSync()) {
         return Image.file(
           file,
           width: width,
           height: height,
           fit: fit,
-          cacheWidth: 600,
-          filterQuality: FilterQuality.medium,
+          cacheWidth: effectiveCacheWidth,
+          filterQuality: FilterQuality.low,
           errorBuilder: (context, error, stackTrace) => _buildFallback(),
         );
       }
     }
 
-    // Normalize asset paths (e.g. assets/adhesives/ -> assets/images/adhesives/)
+    // 3. Asset Image (Normalize asset paths e.g. adhesives)
     String cleanPath = imagePath;
-    if (!cleanPath.startsWith('assets/images/adhesives/') && cleanPath.contains('adhesives/')) {
+    if (!cleanPath.startsWith('assets/images/adhesives/') &&
+        cleanPath.contains('adhesives/')) {
       final fileName = cleanPath.split('adhesives/').last;
       cleanPath = 'assets/images/adhesives/$fileName';
     }
@@ -69,16 +92,16 @@ class AppProductImage extends StatelessWidget {
       width: width,
       height: height,
       fit: fit,
-      cacheWidth: 600,
-      filterQuality: FilterQuality.medium,
+      cacheWidth: effectiveCacheWidth,
+      filterQuality: FilterQuality.low,
       errorBuilder: (context, error, stackTrace) {
         return Image.asset(
           altPath,
           width: width,
           height: height,
           fit: fit,
-          cacheWidth: 600,
-          filterQuality: FilterQuality.medium,
+          cacheWidth: effectiveCacheWidth,
+          filterQuality: FilterQuality.low,
           errorBuilder: (context, error2, stackTrace2) => _buildFallback(),
         );
       },

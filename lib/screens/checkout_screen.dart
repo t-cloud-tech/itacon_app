@@ -500,7 +500,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
                       ),
                       Text(
-                        '₹${resolved.unitPrice.toStringAsFixed(0)} / sq.ft',
+                        item.product.isAdhesive
+                            ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / pi',
                         style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                       ),
                       if (resolved.hasDiscount)
@@ -817,7 +819,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
                             ),
                             Text(
-                              '₹${resolved.unitPrice.toStringAsFixed(0)}/sq.ft',
+                              item.product.isAdhesive
+                                  ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                                  : '₹${resolved.unitPrice.toStringAsFixed(0)} / pi',
                               style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                             ),
                           ],

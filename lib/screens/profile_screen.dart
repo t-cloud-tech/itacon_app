@@ -213,7 +213,7 @@ class ProfileScreen extends StatelessWidget {
                 // Curved Header Card with Live User Info
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(12, 44, 20, 26),
+                  padding: const EdgeInsets.fromLTRB(16, 44, 16, 26),
                   decoration: const BoxDecoration(
                     color: AppTheme.primaryNavy,
                     borderRadius: BorderRadius.vertical(

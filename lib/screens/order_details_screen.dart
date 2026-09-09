@@ -410,7 +410,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/sq.ft',
+                        (item.size.toLowerCase().contains('adhesive') || item.productName.toLowerCase().contains('adhesive') || item.unit == 'bag')
+                            ? '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/bag'
+                            : '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/pi',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,

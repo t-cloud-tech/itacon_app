@@ -37,6 +37,10 @@ class UserDemandService extends ChangeNotifier {
   final Set<String> _wishlistedProductIds = {};
   String? _lastWishlistedProductName;
 
+  // Cached recommendation results for 60fps UI performance
+  List<RecommendedProduct>? _cachedRecommendations;
+  int _lastProductCount = 0;
+
   List<String> get recentSearches => List.unmodifiable(_recentSearches);
   Set<String> get wishlistedProductIds => Set.unmodifiable(_wishlistedProductIds);
 
@@ -115,6 +119,7 @@ class UserDemandService extends ChangeNotifier {
       _demandedSpaces[space] = (_demandedSpaces[space] ?? 0) + 1;
     }
 
+    _cachedRecommendations = null;
     notifyListeners();
 
     // 2. Persist to Firestore with full user and product data
@@ -182,6 +187,7 @@ class UserDemandService extends ChangeNotifier {
   }) async {
     final effectiveUserId = user.userId.isNotEmpty ? user.userId : 'guest_user';
     _wishlistedProductIds.remove(productId);
+    _cachedRecommendations = null;
     notifyListeners();
 
     try {
@@ -219,6 +225,7 @@ class UserDemandService extends ChangeNotifier {
       }
     }
 
+    _cachedRecommendations = null;
     notifyListeners();
 
     try {
@@ -244,6 +251,12 @@ class UserDemandService extends ChangeNotifier {
     int limit = 6,
   }) {
     if (allProducts.isEmpty) return const [];
+
+    // O(1) Instant Cache Hit to prevent lag during list scrolling and rebuilds
+    if (_cachedRecommendations != null &&
+        _lastProductCount == allProducts.length) {
+      return _cachedRecommendations!.take(limit).toList();
+    }
 
     final scoredList = <RecommendedProduct>[];
 
@@ -328,6 +341,9 @@ class UserDemandService extends ChangeNotifier {
     // Sort descending by calculated affinity score
     scoredList.sort((a, b) => b.score.compareTo(a.score));
 
+    _lastProductCount = allProducts.length;
+    _cachedRecommendations = scoredList;
+
     return scoredList.take(limit).toList();
   }
 
@@ -340,6 +356,7 @@ class UserDemandService extends ChangeNotifier {
     _recentSearches.clear();
     _wishlistedProductIds.clear();
     _lastWishlistedProductName = null;
+    _cachedRecommendations = null;
     notifyListeners();
   }
 }

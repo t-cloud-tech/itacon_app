@@ -148,6 +148,7 @@ class TileProduct {
   String get categoryName => collection.isNotEmpty ? collection : categoryId;
   String get sizeCm => size;
   double get basePricePerSqFt => basePrice;
+  double get basePricePerPiece => basePrice;
 
   Map<String, dynamic> toMap() {
     return {

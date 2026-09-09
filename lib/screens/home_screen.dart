@@ -141,78 +141,78 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  static final List<TileProduct> _featuredProducts = [
+    TileProduct(
+      id: 'PROD_6012_01',
+      name: 'Statuario Marble Vitrified',
+      size: '600x1200 mm',
+      surface: 'Glossy',
+      color: 'Bianco - Grey',
+      baseColour: 'Bianco - Grey',
+      pattern: 'Marble Veining',
+      basePrice: 120.0,
+      moq: 50,
+      stockStatus: 'available_now',
+      images: [
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
+      ],
+      finish: 'Glossy',
+      thickness: '9 mm',
+      productType: 'Vitrified',
+      tileCategory: 'Floor Tiles',
+      collection: 'Endless',
+      shape: 'rectangle',
+      aspectRatio: '0.5',
+    ),
+    TileProduct(
+      id: 'PROD_6060_01',
+      name: 'Nero Marquina Square Tile',
+      size: '600x600 mm',
+      surface: 'High Gloss',
+      color: 'Black',
+      baseColour: 'Black',
+      pattern: 'White Vein',
+      basePrice: 95.0,
+      moq: 40,
+      stockStatus: 'available_now',
+      images: [
+        'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80',
+      ],
+      finish: 'High Gloss',
+      thickness: '9 mm',
+      productType: 'Vitrified',
+      tileCategory: 'Floor Tiles',
+      collection: 'Marbles',
+      shape: 'square',
+      aspectRatio: '1.0',
+    ),
+    TileProduct(
+      id: 'PROD_6012_02',
+      name: 'Royal Beige Carving Tile',
+      size: '600x1200 mm',
+      surface: 'Matt - Carving',
+      color: 'Beige - Brown',
+      baseColour: 'Beige - Brown',
+      pattern: 'Carved Texture',
+      basePrice: 135.0,
+      moq: 30,
+      stockStatus: 'available_now',
+      images: [
+        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      ],
+      finish: 'Matt - Carving',
+      thickness: '9 mm',
+      productType: 'Vitrified',
+      tileCategory: 'Floor Tiles',
+      collection: 'Terrazzo',
+      shape: 'rectangle',
+      aspectRatio: '0.5',
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final appState = AppStateService();
-
-    final List<TileProduct> featuredProducts = [
-      TileProduct(
-        id: 'PROD_6012_01',
-        name: 'Statuario Marble Vitrified',
-        size: '600x1200 mm',
-        surface: 'Glossy',
-        color: 'Bianco - Grey',
-        baseColour: 'Bianco - Grey',
-        pattern: 'Marble Veining',
-        basePrice: 120.0,
-        moq: 50,
-        stockStatus: 'available_now',
-        images: [
-          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-        ],
-        finish: 'Glossy',
-        thickness: '9 mm',
-        productType: 'Vitrified',
-        tileCategory: 'Floor Tiles',
-        collection: 'Endless',
-        shape: 'rectangle',
-        aspectRatio: '0.5',
-      ),
-      TileProduct(
-        id: 'PROD_6060_01',
-        name: 'Nero Marquina Square Tile',
-        size: '600x600 mm',
-        surface: 'High Gloss',
-        color: 'Black',
-        baseColour: 'Black',
-        pattern: 'White Vein',
-        basePrice: 95.0,
-        moq: 40,
-        stockStatus: 'available_now',
-        images: [
-          'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80',
-        ],
-        finish: 'High Gloss',
-        thickness: '9 mm',
-        productType: 'Vitrified',
-        tileCategory: 'Floor Tiles',
-        collection: 'Marbles',
-        shape: 'square',
-        aspectRatio: '1.0',
-      ),
-      TileProduct(
-        id: 'PROD_6012_02',
-        name: 'Royal Beige Carving Tile',
-        size: '600x1200 mm',
-        surface: 'Matt - Carving',
-        color: 'Beige - Brown',
-        baseColour: 'Beige - Brown',
-        pattern: 'Carved Texture',
-        basePrice: 135.0,
-        moq: 30,
-        stockStatus: 'available_now',
-        images: [
-          'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-        ],
-        finish: 'Matt - Carving',
-        thickness: '9 mm',
-        productType: 'Vitrified',
-        tileCategory: 'Floor Tiles',
-        collection: 'Terrazzo',
-        shape: 'rectangle',
-        aspectRatio: '0.5',
-      ),
-    ];
 
     return Scaffold(
       key: _scaffoldKey,
@@ -362,11 +362,12 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -460,9 +461,10 @@ class _HomeScreenState extends State<HomeScreen> {
             // Horizontal Scrollable Space Cards with Tactile AppPressable
             SizedBox(
               height: 110,
-              child: ListView.builder(
+              child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: ProductEnums.spaces.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   final spaceName = ProductEnums.spaces[index];
                   return AppPressable(
@@ -480,7 +482,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       width: 120,
-                      margin: const EdgeInsets.only(right: 12),
                       decoration: AppTheme.luxuryCardDecoration,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -641,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
               shrinkWrap: true,
               padding: EdgeInsets.zero,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: featuredProducts.length,
+              itemCount: _featuredProducts.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: MediaQuery.of(context).size.width < 360
@@ -651,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisSpacing: 12,
               ),
               itemBuilder: (context, index) {
-                final product = featuredProducts[index];
+                final product = _featuredProducts[index];
                 return RepaintBoundary(
                   child: AppPressable(
                   onTap: () {
@@ -737,7 +738,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '₹${product.basePrice.toStringAsFixed(0)} / sq.ft',
+                                product.isAdhesive
+                                    ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                    : '₹${product.basePrice.toStringAsFixed(0)} / pi',
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
@@ -1056,6 +1059,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final userName = appState.currentUserProfile.name.trim();
         final firstName = userName.isNotEmpty ? userName.split(' ').first : '';
+        final double screenWidth = MediaQuery.of(context).size.width;
+        final double availableWidth = screenWidth - 32; // 16px left + 16px right margin
+        const double cardSpacing = 12.0;
+        final double cardWidth = recommendations.length == 1
+            ? availableWidth
+            : (availableWidth - cardSpacing) / 2;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1141,12 +1150,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // Horizontal Carousel of Recommendations
             SizedBox(
-              height: 258,
+              height: 260,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
+                physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics()),
                 itemCount: recommendations.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 14),
+                separatorBuilder: (context, index) => const SizedBox(width: cardSpacing),
                 itemBuilder: (context, index) {
                   final rec = recommendations[index];
                   final product = rec.product;
@@ -1164,7 +1174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       scaleDown: 0.96,
                       borderRadius: BorderRadius.circular(16),
                       child: Container(
-                        width: 180,
+                        width: cardWidth,
                         decoration: AppTheme.luxuryCardDecoration,
                         clipBehavior: Clip.antiAlias,
                         child: Column(
@@ -1181,34 +1191,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     width: double.infinity,
                                     height: double.infinity,
                                     fit: BoxFit.cover,
-                                  ),
-                                  // Recommendation Reason Pill
-                                  Positioned(
-                                    top: 8,
-                                    left: 8,
-                                    right: 44,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 3.5),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.75),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.2),
-                                          width: 0.5,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        rec.reason,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
                                   ),
                                   // Wishlist Heart Icon
                                   Positioned(
@@ -1276,7 +1258,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                         MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        '₹${product.basePrice.toStringAsFixed(0)} / sq.ft',
+                                        product.isAdhesive
+                                            ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                            : '₹${product.basePrice.toStringAsFixed(0)} / pi',
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w800,

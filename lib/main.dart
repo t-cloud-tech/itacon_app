@@ -33,6 +33,11 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase initialization note: $e');
   }
+
+  // Optimize in-memory image cache for high-res tile catalog smoothness
+  PaintingBinding.instance.imageCache.maximumSize = 350;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 128 * 1024 * 1024; // 128 MB
+
   runApp(const MyApp());
 }
 

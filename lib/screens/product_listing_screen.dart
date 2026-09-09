@@ -949,6 +949,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                   )
                 : MasonryGridView.count(
                     controller: _scrollController,
+                    physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics()),
+                    cacheExtent: 450,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
@@ -958,10 +961,14 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       final product = filtered[index];
                       final calculatedAspectRatio = TileDimensionHelper.calculateTileAspectRatio(product.size);
 
-                      return AppFadeSlideTransition(
-                        delay: Duration(milliseconds: (index.clamp(0, 6) * 35)),
-                        child: _buildLuxuryTileCard(context, product, calculatedAspectRatio),
-                      );
+                      final card = _buildLuxuryTileCard(context, product, calculatedAspectRatio);
+                      if (index < 4) {
+                        return AppFadeSlideTransition(
+                          delay: Duration(milliseconds: index * 40),
+                          child: card,
+                        );
+                      }
+                      return card;
                     },
                   ),
           ),
@@ -1125,7 +1132,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '₹${effectivePrice.toStringAsFixed(0)}/sq.ft',
+                                product.isAdhesive
+                                    ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
+                                    : '₹${effectivePrice.toStringAsFixed(0)}/pi',
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
@@ -1149,7 +1158,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                 product,
                                 size: product.size,
                                 finish: product.surface,
-                                quantity: 10,
+                                quantity: 1,
                               );
                               AppNotificationUtils.showAddToCartSnackBar(
                                 context,
