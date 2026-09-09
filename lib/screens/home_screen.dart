@@ -14,6 +14,8 @@ import '../widgets/app_navigation_drawer.dart';
 import '../widgets/adhesive_section_widget.dart';
 import '../widgets/app_product_image.dart';
 import '../widgets/interactive_pressable.dart';
+import '../services/user_demand_service.dart';
+import '../services/product_catalog_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -592,6 +594,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 28),
 
+            // Personalized Suggested For You (Based on Wishlist Demand & Repeated Searches)
+            _buildSuggestedForYouSection(context, appState),
+
             // Featured Best Sellers Section
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1036,6 +1041,299 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildSuggestedForYouSection(BuildContext context, AppStateService appState) {
+    return ListenableBuilder(
+      listenable: UserDemandService.instance,
+      builder: (context, _) {
+        final recommendations = UserDemandService.instance.getPersonalizedRecommendations(
+          allProducts: ProductCatalogService.allCatalogProducts,
+          limit: 6,
+        );
+
+        if (recommendations.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final userName = appState.currentUserProfile.name.trim();
+        final firstName = userName.isNotEmpty ? userName.split(' ').first : '';
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Section Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentOrange.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 16,
+                              color: AppTheme.accentOrange,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Suggested For You',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textDark,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        firstName.isNotEmpty
+                            ? 'Curated for $firstName based on wishlist & demand'
+                            : 'Curated based on your wishlist & search activity',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: AppTheme.textSubtle,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                AppPressable(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ProductListingScreen(
+                          subcategoryTitle: 'Suggested For You',
+                        ),
+                      ),
+                    );
+                  },
+                  scaleDown: 0.94,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    child: Text(
+                      'View All →',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.accentOrange,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Horizontal Carousel of Recommendations
+            SizedBox(
+              height: 258,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                itemCount: recommendations.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 14),
+                itemBuilder: (context, index) {
+                  final rec = recommendations[index];
+                  final product = rec.product;
+
+                  return RepaintBoundary(
+                    child: AppPressable(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProductDetailScreen(product: product),
+                          ),
+                        );
+                      },
+                      scaleDown: 0.96,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        width: 180,
+                        decoration: AppTheme.luxuryCardDecoration,
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Product Image with Reason Badge and Wishlist Heart
+                            Expanded(
+                              child: Stack(
+                                children: [
+                                  AppProductImage(
+                                    imagePath: product.images.isNotEmpty
+                                        ? product.images.first
+                                        : '',
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                  // Recommendation Reason Pill
+                                  Positioned(
+                                    top: 8,
+                                    left: 8,
+                                    right: 44,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 7, vertical: 3.5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.75),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(alpha: 0.2),
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        rec.reason,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Wishlist Heart Icon
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: ListenableBuilder(
+                                      listenable: appState,
+                                      builder: (context, _) {
+                                        final isFav = appState.isFavorite(product.id);
+                                        return AppPressable(
+                                          onTap: () => appState.toggleFavorite(product),
+                                          scaleDown: 0.84,
+                                          borderRadius: BorderRadius.circular(16),
+                                          child: CircleAvatar(
+                                            radius: 14,
+                                            backgroundColor:
+                                                Colors.white.withValues(alpha: 0.94),
+                                            child: Icon(
+                                              isFav
+                                                  ? Icons.favorite_rounded
+                                                  : Icons.favorite_outline_rounded,
+                                              color: isFav
+                                                  ? Colors.red
+                                                  : AppTheme.primaryNavy,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Product Details
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.textDark,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${product.size} • ${product.surface}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: AppTheme.textSubtle,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        '₹${product.basePrice.toStringAsFixed(0)} / sq.ft',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.accentOrange,
+                                        ),
+                                      ),
+                                      AppPressable(
+                                        onTap: () {
+                                          appState.addToCart(product);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                  '${product.name} added to cart'),
+                                              duration:
+                                                  const Duration(seconds: 2),
+                                              backgroundColor:
+                                                  AppTheme.primaryNavy,
+                                            ),
+                                          );
+                                        },
+                                        scaleDown: 0.88,
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(5),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryNavy
+                                                .withValues(alpha: 0.08),
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          ),
+                                          child: const Icon(
+                                            Icons.add_shopping_cart_rounded,
+                                            size: 15,
+                                            color: AppTheme.primaryNavy,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSearchAndPopularChips(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1070,6 +1368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (query) {
                     if (query.trim().isNotEmpty) {
+                      AppStateService.instance.recordSearchQuery(query.trim());
                       _navigateToProductListing(query: query.trim());
                     }
                   },
@@ -1112,6 +1411,9 @@ class _HomeScreenState extends State<HomeScreen> {
               AppPressable(
                 onTap: () {
                   final text = _searchController.text.trim();
+                  if (text.isNotEmpty) {
+                    AppStateService.instance.recordSearchQuery(text);
+                  }
                   _navigateToProductListing(
                     query: text.isNotEmpty ? text : null,
                   );
@@ -1201,6 +1503,11 @@ class _HomeScreenState extends State<HomeScreen> {
               final chip = _popularChips[index];
               return AppPressable(
                 onTap: () {
+                  if (chip.query != null && chip.query!.isNotEmpty) {
+                    AppStateService.instance.recordSearchQuery(chip.query!);
+                  } else if (chip.label.isNotEmpty) {
+                    AppStateService.instance.recordSearchQuery(chip.label);
+                  }
                   _navigateToProductListing(
                     query: chip.query,
                     surface: chip.surface,

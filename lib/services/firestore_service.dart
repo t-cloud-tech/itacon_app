@@ -59,6 +59,7 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _transportersRef => _db.collection('transporters');
   CollectionReference<Map<String, dynamic>> get _shipmentsRef => _db.collection('shipments');
   CollectionReference<Map<String, dynamic>> get _systemConfigsRef => _db.collection('systemConfigs');
+  CollectionReference<Map<String, dynamic>> get _userDemandsRef => _db.collection('user_demands');
 
   String _getCategoryCollectionName(String categoryId) {
     switch (categoryId.toLowerCase()) {
@@ -1019,6 +1020,116 @@ class FirestoreService {
   Future<void> addToWishlist(String userId, WishlistItem item) async {
     await _wishlistsRef.doc(userId).set({'userId': userId, 'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
     await _wishlistsRef.doc(userId).collection('wishlistItems').doc(item.productId).set(item.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> removeFromWishlist(String userId, String productId) async {
+    try {
+      await _wishlistsRef.doc(userId).collection('wishlistItems').doc(productId).delete();
+      await _wishlistsRef.doc(userId).set({'updatedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+    } catch (_) {}
+  }
+
+  Future<List<WishlistItem>> getWishlistItems(String userId) async {
+    try {
+      final snapshot = await _wishlistsRef.doc(userId).collection('wishlistItems').get();
+      return snapshot.docs.map((doc) => WishlistItem.fromMap(doc.data(), doc.id)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Logs explicit demand interactions (wishlist adds, removals, repeated searches)
+  /// for back-office business analytics and user personalization
+  Future<void> logUserDemand({
+    required String userId,
+    required String action, // 'wishlist_add' | 'wishlist_remove' | 'search_repeat'
+    String? userName,
+    String? userPhone,
+    String? userEmail,
+    String? userCategory,
+    String? companyName,
+    String? city,
+    String? state,
+    String? productId,
+    String? productName,
+    String? tileCategory,
+    String? surface,
+    String? finish,
+    String? size,
+    String? color,
+    String? searchQuery,
+    Map<String, dynamic>? extraData,
+  }) async {
+    try {
+      final effectiveUserId = userId.isNotEmpty ? userId : 'guest_user';
+      final docRef = _userDemandsRef.doc();
+      final data = <String, dynamic>{
+        'demandId': docRef.id,
+        'userId': effectiveUserId,
+        'action': action,
+        'userName': userName ?? '',
+        'userPhone': userPhone ?? '',
+        'userEmail': userEmail ?? '',
+        'userCategory': userCategory ?? 'Dealer',
+        'companyName': companyName ?? '',
+        'city': city ?? '',
+        'state': state ?? '',
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+      if (productId != null) data['productId'] = productId;
+      if (productName != null) data['productName'] = productName;
+      if (tileCategory != null) data['tileCategory'] = tileCategory;
+      if (surface != null) data['surface'] = surface;
+      if (finish != null) data['finish'] = finish;
+      if (size != null) data['size'] = size;
+      if (color != null) data['color'] = color;
+      if (searchQuery != null) data['searchQuery'] = searchQuery;
+      if (extraData != null) data.addAll(extraData);
+
+      await docRef.set(data);
+
+      // Also update user's aggregated demand summary profile in users/{userId}/demand_profile/summary
+      if (effectiveUserId != 'guest_user') {
+        final profileDoc = _usersRef.doc(effectiveUserId).collection('demand_profile').doc('summary');
+        final updates = <String, dynamic>{
+          'lastUpdated': FieldValue.serverTimestamp(),
+        };
+        if (action == 'wishlist_add') {
+          if (tileCategory != null && tileCategory.isNotEmpty) {
+            updates['demandedCategories.$tileCategory'] = FieldValue.increment(1);
+          }
+          if (surface != null && surface.isNotEmpty) {
+            updates['demandedSurfaces.$surface'] = FieldValue.increment(1);
+          }
+          if (finish != null && finish.isNotEmpty) {
+            updates['demandedFinishes.$finish'] = FieldValue.increment(1);
+          }
+          if (size != null && size.isNotEmpty) {
+            updates['demandedSizes.$size'] = FieldValue.increment(1);
+          }
+          if (productId != null) {
+            updates['wishlistProductIds'] = FieldValue.arrayUnion([productId]);
+          }
+        } else if (action == 'wishlist_remove' && productId != null) {
+          updates['wishlistProductIds'] = FieldValue.arrayRemove([productId]);
+        } else if (action == 'search_repeat' && searchQuery != null && searchQuery.isNotEmpty) {
+          updates['recentSearches'] = FieldValue.arrayUnion([searchQuery]);
+        }
+        await profileDoc.set(updates, SetOptions(merge: true));
+      }
+    } catch (_) {
+      // Gracefully continue offline
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUserDemandProfile(String userId) async {
+    try {
+      if (userId.isEmpty || userId == 'guest_user') return null;
+      final doc = await _usersRef.doc(userId).collection('demand_profile').doc('summary').get();
+      return doc.data();
+    } catch (_) {
+      return null;
+    }
   }
 
   // ===========================================================================

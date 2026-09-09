@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/tile_product.dart';
 import '../models/user_profile.dart';
-
+import 'firestore_service.dart';
 import 'pricing_service.dart';
+import 'user_demand_service.dart';
 
 /// Represents an item in the user's cart
 class CartItem {
@@ -92,6 +93,7 @@ class AppStateService extends ChangeNotifier {
   void clearCartAndFavorites() {
     _cartItems.clear();
     _favoriteProductsMap.clear();
+    UserDemandService.instance.reset();
     notifyListeners();
   }
 
@@ -206,15 +208,68 @@ class AppStateService extends ChangeNotifier {
     if (target is TileProduct) {
       if (_favoriteProductsMap.containsKey(target.id)) {
         _favoriteProductsMap.remove(target.id);
+        UserDemandService.instance.recordWishlistRemove(
+          productId: target.id,
+          user: currentUserProfile,
+        );
       } else {
         _favoriteProductsMap[target.id] = target;
+        UserDemandService.instance.recordWishlistAdd(
+          product: target,
+          user: currentUserProfile,
+        );
       }
     } else if (target is String) {
       if (_favoriteProductsMap.containsKey(target)) {
         _favoriteProductsMap.remove(target);
+        UserDemandService.instance.recordWishlistRemove(
+          productId: target,
+          user: currentUserProfile,
+        );
       }
     }
     notifyListeners();
+  }
+
+  /// Automatically loads user's saved wishlist from Cloud Firestore upon login or app launch
+  Future<void> loadUserWishlist(String userId) async {
+    if (userId.isEmpty || userId == 'guest_user') return;
+    try {
+      final items = await FirestoreService().getWishlistItems(userId);
+      for (final item in items) {
+        if (!_favoriteProductsMap.containsKey(item.productId)) {
+          _favoriteProductsMap[item.productId] = TileProduct(
+            id: item.productId,
+            name: item.productName.isNotEmpty ? item.productName : 'Saved Tile',
+            sku: item.sku.isNotEmpty ? item.sku : 'ITA-PROD-001',
+            size: item.size.isNotEmpty ? item.size : '600x1200 mm',
+            surface: item.surface.isNotEmpty ? item.surface : 'Glossy',
+            color: item.color.isNotEmpty ? item.color : 'White',
+            baseColour: item.color.isNotEmpty ? item.color : 'White',
+            pattern: item.pattern.isNotEmpty ? item.pattern : 'Marble',
+            basePrice: item.basePrice > 0 ? item.basePrice : 120.0,
+            moq: 30,
+            stockStatus: 'available_now',
+            images: item.imageUrl.isNotEmpty ? [item.imageUrl] : [],
+            finish: item.finish.isNotEmpty ? item.finish : 'Glossy',
+            tileCategory: item.tileCategory.isNotEmpty ? item.tileCategory : 'Floor Tiles',
+            productLine: item.productLine,
+            collection: item.collection,
+            spaces: item.spaces,
+          );
+        }
+      }
+      await UserDemandService.instance.initUserDemand(userId);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Convenience method to log repeat searches into UserDemandService
+  void recordSearchQuery(String query) {
+    UserDemandService.instance.recordSearchDemand(
+      query: query,
+      user: currentUserProfile,
+    );
   }
 
   void addToCart(

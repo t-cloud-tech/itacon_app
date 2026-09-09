@@ -43,6 +43,7 @@ class UserSessionService {
 
     // Also update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
+    AppStateService.instance.loadUserWishlist(profile.userId);
   }
 
   /// Restores active user session from SharedPreferences or Firebase Auth
@@ -102,6 +103,7 @@ class UserSessionService {
 
     // Update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
+    AppStateService.instance.loadUserWishlist(profile.userId);
     return profile;
   }
 

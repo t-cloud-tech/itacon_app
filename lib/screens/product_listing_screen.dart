@@ -742,6 +742,12 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
               controller: _searchController,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (query) {
+                if (query.trim().isNotEmpty) {
+                  _appState.recordSearchQuery(query.trim());
+                }
+              },
               decoration: InputDecoration(
                 hintText: 'Search tiles by name, size, surface, color...',
                 hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
