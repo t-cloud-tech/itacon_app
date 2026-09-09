@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
+import 'interactive_pressable.dart';
+import '../screens/fixing_solutions_screen.dart';
 
 /// Data model representing an ITACON High-Bond Tile Adhesive Bag Product
 class AdhesiveProduct {
@@ -302,6 +305,63 @@ class AdhesiveData {
 class AdhesiveSectionWidget extends StatefulWidget {
   const AdhesiveSectionWidget({super.key});
 
+  static Widget buildAdhesiveImage(String path, Color fallbackColor) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.contain,
+        cacheWidth: 400,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackBox(fallbackColor),
+      );
+    }
+
+    String cleanPath = path;
+    if (!cleanPath.startsWith('assets/images/adhesives/') && cleanPath.contains('adhesives/')) {
+      final fileName = cleanPath.split('adhesives/').last;
+      cleanPath = 'assets/images/adhesives/$fileName';
+    }
+
+    final String altPath = cleanPath.contains('assets/images/adhesives')
+        ? cleanPath.replaceFirst('assets/images/adhesives', 'assets/adhesives')
+        : cleanPath;
+
+    return Image.asset(
+      cleanPath,
+      width: double.infinity,
+      height: double.infinity,
+      fit: BoxFit.contain,
+      cacheWidth: 400,
+      filterQuality: FilterQuality.medium,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          altPath,
+          width: double.infinity,
+          height: double.infinity,
+          fit: BoxFit.contain,
+          cacheWidth: 400,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (context, error2, stackTrace2) => _buildFallbackBox(fallbackColor),
+        );
+      },
+    );
+  }
+
+  static Widget _buildFallbackBox(Color fallbackColor) {
+    return Container(
+      color: fallbackColor,
+      child: Center(
+        child: Icon(
+          Icons.inventory_2_rounded,
+          color: Colors.white.withValues(alpha: 0.5),
+          size: 48,
+        ),
+      ),
+    );
+  }
+
   @override
   State<AdhesiveSectionWidget> createState() => _AdhesiveSectionWidgetState();
 }
@@ -318,21 +378,12 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
     }
   }
 
-  void _showAdhesiveCalculatorModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => const _AdhesiveCalculatorBottomSheet(),
-    );
-  }
-
   void _showProductDetailsModal(BuildContext context, AdhesiveProduct product) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AdhesiveDetailsBottomSheet(
+      builder: (ctx) => AdhesiveDetailsBottomSheet(
         product: product,
         initialWeight: _selectedWeights[product.id] ?? product.availableWeights.first,
         onWeightSelected: (w) {
@@ -349,6 +400,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
     final appState = AppStateService.instance;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double cardAspectRatio = screenWidth < 360 ? 0.65 : (screenWidth < 400 ? 0.68 : 0.72);
+    final displayProducts = AdhesiveData.products.take(4).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,46 +409,48 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Fixing Solutions (Adhesives)',
-              style: TextStyle(
+            Text(
+              'Fixing Solutions',
+              style: GoogleFonts.inter(
                 fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: AppTheme.textDark,
+                letterSpacing: -0.2,
               ),
             ),
-            GestureDetector(
-              onTap: () => _showAdhesiveCalculatorModal(context),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(
-                    Icons.calculate_outlined,
-                    size: 16,
+            AppPressable(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const FixingSolutionsScreen(),
+                  ),
+                );
+              },
+              scaleDown: 0.94,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text(
+                  'View All →',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                     color: AppTheme.accentOrange,
                   ),
-                  SizedBox(width: 4),
-                  Text(
-                    'Calculator',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.accentOrange,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 14),
 
-        // 2-Column Responsive Grid matching EXACT Trending Collection card layout
+        // 2-Column Responsive Grid (2x2 layout on home page)
         GridView.builder(
           shrinkWrap: true,
           padding: EdgeInsets.zero,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: AdhesiveData.products.length,
+          itemCount: displayProducts.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             childAspectRatio: cardAspectRatio,
@@ -404,7 +458,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
             mainAxisSpacing: 12,
           ),
           itemBuilder: (context, index) {
-            final adhesive = AdhesiveData.products[index];
+            final adhesive = displayProducts[index];
             final selectedWeight = _selectedWeights[adhesive.id] ?? adhesive.availableWeights.first;
             final tileProduct = adhesive.toTileProduct(selectedWeight: selectedWeight);
             final currentPrice = adhesive.weightPrices[selectedWeight] ?? 420.0;
@@ -422,7 +476,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                     Expanded(
                       child: Stack(
                         children: [
-                          _buildAdhesiveSectionImage(adhesive.imageUrl, adhesive.packagingColor),
+                          AdhesiveSectionWidget.buildAdhesiveImage(adhesive.imageUrl, adhesive.packagingColor),
                           // Subtle Badge in top left
                           Positioned(
                             top: 8,
@@ -485,9 +539,9 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                         children: [
                           Text(
                             adhesive.name,
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: AppTheme.textDark,
                             ),
                             maxLines: 1,
@@ -496,7 +550,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                           const SizedBox(height: 2),
                           Text(
                             '${adhesive.grade.split('•').first.trim()} • $selectedWeight',
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 11,
                               color: AppTheme.textSubtle,
                             ),
@@ -506,7 +560,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                           const SizedBox(height: 4),
                           Text(
                             '₹${currentPrice.toStringAsFixed(0)} / bag',
-                            style: const TextStyle(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.accentOrange,
@@ -523,63 +577,6 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
         },
         ),
       ],
-    );
-  }
-
-  Widget _buildAdhesiveSectionImage(String path, Color fallbackColor) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(
-        path,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.contain,
-        cacheWidth: 400,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackBox(fallbackColor),
-      );
-    }
-
-    String cleanPath = path;
-    if (!cleanPath.startsWith('assets/images/adhesives/') && cleanPath.contains('adhesives/')) {
-      final fileName = cleanPath.split('adhesives/').last;
-      cleanPath = 'assets/images/adhesives/$fileName';
-    }
-
-    final String altPath = cleanPath.contains('assets/images/adhesives')
-        ? cleanPath.replaceFirst('assets/images/adhesives', 'assets/adhesives')
-        : cleanPath;
-
-    return Image.asset(
-      cleanPath,
-      width: double.infinity,
-      height: double.infinity,
-      fit: BoxFit.contain,
-      cacheWidth: 400,
-      filterQuality: FilterQuality.medium,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          altPath,
-          width: double.infinity,
-          height: double.infinity,
-          fit: BoxFit.contain,
-          cacheWidth: 400,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (context, error2, stackTrace2) => _buildFallbackBox(fallbackColor),
-        );
-      },
-    );
-  }
-
-  Widget _buildFallbackBox(Color fallbackColor) {
-    return Container(
-      color: fallbackColor,
-      child: Center(
-        child: Icon(
-          Icons.inventory_2_rounded,
-          color: Colors.white.withValues(alpha: 0.5),
-          size: 48,
-        ),
-      ),
     );
   }
 }
@@ -946,24 +943,25 @@ class _AdhesiveCalculatorBottomSheetState
 }
 
 /// Technical Data Sheet (TDS) and Application Guide Bottom Sheet
-class _AdhesiveDetailsBottomSheet extends StatefulWidget {
+class AdhesiveDetailsBottomSheet extends StatefulWidget {
   final AdhesiveProduct product;
   final String initialWeight;
   final ValueChanged<String> onWeightSelected;
 
-  const _AdhesiveDetailsBottomSheet({
+  const AdhesiveDetailsBottomSheet({
+    super.key,
     required this.product,
     required this.initialWeight,
     required this.onWeightSelected,
   });
 
   @override
-  State<_AdhesiveDetailsBottomSheet> createState() =>
+  State<AdhesiveDetailsBottomSheet> createState() =>
       _AdhesiveDetailsBottomSheetState();
 }
 
 class _AdhesiveDetailsBottomSheetState
-    extends State<_AdhesiveDetailsBottomSheet> {
+    extends State<AdhesiveDetailsBottomSheet> {
   late String _selectedWeight;
 
   @override

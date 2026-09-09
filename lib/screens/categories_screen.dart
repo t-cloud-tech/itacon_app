@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../widgets/floating_bottom_bar.dart';
 import 'product_listing_screen.dart';
+import 'fixing_solutions_screen.dart';
 import 'cart_screen.dart';
 
 class CategoriesScreen extends StatelessWidget {
@@ -131,14 +132,23 @@ class CategoriesScreen extends StatelessWidget {
             onTap: isComingSoon
                 ? null
                 : () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProductListingScreen(
-                          subcategoryTitle: title,
+                    if (cat['categoryKey'] == 'CAT_ADHESIVES' || title == 'Fixing Solutions') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FixingSolutionsScreen(),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProductListingScreen(
+                            subcategoryTitle: title,
+                          ),
+                        ),
+                      );
+                    }
                   },
             child: Container(
               decoration: AppTheme.luxuryCardDecoration,
