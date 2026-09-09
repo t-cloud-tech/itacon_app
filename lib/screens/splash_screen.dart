@@ -129,33 +129,38 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
                 child: SafeArea(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (screenSize.width * 0.06).clamp(16.0, 48.0),
+                    ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Spacer(flex: 2),
 
-                        // ITACON GRANITO Branding Logo (Constrained & aspect-ratio preserved)
+                        // ITACON GRANITO Branding Logo (Relative units & locked aspect-ratio)
                         _buildBrandingLogo(screenSize),
 
                         SizedBox(
-                          height: (screenSize.height * 0.045).clamp(16.0, 44.0),
+                          height: (screenSize.height * 0.038).clamp(14.0, 36.0),
                         ),
 
                         // Tagline 1
-                        const Text(
+                        Text(
                           'Right Choice. Right Time. Right Value.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
+                            fontSize:
+                                (screenSize.width * 0.046).clamp(16.0, 24.0),
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.6,
                             height: 1.2,
                           ),
                         ),
 
-                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: (screenSize.height * 0.012).clamp(6.0, 14.0),
+                        ),
 
                         // Tagline 2
                         Text(
@@ -163,7 +168,8 @@ class _SplashScreenState extends State<SplashScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.85),
-                            fontSize: 15,
+                            fontSize:
+                                (screenSize.width * 0.036).clamp(13.0, 18.0),
                             fontWeight: FontWeight.w400,
                             letterSpacing: 0.4,
                           ),
@@ -183,28 +189,34 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Widget _buildBrandingLogo(Size screenSize) {
-    // Keep logo proportionally scaled with full breadth from left and right sides
-    final double maxLogoWidth = (screenSize.width * 0.78).clamp(240.0, 350.0);
-    final double maxLogoHeight = (screenSize.height * 0.18).clamp(75.0, 140.0);
+    // Relative width & height based on screen viewport dimensions
+    final double relativeMaxWidth = (screenSize.width * 0.68).clamp(180.0, 500.0);
+    final double relativeMaxHeight = (screenSize.height * 0.15).clamp(65.0, 180.0);
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: maxLogoWidth,
-        maxHeight: maxLogoHeight,
-      ),
-      child: Image.asset(
-        'assets/images/itacon-logo-white.png',
-        fit: BoxFit.contain,
-        alignment: Alignment.center,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (context, error, stackTrace) {
-          return Image.asset(
-            'assets/images/itacon-logo.png',
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: relativeMaxWidth,
+          maxHeight: relativeMaxHeight,
+        ),
+        child: AspectRatio(
+          // Preserves natural brand logo proportions (1900x724 => ~2.624:1) with circular 'O'
+          aspectRatio: 1900 / 724,
+          child: Image.asset(
+            'assets/images/itacon-logo-white.png',
             fit: BoxFit.contain,
             alignment: Alignment.center,
             filterQuality: FilterQuality.high,
-          );
-        },
+            errorBuilder: (context, error, stackTrace) {
+              return Image.asset(
+                'assets/images/itacon-logo.png',
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+                filterQuality: FilterQuality.high,
+              );
+            },
+          ),
+        ),
       ),
     );
   }

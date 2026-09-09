@@ -374,7 +374,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // Dark Navy Hero Banner
             Container(
               width: double.infinity,
-              height: 180,
+              constraints: const BoxConstraints(minHeight: 180),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 image: const DecorationImage(
