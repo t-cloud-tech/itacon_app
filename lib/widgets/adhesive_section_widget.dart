@@ -533,6 +533,8 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
         width: double.infinity,
         height: double.infinity,
         fit: BoxFit.contain,
+        cacheWidth: 400,
+        filterQuality: FilterQuality.medium,
         errorBuilder: (context, error, stackTrace) => _buildFallbackBox(fallbackColor),
       );
     }
@@ -552,12 +554,16 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
       width: double.infinity,
       height: double.infinity,
       fit: BoxFit.contain,
+      cacheWidth: 400,
+      filterQuality: FilterQuality.medium,
       errorBuilder: (context, error, stackTrace) {
         return Image.asset(
           altPath,
           width: double.infinity,
           height: double.infinity,
           fit: BoxFit.contain,
+          cacheWidth: 400,
+          filterQuality: FilterQuality.medium,
           errorBuilder: (context, error2, stackTrace2) => _buildFallbackBox(fallbackColor),
         );
       },

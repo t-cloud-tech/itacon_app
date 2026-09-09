@@ -270,8 +270,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_showroomImages.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Maximum 5 showroom display photos allowed.'),
-          backgroundColor: AppTheme.accentOrange,
+          content: Text('Maximum 5 showroom display photos reached. Photos are now locked permanently.'),
+          backgroundColor: AppTheme.primaryNavy,
         ),
       );
       return;
@@ -295,33 +295,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
       if (image != null) {
         setState(() {
-          _showroomImages.add(image.path);
+          if (_showroomImages.length < 5) {
+            _showroomImages.add(image.path);
+          }
         });
       } else {
         final nextImg = _sampleShowroomAssets[_showroomImages.length % _sampleShowroomAssets.length];
         setState(() {
-          _showroomImages.add(nextImg);
+          if (_showroomImages.length < 5) {
+            _showroomImages.add(nextImg);
+          }
         });
       }
     } catch (_) {
       final nextImg = _sampleShowroomAssets[_showroomImages.length % _sampleShowroomAssets.length];
       setState(() {
-        _showroomImages.add(nextImg);
+        if (_showroomImages.length < 5) {
+          _showroomImages.add(nextImg);
+        }
       });
     }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New showroom display photo added!'),
+        SnackBar(
+          content: Text(
+            _showroomImages.length >= 5
+                ? '5/5 showroom photos uploaded! Showcase is now locked permanently.'
+                : 'New showroom display photo added (${_showroomImages.length}/5)!',
+          ),
           backgroundColor: AppTheme.primaryNavy,
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
   }
 
   void _removeShowroomPhoto(int index) {
+    if (_showroomImages.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Showroom showcase is complete (5/5 photos). Photos cannot be deleted.'),
+          backgroundColor: AppTheme.accentOrange,
+        ),
+      );
+      return;
+    }
     setState(() {
       _showroomImages.removeAt(index);
     });
@@ -433,9 +452,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         border: Border.all(color: AppTheme.primaryNavy, width: 2),
                         image: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
                             ? DecorationImage(
-                                image: _profilePhotoUrl!.startsWith('http')
-                                    ? NetworkImage(_profilePhotoUrl!)
-                                    : FileImage(File(_profilePhotoUrl!)) as ImageProvider,
+                                image: ResizeImage(
+                                  _profilePhotoUrl!.startsWith('http')
+                                      ? NetworkImage(_profilePhotoUrl!)
+                                      : FileImage(File(_profilePhotoUrl!)) as ImageProvider,
+                                  width: 300,
+                                  height: 300,
+                                ),
                                 fit: BoxFit.cover,
                               )
                             : null,
@@ -489,18 +512,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               // ---------------------------------------------------------------
               // 2. SHOWROOM / STORE DISPLAY SHOWCASE GALLERY (Up to 5 Photos)
               // ---------------------------------------------------------------
-              const Text(
-                'Showroom & Store Display Showcase',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryNavy,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Showroom & Store Display Showcase',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _showroomImages.length >= 5
+                          ? Colors.green.shade50
+                          : AppTheme.primaryNavy.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _showroomImages.length >= 5
+                            ? Colors.green.shade400
+                            : AppTheme.primaryNavy.withValues(alpha: 0.2),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _showroomImages.length >= 5
+                              ? Icons.lock_rounded
+                              : Icons.photo_library_outlined,
+                          size: 13,
+                          color: _showroomImages.length >= 5
+                              ? Colors.green.shade800
+                              : AppTheme.primaryNavy,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${_showroomImages.length}/5',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: _showroomImages.length >= 5
+                                ? Colors.green.shade800
+                                : AppTheme.primaryNavy,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Upload photos of your tile racks, sample displays, or store front (Max 5)',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+              Text(
+                _showroomImages.length >= 5
+                    ? 'Showroom showcase is complete (5/5 photos). Photos are permanent & locked.'
+                    : 'Upload photos of your tile racks, sample displays, or store front (Max 5)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: _showroomImages.length >= 5 ? FontWeight.w600 : FontWeight.normal,
+                  color: _showroomImages.length >= 5 ? Colors.green.shade700 : AppTheme.textSubtle,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -509,11 +583,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
-                  itemCount: _showroomImages.length + 1,
+                  itemCount: _showroomImages.length < 5
+                      ? _showroomImages.length + 1
+                      : _showroomImages.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     if (index == _showroomImages.length) {
-                      // Dashed Add Photo Tile
+                      // Dashed Add Photo Tile - Only visible if less than 5 photos
                       return GestureDetector(
                         onTap: _addShowroomPhoto,
                         child: Container(
@@ -549,39 +625,57 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     }
 
                     final imgUrl = _showroomImages[index];
-                    return Stack(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
+                    final bool isLocked = _showroomImages.length >= 5;
+
+                    return RepaintBoundary(
+                      child: Stack(
+                        children: [
+                          ClipRRect(
                             borderRadius: BorderRadius.circular(14),
-                            image: DecorationImage(
-                              image: NetworkImage(imgUrl),
-                              fit: BoxFit.cover,
-                            ),
+                            child: _buildShowroomImage(imgUrl),
                           ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: GestureDetector(
-                            onTap: () => _removeShowroomPhoto(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Color(0xB3000000),
-                                shape: BoxShape.circle,
+                          // Only show delete button if less than 5 photos are added.
+                          // When user adds 5 photos, they cannot access delete button!
+                          if (!isLocked)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: GestureDetector(
+                                onTap: () => _removeShowroomPhoto(index),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xB3000000),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close_rounded,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.white,
-                                size: 14,
+                            )
+                          else
+                            // Lock badge showing photos are locked permanently
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryNavy.withValues(alpha: 0.85),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.lock_rounded,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -861,6 +955,62 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildShowroomImage(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+      );
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        cacheWidth: 300,
+        cacheHeight: 300,
+        filterQuality: FilterQuality.medium,
+        errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+      );
+    } else {
+      final file = File(path);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+          cacheWidth: 300,
+          cacheHeight: 300,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
+        );
+      }
+      return _buildImageFallback();
+    }
+  }
+
+  Widget _buildImageFallback() {
+    return Container(
+      width: 100,
+      height: 100,
+      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+      child: const Center(
+        child: Icon(
+          Icons.storefront_rounded,
+          color: AppTheme.primaryNavy,
+          size: 32,
+        ),
+      ),
     );
   }
 }

@@ -30,6 +30,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String _selectedSize = '600x1200 mm';
   String _selectedFinish = 'Glossy';
   int _quantity = 1;
+  bool _isMockupMode = false;
+
+  // Smart Box <-> Sq.Ft Tile Estimator state
+  final TextEditingController _sqFtCalcController = TextEditingController();
+  final TextEditingController _boxCalcController = TextEditingController();
+  int _calcWastage = 5; // 0%, 5%, 10%
+  bool _calcByArea = true; // true: user calculates by area, false: by box count
+  int _calculatedBoxes = 50;
+  double _calculatedSqFt = 775.0;
+  double _calculatedWeightKg = 1400.0;
 
   final List<String> _sizes = const ['600x1200 mm', '600x600 mm'];
   final List<String> _finishes = const [
@@ -44,6 +54,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     'Sugar Lapato',
     'Pastel Colors',
   ];
+
+  List<String> get _currentFaceImages => _product.resolvedFaceImages;
+  List<String> get _currentMockupImages => _product.resolvedMockupImages;
+  List<String> get _activeImages =>
+      _isMockupMode ? _currentMockupImages : _currentFaceImages;
 
   @override
   void initState() {
@@ -64,6 +79,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
             'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80',
             'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80',
           ],
           finish: 'Glossy',
           thickness: '9 mm',
@@ -79,6 +95,82 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     _selectedSize = _product.size;
     _selectedFinish = _product.surface;
+
+    // Initialize calculator with initial quantity & coverage
+    final initialBoxes = _product.moq > 0 ? _product.moq : 50;
+    _quantity = initialBoxes;
+    _calculatedBoxes = initialBoxes;
+    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
+    final weight = _product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0;
+    _calculatedSqFt = initialBoxes * coverage;
+    _calculatedWeightKg = initialBoxes * weight;
+    _boxCalcController.text = '$initialBoxes';
+    _sqFtCalcController.text = _calculatedSqFt.toStringAsFixed(1);
+  }
+
+  void _onSqFtChanged(String val) {
+    final sqFt = double.tryParse(val) ?? 0.0;
+    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
+    final weight = _product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0;
+
+    final effectiveSqFt = sqFt * (1 + _calcWastage / 100.0);
+    final boxes = sqFt > 0 ? (effectiveSqFt / coverage).ceil() : 0;
+    final totalSqFt = boxes * coverage;
+    final totalWeight = boxes * weight;
+
+    setState(() {
+      _calculatedBoxes = boxes;
+      _calculatedSqFt = totalSqFt;
+      _calculatedWeightKg = totalWeight;
+    });
+
+    if (_boxCalcController.text != '$boxes' && boxes > 0) {
+      _boxCalcController.value = TextEditingValue(
+        text: '$boxes',
+        selection: TextSelection.collapsed(offset: '$boxes'.length),
+      );
+    }
+  }
+
+  void _onBoxesChanged(String val) {
+    final boxes = int.tryParse(val) ?? 0;
+    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
+    final weight = _product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0;
+
+    final totalSqFt = boxes * coverage;
+    final totalWeight = boxes * weight;
+
+    setState(() {
+      _calculatedBoxes = boxes;
+      _calculatedSqFt = totalSqFt;
+      _calculatedWeightKg = totalWeight;
+    });
+
+    final sqFtStr = totalSqFt > 0 ? totalSqFt.toStringAsFixed(1) : '';
+    if (_sqFtCalcController.text != sqFtStr && totalSqFt > 0) {
+      _sqFtCalcController.value = TextEditingValue(
+        text: sqFtStr,
+        selection: TextSelection.collapsed(offset: sqFtStr.length),
+      );
+    }
+  }
+
+  void _applyCalculatedToOrder() {
+    if (_calculatedBoxes <= 0) return;
+    setState(() {
+      _quantity = _calculatedBoxes;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Applied $_calculatedBoxes boxes (${_calculatedSqFt.toStringAsFixed(1)} sq.ft) to order!',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: AppTheme.primaryNavy,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _showManualQuantityDialog() {
@@ -127,7 +219,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               onPressed: () {
                 final parsed = int.tryParse(controller.text.trim());
                 if (parsed != null && parsed > 0) {
-                  setState(() => _quantity = parsed);
+                  setState(() {
+                    _quantity = parsed;
+                    _boxCalcController.text = '$parsed';
+                    _onBoxesChanged('$parsed');
+                  });
                   Navigator.pop(dialogContext);
                 }
               },
@@ -158,6 +254,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _sqFtCalcController.dispose();
+    _boxCalcController.dispose();
     super.dispose();
   }
 
@@ -222,30 +320,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Dynamic Proportional Frame Container
+            // Dynamic Proportional Frame Container with Visualizer
             Stack(
               alignment: Alignment.bottomCenter,
               children: [
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
                   height: calculatedFrameHeight,
+                  color: Colors.grey.shade100,
                   child: PageView.builder(
                     controller: _pageController,
-                    itemCount: _product.images.isNotEmpty
-                        ? _product.images.length
-                        : 1,
+                    itemCount: _activeImages.length,
                     onPageChanged: (idx) {
                       setState(() => _currentImageIndex = idx);
                     },
                     itemBuilder: (context, index) {
-                      final img = _product.images.isNotEmpty
-                          ? _product.images[index]
-                          : 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80';
-                      return AppProductImage(
-                        imagePath: img,
-                        width: double.infinity,
-                        height: calculatedFrameHeight,
-                        fit: BoxFit.contain,
+                      final img = _activeImages[index];
+                      return InteractiveViewer(
+                        minScale: 1.0,
+                        maxScale: 4.0,
+                        panEnabled: true,
+                        clipBehavior: Clip.hardEdge,
+                        child: Center(
+                          child: AppProductImage(
+                            imagePath: img,
+                            width: double.infinity,
+                            height: calculatedFrameHeight,
+                            fit: _isMockupMode ? BoxFit.cover : BoxFit.contain,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -290,13 +393,99 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
+                // Top Mode Toggle Switch: [ Tile Face ] vs [ Room Mockup ]
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.16),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                      border: Border.all(
+                        color: AppTheme.borderSubtle.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildModeTogglePill(
+                          label: 'Tile Face',
+                          icon: Icons.grid_view_rounded,
+                          isSelected: !_isMockupMode,
+                          onTap: () {
+                            if (_isMockupMode) {
+                              setState(() {
+                                _isMockupMode = false;
+                                _currentImageIndex = 0;
+                              });
+                              _pageController.jumpToPage(0);
+                            }
+                          },
+                        ),
+                        _buildModeTogglePill(
+                          label: 'Room Mockup',
+                          icon: Icons.meeting_room_outlined,
+                          isSelected: _isMockupMode,
+                          onTap: () {
+                            if (!_isMockupMode) {
+                              setState(() {
+                                _isMockupMode = true;
+                                _currentImageIndex = 0;
+                              });
+                              _pageController.jumpToPage(0);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Pinch to Zoom Hint Pill
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'Pinch to zoom',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
                 // Pagination Dots Indicator
                 Positioned(
                   bottom: 12,
+                  left: 0,
+                  right: 0,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      _product.images.isNotEmpty ? _product.images.length : 1,
+                      _activeImages.length,
                       (index) => Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
                         width: _currentImageIndex == index ? 18 : 6,
@@ -313,6 +502,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ],
             ),
+
+            // Horizontal Mini-Thumbnail Selector
+            _buildThumbnailSelector(_activeImages),
 
             Padding(
               padding: const EdgeInsets.all(16),
@@ -672,6 +864,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Smart Box <-> Sq.Ft Tile Estimator Calculator
+                  _buildSmartTileEstimatorCalculator(),
+
                   // Trust Badges Row
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -722,7 +917,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   children: [
                     AppPressable(
                       onTap: _quantity > 1
-                          ? () => setState(() => _quantity--)
+                          ? () {
+                              setState(() {
+                                _quantity--;
+                                _boxCalcController.text = '$_quantity';
+                                _onBoxesChanged('$_quantity');
+                              });
+                            }
                           : null,
                       scaleDown: 0.85,
                       borderRadius: BorderRadius.circular(8),
@@ -762,7 +963,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
                     AppPressable(
-                      onTap: () => setState(() => _quantity++),
+                      onTap: () {
+                        setState(() {
+                          _quantity++;
+                          _boxCalcController.text = '$_quantity';
+                          _onBoxesChanged('$_quantity');
+                        });
+                      },
                       scaleDown: 0.85,
                       borderRadius: BorderRadius.circular(8),
                       child: const Padding(
@@ -775,10 +982,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const SizedBox(width: 14),
 
-              // Add to Cart Button with Micro-Press Animation
+              // Add to PO / Cart Button with Micro-Press Animation
               Expanded(
                 child: AppButton(
-                  text: 'Add to Cart',
+                  text: 'Add to PO / Cart',
                   icon: Icons.shopping_bag_outlined,
                   height: 48,
                   variant: AppButtonVariant.primary,
@@ -799,6 +1006,511 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildModeTogglePill({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryNavy : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? Colors.white : AppTheme.textSubtle,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : AppTheme.textDark,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailSelector(List<String> images) {
+    if (images.length <= 1) return const SizedBox.shrink();
+
+    final roomLabels = const ['Living', 'Bath', 'Bedroom', 'Foyer', 'Lobby'];
+
+    return Container(
+      height: 84,
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        border: Border(
+          bottom: BorderSide(color: AppTheme.borderSubtle.withValues(alpha: 0.6)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(right: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryNavy.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _isMockupMode ? Icons.meeting_room_outlined : Icons.grid_view_rounded,
+                  size: 16,
+                  color: AppTheme.primaryNavy,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _isMockupMode ? 'Mockups' : 'Faces',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primaryNavy,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: images.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final isSelected = _currentImageIndex == index;
+                final label = _isMockupMode
+                    ? (index < roomLabels.length ? roomLabels[index] : 'Room ${index + 1}')
+                    : 'Face ${index + 1}';
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() => _currentImageIndex = index);
+                    _pageController.animateToPage(
+                      index,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 68,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? AppTheme.accentOrange : AppTheme.borderSubtle,
+                        width: isSelected ? 2.5 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AppTheme.accentOrange.withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          AppProductImage(
+                            imagePath: images[index],
+                            fit: BoxFit.cover,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              color: isSelected
+                                  ? AppTheme.primaryNavy.withValues(alpha: 0.88)
+                                  : Colors.black.withValues(alpha: 0.6),
+                              child: Text(
+                                label,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmartTileEstimatorCalculator() {
+    final isAdhesive = _product.isAdhesive;
+    final coverage = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : (isAdhesive ? 50.0 : 15.5);
+    final weight = isAdhesive ? 20.0 : (_product.boxWeightKg > 0 ? _product.boxWeightKg : 28.0);
+    final unitName = isAdhesive ? 'Bag' : 'Box';
+    final unitNamePlural = isAdhesive ? 'Bags' : 'Boxes';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.accentOrange.withValues(alpha: 0.35),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.accentOrange.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentOrange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.calculate_rounded,
+                  color: AppTheme.accentOrange,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Smart $unitName ↔ Sq.Ft Tile Estimator',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '1 $unitName = ${coverage.toStringAsFixed(1)} sq.ft  •  ~$weight kg / $unitName',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textSubtle,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Segmented Calculation Mode Toggle
+          Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (!_calcByArea) {
+                        setState(() => _calcByArea = true);
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _calcByArea ? AppTheme.primaryNavy : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Input Area (Sq.Ft)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _calcByArea ? Colors.white : AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_calcByArea) {
+                        setState(() => _calcByArea = false);
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: !_calcByArea ? AppTheme.primaryNavy : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Input $unitNamePlural',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: !_calcByArea ? Colors.white : AppTheme.textDark,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Dynamic Input Section
+          if (_calcByArea) ...[
+            const Text(
+              'Enter Total Area Required (Sq.Ft)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _sqFtCalcController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: _onSqFtChanged,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.square_foot_rounded, color: AppTheme.primaryNavy, size: 20),
+                suffixText: 'Sq.Ft',
+                hintText: 'e.g. 775',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Quick preset area chips
+            Wrap(
+              spacing: 6,
+              children: [100, 250, 500, 1000].map((preset) {
+                return ActionChip(
+                  label: Text('+$preset sq.ft'),
+                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.05),
+                  onPressed: () {
+                    final current = double.tryParse(_sqFtCalcController.text) ?? 0.0;
+                    final updated = current + preset;
+                    _sqFtCalcController.text = updated.toStringAsFixed(0);
+                    _onSqFtChanged(_sqFtCalcController.text);
+                  },
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 10),
+            // Tile Cutting Wastage Allowance
+            Row(
+              children: [
+                const Text(
+                  'Wastage Allowance:',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textSubtle, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    children: [0, 5, 10].map((pct) {
+                      final selected = _calcWastage == pct;
+                      return ChoiceChip(
+                        label: Text('$pct% ${pct == 5 ? '(Rec.)' : ''}'),
+                        selected: selected,
+                        selectedColor: AppTheme.primaryNavy,
+                        labelStyle: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? Colors.white : AppTheme.textDark,
+                        ),
+                        onSelected: (val) {
+                          if (val) {
+                            setState(() => _calcWastage = pct);
+                            _onSqFtChanged(_sqFtCalcController.text);
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            Text(
+              'Enter Quantity in $unitNamePlural',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _boxCalcController,
+              keyboardType: TextInputType.number,
+              onChanged: _onBoxesChanged,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.all_inbox_rounded, color: AppTheme.primaryNavy, size: 20),
+                suffixText: unitNamePlural,
+                hintText: 'e.g. 50',
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Quick preset box chips
+            Wrap(
+              spacing: 6,
+              children: [10, 25, 50, 100].map((preset) {
+                return ActionChip(
+                  label: Text('+$preset $unitNamePlural'),
+                  labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.05),
+                  onPressed: () {
+                    final current = int.tryParse(_boxCalcController.text) ?? 0;
+                    final updated = current + preset;
+                    _boxCalcController.text = '$updated';
+                    _onBoxesChanged('$updated');
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 14),
+
+          // Dynamic Summary Pill: e.g., 50 Boxes = 775 Sq.Ft | ~1.42 Tonnes
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [AppTheme.primaryNavy, Color(0xFF1E3A8A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: AppTheme.accentOrange, size: 18),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '$_calculatedBoxes $unitNamePlural = ${_calculatedSqFt.toStringAsFixed(1)} Sq.Ft | ~${(_calculatedWeightKg / 1000.0).toStringAsFixed(2)} Tonnes',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Total Freight Weight: ${_calculatedWeightKg.toStringAsFixed(0)} kg  •  Coverage: ${_calculatedSqFt.toStringAsFixed(1)} sq.ft',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Apply to Order / PO Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _calculatedBoxes > 0 ? _applyCalculatedToOrder : null,
+              icon: const Icon(Icons.sync_rounded, size: 18, color: Colors.white),
+              label: Text(
+                'Apply $_calculatedBoxes $unitNamePlural to Order / PO',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accentOrange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

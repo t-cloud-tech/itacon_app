@@ -48,6 +48,8 @@ class TileProduct {
   final String priceCategory;
   final String shade;
   final List<String> lifestyleImages;
+  final List<String>? faceImages;
+  final List<String>? mockupImages;
   final Map<String, dynamic> packingDetails;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -98,6 +100,8 @@ class TileProduct {
     this.priceCategory = 'Premium',
     this.shade = 'Light',
     this.lifestyleImages = const [],
+    this.faceImages,
+    this.mockupImages,
     this.packingDetails = const {},
     this.createdAt,
     this.updatedAt,
@@ -107,6 +111,35 @@ class TileProduct {
         currentStock = currentStock ?? availableQuantity,
         availableStock = availableStock ?? ((currentStock ?? availableQuantity) - reservedStock),
         aspectRatioValue = aspectRatioValue ?? TileDimensionHelper.calculateTileAspectRatio(size);
+
+  /// Resolved list of tile face images for multi-face inspection
+  List<String> get resolvedFaceImages {
+    if (faceImages != null && faceImages!.isNotEmpty) {
+      return faceImages!;
+    }
+    if (images.isNotEmpty) {
+      return images;
+    }
+    return const [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+    ];
+  }
+
+  /// Resolved list of architectural room mockups (Living Room, Bath, Bedroom)
+  List<String> get resolvedMockupImages {
+    if (mockupImages != null && mockupImages!.isNotEmpty) {
+      return mockupImages!;
+    }
+    if (lifestyleImages.isNotEmpty) {
+      return lifestyleImages;
+    }
+    // Curated high-resolution architectural interior mockups
+    return const [
+      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=80', // Living Room
+      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80', // Luxury Bathroom
+      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1000&q=80', // Modern Bedroom
+    ];
+  }
 
   bool get isAdhesive =>
       productLine == 'adhesives' || unit == 'bag' || categoryId == 'CAT_ADHESIVES' || sku.startsWith('ITA-LX');

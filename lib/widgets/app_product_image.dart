@@ -1,8 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 /// Universal Product Image Widget that handles local assets (with path normalization for adhesives),
-/// network images, and graceful fallback UI.
+/// network images, file images, and graceful fallback UI.
 class AppProductImage extends StatelessWidget {
   final String imagePath;
   final double? width;
@@ -35,6 +36,21 @@ class AppProductImage extends StatelessWidget {
         filterQuality: FilterQuality.medium,
         errorBuilder: (context, error, stackTrace) => _buildFallback(),
       );
+    }
+
+    if (!imagePath.startsWith('assets/') && !imagePath.contains('adhesives/')) {
+      final file = File(imagePath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          cacheWidth: 600,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (context, error, stackTrace) => _buildFallback(),
+        );
+      }
     }
 
     // Normalize asset paths (e.g. assets/adhesives/ -> assets/images/adhesives/)
