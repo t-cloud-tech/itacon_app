@@ -46,15 +46,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Retailer',
   ];
 
-  final List<String> _regions = [
-    'West India (Gujarat/Maharashtra)',
-    'North India',
-    'South India',
-    'East India',
-    'Middle East / UAE',
-    'International / Other',
-  ];
-
   // Default sample showroom assets for demonstration
   final List<String> _sampleShowroomAssets = [
     'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
@@ -950,39 +941,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     }).toList(),
                     onChanged: (val) {
                       if (val != null) setState(() => _selectedCategory = val);
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Region Dropdown
-              const Text(
-                'Geographic Territory / Hub',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.borderSubtle),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _regions.contains(_selectedRegion)
-                        ? _selectedRegion
-                        : 'West India (Gujarat/Maharashtra)',
-                    isExpanded: true,
-                    items: _regions.map((reg) {
-                      return DropdownMenuItem(
-                        value: reg,
-                        child: Text(reg, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedRegion = val);
                     },
                   ),
                 ),

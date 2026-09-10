@@ -777,12 +777,6 @@ class ProfileScreen extends StatelessWidget {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
-                        _buildTile(
-                          Icons.map_rounded,
-                          'Region / Hub: ${profile.region}',
-                          () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
-                        ),
-                        const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.sell_outlined, 'My Contract Rates', () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const ContractRatesScreen()));
                         }),
@@ -920,15 +914,6 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
     'Contractor',
     'Wholesaler',
     'Retailer',
-  ];
-
-  final List<String> _regions = [
-    'West India (Gujarat/Maharashtra)',
-    'North India',
-    'South India',
-    'East India',
-    'Middle East / UAE',
-    'International / Other',
   ];
 
   @override
@@ -1192,44 +1177,7 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Region Selection Dropdown
-                  const Text(
-                    'Geographic Region / Hub',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDark,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: AppTheme.backgroundColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.borderSubtle),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _regions.contains(_selectedRegion)
-                            ? _selectedRegion
-                            : 'West India (Gujarat/Maharashtra)',
-                        isExpanded: true,
-                        items: _regions.map((reg) {
-                          return DropdownMenuItem(
-                            value: reg,
-                            child: Text(reg, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedRegion = val);
-                          }
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
+
 
                   _buildTextField('Street / Office Address', _addressLineController, Icons.location_on_outlined),
                   const SizedBox(height: 14),
