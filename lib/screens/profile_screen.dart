@@ -27,7 +27,7 @@ class ProfileScreen extends StatelessWidget {
     this.onBackToHome,
   });
 
-  Future<bool?> _requestGalleryPermission(BuildContext context) async {
+  static Future<bool?> _requestGalleryPermission(BuildContext context) async {
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -106,7 +106,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _showProfilePhotoOptions(BuildContext context, UserProfile profile) async {
+  static Future<void> _showProfilePhotoOptions(BuildContext context, UserProfile profile) async {
     final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
 
@@ -233,7 +233,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _pickProfilePhoto(BuildContext context, ImageSource source) async {
+  static Future<void> _pickProfilePhoto(BuildContext context, ImageSource source) async {
     if (source == ImageSource.gallery) {
       final granted = await _requestGalleryPermission(context);
       if (granted != true) {
@@ -286,7 +286,7 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
+  static Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
     if (userId.isEmpty) return;
     try {
       final storageRef = FirebaseStorage.instance
@@ -312,7 +312,7 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  void _removeProfilePhoto(BuildContext context) {
+  static void _removeProfilePhoto(BuildContext context) {
     AppStateService.instance.updateUserProfileFields(profilePhotoUrl: '');
     final updated = AppStateService.instance.currentUserProfile.copyWith(
       profilePhotoUrl: '',
@@ -338,7 +338,7 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  void _previewProfilePhoto(BuildContext context, UserProfile profile) {
+  static void _previewProfilePhoto(BuildContext context, UserProfile profile) {
     final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     if (photoUrl == null || photoUrl.trim().isEmpty) return;
 
@@ -371,12 +371,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileAvatar(UserProfile profile, {required double radius}) {
+  static Widget _buildProfileAvatar(UserProfile profile, {required double radius}) {
     final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     return _buildAvatarImageWidget(photoUrl, profile.initials, size: radius * 2);
   }
 
-  Widget _buildAvatarImageWidget(String? photoUrl, String initials, {required double size}) {
+  static Widget _buildAvatarImageWidget(String? photoUrl, String initials, {required double size}) {
     return AppAvatarImage(
       photoUrl: photoUrl,
       initials: initials,
@@ -1118,6 +1118,95 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Live Profile Photo & Upload Section
+                  ListenableBuilder(
+                    listenable: AppStateService.instance,
+                    builder: (context, _) {
+                      final currentProf = AppStateService.instance.currentUserProfile;
+                      final photoUrl = currentProf.profilePhotoUrl ??
+                          (currentProf.avatarUrl.isNotEmpty ? currentProf.avatarUrl : null);
+                      final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
+
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                onTap: () => ProfileScreen._showProfilePhotoOptions(context, currentProf),
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    Container(
+                                      width: 84,
+                                      height: 84,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: AppTheme.accentOrange,
+                                          width: 2.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: ClipOval(
+                                        child: AppAvatarImage(
+                                          photoUrl: photoUrl,
+                                          initials: currentProf.initials,
+                                          size: 84,
+                                          backgroundColor: AppTheme.accentOrange,
+                                          textColor: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryNavy,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.white, width: 2),
+                                        ),
+                                        child: Icon(
+                                          hasPhoto ? Icons.edit_rounded : Icons.camera_alt_rounded,
+                                          color: Colors.white,
+                                          size: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: () => ProfileScreen._showProfilePhotoOptions(context, currentProf),
+                                icon: Icon(
+                                  hasPhoto ? Icons.edit_rounded : Icons.add_a_photo_outlined,
+                                  size: 16,
+                                  color: AppTheme.accentOrange,
+                                ),
+                                label: Text(
+                                  hasPhoto ? 'Change Profile Photo' : 'Add Profile Photo',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.accentOrange,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                   _buildTextField('Full Name', _nameController, Icons.person_outlined),
                   const SizedBox(height: 14),
                   _buildDateField(context, 'Date of Birth', _dobController, Icons.cake_outlined),

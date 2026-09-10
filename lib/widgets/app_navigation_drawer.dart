@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
+import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 import '../services/user_session_service.dart';
 import '../screens/product_listing_screen.dart';
@@ -11,6 +16,7 @@ import '../screens/favorites_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/auth_screen.dart';
+import 'app_avatar_image.dart';
 
 /// Luxury Side Navigation Drawer for ITACON GRANITO
 class AppNavigationDrawer extends StatelessWidget {
@@ -61,79 +67,130 @@ class AppNavigationDrawer extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        // Avatar Circle
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.accentOrange,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
+                        // Avatar Circle with live photo and edit options
+                        GestureDetector(
+                          onTap: () => _showProfilePhotoOptions(context, user),
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.accentOrange,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: AppAvatarImage(
+                                    photoUrl: user.profilePhotoUrl ??
+                                        (user.avatarUrl.isNotEmpty ? user.avatarUrl : null),
+                                    initials: user.initials,
+                                    size: 60,
+                                    backgroundColor: AppTheme.accentOrange,
+                                    textColor: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentOrange,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.25),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    (user.profilePhotoUrl != null && user.profilePhotoUrl!.trim().isNotEmpty) ||
+                                            user.avatarUrl.isNotEmpty
+                                        ? Icons.edit_rounded
+                                        : Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: 11,
+                                  ),
+                                ),
                               ),
                             ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            user.initials,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
                           ),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              if (user.companyName.isNotEmpty) ...[
-                                const SizedBox(height: 2),
+                          child: GestureDetector(
+                            onTap: () {
+                              _safeCloseDrawerAndNavigate(context, () {
+                                if (onSelectTab != null) {
+                                  onSelectTab!(4);
+                                } else {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                                  );
+                                }
+                              });
+                            },
+                            behavior: HitTestBehavior.opaque,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                                 Text(
-                                  user.companyName,
+                                  user.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.8),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                if (user.companyName.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    user.companyName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 6),
+                                // Category Badge Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentOrange,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    user.userCategory.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 6),
-                              // Category Badge Pill
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentOrange,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  user.userCategory.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ],
@@ -312,6 +369,27 @@ class AppNavigationDrawer extends StatelessWidget {
                     ),
                     _buildDrawerItem(
                       icon: Icons.person_outline_rounded,
+                      leadingWidget: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppTheme.primaryNavy.withValues(alpha: 0.3),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: AppAvatarImage(
+                            photoUrl: user.profilePhotoUrl ??
+                                (user.avatarUrl.isNotEmpty ? user.avatarUrl : null),
+                            initials: user.initials,
+                            size: 24,
+                            backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                            textColor: AppTheme.primaryNavy,
+                          ),
+                        ),
+                      ),
                       title: 'My Profile & Settings',
                       onTap: () {
                         _safeCloseDrawerAndNavigate(context, () {
@@ -412,6 +490,7 @@ class AppNavigationDrawer extends StatelessWidget {
 
   Widget _buildDrawerItem({
     required IconData icon,
+    Widget? leadingWidget,
     required String title,
     String? subtitle,
     int? badgeCount,
@@ -420,7 +499,7 @@ class AppNavigationDrawer extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: iconColor ?? AppTheme.primaryNavy, size: 22),
+      leading: leadingWidget ?? Icon(icon, color: iconColor ?? AppTheme.primaryNavy, size: 22),
       title: Text(
         title,
         style: TextStyle(
@@ -454,6 +533,352 @@ class AppNavigationDrawer extends StatelessWidget {
           : const Icon(Icons.chevron_right_rounded,
               size: 18, color: AppTheme.textSubtle),
       onTap: onTap,
+    );
+  }
+
+  Future<bool?> _requestGalleryPermission(BuildContext context) async {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(22),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.perm_media_rounded,
+                  size: 34,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Allow "ITACON Granito" to Access Your Photos?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'ITACON Granito requires photo library access so you can select and set your personal profile picture directly from your device gallery.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSubtle,
+              height: 1.4,
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly,
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text(
+                "Don't Allow",
+                style: TextStyle(
+                  color: AppTheme.textSubtle,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryNavy,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text(
+                'Allow Access',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showProfilePhotoOptions(BuildContext context, UserProfile profile) async {
+    final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
+    final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
+
+    if (!context.mounted) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (bsContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    hasPhoto ? 'Edit Profile Photo' : 'Add Profile Photo',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppTheme.textSubtle),
+                    onPressed: () => Navigator.pop(bsContext),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.photo_library_outlined, color: AppTheme.primaryNavy),
+                ),
+                title: Text(
+                  hasPhoto ? 'Change Photo from Gallery' : 'Choose from Gallery',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: const Text('Pick a new image from device storage', style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(bsContext);
+                  _pickProfilePhoto(context, ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, color: AppTheme.primaryNavy),
+                ),
+                title: Text(
+                  hasPhoto ? 'Take New Photo with Camera' : 'Take a Photo',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: const Text('Capture a fresh photo using your camera', style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(bsContext);
+                  _pickProfilePhoto(context, ImageSource.camera);
+                },
+              ),
+              if (hasPhoto) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.visibility_outlined, color: Colors.blue),
+                  ),
+                  title: const Text('View Full Photo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Preview your current profile picture', style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(bsContext);
+                    _previewProfilePhoto(context, profile);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  ),
+                  title: const Text(
+                    'Remove Photo',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.red),
+                  ),
+                  subtitle: const Text('Revert back to your name initials', style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(bsContext);
+                    _removeProfilePhoto(context);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickProfilePhoto(BuildContext context, ImageSource source) async {
+    if (source == ImageSource.gallery) {
+      final granted = await _requestGalleryPermission(context);
+      if (granted != true) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gallery permission denied. Access is required to select photos.'),
+              backgroundColor: AppTheme.accentOrange,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: source, imageQuality: 85);
+      if (image != null) {
+        final bytes = await image.readAsBytes();
+        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: photoData);
+        final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: photoData);
+        UserSessionService.saveUserSession(updated);
+
+        if (updated.userId.isNotEmpty) {
+          FirestoreService().updateUserProfileData(
+            uid: updated.userId,
+            profilePhotoUrl: photoData,
+          );
+          _tryUploadToFirebaseStorage(bytes, updated.userId);
+        }
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile photo updated successfully!'),
+              backgroundColor: AppTheme.primaryNavy,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      const fallbackUrl = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
+      AppStateService.instance.updateUserProfileFields(profilePhotoUrl: fallbackUrl);
+      final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: fallbackUrl);
+      UserSessionService.saveUserSession(updated);
+    }
+  }
+
+  Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('user_profiles')
+          .child('${userId}_photo.jpg');
+      final uploadTask = await storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      if (downloadUrl.isNotEmpty) {
+        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: downloadUrl);
+        final withUrl = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: downloadUrl);
+        await UserSessionService.saveUserSession(withUrl);
+        await FirestoreService().updateUserProfileData(
+          uid: userId,
+          profilePhotoUrl: downloadUrl,
+        );
+      }
+    } catch (e) {
+      debugPrint('Optional Firebase Storage upload note: $e');
+    }
+  }
+
+  void _removeProfilePhoto(BuildContext context) {
+    AppStateService.instance.updateUserProfileFields(profilePhotoUrl: '');
+    final updated = AppStateService.instance.currentUserProfile.copyWith(
+      profilePhotoUrl: '',
+      avatarUrl: '',
+    );
+    UserSessionService.saveUserSession(updated);
+
+    if (updated.userId.isNotEmpty) {
+      FirestoreService().updateUserProfileData(
+        uid: updated.userId,
+        profilePhotoUrl: '',
+      );
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile photo removed. Showing name initials.'),
+          backgroundColor: AppTheme.primaryNavy,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _previewProfilePhoto(BuildContext context, UserProfile profile) {
+    final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
+    if (photoUrl == null || photoUrl.trim().isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(dialogCtx),
+              ),
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: AppAvatarImage(
+                photoUrl: photoUrl,
+                initials: profile.initials,
+                size: 280,
+                backgroundColor: AppTheme.accentOrange,
+                textColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
