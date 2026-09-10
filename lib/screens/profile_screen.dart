@@ -1,9 +1,12 @@
-import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/interactive_pressable.dart';
+import '../widgets/app_avatar_image.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
@@ -250,15 +253,19 @@ class ProfileScreen extends StatelessWidget {
       final picker = ImagePicker();
       final image = await picker.pickImage(source: source, imageQuality: 85);
       if (image != null) {
-        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: image.path);
-        final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: image.path);
+        final bytes = await image.readAsBytes();
+        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: photoData);
+        final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: photoData);
         UserSessionService.saveUserSession(updated);
 
         if (updated.userId.isNotEmpty) {
           FirestoreService().updateUserProfileData(
             uid: updated.userId,
-            profilePhotoUrl: image.path,
+            profilePhotoUrl: photoData,
           );
+          _tryUploadToFirebaseStorage(bytes, updated.userId);
         }
 
         if (context.mounted) {
@@ -276,6 +283,32 @@ class ProfileScreen extends StatelessWidget {
       AppStateService.instance.updateUserProfileFields(profilePhotoUrl: fallbackUrl);
       final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: fallbackUrl);
       UserSessionService.saveUserSession(updated);
+    }
+  }
+
+  Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('user_profiles')
+          .child('${userId}_photo.jpg');
+      final uploadTask = await storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      if (downloadUrl.isNotEmpty) {
+        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: downloadUrl);
+        final withUrl = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: downloadUrl);
+        await UserSessionService.saveUserSession(withUrl);
+        await FirestoreService().updateUserProfileData(
+          uid: userId,
+          profilePhotoUrl: downloadUrl,
+        );
+      }
+    } catch (e) {
+      debugPrint('Optional Firebase Storage upload note: $e');
     }
   }
 
@@ -344,55 +377,13 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildAvatarImageWidget(String? photoUrl, String initials, {required double size}) {
-    final clean = photoUrl?.trim() ?? '';
-    final fallback = Container(
-      width: size,
-      height: size,
-      color: AppTheme.accentOrange,
-      alignment: Alignment.center,
-      child: Text(
-        initials.isNotEmpty ? initials : 'U',
-        style: TextStyle(
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-        ),
-      ),
+    return AppAvatarImage(
+      photoUrl: photoUrl,
+      initials: initials,
+      size: size,
+      backgroundColor: AppTheme.accentOrange,
+      textColor: Colors.white,
     );
-
-    if (clean.isEmpty) {
-      return fallback;
-    }
-
-    if (clean.startsWith('http://') || clean.startsWith('https://')) {
-      return Image.network(
-        clean,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => fallback,
-      );
-    } else if (clean.startsWith('assets/')) {
-      return Image.asset(
-        clean,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => fallback,
-      );
-    } else {
-      final file = File(clean);
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => fallback,
-        );
-      }
-      return fallback;
-    }
   }
 
   void _openEditProfileModal(BuildContext context, UserProfile profile) {

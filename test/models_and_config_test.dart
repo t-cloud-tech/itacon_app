@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:itacon_app/models/models.dart';
 import 'package:itacon_app/services/config_service.dart';
 import 'package:itacon_app/services/app_state_service.dart';
+import 'package:itacon_app/widgets/app_avatar_image.dart';
 
 import 'package:itacon_app/services/user_session_service.dart';
 import 'package:itacon_app/services/pricing_service.dart';
@@ -798,6 +800,26 @@ void main() {
       final matrix = SurfaceContractRate.getDefaultContractMatrix();
       expect(matrix.isNotEmpty, isTrue);
       expect(matrix.any((r) => r.surface == 'High Gloss' && r.size == '600x1200 mm'), isTrue);
+    });
+
+    testWidgets('AppAvatarImage should render fallback or base64 without throwing _Namespace', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                AppAvatarImage(photoUrl: '', initials: 'AD', size: 60),
+                AppAvatarImage(photoUrl: '/non/existent/path/avatar.jpg', initials: 'RK', size: 60),
+                AppShowroomImage(imagePath: '/non/existent/showroom.jpg'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('AD'), findsOneWidget);
+      expect(find.text('RK'), findsOneWidget);
+      expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
     });
   });
 }

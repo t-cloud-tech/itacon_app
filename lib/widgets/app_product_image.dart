@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -53,25 +54,29 @@ class AppProductImage extends StatelessWidget {
       );
     }
 
-    // 2. Local File (only check if path explicitly looks like a filesystem path)
-    final isExplicitFilePath = imagePath.startsWith('/') ||
-        imagePath.startsWith('file://') ||
-        (Platform.isWindows && imagePath.contains(r':\'));
+    // 2. Local File (only check if path explicitly looks like a filesystem path and NOT on web)
+    if (!kIsWeb) {
+      final isExplicitFilePath = imagePath.startsWith('/') ||
+          imagePath.startsWith('file://') ||
+          (Platform.isWindows && imagePath.contains(r':\'));
 
-    if (isExplicitFilePath &&
-        !imagePath.startsWith('assets/') &&
-        !imagePath.contains('adhesives/')) {
-      final file = File(imagePath.replaceFirst('file://', ''));
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          width: width,
-          height: height,
-          fit: fit,
-          cacheWidth: effectiveCacheWidth,
-          filterQuality: FilterQuality.low,
-          errorBuilder: (context, error, stackTrace) => _buildFallback(),
-        );
+      if (isExplicitFilePath &&
+          !imagePath.startsWith('assets/') &&
+          !imagePath.contains('adhesives/')) {
+        try {
+          final file = File(imagePath.replaceFirst('file://', ''));
+          if (file.existsSync()) {
+            return Image.file(
+              file,
+              width: width,
+              height: height,
+              fit: fit,
+              cacheWidth: effectiveCacheWidth,
+              filterQuality: FilterQuality.low,
+              errorBuilder: (context, error, stackTrace) => _buildFallback(),
+            );
+          }
+        } catch (_) {}
       }
     }
 

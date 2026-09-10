@@ -1,10 +1,13 @@
-import 'dart:io';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../theme/app_theme.dart';
 import '../../services/app_state_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_session_service.dart';
+import '../../widgets/app_avatar_image.dart';
 
 /// Full-Screen Edit Profile featuring Keyboard Overflow Fix, Avatar Picker,
 /// and Showroom/Store Display Showcase Gallery.
@@ -322,11 +325,45 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final picker = ImagePicker();
       final image = await picker.pickImage(source: source, imageQuality: 85);
       if (image != null) {
-        _applyNewProfilePhoto(image.path);
+        final bytes = await image.readAsBytes();
+        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+        _applyNewProfilePhoto(photoData);
+        _tryUploadToFirebaseStorage(bytes, _appState.currentUserProfile.userId);
       }
     } catch (e) {
       // Fallback sample photo for emulator/web
       _applyNewProfilePhoto('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80');
+    }
+  }
+
+  Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('user_profiles')
+          .child('${userId}_photo.jpg');
+      final uploadTask = await storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+      if (downloadUrl.isNotEmpty) {
+        if (mounted) {
+          setState(() {
+            _profilePhotoUrl = downloadUrl;
+          });
+        }
+        _appState.updateUserProfileFields(profilePhotoUrl: downloadUrl);
+        final withUrl = _appState.currentUserProfile.copyWith(profilePhotoUrl: downloadUrl);
+        await UserSessionService.saveUserSession(withUrl);
+        await _firestoreService.updateUserProfileData(
+          uid: userId,
+          profilePhotoUrl: downloadUrl,
+        );
+      }
+    } catch (e) {
+      debugPrint('Optional Firebase Storage upload note: $e');
     }
   }
 
@@ -452,9 +489,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final picker = ImagePicker();
       final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
       if (image != null) {
+        final bytes = await image.readAsBytes();
+        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         setState(() {
           if (_showroomImages.length < 5) {
-            _showroomImages.add(image.path);
+            _showroomImages.add(photoData);
           }
         });
       } else {
@@ -1225,110 +1264,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildAvatarImageWidget(String? photoUrl, String initials, {required double size}) {
-    final clean = photoUrl?.trim() ?? '';
-    final fallback = Container(
-      width: size,
-      height: size,
-      color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-      alignment: Alignment.center,
-      child: Text(
-        initials.isNotEmpty ? initials : 'U',
-        style: TextStyle(
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.bold,
-          color: AppTheme.primaryNavy,
-        ),
-      ),
+    return AppAvatarImage(
+      photoUrl: photoUrl,
+      initials: initials,
+      size: size,
+      backgroundColor: AppTheme.primaryNavy.withValues(alpha: 0.1),
+      textColor: AppTheme.primaryNavy,
     );
-
-    if (clean.isEmpty) {
-      return fallback;
-    }
-
-    if (clean.startsWith('http://') || clean.startsWith('https://')) {
-      return Image.network(
-        clean,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => fallback,
-      );
-    } else if (clean.startsWith('assets/')) {
-      return Image.asset(
-        clean,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => fallback,
-      );
-    } else {
-      final file = File(clean);
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => fallback,
-        );
-      }
-      return fallback;
-    }
   }
 
   Widget _buildShowroomImage(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(
-        path,
-        width: 100,
-        height: 100,
-        fit: BoxFit.cover,
-        cacheWidth: 300,
-        cacheHeight: 300,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
-      );
-    } else if (path.startsWith('assets/')) {
-      return Image.asset(
-        path,
-        width: 100,
-        height: 100,
-        fit: BoxFit.cover,
-        cacheWidth: 300,
-        cacheHeight: 300,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
-      );
-    } else {
-      final file = File(path);
-      if (file.existsSync()) {
-        return Image.file(
-          file,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-          cacheWidth: 300,
-          cacheHeight: 300,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (context, error, stackTrace) => _buildImageFallback(),
-        );
-      }
-      return _buildImageFallback();
-    }
-  }
-
-  Widget _buildImageFallback() {
-    return Container(
+    return AppShowroomImage(
+      imagePath: path,
       width: 100,
       height: 100,
-      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
-      child: const Center(
-        child: Icon(
-          Icons.storefront_rounded,
-          color: AppTheme.primaryNavy,
-          size: 32,
-        ),
-      ),
+      fit: BoxFit.cover,
     );
   }
 }
