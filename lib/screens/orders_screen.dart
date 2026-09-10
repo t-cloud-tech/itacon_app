@@ -132,17 +132,46 @@ class _OrdersScreenState extends State<OrdersScreen>
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final order = orders[index];
-        final String displayStatus = order.status == 'pending_rate'
-            ? 'Awaiting Quote'
-            : (order.status == 'rate_quoted'
-                ? 'Rates Quoted'
-                : (order.status == 'confirmed' ? 'PO Confirmed' : order.status.toUpperCase()));
+        final String displayStatus;
+        switch (order.status.toLowerCase()) {
+          case 'pending_rate':
+            displayStatus = 'Awaiting Quote';
+            break;
+          case 'rate_quoted':
+            displayStatus = 'Rates Quoted';
+            break;
+          case 'confirmed':
+            displayStatus = 'PO Confirmed';
+            break;
+          case 'pending_salesperson_review':
+            displayStatus = 'Under Review';
+            break;
+          case 'dispatched':
+            displayStatus = 'Dispatched';
+            break;
+          case 'delivered':
+            displayStatus = 'Delivered';
+            break;
+          case 'cancelled':
+            displayStatus = 'Cancelled';
+            break;
+          default:
+            displayStatus = order.status
+                .replaceAll('_', ' ')
+                .split(' ')
+                .map((s) => s.isNotEmpty
+                    ? '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}'
+                    : '')
+                .join(' ');
+        }
 
         final Color statusColor = order.status == 'confirmed'
             ? AppTheme.statusSuccess
             : (order.status == 'rate_quoted'
                 ? AppTheme.accentOrange
-                : AppTheme.primaryNavy);
+                : (order.status == 'cancelled'
+                    ? Colors.red
+                    : AppTheme.primaryNavy));
 
         return GestureDetector(
           onTap: () {
@@ -161,15 +190,21 @@ class _OrdersScreenState extends State<OrdersScreen>
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      order.orderReference,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.primaryNavy,
+                    Expanded(
+                      child: Text(
+                        order.orderReference,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primaryNavy,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
@@ -227,17 +262,23 @@ class _OrdersScreenState extends State<OrdersScreen>
                 const Divider(height: 20, color: AppTheme.borderSubtle),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      order.status == 'pending_rate'
-                          ? 'Total: Rate Quote Pending'
-                          : 'Total: ₹${order.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textDark,
+                    Expanded(
+                      child: Text(
+                        order.status == 'pending_rate'
+                            ? 'Total: Rate Quote Pending'
+                            : 'Total: ₹${order.totalAmount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textDark,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: order.status == 'rate_quoted' ? AppTheme.accentOrange : AppTheme.primaryNavy,

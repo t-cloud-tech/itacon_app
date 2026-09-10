@@ -679,12 +679,19 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                   children: [
                     Row(
                       children: [
-                        Text(order.orderReference,
+                        Expanded(
+                          child: Text(
+                            order.orderReference,
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Color(0xFF1A237E))),
-                        const Spacer(),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Color(0xFF1A237E),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
@@ -693,7 +700,7 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            order.status,
+                            order.status.replaceAll('_', ' '),
                             style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
