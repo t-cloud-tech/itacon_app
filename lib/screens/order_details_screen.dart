@@ -412,7 +412,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       Text(
                         (item.size.toLowerCase().contains('adhesive') || item.productName.toLowerCase().contains('adhesive') || item.unit == 'bag')
                             ? '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/bag'
-                            : '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/pi',
+                            : '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/pc',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,

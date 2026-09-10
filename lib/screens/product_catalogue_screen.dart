@@ -432,7 +432,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                     Text(
                       product.isAdhesive
                           ? '₹${product.basePricePerPiece.toStringAsFixed(0)}/bag'
-                          : '₹${product.basePricePerPiece.toStringAsFixed(0)}/pi',
+                          : '₹${product.basePricePerPiece.toStringAsFixed(0)}/pc',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,

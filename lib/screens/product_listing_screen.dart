@@ -1134,7 +1134,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                               Text(
                                 product.isAdhesive
                                     ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
-                                    : '₹${effectivePrice.toStringAsFixed(0)}/pi',
+                                    : '₹${effectivePrice.toStringAsFixed(0)}/pc',
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,

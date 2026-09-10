@@ -287,7 +287,7 @@ class CartScreen extends StatelessWidget {
                                             Text(
                                               item.product.isAdhesive
                                                   ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
-                                                  : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/pi',
+                                                  : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/pc',
                                               style: GoogleFonts.inter(
                                                 fontSize: 15,
                                                 fontWeight: FontWeight.w800,
