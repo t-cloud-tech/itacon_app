@@ -720,6 +720,8 @@ void main() {
         email: 'sid@shahgranito.com',
         userCategory: 'Dealer',
         role: 'customer',
+        religion: 'Jainism',
+        dateOfBirth: '15/08/1992',
         region: 'West India (Gujarat/Maharashtra)',
         fcmToken: 'FCM_DEVICE_TOKEN_SAMPLE_123',
       );
@@ -727,10 +729,15 @@ void main() {
       final profileMap = profile.toMap();
       expect(profileMap['region'], 'West India (Gujarat/Maharashtra)');
       expect(profileMap['fcmToken'], 'FCM_DEVICE_TOKEN_SAMPLE_123');
+      expect(profileMap['religion'], 'Jainism');
+      expect(profileMap['dateOfBirth'], '15/08/1992');
+      expect(profileMap['dob'], '15/08/1992');
 
       final deserializedProfile = UserProfile.fromMap(profileMap, 'USER_REGIONAL_101');
       expect(deserializedProfile.region, 'West India (Gujarat/Maharashtra)');
       expect(deserializedProfile.fcmToken, 'FCM_DEVICE_TOKEN_SAMPLE_123');
+      expect(deserializedProfile.religion, 'Jainism');
+      expect(deserializedProfile.dateOfBirth, '15/08/1992');
 
       const greeting = FestivalGreeting(
         greetingId: 'GREET_DIWALI_2026',

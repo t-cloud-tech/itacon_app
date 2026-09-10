@@ -8,6 +8,7 @@ import '../utils/tile_dimension_helper.dart';
 import '../utils/app_notification_utils.dart';
 import '../widgets/interactive_pressable.dart';
 import '../widgets/app_product_image.dart';
+import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final TileProduct? product;
@@ -198,6 +199,57 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         title: const Text('Product Details'),
         actions: [
+          ListenableBuilder(
+            listenable: _appState,
+            builder: (context, _) {
+              final cartCount = _appState.cartCount;
+              return Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  AppPressable(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CartScreen()),
+                      );
+                    },
+                    scaleDown: 0.88,
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryNavy),
+                    ),
+                  ),
+                  if (cartCount > 0)
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.accentOrange,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '$cartCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           ListenableBuilder(
             listenable: _appState,
             builder: (context, _) {

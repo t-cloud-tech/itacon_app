@@ -21,6 +21,9 @@ class UserSessionService {
   static const String _keyUserPincode = 'user_pincode';
   static const String _keyUserGst = 'user_gst';
   static const String _keyUserAddressJson = 'user_address_json';
+  static const String _keyProfilePhotoUrl = 'user_profile_photo_url';
+  static const String _keyAvatarUrl = 'user_avatar_url';
+  static const String _keyShowroomImagesJson = 'user_showroom_images_json';
 
   /// Saves user profile & marks session as logged in
   static Future<void> saveUserSession(UserProfile profile) async {
@@ -40,6 +43,13 @@ class UserSessionService {
     await prefs.setString(_keyUserPincode, profile.pincode);
     await prefs.setString(_keyUserGst, profile.gstNumber);
     await prefs.setString(_keyUserAddressJson, jsonEncode(profile.address));
+    if (profile.profilePhotoUrl != null && profile.profilePhotoUrl!.isNotEmpty) {
+      await prefs.setString(_keyProfilePhotoUrl, profile.profilePhotoUrl!);
+    } else {
+      await prefs.remove(_keyProfilePhotoUrl);
+    }
+    await prefs.setString(_keyAvatarUrl, profile.avatarUrl);
+    await prefs.setString(_keyShowroomImagesJson, jsonEncode(profile.showroomImages));
 
     // Also update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
@@ -72,6 +82,15 @@ class UserSessionService {
     final state = prefs.getString(_keyUserState) ?? '';
     final pincode = prefs.getString(_keyUserPincode) ?? '';
     final gstNumber = prefs.getString(_keyUserGst) ?? '';
+    final profilePhotoUrl = prefs.getString(_keyProfilePhotoUrl);
+    final avatarUrl = prefs.getString(_keyAvatarUrl) ?? '';
+    List<String> showroomImages = [];
+    final rawShowroom = prefs.getString(_keyShowroomImagesJson);
+    if (rawShowroom != null && rawShowroom.isNotEmpty) {
+      try {
+        showroomImages = List<String>.from(jsonDecode(rawShowroom));
+      } catch (_) {}
+    }
 
     Map<String, dynamic> address = {};
     final rawAddressJson = prefs.getString(_keyUserAddressJson);
@@ -97,6 +116,9 @@ class UserSessionService {
       state: state,
       pincode: pincode,
       gstNumber: gstNumber,
+      avatarUrl: avatarUrl,
+      profilePhotoUrl: profilePhotoUrl,
+      showroomImages: showroomImages,
       address: address,
       status: 'active',
     );

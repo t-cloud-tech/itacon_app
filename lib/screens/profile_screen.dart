@@ -103,87 +103,296 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _pickProfilePhotoFromGallery(BuildContext context) async {
-    final granted = await _requestGalleryPermission(context);
-    if (granted != true) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gallery permission denied. Access is required to select photos.'),
-            backgroundColor: AppTheme.accentOrange,
-          ),
-        );
-      }
-      return;
-    }
+  Future<void> _showProfilePhotoOptions(BuildContext context, UserProfile profile) async {
+    final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
+    final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
 
     if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
-      builder: (bsContext) => Container(
-        padding: const EdgeInsets.all(20),
+      builder: (bsContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    hasPhoto ? 'Edit Profile Photo' : 'Add Profile Photo',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: AppTheme.textSubtle),
+                    onPressed: () => Navigator.pop(bsContext),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.photo_library_outlined, color: AppTheme.primaryNavy),
+                ),
+                title: Text(
+                  hasPhoto ? 'Change Photo from Gallery' : 'Choose from Gallery',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: const Text('Pick a new image from device storage', style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(bsContext);
+                  _pickProfilePhoto(context, ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, color: AppTheme.primaryNavy),
+                ),
+                title: Text(
+                  hasPhoto ? 'Take New Photo with Camera' : 'Take a Photo',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: const Text('Capture a fresh photo using your camera', style: TextStyle(fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(bsContext);
+                  _pickProfilePhoto(context, ImageSource.camera);
+                },
+              ),
+              if (hasPhoto) ...[
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.visibility_outlined, color: Colors.blue),
+                  ),
+                  title: const Text('View Full Photo', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: const Text('Preview your current profile picture', style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(bsContext);
+                    _previewProfilePhoto(context, profile);
+                  },
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  ),
+                  title: const Text(
+                    'Remove Photo',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.red),
+                  ),
+                  subtitle: const Text('Revert back to your name initials', style: TextStyle(fontSize: 12)),
+                  onTap: () {
+                    Navigator.pop(bsContext);
+                    _removeProfilePhoto(context);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickProfilePhoto(BuildContext context, ImageSource source) async {
+    if (source == ImageSource.gallery) {
+      final granted = await _requestGalleryPermission(context);
+      if (granted != true) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gallery permission denied. Access is required to select photos.'),
+              backgroundColor: AppTheme.accentOrange,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    try {
+      final picker = ImagePicker();
+      final image = await picker.pickImage(source: source, imageQuality: 85);
+      if (image != null) {
+        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: image.path);
+        final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: image.path);
+        UserSessionService.saveUserSession(updated);
+
+        if (updated.userId.isNotEmpty) {
+          FirestoreService().updateUserProfileData(
+            uid: updated.userId,
+            profilePhotoUrl: image.path,
+          );
+        }
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile photo updated successfully!'),
+              backgroundColor: AppTheme.primaryNavy,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      const fallbackUrl = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
+      AppStateService.instance.updateUserProfileFields(profilePhotoUrl: fallbackUrl);
+      final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: fallbackUrl);
+      UserSessionService.saveUserSession(updated);
+    }
+  }
+
+  void _removeProfilePhoto(BuildContext context) {
+    AppStateService.instance.updateUserProfileFields(profilePhotoUrl: '');
+    final updated = AppStateService.instance.currentUserProfile.copyWith(
+      profilePhotoUrl: '',
+      avatarUrl: '',
+    );
+    UserSessionService.saveUserSession(updated);
+
+    if (updated.userId.isNotEmpty) {
+      FirestoreService().updateUserProfileData(
+        uid: updated.userId,
+        profilePhotoUrl: '',
+      );
+    }
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile photo removed. Showing name initials.'),
+          backgroundColor: AppTheme.primaryNavy,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _previewProfilePhoto(BuildContext context, UserProfile profile) {
+    final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
+    if (photoUrl == null || photoUrl.trim().isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Select Profile Photo Source',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(dialogCtx),
+              ),
             ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppTheme.primaryNavy),
-              title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Navigator.pop(bsContext);
-                try {
-                  final picker = ImagePicker();
-                  final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-                  if (image != null) {
-                    AppStateService.instance.updateUserProfileFields(profilePhotoUrl: image.path);
-                    UserSessionService.saveUserSession(
-                      AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: image.path),
-                    );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Profile photo updated successfully from gallery!'),
-                          backgroundColor: AppTheme.primaryNavy,
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  AppStateService.instance.updateUserProfileFields(
-                    profilePhotoUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-                  );
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: AppTheme.primaryNavy),
-              title: const Text('Take a Photo'),
-              onTap: () async {
-                Navigator.pop(bsContext);
-                try {
-                  final picker = ImagePicker();
-                  final image = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-                  if (image != null) {
-                    AppStateService.instance.updateUserProfileFields(profilePhotoUrl: image.path);
-                  }
-                } catch (e) {
-                  AppStateService.instance.updateUserProfileFields(
-                    profilePhotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-                  );
-                }
-              },
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: _buildAvatarImageWidget(
+                photoUrl,
+                profile.initials,
+                size: 280,
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildProfileAvatar(UserProfile profile, {required double radius}) {
+    final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
+    return _buildAvatarImageWidget(photoUrl, profile.initials, size: radius * 2);
+  }
+
+  Widget _buildAvatarImageWidget(String? photoUrl, String initials, {required double size}) {
+    final clean = photoUrl?.trim() ?? '';
+    final fallback = Container(
+      width: size,
+      height: size,
+      color: AppTheme.accentOrange,
+      alignment: Alignment.center,
+      child: Text(
+        initials.isNotEmpty ? initials : 'U',
+        style: TextStyle(
+          fontSize: size * 0.38,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+
+    if (clean.isEmpty) {
+      return fallback;
+    }
+
+    if (clean.startsWith('http://') || clean.startsWith('https://')) {
+      return Image.network(
+        clean,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      );
+    } else if (clean.startsWith('assets/')) {
+      return Image.asset(
+        clean,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => fallback,
+      );
+    } else {
+      final file = File(clean);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => fallback,
+        );
+      }
+      return fallback;
+    }
   }
 
   void _openEditProfileModal(BuildContext context, UserProfile profile) {
@@ -237,48 +446,51 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       AppPressable(
-                        onTap: () => _pickProfilePhotoFromGallery(context),
+                        onTap: () => _showProfilePhotoOptions(context, profile),
                         child: Stack(
                           alignment: Alignment.bottomRight,
                           children: [
-                            CircleAvatar(
-                              radius: 44,
-                              backgroundColor: Colors.white,
-                              child: CircleAvatar(
-                                radius: 41,
-                                backgroundColor: AppTheme.accentOrange,
-                                backgroundImage: (profile.profilePhotoUrl != null &&
-                                        profile.profilePhotoUrl!.isNotEmpty)
-                                    ? (profile.profilePhotoUrl!.startsWith('http')
-                                        ? NetworkImage(profile.profilePhotoUrl!)
-                                        : FileImage(File(profile.profilePhotoUrl!)) as ImageProvider)
-                                    : (profile.avatarUrl.isNotEmpty
-                                        ? NetworkImage(profile.avatarUrl)
-                                        : null),
-                                child: (profile.profilePhotoUrl == null ||
-                                            profile.profilePhotoUrl!.isEmpty) &&
-                                        profile.avatarUrl.isEmpty
-                                    ? Text(
-                                        profile.initials,
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : null,
+                            Container(
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              padding: const EdgeInsets.all(3),
+                              child: ClipOval(
+                                child: _buildProfileAvatar(profile, radius: 42),
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.all(5),
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentOrange,
                                 shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.25),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                              child: const Icon(
-                                Icons.edit_rounded,
+                              child: Icon(
+                                (profile.profilePhotoUrl != null &&
+                                            profile.profilePhotoUrl!.trim().isNotEmpty) ||
+                                        profile.avatarUrl.isNotEmpty
+                                    ? Icons.edit_rounded
+                                    : Icons.camera_alt_rounded,
                                 size: 14,
-                                color: AppTheme.primaryNavy,
+                                color: Colors.white,
                               ),
                             ),
                           ],
@@ -322,20 +534,43 @@ class ProfileScreen extends StatelessWidget {
                           color: Colors.white70,
                         ),
                       ),
-                      if (profile.dateOfBirth.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
+                      if (profile.dateOfBirth.isNotEmpty || profile.religion.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.center,
                           children: [
-                            const Icon(Icons.cake_outlined, size: 13, color: Colors.white70),
-                            const SizedBox(width: 5),
-                            Text(
-                              'DOB: ${profile.dateOfBirth}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
+                            if (profile.dateOfBirth.isNotEmpty)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.cake_outlined, size: 13, color: Colors.white70),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'DOB: ${profile.dateOfBirth}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
+                            if (profile.religion.isNotEmpty)
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.diversity_3_outlined, size: 13, color: Colors.white70),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Religion: ${profile.religion}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ],
+                              ),
                           ],
                         ),
                       ],
@@ -1059,6 +1294,21 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
 
                         // Update Firestore in background
                         try {
+                          await FirestoreService.instance.updateUserProfileData(
+                            uid: widget.profile.userId,
+                            fullName: newName.isNotEmpty ? newName : widget.profile.name,
+                            religion: newReligion,
+                            dateOfBirth: newDob,
+                            phoneNumber: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
+                            role: _selectedCategory,
+                            email: newEmail,
+                            companyName: newCompany,
+                            city: newCity,
+                            state: newState,
+                            region: _selectedRegion,
+                            pincode: newPincode,
+                            address: updatedAddr,
+                          );
                           await FirestoreService().createUserProfile(
                             uid: widget.profile.userId,
                             phoneNumber: newPhone.isNotEmpty ? newPhone : widget.profile.phone,

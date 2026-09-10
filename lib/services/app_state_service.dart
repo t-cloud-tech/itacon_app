@@ -131,7 +131,12 @@ class AppStateService extends ChangeNotifier {
       fcmToken: fcmToken ?? current.fcmToken,
       pincode: pincode ?? current.pincode,
       gstNumber: gstNumber ?? current.gstNumber,
-      profilePhotoUrl: profilePhotoUrl ?? current.profilePhotoUrl,
+      profilePhotoUrl: (profilePhotoUrl != null && profilePhotoUrl.isEmpty)
+          ? ''
+          : (profilePhotoUrl ?? current.profilePhotoUrl),
+      avatarUrl: (profilePhotoUrl != null && profilePhotoUrl.isEmpty)
+          ? ''
+          : (profilePhotoUrl != null && profilePhotoUrl.isNotEmpty ? profilePhotoUrl : current.avatarUrl),
       showroomImages: showroomImages ?? current.showroomImages,
       address: address ?? current.address,
     );
