@@ -93,8 +93,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           0.0,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOutCubic,
         );
       }
     });

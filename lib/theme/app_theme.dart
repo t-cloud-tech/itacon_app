@@ -318,8 +318,8 @@ class AppTheme {
   }
 }
 
-/// SmoothPageTransitionsBuilder: Delivers a subtle, fast, and continuous
-/// fade-slide screen transition (220-260ms) eliminating abrupt cuts.
+/// SmoothPageTransitionsBuilder: Delivers a subtle, calm, and continuous
+/// fade-slide screen transition eliminating abrupt cuts.
 class SmoothPageTransitionsBuilder extends PageTransitionsBuilder {
   const SmoothPageTransitionsBuilder();
 
@@ -333,13 +333,13 @@ class SmoothPageTransitionsBuilder extends PageTransitionsBuilder {
   ) {
     final curvedAnimation = CurvedAnimation(
       parent: animation,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeInOutCubicEmphasized,
       reverseCurve: Curves.easeInCubic,
     );
 
-    // Subtle 14px horizontal entrance slide + fade
+    // Subtle horizontal entrance slide + fade
     final slideIn = Tween<Offset>(
-      begin: const Offset(0.04, 0.0),
+      begin: const Offset(0.05, 0.0),
       end: Offset.zero,
     ).animate(curvedAnimation);
 
@@ -351,10 +351,10 @@ class SmoothPageTransitionsBuilder extends PageTransitionsBuilder {
     // Subtle scale-down when secondary route is pushed
     final secondaryScale = Tween<double>(
       begin: 1.0,
-      end: 0.98,
+      end: 0.985,
     ).animate(CurvedAnimation(
       parent: secondaryAnimation,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeInOutCubic,
     ));
 
     return SlideTransition(
@@ -369,4 +369,38 @@ class SmoothPageTransitionsBuilder extends PageTransitionsBuilder {
     );
   }
 }
+
+/// SmoothPageRoute: Standard custom page route offering calm, deliberate
+/// 450ms smooth transition timing across the app.
+class SmoothPageRoute<T> extends PageRouteBuilder<T> {
+  final Widget child;
+
+  SmoothPageRoute({
+    required this.child,
+    super.settings,
+  }) : super(
+          pageBuilder: (context, animation, secondaryAnimation) => child,
+          transitionDuration: const Duration(milliseconds: 450),
+          reverseTransitionDuration: const Duration(milliseconds: 380),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curvedAnimation = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOutCubicEmphasized,
+              reverseCurve: Curves.easeInOutCubic,
+            );
+
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0.0),
+                end: Offset.zero,
+              ).animate(curvedAnimation),
+              child: FadeTransition(
+                opacity: Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation),
+                child: child,
+              ),
+            );
+          },
+        );
+}
+
 

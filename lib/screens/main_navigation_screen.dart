@@ -65,7 +65,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: IndexedStack(
+      body: _SmoothFadeIndexedStack(
         index: _currentIndex,
         children: pages,
       ),
@@ -76,3 +76,34 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 }
+
+/// SmoothFadeIndexedStack preserves page state while animating transitions smoothly.
+class _SmoothFadeIndexedStack extends StatelessWidget {
+  final int index;
+  final List<Widget> children;
+
+  const _SmoothFadeIndexedStack({
+    required this.index,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: List.generate(children.length, (i) {
+        final isActive = i == index;
+        return IgnorePointer(
+          ignoring: !isActive,
+          child: AnimatedOpacity(
+            opacity: isActive ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOutCubic,
+            child: children[i],
+          ),
+        );
+      }),
+    );
+  }
+}
+

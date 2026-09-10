@@ -964,7 +964,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       final card = _buildLuxuryTileCard(context, product, calculatedAspectRatio);
                       if (index < 4) {
                         return AppFadeSlideTransition(
-                          delay: Duration(milliseconds: index * 40),
+                          delay: Duration(milliseconds: index * 70),
                           child: card,
                         );
                       }

@@ -260,7 +260,7 @@ class _SmoothFloatingToastState extends State<_SmoothFloatingToast> {
     });
 
     _dismissTimer?.cancel();
-    _dismissTimer = Timer(const Duration(milliseconds: 300), () {
+    _dismissTimer = Timer(const Duration(milliseconds: 450), () {
       if (mounted) {
         widget.onDismissed();
       }
@@ -281,12 +281,12 @@ class _SmoothFloatingToastState extends State<_SmoothFloatingToast> {
       left: 16,
       right: 16,
       child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 280),
-        curve: _isVisible ? Curves.easeOut : Curves.easeIn,
+        duration: const Duration(milliseconds: 450),
+        curve: _isVisible ? Curves.easeOutCubic : Curves.easeInCubic,
         opacity: _isVisible ? 1.0 : 0.0,
         child: AnimatedSlide(
-          duration: const Duration(milliseconds: 280),
-          curve: _isVisible ? Curves.easeOutCubic : Curves.easeInCubic,
+          duration: const Duration(milliseconds: 450),
+          curve: _isVisible ? Curves.easeInOutCubicEmphasized : Curves.easeInCubic,
           offset: _isVisible ? Offset.zero : const Offset(0.0, 0.7),
           child: widget.child,
         ),

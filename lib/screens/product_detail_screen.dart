@@ -289,7 +289,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               alignment: Alignment.bottomCenter,
               children: [
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 450),
+                  curve: Curves.easeInOutCubic,
                   height: calculatedFrameHeight,
                   color: Colors.grey.shade100,
                   child: PageView.builder(
@@ -976,7 +977,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? AppTheme.primaryNavy : Colors.transparent,
@@ -1064,12 +1066,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     setState(() => _currentImageIndex = index);
                     _pageController.animateToPage(
                       index,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
+                      duration: const Duration(milliseconds: 480),
+                      curve: Curves.easeInOutCubic,
                     );
                   },
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeInOutCubic,
                     width: 68,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),

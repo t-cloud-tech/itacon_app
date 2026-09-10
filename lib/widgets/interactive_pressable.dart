@@ -26,8 +26,8 @@ class AppPressable extends StatefulWidget {
     this.onLongPress,
     this.scaleDown = 0.975,
     this.pressedOpacity = 0.94,
-    this.durationDown = const Duration(milliseconds: 110),
-    this.durationUp = const Duration(milliseconds: 150),
+    this.durationDown = const Duration(milliseconds: 160),
+    this.durationUp = const Duration(milliseconds: 320),
     this.curve = Curves.easeOutCubic,
     this.borderRadius,
     this.enableHaptic = true,
@@ -466,8 +466,8 @@ class AppChip extends StatelessWidget {
       scaleDown: 0.96,
       borderRadius: BorderRadius.circular(20),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? selBg : Colors.white,
@@ -531,7 +531,7 @@ class AppFadeSlideTransition extends StatefulWidget {
     super.key,
     required this.child,
     this.delay = Duration.zero,
-    this.duration = const Duration(milliseconds: 260),
+    this.duration = const Duration(milliseconds: 550),
     this.slideOffset = 12.0,
   });
 
@@ -619,7 +619,7 @@ class _AppSkeletonState extends State<AppSkeleton>
     super.initState();
     _shimmerController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
+      duration: const Duration(milliseconds: 2200),
     )..repeat();
   }
 

@@ -88,8 +88,8 @@ class FloatingBottomBar extends StatelessWidget {
                   children: [
                     // Moving Orange Highlight Pill Indicator (around icon only)
                     AnimatedPositioned(
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeInOutCubic,
+                      duration: const Duration(milliseconds: 480),
+                      curve: Curves.easeInOutCubicEmphasized,
                       left: pillLeft,
                       top: pillTop,
                       width: pillWidth,
@@ -237,12 +237,15 @@ class _NavBarItemWidget extends StatelessWidget {
                   child: Center(
                     child: AnimatedScale(
                       scale: isSelected ? 1.15 : 1.0,
-                      duration: const Duration(milliseconds: 260),
+                      duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutBack,
                       child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
+                        duration: const Duration(milliseconds: 320),
                         transitionBuilder: (child, anim) => ScaleTransition(
-                          scale: anim,
+                          scale: CurvedAnimation(
+                            parent: anim,
+                            curve: Curves.easeInOutCubic,
+                          ),
                           child: child,
                         ),
                         child: Icon(
@@ -263,7 +266,7 @@ class _NavBarItemWidget extends StatelessWidget {
                     right: 2,
                     child: AnimatedScale(
                       scale: 1.0,
-                      duration: const Duration(milliseconds: 200),
+                      duration: const Duration(milliseconds: 320),
                       curve: Curves.easeOutBack,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -306,8 +309,8 @@ class _NavBarItemWidget extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeInOutCubic,
               style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
