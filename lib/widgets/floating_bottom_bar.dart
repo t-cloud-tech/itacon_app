@@ -48,12 +48,12 @@ class FloatingBottomBar extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryNavy.withValues(alpha: 0.30),
+              color: AppTheme.primaryNavy.withValues(alpha: 0.35),
               blurRadius: 18,
               offset: const Offset(0, -4),
             ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.14),
+              color: Colors.black.withValues(alpha: 0.16),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -69,24 +69,66 @@ class FloatingBottomBar extends StatelessWidget {
           top: false,
           child: SizedBox(
             height: 64,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(items.length, (index) {
-                final item = items[index];
-                final isSelected = index == currentIndex;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final totalWidth = constraints.maxWidth;
+                final itemCount = items.length;
+                if (itemCount == 0) return const SizedBox.shrink();
 
-                return Expanded(
-                  child: _NavBarItemWidget(
-                    item: item,
-                    isSelected: isSelected,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      onTap(index);
-                    },
-                  ),
+                final itemWidth = totalWidth / itemCount;
+                final safeCurrentIndex = currentIndex.clamp(0, itemCount - 1);
+                const pillWidth = 50.0;
+                const pillHeight = 30.0;
+                const pillTop = 9.0;
+                final pillLeft =
+                    safeCurrentIndex * itemWidth + (itemWidth - pillWidth) / 2;
+
+                return Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    // Moving Orange Highlight Pill Indicator (around icon only)
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeInOutCubic,
+                      left: pillLeft,
+                      top: pillTop,
+                      width: pillWidth,
+                      height: pillHeight,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentOrange.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.35),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Row of Nav Bar Items
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: List.generate(itemCount, (index) {
+                        final item = items[index];
+                        final isSelected = index == safeCurrentIndex;
+
+                        return Expanded(
+                          child: _NavBarItemWidget(
+                            item: item,
+                            isSelected: isSelected,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              onTap(index);
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
                 );
-              }),
+              },
             ),
           ),
         ),
@@ -189,51 +231,56 @@ class _NavBarItemWidget extends StatelessWidget {
               alignment: Alignment.center,
               clipBehavior: Clip.none,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: isSelected
-                        ? AppTheme.accentOrange.withValues(alpha: 0.20)
-                        : Colors.transparent,
-                    border: isSelected
-                        ? Border.all(
-                            color: AppTheme.accentOrange.withValues(alpha: 0.35),
-                            width: 1,
-                          )
-                        : Border.all(color: Colors.transparent, width: 1),
-                  ),
-                  child: AnimatedScale(
-                    scale: isSelected ? 1.08 : 1.0,
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    child: Icon(
-                      isSelected ? item.activeIcon : item.icon,
-                      size: 22,
-                      color: isSelected
-                          ? AppTheme.accentOrange
-                          : Colors.white.withValues(alpha: 0.70),
+                SizedBox(
+                  width: 50,
+                  height: 30,
+                  child: Center(
+                    child: AnimatedScale(
+                      scale: isSelected ? 1.15 : 1.0,
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutBack,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (child, anim) => ScaleTransition(
+                          scale: anim,
+                          child: child,
+                        ),
+                        child: Icon(
+                          isSelected ? item.activeIcon : item.icon,
+                          key: ValueKey<bool>(isSelected),
+                          size: 22,
+                          color: isSelected
+                              ? AppTheme.accentOrange
+                              : Colors.white.withValues(alpha: 0.70),
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 if (item.badgeCount > 0)
                   Positioned(
-                    top: -2,
-                    right: 4,
+                    top: -3,
+                    right: 2,
                     child: AnimatedScale(
                       scale: 1.0,
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutBack,
                       child: Container(
-                        padding: const EdgeInsets.all(2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 3.5,
+                          vertical: 1.5,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.accentOrange,
-                          shape: BoxShape.circle,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppTheme.primaryNavy,
+                            width: 1.2,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: AppTheme.accentOrange.withValues(alpha: 0.4),
+                              color:
+                                  AppTheme.accentOrange.withValues(alpha: 0.40),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
