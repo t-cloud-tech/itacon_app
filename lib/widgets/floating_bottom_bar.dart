@@ -6,16 +6,19 @@ import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../screens/main_navigation_screen.dart';
 import 'interactive_pressable.dart';
+import 'app_avatar_image.dart';
 
 class FloatingNavBarItem {
-  final IconData icon;
-  final IconData activeIcon;
+  final IconData? icon;
+  final IconData? activeIcon;
+  final Widget Function(bool isSelected)? customBuilder;
   final String label;
   final int badgeCount;
 
   const FloatingNavBarItem({
-    required this.icon,
-    required this.activeIcon,
+    this.icon,
+    this.activeIcon,
+    this.customBuilder,
     required this.label,
     this.badgeCount = 0,
   });
@@ -157,11 +160,16 @@ class AppFloatingBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = AppStateService();
+    final appState = AppStateService.instance;
 
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) {
+        final user = appState.currentUserProfile;
+        final photoUrl = user.profilePhotoUrl ??
+            (user.avatarUrl.isNotEmpty ? user.avatarUrl : null);
+        final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
+
         return FloatingBottomBar(
           currentIndex: currentIndex,
           onTap: (index) {
@@ -199,10 +207,44 @@ class AppFloatingBottomBar extends StatelessWidget {
               activeIcon: Icons.inventory_2_rounded,
               label: 'Orders',
             ),
-            const FloatingNavBarItem(
+            FloatingNavBarItem(
               icon: Icons.person_outline_rounded,
               activeIcon: Icons.person_rounded,
               label: 'Profile',
+              customBuilder: hasPhoto
+                  ? (isSelected) => Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? AppTheme.accentOrange
+                                : Colors.white.withValues(alpha: 0.8),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            if (isSelected)
+                              BoxShadow(
+                                color: AppTheme.accentOrange.withValues(alpha: 0.4),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: AppAvatarImage(
+                            photoUrl: photoUrl,
+                            initials: user.initials,
+                            size: 22,
+                            backgroundColor: isSelected
+                                ? AppTheme.accentOrange
+                                : Colors.white.withValues(alpha: 0.2),
+                            textColor: Colors.white,
+                          ),
+                        ),
+                      )
+                  : null,
             ),
           ],
         );
@@ -228,7 +270,6 @@ class _NavBarItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = context.sp(21).clamp(18.0, 24.0);
     final labelSize = context.sp(10).clamp(8.0, 11.5);
     final badgeFontSize = context.sp(8.5).clamp(7.0, 9.5);
 
@@ -253,24 +294,23 @@ class _NavBarItemWidget extends StatelessWidget {
                       scale: isSelected ? 1.15 : 1.0,
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeOutBack,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 320),
-                        transitionBuilder: (child, anim) => ScaleTransition(
-                          scale: CurvedAnimation(
-                            parent: anim,
-                            curve: Curves.easeInOutCubic,
-                          ),
-                          child: child,
-                        ),
-                        child: Icon(
-                          isSelected ? item.activeIcon : item.icon,
-                          key: ValueKey<bool>(isSelected),
-                          size: iconSize,
-                          color: isSelected
-                              ? AppTheme.accentOrange
-                              : Colors.white.withValues(alpha: 0.70),
-                        ),
-                      ),
+                      child: item.customBuilder != null
+                          ? item.customBuilder!(isSelected)
+                          : AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              transitionBuilder: (child, anim) => ScaleTransition(
+                                scale: anim,
+                                child: child,
+                              ),
+                              child: Icon(
+                                isSelected ? (item.activeIcon ?? item.icon) : item.icon,
+                                key: ValueKey<bool>(isSelected),
+                                size: 22,
+                                color: isSelected
+                                    ? AppTheme.accentOrange
+                                    : Colors.white.withValues(alpha: 0.70),
+                              ),
+                            ),
                     ),
                   ),
                 ),
