@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,6 +35,9 @@ class FloatingBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final barHeight = context.h(64).clamp(56.0, 72.0);
+    final barRadius = context.r(22).clamp(16.0, 26.0);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         systemNavigationBarColor: AppTheme.primaryNavy,
@@ -43,19 +47,19 @@ class FloatingBottomBar extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppTheme.primaryNavy,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(22),
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(barRadius),
           ),
           boxShadow: [
             BoxShadow(
               color: AppTheme.primaryNavy.withValues(alpha: 0.35),
-              blurRadius: 18,
-              offset: const Offset(0, -4),
+              blurRadius: context.w(18),
+              offset: Offset(0, -context.h(4)),
             ),
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.16),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+              blurRadius: context.w(10),
+              offset: Offset(0, -context.h(2)),
             ),
           ],
           border: Border(
@@ -68,7 +72,7 @@ class FloatingBottomBar extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 64,
+            height: barHeight,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final totalWidth = constraints.maxWidth;
@@ -77,9 +81,9 @@ class FloatingBottomBar extends StatelessWidget {
 
                 final itemWidth = totalWidth / itemCount;
                 final safeCurrentIndex = currentIndex.clamp(0, itemCount - 1);
-                const pillWidth = 50.0;
-                const pillHeight = 30.0;
-                const pillTop = 9.0;
+                final pillWidth = math.min(itemWidth * 0.75, context.w(50)).clamp(36.0, 56.0);
+                final pillHeight = context.h(29).clamp(24.0, 34.0);
+                final pillTop = context.h(8).clamp(5.0, 12.0);
                 final pillLeft =
                     safeCurrentIndex * itemWidth + (itemWidth - pillWidth) / 2;
 
@@ -97,7 +101,7 @@ class FloatingBottomBar extends StatelessWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppTheme.accentOrange.withValues(alpha: 0.20),
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(context.r(16)),
                           border: Border.all(
                             color: AppTheme.accentOrange.withValues(alpha: 0.35),
                             width: 1,
@@ -118,6 +122,8 @@ class FloatingBottomBar extends StatelessWidget {
                           child: _NavBarItemWidget(
                             item: item,
                             isSelected: isSelected,
+                            pillWidth: pillWidth,
+                            pillHeight: pillHeight,
                             onTap: () {
                               HapticFeedback.selectionClick();
                               onTap(index);
@@ -208,20 +214,28 @@ class AppFloatingBottomBar extends StatelessWidget {
 class _NavBarItemWidget extends StatelessWidget {
   final FloatingNavBarItem item;
   final bool isSelected;
+  final double pillWidth;
+  final double pillHeight;
   final VoidCallback onTap;
 
   const _NavBarItemWidget({
     required this.item,
     required this.isSelected,
+    required this.pillWidth,
+    required this.pillHeight,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = context.sp(21).clamp(18.0, 24.0);
+    final labelSize = context.sp(10).clamp(8.0, 11.5);
+    final badgeFontSize = context.sp(8.5).clamp(7.0, 9.5);
+
     return AppPressable(
       onTap: onTap,
       scaleDown: 0.94,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(context.r(16)),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -232,8 +246,8 @@ class _NavBarItemWidget extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 SizedBox(
-                  width: 50,
-                  height: 30,
+                  width: pillWidth,
+                  height: pillHeight,
                   child: Center(
                     child: AnimatedScale(
                       scale: isSelected ? 1.15 : 1.0,
@@ -251,7 +265,7 @@ class _NavBarItemWidget extends StatelessWidget {
                         child: Icon(
                           isSelected ? item.activeIcon : item.icon,
                           key: ValueKey<bool>(isSelected),
-                          size: 22,
+                          size: iconSize,
                           color: isSelected
                               ? AppTheme.accentOrange
                               : Colors.white.withValues(alpha: 0.70),
@@ -262,42 +276,41 @@ class _NavBarItemWidget extends StatelessWidget {
                 ),
                 if (item.badgeCount > 0)
                   Positioned(
-                    top: -3,
-                    right: 2,
+                    top: -context.h(2),
+                    right: context.w(1),
                     child: AnimatedScale(
                       scale: 1.0,
                       duration: const Duration(milliseconds: 320),
                       curve: Curves.easeOutBack,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 3.5,
-                          vertical: 1.5,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.w(3.5),
+                          vertical: context.h(1.5),
                         ),
                         decoration: BoxDecoration(
                           color: AppTheme.accentOrange,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(context.r(10)),
                           border: Border.all(
                             color: AppTheme.primaryNavy,
                             width: 1.2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color:
-                                  AppTheme.accentOrange.withValues(alpha: 0.40),
+                              color: AppTheme.accentOrange.withValues(alpha: 0.40),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
                           ],
                         ),
-                        constraints: const BoxConstraints(
-                          minWidth: 15,
-                          minHeight: 15,
+                        constraints: BoxConstraints(
+                          minWidth: context.w(15),
+                          minHeight: context.w(15),
                         ),
                         child: Text(
                           item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
                           style: GoogleFonts.inter(
                             color: Colors.white,
-                            fontSize: 8.5,
+                            fontSize: badgeFontSize,
                             fontWeight: FontWeight.w700,
                           ),
                           textAlign: TextAlign.center,
@@ -307,22 +320,26 @@ class _NavBarItemWidget extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 2),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeInOutCubic,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? AppTheme.accentOrange
-                    : Colors.white.withValues(alpha: 0.70),
-                letterSpacing: 0.1,
-              ),
-              child: Text(
-                item.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            SizedBox(height: context.h(2)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.w(2)),
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeInOutCubic,
+                style: GoogleFonts.inter(
+                  fontSize: labelSize,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected
+                      ? AppTheme.accentOrange
+                      : Colors.white.withValues(alpha: 0.70),
+                  letterSpacing: 0.1,
+                ),
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           ],

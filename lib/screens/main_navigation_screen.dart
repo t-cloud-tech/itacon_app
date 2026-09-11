@@ -65,13 +65,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
-      body: _SmoothFadeIndexedStack(
-        index: _currentIndex,
-        children: pages,
+      body: ResponsiveConstraint(
+        maxContentWidth: 720,
+        child: _SmoothFadeIndexedStack(
+          index: _currentIndex,
+          children: pages,
+        ),
       ),
-      bottomNavigationBar: AppFloatingBottomBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabSelected,
+      bottomNavigationBar: ResponsiveConstraint(
+        maxContentWidth: 720,
+        backgroundColor: Colors.transparent,
+        child: AppFloatingBottomBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabSelected,
+        ),
       ),
     );
   }

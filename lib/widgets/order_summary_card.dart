@@ -47,28 +47,34 @@ class OrderSummaryCard extends StatelessWidget {
     final formattedKg = _formatNumber(totalWeightKg);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(context.w(14)),
       decoration: AppTheme.luxuryCardDecorationWithBorder(
         borderColor: AppTheme.primaryNavy.withValues(alpha: 0.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card Header
+          // Card Header with Flexible Title and Badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: context.sp(14.5),
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               // Subtle Tonnage Badge in Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: EdgeInsets.symmetric(horizontal: context.w(7), vertical: context.h(3.5)),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20),
@@ -79,16 +85,16 @@ class OrderSummaryCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.scale_rounded,
-                      size: 13,
+                      size: context.sp(12),
                       color: AppTheme.primaryNavy,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 3),
                     Text(
                       '$formattedTons Tonnes',
-                      style: const TextStyle(
-                        fontSize: 11,
+                      style: TextStyle(
+                        fontSize: context.sp(10.5),
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryNavy,
                       ),
@@ -98,53 +104,59 @@ class OrderSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: context.h(10)),
 
           // Subtotal Row with subtle weight badge
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  const Text(
-                    'Material Subtotal',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
-                  ),
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.amber.shade300, width: 0.8),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      'Material Subtotal',
+                      style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
                     ),
-                    child: Text(
-                      '📦 $totalBoxes Boxes',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.amber.shade900,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.amber.shade300, width: 0.8),
+                      ),
+                      child: Text(
+                        '📦 $totalBoxes Boxes',
+                        style: TextStyle(
+                          fontSize: context.sp(9.5),
+                          fontWeight: FontWeight.w600,
+                          color: Colors.amber.shade900,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '₹${subtotal.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 13,
+                style: TextStyle(
+                  fontSize: context.sp(13),
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textDark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: context.h(8)),
 
-          // Logistics Detail Row (Explicit requirement: Total Weight: 7.05 Tonnes (~7,050 kg))
+          // Logistics Detail Row
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(10),
+            padding: EdgeInsets.all(context.w(10)),
             decoration: BoxDecoration(
               color: const Color(0xFFF4F7FC),
               borderRadius: BorderRadius.circular(8),
@@ -158,21 +170,21 @@ class OrderSummaryCard extends StatelessWidget {
                     color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.local_shipping_outlined,
-                    size: 16,
+                    size: context.sp(15),
                     color: AppTheme.primaryNavy,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: context.w(8)),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Total Weight: $formattedTons Tonnes (~$formattedKg kg)',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: context.sp(11.5),
                           fontWeight: FontWeight.bold,
                           color: AppTheme.primaryNavy,
                         ),
@@ -180,8 +192,8 @@ class OrderSummaryCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         'Logistics: $totalBoxes boxes ready for dispatch & unloading',
-                        style: const TextStyle(
-                          fontSize: 10,
+                        style: TextStyle(
+                          fontSize: context.sp(10),
                           color: AppTheme.textSubtle,
                         ),
                       ),
@@ -191,32 +203,36 @@ class OrderSummaryCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: context.h(8)),
 
           // Discount Row (if applicable)
           if (discountAmount > 0) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  discountLabel ?? 'Trade Partner Savings',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.green,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    discountLabel ?? 'Trade Partner Savings',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: context.sp(12.5),
+                      color: Colors.green,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 Text(
                   '- ₹${discountAmount.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: TextStyle(
+                    fontSize: context.sp(12.5),
                     color: Colors.green,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: context.h(6)),
           ],
 
           // GST / Tax Row (if applicable)
@@ -224,34 +240,38 @@ class OrderSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Estimated GST (18%)',
-                  style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
+                Expanded(
+                  child: Text(
+                    'Estimated GST (18%)',
+                    style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                  ),
                 ),
                 Text(
                   '₹${taxAmount.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: TextStyle(
+                    fontSize: context.sp(12.5),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: context.h(6)),
           ],
 
           // Freight & Shipping Fee Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Logistics & Freight Fee',
-                style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
+              Expanded(
+                child: Text(
+                  'Logistics & Freight Fee',
+                  style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                ),
               ),
               Text(
                 freightFee == 0 ? 'FREE' : '₹${freightFee.toStringAsFixed(0)}',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: context.sp(12.5),
                   fontWeight: FontWeight.bold,
                   color: freightFee == 0 ? Colors.green : AppTheme.textDark,
                 ),
@@ -259,25 +279,30 @@ class OrderSummaryCard extends StatelessWidget {
             ],
           ),
 
-          const Divider(height: 20, color: AppTheme.borderSubtle),
+          Divider(height: context.h(18), color: AppTheme.borderSubtle),
 
           // Grand Total Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'ESTIMATED TOTAL VALUE',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                  letterSpacing: 0.5,
+              Expanded(
+                child: Text(
+                  'ESTIMATED TOTAL VALUE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: context.sp(12),
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '₹${grandTotal.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 18,
+                style: TextStyle(
+                  fontSize: context.sp(17),
                   fontWeight: FontWeight.w800,
                   color: AppTheme.primaryNavy,
                 ),
@@ -286,14 +311,14 @@ class OrderSummaryCard extends StatelessWidget {
           ),
 
           if (showActionButton && onActionButtonPressed != null) ...[
-            const SizedBox(height: 16),
+            SizedBox(height: context.h(14)),
             AppButton(
               text: actionButtonText ?? 'PROCEED TO CHECKOUT →',
               onPressed: onActionButtonPressed,
-              height: 50,
+              height: 48,
               width: double.infinity,
               variant: AppButtonVariant.primary,
-              fontSize: 14,
+              fontSize: 13.5,
             ),
           ],
         ],

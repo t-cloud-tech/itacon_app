@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/responsive.dart';
+export '../utils/responsive.dart';
 
 /// ITACON Luxury Design System & Theme Configuration
 /// Polished typography, ambient shadows, and smooth motion language.
@@ -403,4 +405,34 @@ class SmoothPageRoute<T> extends PageRouteBuilder<T> {
         );
 }
 
+/// Standardized responsive dimensions and spacing tokens for ITACON luxury UI
+class AppDimensions {
+  AppDimensions._();
 
+  // Padding & Spacing
+  static double paddingXS(BuildContext context) => context.w(4);
+  static double paddingSM(BuildContext context) => context.w(8);
+  static double paddingMD(BuildContext context) => context.w(16);
+  static double paddingLG(BuildContext context) => context.w(24);
+  static double paddingXL(BuildContext context) => context.w(32);
+
+  // Corner Radii
+  static double radiusSM(BuildContext context) => context.r(8);
+  static double radiusMD(BuildContext context) => context.r(12);
+  static double radiusLG(BuildContext context) => context.r(16);
+  static double radiusXL(BuildContext context) => context.r(24);
+  static double radiusPill(BuildContext context) => context.r(100);
+
+  // Common UI Elements
+  static double buttonHeight(BuildContext context) =>
+      context.h(48).clamp(42.0, 56.0);
+  static double inputHeight(BuildContext context) =>
+      context.h(50).clamp(44.0, 58.0);
+  static double appBarHeight(BuildContext context) =>
+      context.h(56).clamp(50.0, 64.0);
+  static double bottomBarHeight(BuildContext context) =>
+      context.h(64).clamp(56.0, 72.0);
+  static double iconSizeSM(BuildContext context) => context.sp(16);
+  static double iconSizeMD(BuildContext context) => context.sp(22);
+  static double iconSizeLG(BuildContext context) => context.sp(28);
+}

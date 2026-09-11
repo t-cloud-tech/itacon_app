@@ -176,29 +176,31 @@ class CartScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                  padding: EdgeInsets.fromLTRB(context.w(12), context.h(12), context.w(12), context.h(20)),
                   itemCount: appState.cartItems.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => SizedBox(height: context.h(10)),
                   itemBuilder: (context, index) {
                     final item = appState.cartItems[index];
+                    final imgSize = context.w(74).clamp(56.0, 80.0);
+
                     return Container(
                       decoration: AppTheme.luxuryCardDecoration,
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(context.w(10)),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(context.r(10)),
                             child: AppProductImage(
                               imagePath: item.product.images.isNotEmpty
                                   ? item.product.images.first
                                   : '',
-                              width: 80,
-                              height: 80,
+                              width: imgSize,
+                              height: imgSize,
                               fit: BoxFit.contain,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: context.w(10)),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,7 +212,7 @@ class CartScreen extends StatelessWidget {
                                       child: Text(
                                         item.product.name,
                                         style: GoogleFonts.inter(
-                                          fontSize: 14,
+                                          fontSize: context.sp(13.5),
                                           fontWeight: FontWeight.w700,
                                           color: AppTheme.textDark,
                                         ),
@@ -222,18 +224,21 @@ class CartScreen extends StatelessWidget {
                                       onTap: () => appState.removeFromCart(item),
                                       scaleDown: 0.85,
                                       borderRadius: BorderRadius.circular(16),
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(4.0),
+                                      child: Padding(
+                                        padding: EdgeInsets.all(context.w(3.0)),
                                         child: Icon(Icons.delete_outline,
-                                            color: AppTheme.statusError, size: 20),
+                                            color: AppTheme.statusError, size: context.sp(18)),
                                       ),
                                     ),
                                   ],
                                 ),
-                                Row(
+                                SizedBox(height: context.h(3)),
+                                Wrap(
+                                  spacing: 4,
+                                  runSpacing: 4,
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(2.5)),
                                       decoration: BoxDecoration(
                                         color: Colors.grey.shade100,
                                         borderRadius: BorderRadius.circular(6),
@@ -241,14 +246,13 @@ class CartScreen extends StatelessWidget {
                                       child: Text(
                                         '${item.selectedSize} • ${item.selectedFinish}',
                                         style: GoogleFonts.inter(
-                                          fontSize: 11,
+                                          fontSize: context.sp(10.5),
                                           color: AppTheme.textSubtle,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                      padding: EdgeInsets.symmetric(horizontal: context.w(5), vertical: context.h(2.5)),
                                       decoration: BoxDecoration(
                                         color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(4),
@@ -256,7 +260,7 @@ class CartScreen extends StatelessWidget {
                                       child: Text(
                                         '${item.itemWeightKg.toStringAsFixed(0)} kg',
                                         style: GoogleFonts.inter(
-                                          fontSize: 10,
+                                          fontSize: context.sp(10),
                                           fontWeight: FontWeight.w700,
                                           color: AppTheme.primaryNavy,
                                         ),
@@ -264,57 +268,67 @@ class CartScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                SizedBox(height: context.h(6)),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Builder(
-                                      builder: (context) {
-                                        final resolved = PricingService.instance.resolvePrice(item.product);
-                                        return Row(
-                                          children: [
-                                            if (resolved.hasDiscount) ...[
-                                              Text(
-                                                '₹${resolved.basePrice.toStringAsFixed(0)}',
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 11,
-                                                  color: Colors.grey,
-                                                  decoration: TextDecoration.lineThrough,
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Builder(
+                                          builder: (context) {
+                                            final resolved = PricingService.instance.resolvePrice(item.product);
+                                            return Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                if (resolved.hasDiscount) ...[
+                                                  Text(
+                                                    '₹${resolved.basePrice.toStringAsFixed(0)}',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: context.sp(10.5),
+                                                      color: Colors.grey,
+                                                      decoration: TextDecoration.lineThrough,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                ],
+                                                Text(
+                                                  item.product.isAdhesive
+                                                      ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
+                                                      : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/pc',
+                                                  style: GoogleFonts.inter(
+                                                    fontSize: context.sp(14.5),
+                                                    fontWeight: FontWeight.w800,
+                                                    color: AppTheme.accentOrange,
+                                                  ),
                                                 ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                            ],
-                                            Text(
-                                              item.product.isAdhesive
-                                                  ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
-                                                  : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/pc',
-                                              style: GoogleFonts.inter(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w800,
-                                                color: AppTheme.accentOrange,
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      },
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ),
                                     ),
+                                    const SizedBox(width: 6),
 
                                     // Interactive Quantity Stepper with Manual Input Target
                                     Container(
-                                      height: 34,
+                                      height: context.h(32).clamp(28.0, 36.0),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(color: AppTheme.borderSubtle),
                                       ),
                                       child: Row(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
                                           AppPressable(
                                             onTap: () => appState.updateQuantity(item, -1),
                                             scaleDown: 0.85,
                                             borderRadius: BorderRadius.circular(6),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                              child: Icon(Icons.remove, size: 14, color: AppTheme.primaryNavy),
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: context.w(5), vertical: context.h(3)),
+                                              child: Icon(Icons.remove, size: context.sp(13), color: AppTheme.primaryNavy),
                                             ),
                                           ),
                                           Tooltip(
@@ -324,7 +338,7 @@ class CartScreen extends StatelessWidget {
                                               scaleDown: 0.93,
                                               borderRadius: BorderRadius.circular(4),
                                               child: Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(3)),
                                                 decoration: BoxDecoration(
                                                   color: AppTheme.primaryNavy.withValues(alpha: 0.06),
                                                   borderRadius: BorderRadius.circular(4),
@@ -335,15 +349,15 @@ class CartScreen extends StatelessWidget {
                                                     Text(
                                                       '${item.quantity}',
                                                       style: GoogleFonts.inter(
-                                                        fontSize: 13,
+                                                        fontSize: context.sp(12),
                                                         fontWeight: FontWeight.w700,
                                                         color: AppTheme.primaryNavy,
                                                       ),
                                                     ),
-                                                    const SizedBox(width: 4),
-                                                    const Icon(
+                                                    const SizedBox(width: 3),
+                                                    Icon(
                                                       Icons.edit_outlined,
-                                                      size: 12,
+                                                      size: context.sp(11),
                                                       color: AppTheme.accentOrange,
                                                     ),
                                                   ],
@@ -355,9 +369,9 @@ class CartScreen extends StatelessWidget {
                                             onTap: () => appState.updateQuantity(item, 1),
                                             scaleDown: 0.85,
                                             borderRadius: BorderRadius.circular(6),
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                                              child: Icon(Icons.add, size: 14, color: AppTheme.primaryNavy),
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: context.w(5), vertical: context.h(3)),
+                                              child: Icon(Icons.add, size: context.sp(13), color: AppTheme.primaryNavy),
                                             ),
                                           ),
                                         ],
@@ -377,19 +391,20 @@ class CartScreen extends StatelessWidget {
 
               // Bottom Summary Card with Tonnage & Box Details
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(context.w(12), context.h(10), context.w(12), context.h(10)),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(context.r(20))),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 16,
-                      offset: const Offset(0, -4),
+                      blurRadius: context.w(16),
+                      offset: Offset(0, -context.h(4)),
                     ),
                   ],
                 ),
                 child: SafeArea(
+                  top: false,
                   child: OrderSummaryCard(
                     subtotal: appState.subtotal,
                     freightFee: appState.freightFee,

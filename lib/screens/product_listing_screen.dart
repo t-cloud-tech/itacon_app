@@ -1127,31 +1127,43 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                product.isAdhesive
-                                    ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
-                                    : '₹${effectivePrice.toStringAsFixed(0)}/pc',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.accentOrange,
-                                ),
-                              ),
-                              if (hasDiscount)
-                                Text(
-                                  'MRP ₹${product.basePrice.toStringAsFixed(0)}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 10,
-                                    color: Colors.grey,
-                                    decoration: TextDecoration.lineThrough,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    product.isAdhesive
+                                        ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
+                                        : '₹${effectivePrice.toStringAsFixed(0)}/pc',
+                                    style: GoogleFonts.inter(
+                                      fontSize: context.sp(13.5),
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.accentOrange,
+                                    ),
                                   ),
                                 ),
-                            ],
+                                if (hasDiscount)
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'MRP ₹${product.basePrice.toStringAsFixed(0)}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: context.sp(9.5),
+                                        color: Colors.grey,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
+                          const SizedBox(width: 4),
                           AppPressable(
                             onTap: () {
                               _appState.addToCart(

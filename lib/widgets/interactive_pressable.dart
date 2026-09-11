@@ -164,7 +164,7 @@ class _AppPressableState extends State<AppPressable>
   }
 }
 
-/// AppCard: Standardized luxury card component with refined soft elevation,
+/// AppCard: Standardized luxury card component with responsive soft elevation,
 /// smooth corner radii, crisp borders, and optional tactile press feedback.
 class AppCard extends StatelessWidget {
   final Widget child;
@@ -194,13 +194,13 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveRadius = borderRadius ?? BorderRadius.circular(16);
+    final effectiveRadius = borderRadius ?? BorderRadius.circular(context.r(16));
 
     final cardContainer = Container(
       width: width,
       height: height,
       margin: margin,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: padding ?? EdgeInsets.all(context.w(16)),
       decoration: BoxDecoration(
         color: color ?? AppTheme.cardSurface,
         borderRadius: effectiveRadius,
@@ -223,7 +223,7 @@ class AppCard extends StatelessWidget {
 }
 
 /// AppButton: Premium button with micro-scale feedback, loading spinner,
-/// and consistent typography matching top consumer apps.
+/// and responsive typography matching top consumer apps.
 enum AppButtonVariant { primary, secondary, outline, ghost }
 
 class AppButton extends StatelessWidget {
@@ -233,7 +233,7 @@ class AppButton extends StatelessWidget {
   final IconData? icon;
   final bool isLoading;
   final double? width;
-  final double height;
+  final double? height;
   final EdgeInsetsGeometry? padding;
   final BorderRadius? borderRadius;
   final double fontSize;
@@ -246,7 +246,7 @@ class AppButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.width,
-    this.height = 48,
+    this.height,
     this.padding,
     this.borderRadius,
     this.fontSize = 14,
@@ -254,7 +254,9 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveRadius = borderRadius ?? BorderRadius.circular(12);
+    final responsiveHeight = height != null ? context.h(height!) : context.h(48);
+    final responsiveRadius = borderRadius ?? BorderRadius.circular(context.r(12));
+    final responsiveFontSize = context.sp(fontSize);
 
     Color bg;
     Color fg;
@@ -301,19 +303,19 @@ class AppButton extends StatelessWidget {
 
     final buttonContent = Container(
       width: width,
-      height: height,
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 18),
+      height: responsiveHeight,
+      padding: padding ?? EdgeInsets.symmetric(horizontal: context.w(16), vertical: context.h(4)),
       decoration: BoxDecoration(
         color: isEnabled ? bg : bg.withValues(alpha: 0.5),
-        borderRadius: effectiveRadius,
+        borderRadius: responsiveRadius,
         border: border,
         boxShadow: isEnabled ? shadows : null,
       ),
       alignment: Alignment.center,
       child: isLoading
           ? SizedBox(
-              width: 20,
-              height: 20,
+              width: context.w(20),
+              height: context.w(20),
               child: CircularProgressIndicator(
                 strokeWidth: 2.2,
                 valueColor: AlwaysStoppedAnimation<Color>(fg),
@@ -324,16 +326,20 @@ class AppButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
-                  Icon(icon, size: 18, color: fg),
-                  const SizedBox(width: 8),
+                  Icon(icon, size: context.sp(18), color: fg),
+                  SizedBox(width: context.w(6)),
                 ],
-                Text(
-                  text,
-                  style: TextStyle(
-                    color: fg,
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
+                Flexible(
+                  child: Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: responsiveFontSize,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
               ],
@@ -342,7 +348,7 @@ class AppButton extends StatelessWidget {
 
     return AppPressable(
       onTap: isEnabled ? onPressed : null,
-      borderRadius: effectiveRadius,
+      borderRadius: responsiveRadius,
       scaleDown: 0.97,
       child: buttonContent,
     );
@@ -376,9 +382,12 @@ class AppIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scaledSize = context.w(size);
+    final scaledIconSize = context.sp(iconSize);
+
     Widget button = Container(
-      width: size,
-      height: size,
+      width: scaledSize,
+      height: scaledSize,
       padding: padding,
       decoration: BoxDecoration(
         color: backgroundColor ?? Colors.transparent,
@@ -391,28 +400,31 @@ class AppIconButton extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: iconSize,
+            size: scaledIconSize,
             color: color ?? AppTheme.primaryNavy,
           ),
           if (badgeCount > 0)
             Positioned(
-              top: -4,
-              right: -4,
+              top: -context.h(4),
+              right: -context.w(4),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.w(4),
+                  vertical: context.h(2),
+                ),
                 decoration: const BoxDecoration(
                   color: AppTheme.accentOrange,
                   shape: BoxShape.circle,
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
+                constraints: BoxConstraints(
+                  minWidth: context.w(16),
+                  minHeight: context.w(16),
                 ),
                 child: Text(
                   badgeCount > 99 ? '99+' : '$badgeCount',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 9,
+                    fontSize: context.sp(9),
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -430,7 +442,7 @@ class AppIconButton extends StatelessWidget {
     return AppPressable(
       onTap: onPressed,
       scaleDown: 0.92,
-      borderRadius: BorderRadius.circular(size / 2),
+      borderRadius: BorderRadius.circular(scaledSize / 2),
       child: button,
     );
   }
@@ -464,14 +476,17 @@ class AppChip extends StatelessWidget {
     return AppPressable(
       onTap: onTap,
       scaleDown: 0.96,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(context.r(20)),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: context.w(13),
+          vertical: context.h(7),
+        ),
         decoration: BoxDecoration(
           color: isSelected ? selBg : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(context.r(20)),
           border: Border.all(
             color: isSelected ? selBg : AppTheme.borderSubtle,
             width: 1,
@@ -498,18 +513,22 @@ class AppChip extends StatelessWidget {
             if (icon != null) ...[
               Icon(
                 icon,
-                size: 15,
+                size: context.sp(14),
                 color: isSelected ? selFg : AppTheme.primaryNavy,
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: context.w(5)),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? selFg : AppTheme.textDark,
-                letterSpacing: 0.1,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: context.sp(12.5),
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? selFg : AppTheme.textDark,
+                  letterSpacing: 0.1,
+                ),
               ),
             ),
           ],

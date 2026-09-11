@@ -134,61 +134,66 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           elevation: 0,
         ),
-        body: Column(
-          children: [
-            // 4-Step Luxury Progress Bar Header
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              color: Colors.white,
-              child: Row(
-                children: [
-                  _buildStepItem(0, '1. Estimate'),
-                  _buildStepConnector(0),
-                  _buildStepItem(1, '2. Address'),
-                  _buildStepConnector(1),
-                  _buildStepItem(2, '3. Payment'),
-                  _buildStepConnector(2),
-                  _buildStepItem(3, '4. Review'),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: AppTheme.borderSubtle),
-
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                padding: const EdgeInsets.all(16),
-                child: IndexedStack(
-                  index: _currentStep,
+        body: ResponsiveConstraint(
+          child: Column(
+            children: [
+              // 4-Step Luxury Progress Bar Header
+              Container(
+                padding: EdgeInsets.symmetric(
+                  vertical: context.h(10),
+                  horizontal: context.w(12),
+                ),
+                color: Colors.white,
+                child: Row(
                   children: [
-                    _buildEstimateStep(appState, user),
-                    _buildAddressStep(user),
-                    _buildPaymentStep(),
-                    _buildReviewStep(appState, user),
+                    Expanded(child: _buildStepItem(0, '1. Estimate')),
+                    _buildStepConnector(0),
+                    Expanded(child: _buildStepItem(1, '2. Address')),
+                    _buildStepConnector(1),
+                    Expanded(child: _buildStepItem(2, '3. Payment')),
+                    _buildStepConnector(2),
+                    Expanded(child: _buildStepItem(3, '4. Review')),
                   ],
                 ),
               ),
-            ),
-          ],
+              const Divider(height: 1, color: AppTheme.borderSubtle),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.all(context.w(16)),
+                  child: IndexedStack(
+                    index: _currentStep,
+                    children: [
+                      _buildEstimateStep(appState, user),
+                      _buildAddressStep(user),
+                      _buildPaymentStep(),
+                      _buildReviewStep(appState, user),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
 
         // Bottom Navigation Bar Action
         bottomNavigationBar: Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(context.w(16)),
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, -4),
+                blurRadius: context.w(10),
+                offset: Offset(0, -context.h(4)),
               ),
             ],
           ),
           child: SafeArea(
             child: SizedBox(
               width: double.infinity,
-              height: 52,
+              height: context.h(50).clamp(44.0, 56.0),
               child: AppPressable(
                 onTap: () {
                   if (_currentStep == 0) {
@@ -222,27 +227,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: AppTheme.primaryNavy,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(context.r(12)),
                     boxShadow: [
                       BoxShadow(
                         color: AppTheme.primaryNavy.withValues(alpha: 0.25),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        blurRadius: context.w(10),
+                        offset: Offset(0, context.h(4)),
                       ),
                     ],
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    _currentStep == 0
-                        ? 'APPROVE ESTIMATE & CONTINUE →'
-                        : (_currentStep == 1
-                            ? 'CONFIRM ADDRESS & PROCEED →'
-                            : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.5,
+                  padding: EdgeInsets.symmetric(horizontal: context.w(12)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      _currentStep == 0
+                          ? 'APPROVE ESTIMATE & CONTINUE →'
+                          : (_currentStep == 1
+                              ? 'CONFIRM ADDRESS & PROCEED →'
+                              : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: context.sp(13.5),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
                 ),
@@ -258,6 +267,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildStepItem(int stepIndex, String title) {
     final isActive = _currentStep >= stepIndex;
     final isCurrent = _currentStep == stepIndex;
+    final avatarRadius = context.w(11).clamp(9.0, 14.0);
 
     return InkWell(
       onTap: () {
@@ -265,31 +275,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           _changeStep(stepIndex);
         }
       },
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(context.r(8)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: context.w(2), vertical: context.h(2)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             CircleAvatar(
-              radius: 12,
+              radius: avatarRadius,
               backgroundColor: isActive ? AppTheme.primaryNavy : Colors.grey.shade300,
               child: isCurrent
-                  ? const Icon(Icons.circle, size: 8, color: AppTheme.accentOrange)
+                  ? Icon(Icons.circle, size: context.sp(7), color: AppTheme.accentOrange)
                   : Text(
                       '${stepIndex + 1}',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: context.sp(10),
                         fontWeight: FontWeight.bold,
                         color: isActive ? Colors.white : AppTheme.textSubtle,
                       ),
                     ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: context.h(3)),
             Text(
               title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: context.sp(9.5).clamp(8.0, 11.5),
                 fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
                 color: isActive ? AppTheme.primaryNavy : AppTheme.textSubtle,
               ),
@@ -302,10 +315,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildStepConnector(int stepIndex) {
     final isActive = _currentStep > stepIndex;
-    return Expanded(
+    return SizedBox(
+      width: context.w(12).clamp(6.0, 24.0),
       child: Container(
         height: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        margin: EdgeInsets.symmetric(horizontal: context.w(1), vertical: context.h(10)),
         color: isActive ? AppTheme.primaryNavy : Colors.grey.shade300,
       ),
     );
