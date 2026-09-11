@@ -10,7 +10,9 @@ import '../screens/cart_screen.dart';
 import '../screens/favorites_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/profile/edit_profile_screen.dart';
 import '../screens/auth_screen.dart';
+import '../widgets/app_avatar_image.dart';
 
 /// Luxury Side Navigation Drawer for ITACON GRANITO
 class AppNavigationDrawer extends StatelessWidget {
@@ -40,151 +42,190 @@ class AppNavigationDrawer extends StatelessWidget {
 
             return Column(
               children: [
-              // 1. Luxury Profile Header Card
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 20,
-                  bottom: 20,
-                  left: 20,
-                  right: 20,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppTheme.primaryNavy, Color(0xFF1A3B6E)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        // Avatar Circle
-                        Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.accentOrange,
-                            border: Border.all(color: Colors.white, width: 2),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            user.initials,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              if (user.companyName.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  user.companyName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 6),
-                              // Category Badge Pill
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentOrange,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  user.userCategory.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+              // 1. Luxury Profile Header Card (Clickable to Edit Profile)
+              Material(
+                color: Colors.transparent,
+                child: Ink(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppTheme.primaryNavy, Color(0xFF1A3B6E)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 16),
-                    // Profile Completion Tracker
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      _safeCloseDrawerAndNavigate(context, () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const EditProfileScreen(),
+                          ),
+                        );
+                      });
+                    },
+                    splashColor: Colors.white.withValues(alpha: 0.12),
+                    highlightColor: Colors.white.withValues(alpha: 0.06),
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.only(
+                        top: MediaQuery.of(context).padding.top + 20,
+                        bottom: 20,
+                        left: 20,
+                        right: 20,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Rounded Orange Progress Bar
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: LinearProgressIndicator(
-                              value: completionPct / 100.0,
-                              minHeight: 6,
-                              backgroundColor:
-                                  Colors.white.withValues(alpha: 0.22),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                AppTheme.accentOrange,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          // Stats row: 60% and 6 / 10 data profile is filled in
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                '$completionPct%',
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                              // Avatar Circle
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.accentOrange,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                alignment: Alignment.center,
+                                child: ClipOval(
+                                  child: AppAvatarImage(
+                                    photoUrl: user.profilePhotoUrl ?? (user.avatarUrl.isNotEmpty ? user.avatarUrl : null),
+                                    initials: user.initials,
+                                    size: 56,
+                                    backgroundColor: AppTheme.accentOrange,
+                                    textColor: Colors.white,
+                                  ),
                                 ),
                               ),
-                              Text(
-                                '$filledCount / $totalCount data profile is filled in',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withValues(alpha: 0.85),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            user.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.18),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.edit_rounded,
+                                            size: 13,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (user.companyName.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        user.companyName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.white.withValues(alpha: 0.8),
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 6),
+                                    // Category Badge Pill
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentOrange,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        user.userCategory.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Profile Completion Tracker
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Rounded Orange Progress Bar
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: LinearProgressIndicator(
+                                    value: completionPct / 100.0,
+                                    minHeight: 6,
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.22),
+                                    valueColor: const AlwaysStoppedAnimation<Color>(
+                                      AppTheme.accentOrange,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                // Stats row: 42% and 5 / 12 data profile is filled in
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '$completionPct%',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    Text(
+                                      '$filledCount / $totalCount data profile is filled in',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
 
