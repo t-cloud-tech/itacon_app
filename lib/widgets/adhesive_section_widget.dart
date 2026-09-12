@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
 import 'interactive_pressable.dart';
+import '../utils/app_notification_utils.dart';
 import '../screens/fixing_solutions_screen.dart';
 
 /// Data model representing an ITACON High-Bond Tile Adhesive Bag Product
@@ -558,13 +559,56 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            '₹${currentPrice.toStringAsFixed(0)} / bag',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.accentOrange,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '₹${currentPrice.toStringAsFixed(0)} / bag',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.accentOrange,
+                                  ),
+                                ),
+                              ),
+                              AppPressable(
+                                onTap: () {
+                                  appState.addToCart(
+                                    tileProduct,
+                                    size: selectedWeight,
+                                    finish: adhesive.grade,
+                                    quantity: 1,
+                                  );
+                                  AppNotificationUtils.showAddToCartSnackBar(
+                                    context,
+                                    productName: adhesive.name,
+                                  );
+                                },
+                                scaleDown: 0.88,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryNavy,
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryNavy
+                                            .withValues(alpha: 0.25),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.add_shopping_cart_rounded,
+                                    size: 15,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

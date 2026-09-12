@@ -8,6 +8,10 @@ import '../services/user_session_service.dart';
 import '../widgets/adhesive_card.dart';
 import '../widgets/floating_bottom_bar.dart';
 import '../widgets/app_product_image.dart';
+import '../widgets/interactive_pressable.dart';
+import '../theme/app_theme.dart';
+import '../services/app_state_service.dart';
+import '../utils/app_notification_utils.dart';
 import 'product_detail_screen.dart';
 
 class ProductCatalogueScreen extends StatefulWidget {
@@ -428,22 +432,38 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                           color: Color(0xFF1A237E),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: product.availableStock > 0
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          product.availableStock > 0 ? 'In Stock' : 'Out of Stock',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: product.availableStock > 0
-                                ? Colors.green.shade800
-                                : Colors.red.shade800,
+                      AppPressable(
+                        onTap: () {
+                          AppStateService.instance.addToCart(
+                            product,
+                            size: product.sizeCm.isNotEmpty ? product.sizeCm : product.size,
+                            finish: product.finish,
+                            quantity: 1,
+                          );
+                          AppNotificationUtils.showAddToCartSnackBar(
+                            context,
+                            productName: product.name,
+                          );
+                        },
+                        scaleDown: 0.88,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryNavy,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryNavy.withValues(alpha: 0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.add_shopping_cart_rounded,
+                            color: Colors.white,
+                            size: 15,
                           ),
                         ),
                       ),

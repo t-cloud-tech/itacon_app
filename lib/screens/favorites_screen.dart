@@ -365,7 +365,7 @@ class FavoritesScreen extends StatelessWidget {
                                           color: AppTheme.accentOrange,
                                         ),
                                       ),
-                                      InkWell(
+                                      AppPressable(
                                         onTap: () {
                                           appState.addToCart(product);
                                           AppNotificationUtils.showAddToCartSnackBar(
@@ -373,19 +373,27 @@ class FavoritesScreen extends StatelessWidget {
                                             productName: product.name,
                                           );
                                         },
-                                        borderRadius: BorderRadius.circular(6),
+                                        scaleDown: 0.88,
+                                        borderRadius: BorderRadius.circular(8),
                                         child: Container(
-                                          padding: const EdgeInsets.all(4),
+                                          padding: const EdgeInsets.all(5),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.primaryNavy
-                                                .withValues(alpha: 0.08),
+                                            color: AppTheme.primaryNavy,
                                             borderRadius:
                                                 BorderRadius.circular(6),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppTheme.primaryNavy
+                                                    .withValues(alpha: 0.25),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                           child: const Icon(
                                             Icons.add_shopping_cart_rounded,
                                             size: 14,
-                                            color: AppTheme.primaryNavy,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ),

@@ -14,6 +14,7 @@ import '../widgets/app_navigation_drawer.dart';
 import '../widgets/adhesive_section_widget.dart';
 import '../widgets/app_product_image.dart';
 import '../widgets/interactive_pressable.dart';
+import '../utils/app_notification_utils.dart';
 import '../services/user_demand_service.dart';
 import '../services/product_catalog_service.dart';
 
@@ -737,15 +738,54 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                product.isAdhesive
-                                    ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                    : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.accentOrange,
-                                ),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      product.isAdhesive
+                                          ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                          : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.accentOrange,
+                                      ),
+                                    ),
+                                  ),
+                                  AppPressable(
+                                    onTap: () {
+                                      appState.addToCart(product);
+                                      AppNotificationUtils.showAddToCartSnackBar(
+                                        context,
+                                        productName: product.name,
+                                      );
+                                    },
+                                    scaleDown: 0.88,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryNavy,
+                                        borderRadius: BorderRadius.circular(8),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.primaryNavy
+                                                .withValues(alpha: 0.25),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_shopping_cart_rounded,
+                                        size: 15,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -1257,44 +1297,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        product.isAdhesive
-                                            ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                            : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.accentOrange,
+                                      Expanded(
+                                        child: Text(
+                                          product.isAdhesive
+                                              ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                              : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.accentOrange,
+                                          ),
                                         ),
                                       ),
                                       AppPressable(
                                         onTap: () {
                                           appState.addToCart(product);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                  '${product.name} added to cart'),
-                                              duration:
-                                                  const Duration(seconds: 2),
-                                              backgroundColor:
-                                                  AppTheme.primaryNavy,
-                                            ),
+                                          AppNotificationUtils.showAddToCartSnackBar(
+                                            context,
+                                            productName: product.name,
                                           );
                                         },
                                         scaleDown: 0.88,
                                         borderRadius: BorderRadius.circular(8),
                                         child: Container(
-                                          padding: const EdgeInsets.all(5),
+                                          padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
-                                            color: AppTheme.primaryNavy
-                                                .withValues(alpha: 0.08),
+                                            color: AppTheme.primaryNavy,
                                             borderRadius:
-                                                BorderRadius.circular(6),
+                                                BorderRadius.circular(8),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: AppTheme.primaryNavy
+                                                    .withValues(alpha: 0.25),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                           child: const Icon(
                                             Icons.add_shopping_cart_rounded,
                                             size: 15,
-                                            color: AppTheme.primaryNavy,
+                                            color: Colors.white,
                                           ),
                                         ),
                                       ),
