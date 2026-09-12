@@ -516,7 +516,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Text(
                         item.product.isAdhesive
                             ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / pi',
+                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
                         style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                       ),
                       if (resolved.hasDiscount)
@@ -835,7 +835,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             Text(
                               item.product.isAdhesive
                                   ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                                  : '₹${resolved.unitPrice.toStringAsFixed(0)} / pi',
+                                  : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
                               style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                             ),
                           ],

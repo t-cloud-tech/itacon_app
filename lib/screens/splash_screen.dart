@@ -6,9 +6,9 @@ import '../services/user_session_service.dart';
 import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
 
-/// Splash loading screen displaying ITACON GRANITO luxury branding,
-/// taglines, diagonal angled division, marble kitchen background,
-/// and performing auto-routing based on authentication and verification state.
+/// Luxury Splash Screen displaying ITACON GRANITO luxury branding,
+/// smooth curved wave division, pre-cached high-resolution visual assets,
+/// hardware-accelerated entrance animation, and seamless authentication routing.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -16,14 +16,59 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
+
+  late final AnimationController _animController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
+  bool _assetsPrecached = false;
 
   @override
   void initState() {
     super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    final curvedAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOutCubic,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(curvedAnimation);
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(curvedAnimation);
+
+    _animController.forward();
     _startSplashTimerAndRoute();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_assetsPrecached) {
+      _assetsPrecached = true;
+      try {
+        precacheImage(const AssetImage('assets/images/splash_img.jpg'), context);
+        precacheImage(const AssetImage('assets/images/splash_kitchen.jpg'), context);
+        precacheImage(const AssetImage('assets/images/itacon-logo-white.png'), context);
+        precacheImage(const AssetImage('assets/images/itacon-logo.png'), context);
+      } catch (_) {
+        // Fallback gracefully if precache fails
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
   }
 
   Future<void> _startSplashTimerAndRoute() async {
@@ -50,12 +95,12 @@ class _SplashScreenState extends State<SplashScreen> {
           targetScreen = const AuthScreen();
         }
       }
-    } catch (e) {
+    } catch (_) {
       targetScreen = const AuthScreen();
     }
 
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-    final remainingMs = 1200 - elapsedMs;
+    final remainingMs = 1800 - elapsedMs;
     if (remainingMs > 0) {
       await Future.delayed(Duration(milliseconds: remainingMs));
     }
@@ -86,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1B36),
+      backgroundColor: const Color(0xFF091528),
       body: Stack(
         children: [
           // 1. Bottom Section: Background Photo with Top Portion Visible
@@ -136,51 +181,57 @@ class _SplashScreenState extends State<SplashScreen> {
                     padding: EdgeInsets.symmetric(
                       horizontal: (screenSize.width * 0.06).clamp(16.0, 48.0),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Spacer(flex: 2),
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Spacer(flex: 2),
 
-                        // ITACON GRANITO Branding Logo (Relative units & locked aspect-ratio)
-                        _buildBrandingLogo(screenSize),
+                            // ITACON GRANITO Branding Logo (Relative units & locked aspect-ratio)
+                            _buildBrandingLogo(screenSize),
 
-                        SizedBox(
-                          height: (screenSize.height * 0.038).clamp(14.0, 36.0),
+                            SizedBox(
+                              height: (screenSize.height * 0.038).clamp(14.0, 36.0),
+                            ),
+
+                            // Tagline 1
+                            Text(
+                              'Right Choice. Right Time. Right Value.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize:
+                                    (screenSize.width * 0.046).clamp(16.0, 24.0),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.6,
+                                height: 1.2,
+                              ),
+                            ),
+
+                            SizedBox(
+                              height: (screenSize.height * 0.012).clamp(6.0, 14.0),
+                            ),
+
+                            // Tagline 2
+                            Text(
+                              'Premium Surfaces for Every Space.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize:
+                                    (screenSize.width * 0.036).clamp(13.0, 18.0),
+                                fontWeight: FontWeight.w400,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+
+                            const Spacer(flex: 3),
+                          ],
                         ),
-
-                        // Tagline 1
-                        Text(
-                          'Right Choice. Right Time. Right Value.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize:
-                                (screenSize.width * 0.046).clamp(16.0, 24.0),
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.6,
-                            height: 1.2,
-                          ),
-                        ),
-
-                        SizedBox(
-                          height: (screenSize.height * 0.012).clamp(6.0, 14.0),
-                        ),
-
-                        // Tagline 2
-                        Text(
-                          'Premium Surfaces for Every Space.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.85),
-                            fontSize:
-                                (screenSize.width * 0.036).clamp(13.0, 18.0),
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-
-                        const Spacer(flex: 3),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -255,5 +306,3 @@ class CurvedWaveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
-
-

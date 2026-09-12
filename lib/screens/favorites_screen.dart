@@ -158,7 +158,7 @@ class FavoritesScreen extends StatelessWidget {
                                   Text(
                                     product.isAdhesive
                                         ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                        : '₹${product.basePrice.toStringAsFixed(0)} / pi',
+                                        : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
                                     style: GoogleFonts.inter(
                                       fontSize: 14.5,
                                       fontWeight: FontWeight.w800,
@@ -358,7 +358,7 @@ class FavoritesScreen extends StatelessWidget {
                                       Text(
                                         product.isAdhesive
                                             ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                            : '₹${product.basePrice.toStringAsFixed(0)} / pi',
+                                            : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
                                         style: GoogleFonts.inter(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w800,

@@ -74,6 +74,8 @@ flutter:
     - assets/images/Home/
     - assets/images/Home/Shop_by_space/
     - assets/images/adhesives/
+    - assets/images/tiles/
+    - assets/images/mockups/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

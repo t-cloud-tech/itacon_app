@@ -301,6 +301,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     },
                     itemBuilder: (context, index) {
                       final img = _activeImages[index];
+                      // If in mockup mode and this image is the tile face image (not a room mockup render), show 4-tile floor layout
+                      if (_isMockupMode && img.contains('tiles/') && !img.contains('mockup')) {
+                        return _buildFloorTiledMockup(img, calculatedFrameHeight);
+                      }
                       return InteractiveViewer(
                         minScale: 1.0,
                         maxScale: 4.0,
@@ -403,67 +407,110 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
-                // Size Watermark Badge (Bottom Left)
+                // Unified Bottom Info & Counter Overlay Bar (Guaranteed Zero Overlap on Any Device)
                 Positioned(
                   bottom: 12,
                   left: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryNavy.withValues(alpha: 0.85),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                  right: 12,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Context Watermark Badge (Tile Size & Face / Room Scene)
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryNavy.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _isMockupMode
+                                    ? (_currentImageIndex == 0
+                                        ? Icons.meeting_room_rounded
+                                        : Icons.grid_4x4_rounded)
+                                    : Icons.aspect_ratio_rounded,
+                                color: AppTheme.accentOrange,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  _isMockupMode
+                                      ? (_currentImageIndex == 0
+                                          ? '3D Room Scene Mockup'
+                                          : 'Floor Layout (4 Tiles)')
+                                      : (_activeImages.length > 1
+                                          ? '${TileDimensionHelper.getFormattedWatermark(_selectedSize, category: _product.tileCategory)} • Face ${_currentImageIndex + 1}'
+                                          : TileDimensionHelper.getFormattedWatermark(
+                                              _selectedSize,
+                                              category: _product.tileCategory)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.aspect_ratio_rounded,
-                            color: AppTheme.accentOrange, size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          TileDimensionHelper.getFormattedWatermark(
-                              _selectedSize,
-                              category: _product.tileCategory),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                      ),
+
+                      // Photo Counter Badge (Right)
+                      if (_activeImages.length > 1) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.photo_library_outlined,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_currentImageIndex + 1}/${_activeImages.length}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
                 ),
-
-                // Photo Counter Badge (Bottom Right)
-                if (_activeImages.length > 1)
-                  Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.65),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${_currentImageIndex + 1}/${_activeImages.length}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
 
@@ -550,7 +597,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 children: [
                                    if (resolved.hasDiscount && !isAdhesive)
                                     Text(
-                                      '₹${resolved.basePrice.toStringAsFixed(0)} / pi',
+                                      '₹${resolved.basePrice.toStringAsFixed(0)} / sq ft',
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: Colors.grey,
@@ -566,7 +613,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     child: Text(
                                       isAdhesive
                                           ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
-                                          : '₹${resolved.unitPrice.toStringAsFixed(0)} / pi',
+                                          : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w800,
@@ -940,10 +987,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const SizedBox(width: 14),
 
-              // Add to PO / Cart Button with Micro-Press Animation
+              // Add to Cart Button with Micro-Press Animation
               Expanded(
                 child: AppButton(
-                  text: 'Add to PO / Cart',
+                  text: 'Add to Cart',
                   icon: Icons.shopping_bag_outlined,
                   height: 48,
                   variant: AppButtonVariant.primary,
@@ -1007,10 +1054,69 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  /// Renders a realistic 4-tile floor installation mockup displaying the actual tile from Excel
+  Widget _buildFloorTiledMockup(String tileImagePath, double frameHeight) {
+    final tileAspectRatio = TileDimensionHelper.calculateTileAspectRatio(_selectedSize);
+
+    return InteractiveViewer(
+      minScale: 1.0,
+      maxScale: 4.0,
+      panEnabled: true,
+      clipBehavior: Clip.hardEdge,
+      child: Stack(
+        children: [
+          // 4-Tile Floor Grid with Realistic 2.5mm Grout Joints
+          Positioned.fill(
+            child: Container(
+              color: const Color(0xFFD6D3D1), // Realistic 2mm light stone-grey grout line
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(2.5),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 2.5,
+                  mainAxisSpacing: 2.5,
+                  childAspectRatio: tileAspectRatio,
+                ),
+                itemCount: 4,
+                itemBuilder: (context, index) {
+                  return AppProductImage(
+                    imagePath: tileImagePath,
+                    fit: BoxFit.cover,
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // Ambient Floor Reflection & Vignette
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.08),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.15),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+        ],
+      ),
+    );
+  }
+
   Widget _buildThumbnailSelector(List<String> images) {
     if (images.length <= 1) return const SizedBox.shrink();
 
-    final roomLabels = const ['Living', 'Bath', 'Bedroom', 'Foyer', 'Lobby'];
+    final roomLabels = const ['Floor Mockup', 'Living Room', 'Bathroom', 'Bedroom', 'Foyer', 'Lobby'];
 
     return Container(
       height: 84,
@@ -1058,7 +1164,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               itemBuilder: (context, index) {
                 final isSelected = _currentImageIndex == index;
                 final label = _isMockupMode
-                    ? (index < roomLabels.length ? roomLabels[index] : 'Room ${index + 1}')
+                    ? (images[index].contains('mockup')
+                        ? 'Room View'
+                        : (images[index].contains('tiles')
+                            ? 'Floor Grid'
+                            : (index < roomLabels.length ? roomLabels[index] : 'Room ${index + 1}')))
                     : 'Face ${index + 1}';
 
                 return GestureDetector(
@@ -1143,12 +1253,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text(label, style: const TextStyle(color: AppTheme.textSubtle, fontSize: 13)),
           ],
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textDark,
-            fontSize: 13,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textDark,
+              fontSize: 13,
+            ),
           ),
         ),
       ],
@@ -1167,27 +1283,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Text('Base Colour', style: TextStyle(color: AppTheme.textSubtle, fontSize: 13)),
           ],
         ),
-        Row(
-          children: [
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: dotColor,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.grey.shade400, width: 1),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.shade400, width: 1),
+                ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              colorName,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
-                fontSize: 13,
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  colorName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                    fontSize: 13,
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

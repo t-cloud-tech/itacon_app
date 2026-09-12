@@ -11,6 +11,7 @@ class AppProductImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
   final Widget? fallback;
+  final int? cacheWidth;
 
   const AppProductImage({
     super.key,
@@ -19,6 +20,7 @@ class AppProductImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.fallback,
+    this.cacheWidth,
   });
 
   @override
@@ -27,12 +29,16 @@ class AppProductImage extends StatelessWidget {
       return _buildFallback();
     }
 
-    // Adaptive decode cache dimension (only computed for finite dimensions)
-    int? effectiveCacheWidth;
-    if (width != null && width!.isFinite && width! > 0) {
-      effectiveCacheWidth = (width! * 2.0).round().clamp(160, 800);
-    } else if (height != null && height!.isFinite && height! > 0) {
-      effectiveCacheWidth = (height! * 2.0).round().clamp(160, 800);
+    // Adaptive decode cache dimension to optimize GPU RAM on all Android phones
+    int? effectiveCacheWidth = cacheWidth;
+    if (effectiveCacheWidth == null) {
+      if (width != null && width!.isFinite && width! > 0) {
+        effectiveCacheWidth = (width! * 2.0).round().clamp(160, 900);
+      } else if (height != null && height!.isFinite && height! > 0) {
+        effectiveCacheWidth = (height! * 2.0).round().clamp(160, 900);
+      } else {
+        effectiveCacheWidth = 600;
+      }
     }
 
     // 1. Network Image

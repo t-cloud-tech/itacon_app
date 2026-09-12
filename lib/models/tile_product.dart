@@ -125,20 +125,26 @@ class TileProduct {
     ];
   }
 
-  /// Resolved list of architectural room mockups (Living Room, Bath, Bedroom)
+  /// Resolved list of architectural room mockups (Official Room Mockup from Excel + Floor Installation Mockup)
   List<String> get resolvedMockupImages {
+    final list = <String>[];
     if (mockupImages != null && mockupImages!.isNotEmpty) {
-      return mockupImages!;
+      list.addAll(mockupImages!);
     }
     if (lifestyleImages.isNotEmpty) {
-      return lifestyleImages;
+      list.addAll(lifestyleImages);
     }
-    // Curated high-resolution architectural interior mockups
-    return const [
-      'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=80', // Living Room
-      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80', // Luxury Bathroom
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1000&q=80', // Modern Bedroom
-    ];
+    final tileImg = images.isNotEmpty ? images.first : '';
+    if (tileImg.isNotEmpty && !list.contains(tileImg)) {
+      list.add(tileImg);
+    }
+    if (list.isEmpty) {
+      list.addAll(const [
+        'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=80',
+        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80',
+      ]);
+    }
+    return list;
   }
 
   bool get isAdhesive =>

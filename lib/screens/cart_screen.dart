@@ -294,16 +294,16 @@ class CartScreen extends StatelessWidget {
                                                   ),
                                                   const SizedBox(width: 4),
                                                 ],
-                                                Text(
-                                                  item.product.isAdhesive
-                                                      ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
-                                                      : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/pc',
-                                                  style: GoogleFonts.inter(
-                                                    fontSize: context.sp(14.5),
-                                                    fontWeight: FontWeight.w800,
-                                                    color: AppTheme.accentOrange,
+                                                  Text(
+                                                    item.product.isAdhesive
+                                                        ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
+                                                        : '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/sq ft',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: context.sp(14.5),
+                                                      fontWeight: FontWeight.w800,
+                                                      color: AppTheme.accentOrange,
+                                                    ),
                                                   ),
-                                                ),
                                               ],
                                             );
                                           },

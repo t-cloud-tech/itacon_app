@@ -24,6 +24,7 @@ import '../models/client_assignment.dart';
 import '../models/promotion_model.dart';
 import '../models/system_config_model.dart';
 import '../models/festival_greeting.dart';
+import 'product_catalog_service.dart';
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
@@ -811,73 +812,9 @@ class FirestoreService {
     );
     await saveProductCategory(cat);
 
-    final sampleTiles = [
-      TileProduct(
-        id: 'TILE_STATUARIO_01',
-        name: 'Statuario Marble White',
-        size: '600x1200',
-        surface: 'High Gloss',
-        color: 'White',
-        pattern: 'Marble',
-        collection: 'Royal Statuario 2026',
-        finish: 'Polished',
-        bodyType: 'Porcelain',
-        thickness: '9mm',
-        randomPattern: '6 Faces',
-        priceCategory: 'Premium',
-        shade: 'Light',
-        basePrice: 65.0,
-        moq: 20,
-        stockStatus: 'available',
-        availableQuantity: 1200,
-        images: ['https://example.com/tiles/statuario_hd.jpg'],
-      ),
-      TileProduct(
-        id: 'TILE_CARVING_GREY_02',
-        name: 'Armani Grey Carving',
-        size: '800x1600',
-        surface: 'Carving',
-        color: 'Grey',
-        pattern: 'Stone',
-        collection: 'Grand Slab Series',
-        finish: 'Matt Carving',
-        bodyType: 'Vitrified',
-        thickness: '12mm',
-        randomPattern: '4 Faces',
-        priceCategory: 'Premium',
-        shade: 'Medium',
-        basePrice: 85.0,
-        moq: 15,
-        stockStatus: 'available',
-        availableQuantity: 800,
-        images: ['https://example.com/tiles/armani_grey_hd.jpg'],
-      ),
-      TileProduct(
-        id: 'TILE_WOOD_BEIGE_03',
-        name: 'Oak Wood Plank',
-        size: '200x1200',
-        surface: 'Matt',
-        color: 'Brown',
-        pattern: 'Wood',
-        collection: 'Natural Timber Planks',
-        finish: 'Rustic',
-        bodyType: 'Porcelain',
-        thickness: '9mm',
-        randomPattern: '8 Faces',
-        priceCategory: 'Standard',
-        shade: 'Medium',
-        basePrice: 55.0,
-        moq: 30,
-        stockStatus: 'made_to_order',
-        availableQuantity: 0,
-        images: ['https://example.com/tiles/oak_wood_hd.jpg'],
-      ),
-    ];
-
-    for (var t in sampleTiles) {
+    for (var t in ProductCatalogService.allCatalogProducts) {
       await saveTileProduct(t);
     }
-    await seedAdhesiveProducts();
   }
 
   Future<void> seedAdhesiveProducts() async {

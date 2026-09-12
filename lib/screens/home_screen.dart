@@ -740,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 product.isAdhesive
                                     ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                    : '₹${product.basePrice.toStringAsFixed(0)} / pi',
+                                    : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
@@ -1260,7 +1260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         product.isAdhesive
                                             ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                            : '₹${product.basePrice.toStringAsFixed(0)} / pi',
+                                            : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w800,

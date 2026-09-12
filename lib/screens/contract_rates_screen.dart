@@ -195,7 +195,7 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Approved Contract Pricing (₹/pc) • Territory: ${profile.region}',
+                    'Approved Contract Pricing (₹/sq ft) • Territory: ${profile.region}',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.8),
@@ -321,7 +321,7 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                                   Expanded(
                                     flex: 2,
                                     child: Text(
-                                      '₹${r.mrp.toStringAsFixed(0)}/pc',
+                                      '₹${r.mrp.toStringAsFixed(0)}/sq ft',
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontSize: 12,
@@ -333,7 +333,7 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                                   Expanded(
                                     flex: 2,
                                     child: Text(
-                                      '₹${r.contractRate.toStringAsFixed(0)}/pc',
+                                      '₹${r.contractRate.toStringAsFixed(0)}/sq ft',
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
                                         fontSize: 13,

@@ -7,6 +7,8 @@ import 'auth_screen.dart';
 import '../services/user_session_service.dart';
 import '../widgets/adhesive_card.dart';
 import '../widgets/floating_bottom_bar.dart';
+import '../widgets/app_product_image.dart';
+import 'product_detail_screen.dart';
 
 class ProductCatalogueScreen extends StatefulWidget {
   const ProductCatalogueScreen({super.key});
@@ -324,55 +326,39 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
     if (product.isAdhesive) {
       return AdhesiveCard(product: product);
     }
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProductDetailScreen(product: product),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image / Tile Placeholder Header
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.indigo.shade50, Colors.indigo.shade100],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Real Tile Image Showcase Header
+            Expanded(
               child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.space_dashboard_rounded,
-                          size: 40,
-                          color: Color(0xFF1A237E),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          product.sku,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A237E),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
+                  AppProductImage(
+                    imagePath: product.images.isNotEmpty ? product.images.first : '',
+                    fit: BoxFit.cover,
                   ),
                   Positioned(
                     top: 8,
@@ -396,74 +382,78 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                 ],
               ),
             ),
-          ),
 
-          // Details Section
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
+            // Details Section
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.aspect_ratio_rounded, size: 13, color: Colors.grey.shade600),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${product.sizeCm} • ${product.thicknessMm}mm',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      product.isAdhesive
-                          ? '₹${product.basePricePerPiece.toStringAsFixed(0)}/bag'
-                          : '₹${product.basePricePerPiece.toStringAsFixed(0)}/pc',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A237E),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: product.availableStock > 0
-                            ? Colors.green.shade50
-                            : Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        product.availableStock > 0 ? 'In Stock' : 'Out of Stock',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: product.availableStock > 0
-                              ? Colors.green.shade800
-                              : Colors.red.shade800,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.aspect_ratio_rounded, size: 13, color: Colors.grey.shade600),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${product.sizeCm} • ${product.thicknessMm}mm',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        product.isAdhesive
+                            ? '₹${product.basePricePerPiece.toStringAsFixed(0)}/bag'
+                            : '₹${product.basePricePerPiece.toStringAsFixed(0)}/sq ft',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A237E),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: product.availableStock > 0
+                              ? Colors.green.shade50
+                              : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          product.availableStock > 0 ? 'In Stock' : 'Out of Stock',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: product.availableStock > 0
+                                ? Colors.green.shade800
+                                : Colors.red.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

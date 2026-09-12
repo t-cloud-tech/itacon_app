@@ -1,0 +1,2017 @@
+[
+  {
+    "row": 2,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-001",
+    "name": "001-ADLINE SATUARIO",
+    "shortCode": "00-001",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-001_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-001_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 3,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-002",
+    "name": "ITA 002-PERCIANO",
+    "shortCode": "00-002",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face5.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face6.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face5.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-002_face6.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-002_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 4,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-003",
+    "name": "ITA 003-MG SILVER SATUARIO",
+    "shortCode": "00-003",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-003_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-003_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-003_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-003_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-003_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-003_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-003_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 5,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-004",
+    "name": "ITA 004-MG VERSO SATUARIO",
+    "shortCode": "00-004",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-004_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-004_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-004_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-004_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-004_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-004_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-004_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 6,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-005",
+    "name": "ITA 005-MG OIKOS BLUE",
+    "shortCode": "00-005",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face5.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face6.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face5.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-005_face6.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-005_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 7,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-006",
+    "name": "ITA 006-MG ASHER GREY",
+    "shortCode": "00-006",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Light Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-006_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-006_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 8,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-007",
+    "name": "ITA 007-MG ASHER GRIS",
+    "shortCode": "00-007",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Dark Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-007_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-007_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 9,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-008",
+    "name": "ITA 008-MG LEAVES BLUE",
+    "shortCode": "00-008",
+    "surface": "Glossy",
+    "collection": "Décor - Endless",
+    "baseColour": "Blue",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-008_face1.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-008_face1.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-008_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 10,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-009",
+    "name": "ITA 009-MG LEAVES BROWN",
+    "shortCode": "00-009",
+    "surface": "Glossy",
+    "collection": "Décor - Endless",
+    "baseColour": "Brown",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Walla",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-009_face1.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-009_face1.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-009_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 11,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-010",
+    "name": "ITA 010-MG OMANI BEIGE",
+    "shortCode": "00-010",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Beige",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-010_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-010_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 12,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-011",
+    "name": "ITA 011-MG PIGUES NATURAL",
+    "shortCode": "00-011",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-011_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-011_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 13,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-012",
+    "name": "ITA 012-MG SPANISH CREMA",
+    "shortCode": "00-012",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Crema",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-012_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-012_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 14,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-013",
+    "name": "ITA 013-MG SPANISH GREY",
+    "shortCode": "00-013",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-013_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-013_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 15,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-014",
+    "name": "ITA 014-DYNA CLASSIC IVORY",
+    "shortCode": "00-014",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Ivory",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-014_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-014_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-014_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-014_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-014_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-014_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-014_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 16,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-015",
+    "name": "ITA 015-ERIAM BIANCO",
+    "shortCode": "00-015",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-015_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-015_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 17,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-016",
+    "name": "ITA 016-ERIAM NATURAL",
+    "shortCode": "00-016",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Taupe",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-016_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-016_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 18,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-017",
+    "name": "ITA 017-LAVANTA",
+    "shortCode": "00-017",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Beige",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-017.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-017.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 19,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-018",
+    "name": "ITA 018-MORADIYA BEIGE",
+    "shortCode": "00-018",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Beige",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-018_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-018_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 20,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-019",
+    "name": "ITA 019-MORADIYA IVORY",
+    "shortCode": "00-019",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Ivory",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-019_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-019_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 21,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-020",
+    "name": "ITA 020-VENUS",
+    "shortCode": "00-020",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Creama",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-020_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-020_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 22,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-021",
+    "name": "ITA 021-MG AXOR BEIGE",
+    "shortCode": "00-021",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Beige",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-021_face1.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-021_face1.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-021_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 23,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-022",
+    "name": "ITA 022-MG AXOR GREY",
+    "shortCode": "00-022",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-022_face1.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-022_face1.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-022_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 24,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-023",
+    "name": "ITA 023-MG KERRELL BLUE",
+    "shortCode": "00-023",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Blue",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-023_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-023_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-023_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-023_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-023_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-023_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-023_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 25,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-024",
+    "name": "TA 024-MG MORIS GOLD",
+    "shortCode": "00-024",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-024_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-024_face2.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-024_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-024_face2.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-024_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 26,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-025",
+    "name": "ITA 025-MG PANOZZO GREEN",
+    "shortCode": "00-025",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-025_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-025_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-025_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-025_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-025_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-025_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-025_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 27,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-026",
+    "name": "ITA 026-MG OLKOS AQUA",
+    "shortCode": "00-026",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-026.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-026.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 28,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-027",
+    "name": "ITA 027-BROOKS AQUA",
+    "shortCode": "00-027",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-027.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-027.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-027_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 29,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-028",
+    "name": "ITA 028-MG BIJOX BLUE",
+    "shortCode": "00-028",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-028.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-028.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-028_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 30,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-029",
+    "name": "ITA 029-EMPRO PATARA BIANCO",
+    "shortCode": "00-029",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-029.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-029.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-029_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 31,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-030",
+    "name": "ITA 030-ICONIC WHITE",
+    "shortCode": "00-030",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Brown",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-030_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-030_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 32,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-031",
+    "name": "031-MG ATOMOS GREEN",
+    "shortCode": "00-031",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Aqua",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-031_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-031_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 33,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-032",
+    "name": "032-MG QUIPAR WHITE",
+    "shortCode": "00-032",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-032_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-032_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-032_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-032_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-032_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-032_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-032_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 34,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-033",
+    "name": "033-MG ELDORADO GOLD",
+    "shortCode": "00-033",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-033_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-033_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 35,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-034",
+    "name": "ITA 034-MG KERRELL AQUA",
+    "shortCode": "00-034",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Aqua",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-034_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-034_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 36,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-035",
+    "name": "ITA 035-MG ATOMOS GREY",
+    "shortCode": "00-035",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-035_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-035_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 37,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-036",
+    "name": "036-GRAND CLASSIC BLUE",
+    "shortCode": "00-036",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Blue",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-036_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-036_face2.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-036_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-036_face2.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-036_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 38,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-037",
+    "name": "037-MG AMAZING NATURAL",
+    "shortCode": "00-037",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-037.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-037.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 39,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-038",
+    "name": "038-MG ARISTONE WHITE",
+    "shortCode": "00-038",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-038_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-038_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 40,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-039",
+    "name": "039-MG AQUANE SATUARIO",
+    "shortCode": "00-039",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-039_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-039_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-039_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-039_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-039_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-039_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-039_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 41,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-040",
+    "name": "040-MG MAR STATUARIO",
+    "shortCode": "00-040",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-040_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-040_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-040_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-040_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-040_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-040_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-040_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 42,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-041",
+    "name": "041-MG HYBRID GOLD",
+    "shortCode": "00-041",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-041_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-041_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 43,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-042",
+    "name": "042-MG LIMA GREY",
+    "shortCode": "00-042",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Grery",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-042_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-042_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-042_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-042_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-042_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-042_face3.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 44,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-043",
+    "name": "043-STATUARIO GREY",
+    "shortCode": "00-043",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face5.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-043_face5.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-043_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 45,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-044",
+    "name": "044-MG MOTRICO ONYX SKY",
+    "shortCode": "00-044",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Aqua",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-044_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-044_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 46,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-045",
+    "name": "ITA 045-MG ADRINA STATUARIO GOLD",
+    "shortCode": "00-045",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-045_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-045_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 47,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-046",
+    "name": "046-MG ABSTRACT BLUE",
+    "shortCode": "00-046",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Blue",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-046_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-046_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 48,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-047",
+    "name": "ITA 047-MG ANTRESIT DOVE",
+    "shortCode": "00-047",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-047_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-047_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-047_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-047_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-047_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-047_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-047_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 49,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-048",
+    "name": "ITA 048-MG ATOMOS BLUE",
+    "shortCode": "00-048",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Blue",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-048_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-048_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 50,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-049",
+    "name": "ITA 049-DYNA BROWN",
+    "shortCode": "00-049",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Beige",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-049_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-049_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-049_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-049_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-049_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-049_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-049_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 51,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-050",
+    "name": "050-HARVEST BIANCO",
+    "shortCode": "00-050",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-050_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-050_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 52,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-051",
+    "name": "051-MG ELDORADO GREY",
+    "shortCode": "00-051",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-051.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-051.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 53,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-052",
+    "name": "052-GLITER CREMA",
+    "shortCode": "00-052",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Crema",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-052.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-052.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 54,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-053",
+    "name": "053-CRISTAL BIANCO",
+    "shortCode": "00-053",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-053.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-053.jpeg"
+    ],
+    "mockupImages": []
+  },
+  {
+    "row": 55,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-054",
+    "name": "054-MG ASHER BROWN",
+    "shortCode": "00-054",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Dark Brown",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-054_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-054_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 56,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-055",
+    "name": "055-TESSINO PIETRA BIANCO",
+    "shortCode": "00-055",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-055_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-055_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 57,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-056",
+    "name": "056-TESSINO PIETRA GREY",
+    "shortCode": "00-056",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-056_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-056_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 58,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-057",
+    "name": "057-ONYX REX PERLE",
+    "shortCode": "00-057",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "Grey Onyx",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face5.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face4.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-057_face5.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-057_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 59,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-058",
+    "name": "058-MG ASHER IVORY",
+    "shortCode": "00-058",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Ivory",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-058_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-058_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 60,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-059",
+    "name": "ITA 059-MG LIMA BIANCO",
+    "shortCode": "00-059",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-059_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-059_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-059_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-059_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-059_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-059_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-059_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 61,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-060",
+    "name": "Super White",
+    "shortCode": "00-060",
+    "surface": "Glossy",
+    "collection": "Plain Colors",
+    "baseColour": "White",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-060_face1.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-060_face1.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-060_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 62,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-061",
+    "name": "061-MG SF 1025",
+    "shortCode": "00-061",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-061_face1.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-061_face1.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-061_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 63,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-062",
+    "name": "062-MG MODERN BIANCO",
+    "shortCode": "00-062",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-062_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-062_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-062_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-062_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-062_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-062_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-062_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 64,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-063",
+    "name": "ITA 063-MG MODERN GREY",
+    "shortCode": "00-063",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Grey",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-063_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-063_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-063_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-063_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-063_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-063_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-063_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 65,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-064",
+    "name": "ITA 064-OCEAN WHITE",
+    "shortCode": "00-064",
+    "surface": "Glossy",
+    "collection": "Marble - Random",
+    "baseColour": "White Statuario",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-064_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-064_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-064_face3.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-064_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-064_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-064_face3.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-064_mockup.jpeg"
+    ]
+  },
+  {
+    "row": 66,
+    "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-065",
+    "name": "ITA 065-MG FLAKSH BIANCO",
+    "shortCode": "00-065",
+    "surface": "Glossy",
+    "collection": "Marble - Endless",
+    "baseColour": "Bianco",
+    "thickness": "8.5 mm",
+    "thicknessNum": 8.5,
+    "price": 35,
+    "boxWeight": 27,
+    "pcsPerBox": 2,
+    "coverageSqFt": 15.5,
+    "moq": 100,
+    "stockQty": 100,
+    "spacesRaw": "Floors\\Walls",
+    "images": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face4.jpeg"
+    ],
+    "faceImages": [
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face1.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face2.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face3.jpeg",
+      "assets/images/tiles/VIT-60120-8.50-GLO-MAR-WHIT-00-065_face4.jpeg"
+    ],
+    "mockupImages": [
+      "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-065_mockup.jpeg"
+    ]
+  }
+]
