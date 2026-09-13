@@ -137,11 +137,27 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
   Color _getColorForBaseName(String colorName) {
     switch (colorName) {
       case 'White':
+      case 'White Statuario':
         return Colors.white;
-      case 'Beige - Brown':
-        return const Color(0xFFD7CCC8);
-      case 'Bianco - Grey':
-        return const Color(0xFFCFD8DC);
+      case 'Bianco':
+        return const Color(0xFFF5F5F0);
+      case 'Grey':
+      case 'Light Grey':
+        return const Color(0xFF9E9E9E);
+      case 'Dark Grey':
+        return const Color(0xFF616161);
+      case 'Beige':
+        return const Color(0xFFD2B48C);
+      case 'Crema':
+        return const Color(0xFFFFFDD0);
+      case 'Ivory':
+        return const Color(0xFFFFFFF0);
+      case 'Brown':
+        return const Color(0xFF795548);
+      case 'Blue':
+        return const Color(0xFF1976D2);
+      case 'Aqua':
+        return const Color(0xFF00BCD4);
       case 'Nero':
       case 'Black':
         return Colors.black;
@@ -382,7 +398,9 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                       final dotColor = _getColorForBaseName(col);
                       return FilterChip(
                         showCheckmark: selected,
-                        checkmarkColor: selected && col == 'White' ? AppTheme.primaryNavy : Colors.white,
+                        checkmarkColor: selected && (col == 'White' || col == 'Bianco' || col == 'Ivory' || col == 'Crema')
+                            ? AppTheme.primaryNavy
+                            : Colors.white,
                         avatar: Container(
                           width: 14,
                           height: 14,

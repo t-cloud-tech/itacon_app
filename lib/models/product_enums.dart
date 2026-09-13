@@ -88,13 +88,17 @@ class ProductEnums {
     'Pastel Colors',
   ];
 
-  // Base Colours
+  // Base Colours (Derived from production tile catalog)
   static const List<String> baseColours = [
     'White',
-    'Beige - Brown',
-    'Bianco - Grey',
-    'Nero',
-    'Black',
+    'Grey',
+    'Beige',
+    'Bianco',
+    'Brown',
+    'Blue',
+    'Aqua',
+    'Crema',
+    'Ivory',
   ];
 
   // Spaces
@@ -105,16 +109,12 @@ class ProductEnums {
     'Outdoor',
   ];
 
-  // Collections
+  // Design Collections (Derived from production tile catalog)
   static const List<String> collections = [
-    'Endless',
-    'Marbles',
-    'Golden',
-    'Terrazzo',
-    '3D',
-    'Book Match',
-    'Wall Decore',
-    'Moracan',
+    'Marble - Endless',
+    'Marble - Random',
+    'Décor - Endless',
+    'Plain Colors',
   ];
 
   // Product Types
