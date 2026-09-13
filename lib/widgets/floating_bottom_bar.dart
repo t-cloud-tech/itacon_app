@@ -84,9 +84,9 @@ class FloatingBottomBar extends StatelessWidget {
 
                 final itemWidth = totalWidth / itemCount;
                 final safeCurrentIndex = currentIndex.clamp(0, itemCount - 1);
-                final pillWidth = math.min(itemWidth * 0.75, context.w(50)).clamp(36.0, 56.0);
-                final pillHeight = context.h(29).clamp(24.0, 34.0);
-                final pillTop = context.h(8).clamp(5.0, 12.0);
+                final pillHeight = context.h(32).clamp(30.0, 36.0);
+                final pillWidth = math.min(itemWidth * 0.72, context.w(52)).clamp(44.0, 56.0);
+                final pillTop = context.h(6).clamp(5.0, 9.0);
                 final pillLeft =
                     safeCurrentIndex * itemWidth + (itemWidth - pillWidth) / 2;
 
@@ -95,8 +95,8 @@ class FloatingBottomBar extends StatelessWidget {
                   children: [
                     // Moving Orange Highlight Pill Indicator (around icon only)
                     AnimatedPositioned(
-                      duration: const Duration(milliseconds: 480),
-                      curve: Curves.easeInOutCubicEmphasized,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeInOutCubic,
                       left: pillLeft,
                       top: pillTop,
                       width: pillWidth,
@@ -104,9 +104,9 @@ class FloatingBottomBar extends StatelessWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppTheme.accentOrange.withValues(alpha: 0.20),
-                          borderRadius: BorderRadius.circular(context.r(16)),
+                          borderRadius: BorderRadius.circular(pillHeight / 2),
                           border: Border.all(
-                            color: AppTheme.accentOrange.withValues(alpha: 0.35),
+                            color: AppTheme.accentOrange.withValues(alpha: 0.38),
                             width: 1,
                           ),
                         ),
@@ -116,7 +116,7 @@ class FloatingBottomBar extends StatelessWidget {
                     // Row of Nav Bar Items
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: List.generate(itemCount, (index) {
                         final item = items[index];
                         final isSelected = index == safeCurrentIndex;
@@ -127,6 +127,7 @@ class FloatingBottomBar extends StatelessWidget {
                             isSelected: isSelected,
                             pillWidth: pillWidth,
                             pillHeight: pillHeight,
+                            pillTop: pillTop,
                             onTap: () {
                               HapticFeedback.selectionClick();
                               onTap(index);
@@ -258,6 +259,7 @@ class _NavBarItemWidget extends StatelessWidget {
   final bool isSelected;
   final double pillWidth;
   final double pillHeight;
+  final double pillTop;
   final VoidCallback onTap;
 
   const _NavBarItemWidget({
@@ -265,6 +267,7 @@ class _NavBarItemWidget extends StatelessWidget {
     required this.isSelected,
     required this.pillWidth,
     required this.pillHeight,
+    required this.pillTop,
     required this.onTap,
   });
 
@@ -277,113 +280,112 @@ class _NavBarItemWidget extends StatelessWidget {
       onTap: onTap,
       scaleDown: 0.94,
       borderRadius: BorderRadius.circular(context.r(16)),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                SizedBox(
-                  width: pillWidth,
-                  height: pillHeight,
-                  child: Center(
-                    child: AnimatedScale(
-                      scale: isSelected ? 1.15 : 1.0,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOutBack,
-                      child: item.customBuilder != null
-                          ? item.customBuilder!(isSelected)
-                          : AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 200),
-                              transitionBuilder: (child, anim) => ScaleTransition(
-                                scale: anim,
-                                child: child,
-                              ),
-                              child: Icon(
-                                isSelected ? (item.activeIcon ?? item.icon) : item.icon,
-                                key: ValueKey<bool>(isSelected),
-                                size: 22,
-                                color: isSelected
-                                    ? AppTheme.accentOrange
-                                    : Colors.white.withValues(alpha: 0.70),
-                              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(height: pillTop),
+          Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              SizedBox(
+                width: pillWidth,
+                height: pillHeight,
+                child: Center(
+                  child: AnimatedScale(
+                    scale: isSelected ? 1.08 : 1.0,
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeInOutCubic,
+                    child: item.customBuilder != null
+                        ? item.customBuilder!(isSelected)
+                        : AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            transitionBuilder: (child, anim) => ScaleTransition(
+                              scale: anim,
+                              child: child,
                             ),
-                    ),
+                            child: Icon(
+                              isSelected ? (item.activeIcon ?? item.icon) : item.icon,
+                              key: ValueKey<bool>(isSelected),
+                              size: 22,
+                              color: isSelected
+                                  ? AppTheme.accentOrange
+                                  : Colors.white.withValues(alpha: 0.70),
+                            ),
+                          ),
                   ),
                 ),
-                if (item.badgeCount > 0)
-                  Positioned(
-                    top: -context.h(2),
-                    right: context.w(1),
-                    child: AnimatedScale(
-                      scale: 1.0,
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutBack,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.w(3.5),
-                          vertical: context.h(1.5),
+              ),
+              if (item.badgeCount > 0)
+                Positioned(
+                  top: -context.h(2),
+                  right: context.w(1),
+                  child: AnimatedScale(
+                    scale: 1.0,
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.w(3.5),
+                        vertical: context.h(1.5),
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentOrange,
+                        borderRadius: BorderRadius.circular(context.r(10)),
+                        border: Border.all(
+                          color: AppTheme.primaryNavy,
+                          width: 1.2,
                         ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange,
-                          borderRadius: BorderRadius.circular(context.r(10)),
-                          border: Border.all(
-                            color: AppTheme.primaryNavy,
-                            width: 1.2,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.40),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.accentOrange.withValues(alpha: 0.40),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
-                            ),
-                          ],
+                        ],
+                      ),
+                      constraints: BoxConstraints(
+                        minWidth: context.w(15),
+                        minHeight: context.w(15),
+                      ),
+                      child: Text(
+                        item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: badgeFontSize,
+                          fontWeight: FontWeight.w700,
                         ),
-                        constraints: BoxConstraints(
-                          minWidth: context.w(15),
-                          minHeight: context.w(15),
-                        ),
-                        child: Text(
-                          item.badgeCount > 99 ? '99+' : '${item.badgeCount}',
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: badgeFontSize,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
-              ],
-            ),
-            SizedBox(height: context.h(2)),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: context.w(2)),
-              child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeInOutCubic,
-                style: GoogleFonts.inter(
-                  fontSize: labelSize,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? AppTheme.accentOrange
-                      : Colors.white.withValues(alpha: 0.70),
-                  letterSpacing: 0.1,
                 ),
-                child: Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
+            ],
+          ),
+          SizedBox(height: context.h(2)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.w(2)),
+            child: AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeInOutCubic,
+              style: GoogleFonts.inter(
+                fontSize: labelSize,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected
+                    ? AppTheme.accentOrange
+                    : Colors.white.withValues(alpha: 0.70),
+                letterSpacing: 0.1,
+              ),
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
