@@ -292,7 +292,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   duration: const Duration(milliseconds: 450),
                   curve: Curves.easeInOutCubic,
                   height: calculatedFrameHeight,
-                  color: Colors.grey.shade100,
+                  decoration: BoxDecoration(
+                    color: _isMockupMode ? const Color(0xFF263238) : const Color(0xFFEBEFF2),
+                    gradient: _isMockupMode
+                        ? null
+                        : const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0xFFF1F4F6),
+                              Color(0xFFDFE4E8),
+                            ],
+                          ),
+                  ),
                   child: PageView.builder(
                     controller: _pageController,
                     itemCount: _activeImages.length,
@@ -311,12 +323,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         panEnabled: true,
                         clipBehavior: Clip.hardEdge,
                         child: Center(
-                          child: AppProductImage(
-                            imagePath: img,
-                            width: double.infinity,
-                            height: calculatedFrameHeight,
-                            fit: _isMockupMode ? BoxFit.cover : BoxFit.contain,
-                          ),
+                          child: _isMockupMode
+                              ? AppProductImage(
+                                  imagePath: img,
+                                  width: double.infinity,
+                                  height: calculatedFrameHeight,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.14),
+                                        blurRadius: 16,
+                                        spreadRadius: -2,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.06),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                    border: Border.all(
+                                      color: Colors.black.withValues(alpha: 0.10),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(3),
+                                    child: AppProductImage(
+                                      imagePath: img,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
                         ),
                       );
                     },
@@ -1185,6 +1228,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     curve: Curves.easeInOutCubic,
                     width: 68,
                     decoration: BoxDecoration(
+                      color: const Color(0xFFEBEFF2),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSelected ? AppTheme.accentOrange : AppTheme.borderSubtle,
