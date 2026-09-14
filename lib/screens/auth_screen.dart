@@ -66,17 +66,13 @@ class _AuthScreenState extends State<AuthScreen> {
       onCodeSent: (verId) {
         if (!mounted) return;
         setState(() {
+          _verificationId = verId;
           _loginOtpSent = true;
           _isLoading = false;
-          if (verId.startsWith('MOCK_')) {
-            _loginOtpController.text = '123456';
-          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(verId.startsWith('MOCK_')
-                ? 'OTP sent successfully! (Auto-filled test code: 123456)'
-                : 'OTP Code sent successfully!'),
+          const SnackBar(
+            content: Text('OTP sent successfully! Please check your SMS.'),
           ),
         );
       },
@@ -153,16 +149,11 @@ class _AuthScreenState extends State<AuthScreen> {
           _verificationId = verId;
           _otpSent = true;
           _isLoading = false;
-          if (verId.startsWith('MOCK_')) {
-            _regOtpController.text = '123456';
-          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(verId.startsWith('MOCK_')
-                ? 'OTP sent successfully! (Auto-filled test code: 123456)'
-                : 'OTP sent successfully! Check SMS.'),
-            duration: const Duration(seconds: 4),
+          const SnackBar(
+            content: Text('OTP sent successfully! Please check your SMS.'),
+            duration: Duration(seconds: 4),
           ),
         );
       },

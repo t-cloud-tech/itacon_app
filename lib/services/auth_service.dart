@@ -45,24 +45,7 @@ class AuthService {
           await _auth.signInWithCredential(credential);
         },
         verificationFailed: (FirebaseAuthException e) {
-          final msg = (e.message ?? '').toLowerCase();
-          final code = e.code.toLowerCase();
-          if (code == 'billing-not-enabled' ||
-              code == 'app-not-authorized' ||
-              msg.contains('billing_not_enabled') ||
-              msg.contains('billing') ||
-              msg.contains('quota') ||
-              msg.contains('internal error') ||
-              msg.contains('not authorized') ||
-              msg.contains('play_integrity') ||
-              msg.contains('sha-1') ||
-              msg.contains('sha-256')) {
-            // Smart fallback for Firebase project billing, quota, or local debug SHA/Play Integrity setup:
-            // Allows seamless authentication with test OTP (123456) in development
-            onCodeSent('MOCK_VERIFICATION_ID_${DateTime.now().millisecondsSinceEpoch}');
-          } else {
-            onError(e.message ?? 'Phone verification failed.');
-          }
+          onError(e.message ?? 'Phone verification failed (${e.code}).');
         },
         codeSent: (String verificationId, int? resendToken) {
           onCodeSent(verificationId);
@@ -70,7 +53,7 @@ class AuthService {
         codeAutoRetrievalTimeout: (String verificationId) {},
       );
     } catch (e) {
-      onCodeSent('MOCK_VERIFICATION_ID_${DateTime.now().millisecondsSinceEpoch}');
+      onError('Failed to send OTP: ${e.toString()}');
     }
   }
 
@@ -140,6 +123,24 @@ class AuthService {
     final registrationEmail = (email != null && email.trim().isNotEmpty && email.contains('@'))
         ? email.trim()
         : 'user_$cleanPhone@itacon.com';
+
+    // Verify phone OTP credential if provided
+    if (verificationId != null && smsCode != null && smsCode.trim().isNotEmpty && !verificationId.startsWith('MOCK_')) {
+      try {
+        final phoneCredential = PhoneAuthProvider.credential(
+          verificationId: verificationId,
+          smsCode: smsCode.trim(),
+        );
+        await _auth.signInWithCredential(phoneCredential);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'invalid-verification-code') {
+          throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
+        } else if (e.code == 'session-expired') {
+          throw Exception('The OTP code has expired. Please click Resend OTP.');
+        }
+        throw Exception(e.message ?? 'OTP verification failed.');
+      }
+    }
 
     String uid = '';
 
@@ -292,15 +293,22 @@ class AuthService {
       await UserSessionService.saveUserSession(fallbackProfile);
     }
 
-    if (verificationId != null && smsCode != null && smsCode.isNotEmpty) {
+    if (verificationId != null && smsCode != null && smsCode.trim().isNotEmpty) {
       if (!verificationId.startsWith('MOCK_')) {
         try {
           final credential = PhoneAuthProvider.credential(
             verificationId: verificationId,
-            smsCode: smsCode,
+            smsCode: smsCode.trim(),
           );
           await _auth.signInWithCredential(credential);
-        } catch (_) {}
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'invalid-verification-code') {
+            throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
+          } else if (e.code == 'session-expired') {
+            throw Exception('The OTP code has expired. Please click Resend OTP.');
+          }
+          throw Exception(e.message ?? 'OTP verification failed.');
+        }
       }
     }
 
