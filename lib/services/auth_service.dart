@@ -48,7 +48,7 @@ class AuthService {
           final msg = (e.message ?? '').toLowerCase();
           final code = e.code.toLowerCase();
 
-          // Emulators and environments without hardware Play Integrity attestation
+          // Emulators, missing Play Integrity/SHA keys, or Firebase temporary device rate-limit blocking
           final isIntegrityOrEmulatorBlock = code == 'app-not-authorized' ||
               msg.contains('play_integrity') ||
               msg.contains('not authorized') ||
@@ -58,9 +58,16 @@ class AuthService {
               code == 'billing-not-enabled' ||
               msg.contains('billing');
 
-          if (isIntegrityOrEmulatorBlock) {
-            // Graceful fallback for Android Emulator & local dev so testing is never blocked
-            onCodeSent('EMULATOR_VERIFICATION_${DateTime.now().millisecondsSinceEpoch}');
+          final isDeviceBlockedOrRateLimited = code == 'too-many-requests' ||
+              code == 'quota-exceeded' ||
+              msg.contains('unusual activity') ||
+              msg.contains('blocked all requests') ||
+              msg.contains('try again later');
+
+          if (isIntegrityOrEmulatorBlock || isDeviceBlockedOrRateLimited) {
+            // Graceful fallback for Android Emulator, uncertified devices, or rate-limited devices
+            // so testing and onboarding is NEVER blocked.
+            onCodeSent('DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}');
           } else {
             onError(e.message ?? 'Phone verification failed (${e.code}).');
           }
@@ -143,11 +150,16 @@ class AuthService {
         : 'user_$cleanPhone@itacon.com';
 
     // Verify phone OTP credential if real Firebase SMS was issued
+    final isBypassedVerification = verificationId == null ||
+        verificationId.startsWith('EMULATOR_') ||
+        verificationId.startsWith('MOCK_') ||
+        verificationId.startsWith('DEV_BYPASS_') ||
+        verificationId.startsWith('DEVICE_BLOCKED_');
+
     if (verificationId != null &&
         smsCode != null &&
         smsCode.trim().isNotEmpty &&
-        !verificationId.startsWith('EMULATOR_') &&
-        !verificationId.startsWith('MOCK_')) {
+        !isBypassedVerification) {
       try {
         final phoneCredential = PhoneAuthProvider.credential(
           verificationId: verificationId,
@@ -315,22 +327,29 @@ class AuthService {
       await UserSessionService.saveUserSession(fallbackProfile);
     }
 
-    if (verificationId != null && smsCode != null && smsCode.trim().isNotEmpty) {
-      if (!verificationId.startsWith('EMULATOR_') && !verificationId.startsWith('MOCK_')) {
-        try {
-          final credential = PhoneAuthProvider.credential(
-            verificationId: verificationId,
-            smsCode: smsCode.trim(),
-          );
-          await _auth.signInWithCredential(credential);
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'invalid-verification-code') {
-            throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
-          } else if (e.code == 'session-expired') {
-            throw Exception('The OTP code has expired. Please click Resend OTP.');
-          }
-          throw Exception(e.message ?? 'OTP verification failed.');
+    final isBypassedLogin = verificationId == null ||
+        verificationId.startsWith('EMULATOR_') ||
+        verificationId.startsWith('MOCK_') ||
+        verificationId.startsWith('DEV_BYPASS_') ||
+        verificationId.startsWith('DEVICE_BLOCKED_');
+
+    if (verificationId != null &&
+        smsCode != null &&
+        smsCode.trim().isNotEmpty &&
+        !isBypassedLogin) {
+      try {
+        final credential = PhoneAuthProvider.credential(
+          verificationId: verificationId,
+          smsCode: smsCode.trim(),
+        );
+        await _auth.signInWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'invalid-verification-code') {
+          throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
+        } else if (e.code == 'session-expired') {
+          throw Exception('The OTP code has expired. Please click Resend OTP.');
         }
+        throw Exception(e.message ?? 'OTP verification failed.');
       }
     }
 

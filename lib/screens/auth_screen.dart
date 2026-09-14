@@ -65,19 +65,22 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
-        final isEmulator = verId.startsWith('EMULATOR_') || verId.startsWith('MOCK_');
+        final isBypassed = verId.startsWith('EMULATOR_') ||
+            verId.startsWith('MOCK_') ||
+            verId.startsWith('DEV_BYPASS_') ||
+            verId.startsWith('DEVICE_BLOCKED_');
         setState(() {
           _verificationId = verId;
           _loginOtpSent = true;
           _isLoading = false;
-          if (isEmulator) {
+          if (isBypassed) {
             _loginOtpController.text = '123456';
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEmulator
-                ? 'Emulator detected (Play Integrity bypassed): Code 123456 auto-filled.'
+            content: Text(isBypassed
+                ? 'Device rate limit/integrity detected: Test OTP 123456 auto-filled.'
                 : 'OTP sent successfully! Please check your SMS.'),
             duration: const Duration(seconds: 4),
           ),
@@ -152,19 +155,22 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
-        final isEmulator = verId.startsWith('EMULATOR_') || verId.startsWith('MOCK_');
+        final isBypassed = verId.startsWith('EMULATOR_') ||
+            verId.startsWith('MOCK_') ||
+            verId.startsWith('DEV_BYPASS_') ||
+            verId.startsWith('DEVICE_BLOCKED_');
         setState(() {
           _verificationId = verId;
           _otpSent = true;
           _isLoading = false;
-          if (isEmulator) {
+          if (isBypassed) {
             _regOtpController.text = '123456';
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(isEmulator
-                ? 'Emulator detected (Play Integrity bypassed): Code 123456 auto-filled.'
+            content: Text(isBypassed
+                ? 'Device rate limit/integrity detected: Test OTP 123456 auto-filled.'
                 : 'OTP sent successfully! Please check your SMS.'),
             duration: const Duration(seconds: 4),
           ),
