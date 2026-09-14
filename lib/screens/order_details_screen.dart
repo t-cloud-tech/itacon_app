@@ -289,15 +289,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                '#${order.orderReference}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.primaryNavy,
+              Expanded(
+                child: Text(
+                  '#${order.orderReference}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.primaryNavy,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 'Date: $createdDateStr',
                 style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),

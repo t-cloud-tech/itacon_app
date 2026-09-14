@@ -167,15 +167,21 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        profile.companyName.isNotEmpty ? profile.companyName : profile.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                      Expanded(
+                        child: Text(
+                          profile.companyName.isNotEmpty ? profile.companyName : profile.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -195,10 +201,10 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Approved Contract Pricing (₹/sq ft) • Territory: ${profile.region}',
+                    'Approved Contract Pricing (₹/sq ft) • Territory: ${profile.region.isNotEmpty ? profile.region : "West India (Gujarat/Maharashtra)"}',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: Colors.white.withValues(alpha: 0.85),
                     ),
                   ),
                 ],
@@ -251,7 +257,7 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                     child: const Icon(Icons.aspect_ratio_rounded, color: AppTheme.primaryNavy, size: 20),
                   ),
                   title: Text(
-                    'Size: $size',
+                    'Size: ${size.replaceAll('x', '×')}',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -270,93 +276,157 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                       child: Column(
                         children: [
                           // Table Header
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            child: Row(
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.6)),
+                            ),
+                            child: const Row(
                               children: [
                                 Expanded(
-                                  flex: 3,
-                                  child: Text('SURFACE FINISH',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textSubtle)),
+                                  flex: 32,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      'SURFACE FINISH',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.textSubtle,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                                 Expanded(
-                                  flex: 2,
-                                  child: Text('MRP (₹)',
+                                  flex: 23,
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'MRP (₹)',
                                       textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textSubtle)),
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.textSubtle,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                                 Expanded(
-                                  flex: 2,
-                                  child: Text('YOUR RATE',
+                                  flex: 23,
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'YOUR RATE',
                                       textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.primaryNavy,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                                 Expanded(
-                                  flex: 2,
-                                  child: Text('DISCOUNT',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentOrange)),
+                                  flex: 22,
+                                  child: Align(
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      'DISCOUNT',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.accentOrange,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const Divider(height: 1, color: AppTheme.borderSubtle),
+                          const SizedBox(height: 4),
 
                           // Table Rows
                           ...rates.map((r) {
                             return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                               decoration: const BoxDecoration(
                                 border: Border(bottom: BorderSide(color: AppTheme.borderSubtle, width: 0.5)),
                               ),
                               child: Row(
                                 children: [
                                   Expanded(
-                                    flex: 3,
-                                    child: Text(
-                                      r.surface,
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      '₹${r.mrp.toStringAsFixed(0)}/sq ft',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.textSubtle,
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(
-                                      '₹${r.contractRate.toStringAsFixed(0)}/sq ft',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.primaryNavy,
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.shade50,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
+                                    flex: 32,
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
                                       child: Text(
-                                        '${r.discountPercent.toStringAsFixed(0)}% OFF',
+                                        r.surface,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.textDark,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 23,
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        '₹${r.mrp.toStringAsFixed(0)}/sq ft',
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          fontSize: 10,
+                                        style: const TextStyle(
+                                          fontSize: 11.5,
+                                          color: AppTheme.textSubtle,
+                                          decoration: TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 23,
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        '₹${r.contractRate.toStringAsFixed(0)}/sq ft',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 12.5,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.green.shade700,
+                                          color: AppTheme.primaryNavy,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 22,
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.shade50,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.green.shade200, width: 0.8),
+                                        ),
+                                        child: Text(
+                                          '${r.discountPercent.toStringAsFixed(0)}% OFF',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green.shade700,
+                                          ),
                                         ),
                                       ),
                                     ),
