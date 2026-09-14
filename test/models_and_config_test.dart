@@ -821,6 +821,23 @@ void main() {
       expect(find.text('RK'), findsOneWidget);
       expect(find.byIcon(Icons.storefront_rounded), findsOneWidget);
     });
+    test('AuthService.validatePassword should validate enterprise password rules', () {
+      expect(AuthService.validatePassword('Test@1234'), isNull);
+      expect(AuthService.validatePassword('short1!'), contains('at least 8 characters'));
+      expect(AuthService.validatePassword('alllowercase1!'), contains('uppercase'));
+      expect(AuthService.validatePassword('ALLUPPERCASE1!'), contains('lowercase'));
+      expect(AuthService.validatePassword('NoNumbers!@#'), contains('number'));
+      expect(AuthService.validatePassword('NoSpecialChar123'), contains('special character'));
+      expect(AuthService.validatePassword(''), contains('required'));
+      expect(AuthService.validatePassword(null), contains('required'));
+    });
+
+    test('AuthService.sendPasswordResetLink should reject empty or invalid format', () async {
+      final authService = AuthService();
+      expect(() => authService.sendPasswordResetLink(''), throwsException);
+      expect(() => authService.sendPasswordResetLink('invalid-string'), throwsException);
+      expect(() => authService.sendPasswordResetLink('123'), throwsException);
+    });
   });
 }
 

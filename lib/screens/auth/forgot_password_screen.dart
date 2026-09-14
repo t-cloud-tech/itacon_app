@@ -107,19 +107,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
-    final email = _emailController.text.trim();
+    final input = _emailController.text.trim();
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await _authService.sendPasswordResetLink(email);
+      final dispatchedEmail = await _authService.sendPasswordResetLink(input);
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _isDispatched = true;
-        _sentEmail = email;
+        _sentEmail = dispatchedEmail;
       });
       _startCooldownTimer();
     } catch (e) {
@@ -293,7 +293,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            "Enter the registered business email associated with your account. We'll send you a secure link to create a new password.",
+            "Enter your registered business email address or 10-digit mobile number. We'll send a secure password reset link to your verified account email.",
             style: TextStyle(
               fontSize: 13.5,
               color: Color(0xFF6B7280),
@@ -333,9 +333,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             const SizedBox(height: 16),
           ],
 
-          // Email Input Field
+          // Email / Mobile Input Field
           const Text(
-            'Registered Email Address *',
+            'Registered Email or Mobile Number *',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -353,13 +353,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
-              hintText: 'e.g. name@company.com',
+              hintText: 'e.g. name@company.com or 10-digit Mobile',
               hintStyle: TextStyle(
                 fontSize: 13,
                 color: Colors.grey.shade400,
               ),
               prefixIcon: const Icon(
-                Icons.email_outlined,
+                Icons.alternate_email_rounded,
                 color: AppTheme.primaryNavy,
                 size: 20,
               ),
@@ -391,10 +391,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             validator: (value) {
               final trimmed = value?.trim() ?? '';
               if (trimmed.isEmpty) {
-                return 'Please enter a valid email address.';
+                return 'Please enter your registered email or 10-digit mobile.';
               }
-              if (!_emailRegex.hasMatch(trimmed)) {
-                return 'Please enter a valid email address.';
+              final cleanDigits = trimmed.replaceAll(RegExp(r'\D'), '');
+              final isPhone = !trimmed.contains('@') && cleanDigits.length >= 10;
+              final isEmail = _emailRegex.hasMatch(trimmed);
+              if (!isPhone && !isEmail) {
+                return 'Please enter a valid email or 10-digit mobile number.';
               }
               return null;
             },

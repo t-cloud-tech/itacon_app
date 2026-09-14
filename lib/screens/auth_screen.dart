@@ -1027,11 +1027,14 @@ class _AuthScreenState extends State<AuthScreen> {
             alignment: Alignment.centerRight,
             child: InkWell(
               onTap: () {
+                final prefill = _loginUsernameController.text.trim().isNotEmpty
+                    ? _loginUsernameController.text.trim()
+                    : (_loginPhoneController.text.trim().isNotEmpty
+                        ? _loginPhoneController.text.trim()
+                        : null);
                 ForgotPasswordScreen.showAsBottomSheet(
                   context,
-                  initialEmail: _loginUsernameController.text.contains('@')
-                      ? _loginUsernameController.text.trim()
-                      : null,
+                  initialEmail: prefill,
                 );
               },
               borderRadius: BorderRadius.circular(6),
