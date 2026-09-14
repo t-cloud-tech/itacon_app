@@ -293,15 +293,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   curve: Curves.easeInOutCubic,
                   height: calculatedFrameHeight,
                   decoration: BoxDecoration(
-                    color: _isMockupMode ? const Color(0xFF263238) : const Color(0xFFEBEFF2),
+                    color: _isMockupMode ? const Color(0xFF263238) : const Color(0xFFE2E7EC),
                     gradient: _isMockupMode
                         ? null
                         : const LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
-                              Color(0xFFF1F4F6),
-                              Color(0xFFDFE4E8),
+                              Color(0xFFE9EEF2),
+                              Color(0xFFD2D9E0),
                             ],
                           ),
                   ),
@@ -336,20 +336,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     borderRadius: BorderRadius.circular(4),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.14),
-                                        blurRadius: 16,
-                                        spreadRadius: -2,
-                                        offset: const Offset(0, 5),
+                                        color: Colors.black.withValues(alpha: 0.38),
+                                        blurRadius: 24,
+                                        spreadRadius: 0,
+                                        offset: const Offset(0, 10),
                                       ),
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.06),
-                                        blurRadius: 6,
-                                        offset: const Offset(0, 2),
+                                        color: Colors.black.withValues(alpha: 0.22),
+                                        blurRadius: 10,
+                                        spreadRadius: 0,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                      BoxShadow(
+                                        color: const Color(0xFF0F172A).withValues(alpha: 0.26),
+                                        blurRadius: 32,
+                                        spreadRadius: 2,
+                                        offset: const Offset(0, 14),
                                       ),
                                     ],
                                     border: Border.all(
-                                      color: Colors.black.withValues(alpha: 0.10),
-                                      width: 1,
+                                      color: Colors.black.withValues(alpha: 0.18),
+                                      width: 1.2,
                                     ),
                                   ),
                                   child: ClipRRect(
