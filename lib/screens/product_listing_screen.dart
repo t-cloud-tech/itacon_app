@@ -613,14 +613,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
                       final product = filtered[index];
-                      final card = _buildLuxuryTileCard(context, product);
-                      if (index < 4) {
-                        return AppFadeSlideTransition(
-                          delay: Duration(milliseconds: index * 70),
-                          child: card,
-                        );
-                      }
-                      return card;
+                      return _buildLuxuryTileCard(context, product);
                     },
                   ),
           ),
