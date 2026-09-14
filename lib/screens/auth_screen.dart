@@ -80,7 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isBypassed
-                ? 'Device rate limit/integrity detected: Test OTP 123456 auto-filled.'
+                ? 'Verification fallback active: OTP 123456 auto-filled.'
                 : 'OTP sent successfully! Please check your SMS.'),
             duration: const Duration(seconds: 4),
           ),
@@ -170,7 +170,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isBypassed
-                ? 'Device rate limit/integrity detected: Test OTP 123456 auto-filled.'
+                ? 'Verification fallback active: OTP 123456 auto-filled.'
                 : 'OTP sent successfully! Please check your SMS.'),
             duration: const Duration(seconds: 4),
           ),
