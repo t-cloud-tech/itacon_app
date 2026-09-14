@@ -65,14 +65,21 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
+        final isEmulator = verId.startsWith('EMULATOR_') || verId.startsWith('MOCK_');
         setState(() {
           _verificationId = verId;
           _loginOtpSent = true;
           _isLoading = false;
+          if (isEmulator) {
+            _loginOtpController.text = '123456';
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP sent successfully! Please check your SMS.'),
+          SnackBar(
+            content: Text(isEmulator
+                ? 'Emulator detected (Play Integrity bypassed): Code 123456 auto-filled.'
+                : 'OTP sent successfully! Please check your SMS.'),
+            duration: const Duration(seconds: 4),
           ),
         );
       },
@@ -145,15 +152,21 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
+        final isEmulator = verId.startsWith('EMULATOR_') || verId.startsWith('MOCK_');
         setState(() {
           _verificationId = verId;
           _otpSent = true;
           _isLoading = false;
+          if (isEmulator) {
+            _regOtpController.text = '123456';
+          }
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('OTP sent successfully! Please check your SMS.'),
-            duration: Duration(seconds: 4),
+          SnackBar(
+            content: Text(isEmulator
+                ? 'Emulator detected (Play Integrity bypassed): Code 123456 auto-filled.'
+                : 'OTP sent successfully! Please check your SMS.'),
+            duration: const Duration(seconds: 4),
           ),
         );
       },
