@@ -284,6 +284,99 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Sleek Top View Control Bar (Zero Overlap with Tile Image)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  bottom: BorderSide(
+                    color: AppTheme.borderSubtle.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Interactive Zoom Indicator
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryNavy.withValues(alpha: 0.07),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.zoom_in_rounded,
+                          size: 14,
+                          color: AppTheme.primaryNavy,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Pinch to zoom',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // View Toggle Switch: [ Tile View ] vs [ Mockup ]
+                  if (!_product.isAdhesive)
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F4F8),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: AppTheme.borderSubtle.withValues(alpha: 0.8),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildModeTogglePill(
+                            label: 'Tile View',
+                            icon: Icons.grid_view_rounded,
+                            isSelected: !_isMockupMode,
+                            onTap: () {
+                              if (_isMockupMode) {
+                                setState(() {
+                                  _isMockupMode = false;
+                                  _currentImageIndex = 0;
+                                });
+                                _pageController.jumpToPage(0);
+                              }
+                            },
+                          ),
+                          _buildModeTogglePill(
+                            label: 'Mockup',
+                            icon: Icons.chair_outlined,
+                            isSelected: _isMockupMode,
+                            onTap: () {
+                              if (!_isMockupMode) {
+                                setState(() {
+                                  _isMockupMode = true;
+                                  _currentImageIndex = 0;
+                                });
+                                _pageController.jumpToPage(0);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
             // Dynamic Proportional Frame Container with Visualizer
             Stack(
               alignment: Alignment.bottomCenter,
@@ -373,194 +466,46 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
 
-                // Pinch to Zoom Hint Pill (Top Left)
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.zoom_in_rounded, color: Colors.white, size: 14),
-                        SizedBox(width: 4),
-                        Text(
-                          'Pinch to zoom',
-                          style: TextStyle(
+                // Photo Counter Badge (Right)
+                if (_activeImages.length > 1)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.72),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.photo_library_outlined,
                             color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            size: 12,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Top Mode Toggle Switch: [ Tile Face ] vs [ Room Mockup ] (Top Right)
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.94),
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.16),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                      border: Border.all(
-                        color: AppTheme.borderSubtle.withValues(alpha: 0.8),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${_currentImageIndex + 1}/${_activeImages.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildModeTogglePill(
-                          label: 'Tile Face',
-                          icon: Icons.grid_view_rounded,
-                          isSelected: !_isMockupMode,
-                          onTap: () {
-                            if (_isMockupMode) {
-                              setState(() {
-                                _isMockupMode = false;
-                                _currentImageIndex = 0;
-                              });
-                              _pageController.jumpToPage(0);
-                            }
-                          },
-                        ),
-                        _buildModeTogglePill(
-                          label: 'Room Mockup',
-                          icon: Icons.meeting_room_outlined,
-                          isSelected: _isMockupMode,
-                          onTap: () {
-                            if (!_isMockupMode) {
-                              setState(() {
-                                _isMockupMode = true;
-                                _currentImageIndex = 0;
-                              });
-                              _pageController.jumpToPage(0);
-                            }
-                          },
-                        ),
-                      ],
-                    ),
                   ),
-                ),
-
-                // Unified Bottom Info & Counter Overlay Bar (Guaranteed Zero Overlap on Any Device)
-                Positioned(
-                  bottom: 12,
-                  left: 12,
-                  right: 12,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Context Watermark Badge (Tile Size & Face / Room Scene)
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryNavy.withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.25),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _isMockupMode
-                                    ? (_currentImageIndex == 0
-                                        ? Icons.meeting_room_rounded
-                                        : Icons.grid_4x4_rounded)
-                                    : Icons.aspect_ratio_rounded,
-                                color: AppTheme.accentOrange,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  _isMockupMode
-                                      ? (_currentImageIndex == 0
-                                          ? '3D Room Scene Mockup'
-                                          : 'Floor Layout (4 Tiles)')
-                                      : (_activeImages.length > 1
-                                          ? '${TileDimensionHelper.getFormattedWatermark(_selectedSize, category: _product.tileCategory)} • Face ${_currentImageIndex + 1}'
-                                          : TileDimensionHelper.getFormattedWatermark(
-                                              _selectedSize,
-                                              category: _product.tileCategory)),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Photo Counter Badge (Right)
-                      if (_activeImages.length > 1) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.72),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.photo_library_outlined,
-                                color: Colors.white,
-                                size: 12,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_currentImageIndex + 1}/${_activeImages.length}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
               ],
             ),
 
@@ -1190,13 +1135,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  _isMockupMode ? Icons.meeting_room_outlined : Icons.grid_view_rounded,
+                  _isMockupMode ? Icons.chair_outlined : Icons.grid_view_rounded,
                   size: 16,
                   color: AppTheme.primaryNavy,
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _isMockupMode ? 'Mockups' : 'Faces',
+                  _isMockupMode ? 'Rooms' : 'Faces',
                   style: const TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
@@ -1215,7 +1160,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 final isSelected = _currentImageIndex == index;
                 final label = _isMockupMode
                     ? (images[index].contains('mockup')
-                        ? 'Room View'
+                        ? 'Mockup'
                         : (images[index].contains('tiles')
                             ? 'Floor Grid'
                             : (index < roomLabels.length ? roomLabels[index] : 'Room ${index + 1}')))
