@@ -88,6 +88,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _selectedSize = _product.size;
     _selectedFinish = _product.surface;
     _quantity = 1;
+    _isMockupMode = !_product.isAdhesive && _product.resolvedMockupImages.isNotEmpty;
   }
 
   void _showManualQuantityDialog() {

@@ -361,7 +361,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                 fit: StackFit.expand,
                 children: [
                   AppProductImage(
-                    imagePath: product.images.isNotEmpty ? product.images.first : '',
+                    imagePath: product.frontCardImage,
                     fit: BoxFit.cover,
                   ),
                   Positioned(

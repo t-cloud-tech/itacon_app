@@ -228,6 +228,40 @@ void main() {
       expect(deserialized.shape, 'Rectangle');
       expect(deserialized.aspectRatio, '1:2');
     });
+
+    test('TileProduct frontCardImage should prioritize mockup room image over tile faces', () {
+      final tile = TileProduct(
+        id: 'PROD_MOCK_01',
+        name: 'ITA 001 Test',
+        size: '600x1200 mm',
+        surface: 'Glossy',
+        color: 'White',
+        pattern: 'Marble',
+        basePrice: 100.0,
+        moq: 10,
+        stockStatus: 'available_now',
+        images: ['assets/images/tiles/face1.jpeg'],
+        mockupImages: ['assets/images/mockups/room1.jpeg'],
+      );
+
+      expect(tile.frontCardImage, 'assets/images/mockups/room1.jpeg');
+
+      final adhesive = TileProduct(
+        id: 'PROD_ADH_01',
+        name: 'ITA Fix Adhesive',
+        productLine: 'adhesives',
+        size: '20 kg',
+        surface: 'Grey',
+        color: 'Grey',
+        pattern: 'Solid',
+        basePrice: 50.0,
+        moq: 5,
+        stockStatus: 'available_now',
+        images: ['assets/images/adhesives/adh1.jpeg'],
+      );
+
+      expect(adhesive.frontCardImage, 'assets/images/adhesives/adh1.jpeg');
+    });
   });
 
   group('ClientAssignment Tests', () {

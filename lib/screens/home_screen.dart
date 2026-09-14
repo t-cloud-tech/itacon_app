@@ -676,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Stack(
                             children: [
                               AppProductImage(
-                                imagePath: product.images.isNotEmpty ? product.images.first : '',
+                                imagePath: product.frontCardImage,
                                 width: double.infinity,
                                 height: double.infinity,
                                 fit: BoxFit.cover,
@@ -1225,9 +1225,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Stack(
                                 children: [
                                   AppProductImage(
-                                    imagePath: product.images.isNotEmpty
-                                        ? product.images.first
-                                        : '',
+                                    imagePath: product.frontCardImage,
                                     width: double.infinity,
                                     height: double.infinity,
                                     fit: BoxFit.cover,

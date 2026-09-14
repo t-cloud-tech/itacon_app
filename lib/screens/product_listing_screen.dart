@@ -666,7 +666,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                 children: [
                   Positioned.fill(
                     child: AppProductImage(
-                      imagePath: product.images.isNotEmpty ? product.images.first : '',
+                      imagePath: product.frontCardImage,
                       fit: BoxFit.cover,
                     ),
                   ),
