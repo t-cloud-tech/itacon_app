@@ -219,6 +219,7 @@ class TileProduct {
       'randomPattern': randomPattern,
       'priceCategory': priceCategory,
       'shade': shade,
+      'mockupImages': mockupImages,
       'lifestyleImages': lifestyleImages,
       'packingDetails': packingDetails,
       'createdAt': createdAt != null
@@ -270,6 +271,9 @@ class TileProduct {
       reservedStock: rStock,
       availableStock: aStock,
       images: List<String>.from(map['images'] ?? []),
+      mockupImages: map['mockupImages'] != null
+          ? List<String>.from(map['mockupImages'])
+          : null,
       isActive: map['isActive'] ?? true,
       isComingSoon: map['isComingSoon'] ?? false,
       collection: map['collection'] ?? (prodLine == 'adhesives' ? 'Fixing Solutions' : 'Endless'),

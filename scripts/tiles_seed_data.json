@@ -771,7 +771,10 @@
       "randomPattern": "4 Faces",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-017_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_018",
@@ -1176,7 +1179,10 @@
       "randomPattern": "Endless Pattern",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-026_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_027",
@@ -1221,7 +1227,10 @@
       "randomPattern": "4 Faces",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-027_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_028",
@@ -1266,7 +1275,10 @@
       "randomPattern": "Endless Pattern",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-028_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_029",
@@ -1311,7 +1323,10 @@
       "randomPattern": "4 Faces",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-029_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_030",
@@ -1671,7 +1686,10 @@
       "randomPattern": "Endless Pattern",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-037_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_038",
@@ -2301,7 +2319,10 @@
       "randomPattern": "Endless Pattern",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-051_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_052",
@@ -2346,7 +2367,10 @@
       "randomPattern": "4 Faces",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-052_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_053",
@@ -2391,7 +2415,10 @@
       "randomPattern": "4 Faces",
       "priceCategory": "Premium",
       "shade": "Light",
-      "isActive": true
+      "isActive": true,
+      "mockupImages": [
+        "assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-053_mockup.jpeg"
+      ]
     },
     {
       "productId": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_054",
