@@ -824,11 +824,16 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: isComingSoon
           ? null
           : () {
+              String? query;
+              if (label.contains('Marble')) query = 'Marble';
+              if (label.contains('Quartz')) query = 'Quartz';
+
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => ProductListingScreen(
                     subcategoryTitle: label,
+                    initialSearchQuery: query,
                   ),
                 ),
               );

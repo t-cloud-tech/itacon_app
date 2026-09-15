@@ -46,13 +46,13 @@ class CategoriesScreen extends StatelessWidget {
       'title': 'Marble Collection',
       'count': '29 Products',
       'isComingSoon': false,
-      'image': 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80',
+      'image': 'assets/images/Home/Slab_tile.jpg',
     },
     {
       'title': 'Quartz Surfaces',
       'count': '24 Products',
       'isComingSoon': false,
-      'image': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      'image': 'assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-033_mockup.jpeg',
     },
   ];
 
@@ -140,11 +140,16 @@ class CategoriesScreen extends StatelessWidget {
                         ),
                       );
                     } else {
+                      String? query;
+                      if (title.contains('Marble')) query = 'Marble';
+                      if (title.contains('Quartz')) query = 'Quartz';
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ProductListingScreen(
                             subcategoryTitle: title,
+                            initialSearchQuery: query,
                           ),
                         ),
                       );
