@@ -389,7 +389,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
 
             // Details Section
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -398,27 +398,28 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
+                      height: 1.15,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Row(
                     children: [
-                      Icon(Icons.aspect_ratio_rounded, size: 13, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
+                      Icon(Icons.aspect_ratio_rounded, size: 12, color: Colors.grey.shade600),
+                      const SizedBox(width: 3),
                       Expanded(
                         child: Text(
                           '${product.sizeCm} • ${product.thicknessMm}mm',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600, height: 1.1),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

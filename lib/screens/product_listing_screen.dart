@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -650,209 +651,238 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.grey.shade100,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.8)),
           boxShadow: AppTheme.luxuryShadows,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // Uniform 1:1 Square Tile Image Showcase
-            AspectRatio(
-              aspectRatio: 1.0,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: AppProductImage(
-                      imagePath: product.images.isNotEmpty ? product.images.first : '',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-
-                  // Surface Finish Badge
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryNavy.withValues(alpha: 0.88),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        product.surface,
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Quick Favorite Button with Tactile Press
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: ListenableBuilder(
-                      listenable: _appState,
-                      builder: (context, _) {
-                        final isFav = _appState.isFavorite(product.id);
-                        return AppPressable(
-                          onTap: () => _appState.toggleFavorite(product),
-                          scaleDown: 0.84,
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.92),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.08),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                              color: isFav ? Colors.red : AppTheme.textSubtle,
-                              size: 16,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+            // Background Tile Image covering entire card area
+            Positioned.fill(
+              child: AppProductImage(
+                imagePath: product.images.isNotEmpty ? product.images.first : '',
+                fit: BoxFit.cover,
               ),
             ),
 
-            // Product Details Block
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.primaryNavy,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
+            // Foreground Content Layout
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Upper Image Area with Badges
+                AspectRatio(
+                  aspectRatio: 1.05,
+                  child: Stack(
                     children: [
-                      const Icon(Icons.straighten_rounded, size: 12, color: AppTheme.textSubtle),
-                      const SizedBox(width: 4),
-                      Text(
-                        product.size,
-                        style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSubtle),
+                      // Surface Finish Badge
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryNavy.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            product.surface,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Quick Favorite Button with Tactile Press
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: ListenableBuilder(
+                          listenable: _appState,
+                          builder: (context, _) {
+                            final isFav = _appState.isFavorite(product.id);
+                            return AppPressable(
+                              onTap: () => _appState.toggleFavorite(product),
+                              scaleDown: 0.84,
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.92),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.08),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                  color: isFav ? Colors.red : AppTheme.textSubtle,
+                                  size: 16,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                ),
 
-                  // Pricing & Add Button
-                  ListenableBuilder(
-                    listenable: _appState,
-                    builder: (context, _) {
-                      final effectivePrice = PricingService.getEffectivePrice(
-                        basePrice: product.basePrice,
-                        size: product.size,
-                        surface: product.surface,
-                        userProfile: _appState.currentUserProfile,
-                      );
-                      final hasDiscount = effectivePrice < product.basePrice;
-
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                // Translucent Glass Product Details Block
+                ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.32),
+                        border: Border(
+                          top: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            width: 0.7,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    product.isAdhesive
-                                        ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
-                                        : '₹${effectivePrice.toStringAsFixed(0)}/sq ft',
-                                    style: GoogleFonts.inter(
-                                      fontSize: context.sp(13.5),
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.accentOrange,
+                          Text(
+                            product.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryNavy,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.straighten_rounded, size: 11, color: AppTheme.textSubtle),
+                              const SizedBox(width: 3),
+                              Text(
+                                product.size,
+                                style: GoogleFonts.inter(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textSubtle,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Pricing & Add Button
+                          ListenableBuilder(
+                            listenable: _appState,
+                            builder: (context, _) {
+                              final effectivePrice = PricingService.getEffectivePrice(
+                                basePrice: product.basePrice,
+                                size: product.size,
+                                surface: product.surface,
+                                userProfile: _appState.currentUserProfile,
+                              );
+                              final hasDiscount = effectivePrice < product.basePrice;
+
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            product.isAdhesive
+                                                ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
+                                                : '₹${effectivePrice.toStringAsFixed(0)}/sq ft',
+                                            style: GoogleFonts.inter(
+                                              fontSize: context.sp(12.5),
+                                              fontWeight: FontWeight.w800,
+                                              color: AppTheme.accentOrange,
+                                              height: 1.1,
+                                            ),
+                                          ),
+                                        ),
+                                        if (hasDiscount)
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              'MRP ₹${product.basePrice.toStringAsFixed(0)}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: context.sp(9),
+                                                color: Colors.grey.shade700,
+                                                decoration: TextDecoration.lineThrough,
+                                                height: 1.1,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                                if (hasDiscount)
-                                  FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'MRP ₹${product.basePrice.toStringAsFixed(0)}',
-                                      style: GoogleFonts.inter(
-                                        fontSize: context.sp(9.5),
-                                        color: Colors.grey,
-                                        decoration: TextDecoration.lineThrough,
+                                  const SizedBox(width: 4),
+                                  AppPressable(
+                                    onTap: () {
+                                      _appState.addToCart(
+                                        product,
+                                        size: product.size,
+                                        finish: product.surface,
+                                        quantity: 1,
+                                      );
+                                      AppNotificationUtils.showAddToCartSnackBar(
+                                        context,
+                                        productName: product.name,
+                                      );
+                                    },
+                                    scaleDown: 0.88,
+                                    borderRadius: BorderRadius.circular(7),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryNavy,
+                                        borderRadius: BorderRadius.circular(7),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: AppTheme.primaryNavy.withValues(alpha: 0.25),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.add_shopping_cart_rounded,
+                                        color: Colors.white,
+                                        size: 15,
                                       ),
                                     ),
                                   ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          AppPressable(
-                            onTap: () {
-                              _appState.addToCart(
-                                product,
-                                size: product.size,
-                                finish: product.surface,
-                                quantity: 1,
-                              );
-                              AppNotificationUtils.showAddToCartSnackBar(
-                                context,
-                                productName: product.name,
+                                ],
                               );
                             },
-                            scaleDown: 0.88,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryNavy,
-                                borderRadius: BorderRadius.circular(8),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryNavy.withValues(alpha: 0.25),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.add_shopping_cart_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                            ),
                           ),
                         ],
-                      );
-                    },
+                      ),
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
