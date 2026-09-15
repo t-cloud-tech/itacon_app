@@ -10,11 +10,16 @@
 -dontwarn com.google.android.play.**
 -dontwarn io.flutter.embedding.engine.deferredcomponents.**
 
-# Google Play Services & Firebase
+# Google Play Services, Play Integrity & Firebase Auth
 -keep class com.google.android.gms.** { *; }
 -keep class com.google.firebase.** { *; }
+-keep class com.google.android.play.core.integrity.** { *; }
+-keep interface com.google.android.play.core.integrity.** { *; }
+-keep class com.google.android.gms.auth.api.phone.** { *; }
+-keep class com.google.android.gms.tasks.** { *; }
 -dontwarn com.google.android.gms.**
 -dontwarn com.google.firebase.**
+-dontwarn com.google.android.play.core.integrity.**
 
 # App Data Models & Firestore Reflection Protection
 -keep class com.example.itacon_app.models.** { *; }

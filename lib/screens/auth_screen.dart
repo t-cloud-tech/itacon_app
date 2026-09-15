@@ -65,21 +65,16 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
-        final isEmulator = verId.startsWith('EMULATOR_') || verId.startsWith('MOCK_');
         setState(() {
           _verificationId = verId;
           _loginOtpSent = true;
           _isLoading = false;
-          if (isEmulator) {
-            _loginOtpController.text = '123456';
-          }
+          _loginOtpController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEmulator
-                ? 'Emulator detected (Play Integrity bypassed): Code 123456 auto-filled.'
-                : 'OTP sent successfully! Please check your SMS.'),
-            duration: const Duration(seconds: 4),
+          const SnackBar(
+            content: Text('OTP sent successfully! Please check your SMS.'),
+            duration: Duration(seconds: 4),
           ),
         );
       },
@@ -152,21 +147,16 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
-        final isEmulator = verId.startsWith('EMULATOR_') || verId.startsWith('MOCK_');
         setState(() {
           _verificationId = verId;
           _otpSent = true;
           _isLoading = false;
-          if (isEmulator) {
-            _regOtpController.text = '123456';
-          }
+          _regOtpController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isEmulator
-                ? 'Emulator detected (Play Integrity bypassed): Code 123456 auto-filled.'
-                : 'OTP sent successfully! Please check your SMS.'),
-            duration: const Duration(seconds: 4),
+          const SnackBar(
+            content: Text('OTP sent successfully! Please check your SMS.'),
+            duration: Duration(seconds: 4),
           ),
         );
       },
@@ -185,6 +175,20 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_regPasswordController.text != _regConfirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Passwords do not match.')),
+      );
+      return;
+    }
+
+    if (!_otpSent || _regOtpController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
+      );
+      return;
+    }
+
+    if (_regOtpController.text.trim().length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
       );
       return;
     }
@@ -468,7 +472,13 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_loginStep == 1) {
       if (!_loginOtpSent || _loginOtpController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please request and enter the OTP code.')),
+          const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
+        );
+        return;
+      }
+      if (_loginOtpController.text.trim().length < 6) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
         );
         return;
       }
@@ -1020,13 +1030,23 @@ class _AuthScreenState extends State<AuthScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: InkWell(
-              onTap: () {
-                ForgotPasswordScreen.showAsBottomSheet(
+              onTap: () async {
+                final prefill = _loginUsernameController.text.trim().isNotEmpty
+                    ? _loginUsernameController.text.trim()
+                    : (_loginPhoneController.text.trim().isNotEmpty
+                        ? _loginPhoneController.text.trim()
+                        : null);
+                final resetPhone = await ForgotPasswordScreen.showAsBottomSheet(
                   context,
-                  initialEmail: _loginUsernameController.text.contains('@')
-                      ? _loginUsernameController.text.trim()
-                      : null,
+                  initialPhone: prefill,
                 );
+                if (resetPhone != null && resetPhone.isNotEmpty && mounted) {
+                  setState(() {
+                    _loginUsernameController.text = resetPhone;
+                    _loginPhoneController.text = resetPhone;
+                    _loginPasswordController.clear();
+                  });
+                }
               },
               borderRadius: BorderRadius.circular(6),
               child: const Padding(
@@ -1904,6 +1924,18 @@ class _AuthScreenState extends State<AuthScreen> {
                 if (_signupStep < 2) {
                   if (_signupStep == 1) {
                     if (!_formKey.currentState!.validate()) return;
+                    if (!_otpSent || _regOtpController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
+                      );
+                      return;
+                    }
+                    if (_regOtpController.text.trim().length < 6) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
+                      );
+                      return;
+                    }
                   }
                   setState(() {
                     _signupStep++;

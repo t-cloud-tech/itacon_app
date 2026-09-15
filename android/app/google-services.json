@@ -12,7 +12,20 @@
           "package_name": "com.example.itacon_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "889001862943-ff3961nj81e8ntrbrtk7jobdbn691nja.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.itacon_app",
+            "certificate_hash": "d847961c53dfb21da73084b05d174fb4e532d6f7"
+          }
+        },
+        {
+          "client_id": "889001862943-ut8ql01mblc0fo2kr6ssr6ompok8mjhc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC7DbQq8iOO47Krl5m2BkYyv0vs4iybijo"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "889001862943-ut8ql01mblc0fo2kr6ssr6ompok8mjhc.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "889001862943-u53tmahl0vnqos8sgngrsn4ke8pltcks.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.itaconApp"
+              }
+            }
+          ]
         }
       }
     }

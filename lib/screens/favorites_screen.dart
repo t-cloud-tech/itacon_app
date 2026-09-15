@@ -122,14 +122,12 @@ class FavoritesScreen extends StatelessWidget {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: AppProductImage(
-                                imagePath: product.images.isNotEmpty
-                                    ? product.images.first
-                                    : '',
-                                width: 76,
-                                height: 76,
-                                fit: BoxFit.contain,
-                              ),
+                                child: AppProductImage(
+                                  imagePath: product.frontCardImage,
+                                  width: 76,
+                                  height: 76,
+                                  fit: BoxFit.cover,
+                                ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -291,14 +289,12 @@ class FavoritesScreen extends StatelessWidget {
                             Expanded(
                               child: Stack(
                                 children: [
-                                  AppProductImage(
-                                    imagePath: product.images.isNotEmpty
-                                        ? product.images.first
-                                        : '',
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    fit: BoxFit.cover,
-                                  ),
+                                    AppProductImage(
+                                      imagePath: product.frontCardImage,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      fit: BoxFit.cover,
+                                    ),
                                   Positioned(
                                     top: 8,
                                     right: 8,

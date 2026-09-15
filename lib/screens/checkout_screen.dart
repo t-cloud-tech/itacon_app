@@ -470,12 +470,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: AppProductImage(
-                      imagePath: item.product.images.isNotEmpty
-                          ? item.product.images.first
-                          : '',
+                      imagePath: item.product.frontCardImage,
                       width: 55,
                       height: 55,
-                      fit: BoxFit.contain,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -778,12 +776,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: AppProductImage(
-                            imagePath: item.product.images.isNotEmpty
-                                ? item.product.images.first
-                                : '',
+                            imagePath: item.product.frontCardImage,
                             width: 60,
                             height: 60,
-                            fit: BoxFit.contain,
+                            fit: BoxFit.cover,
                           ),
                         ),
                         const SizedBox(width: 12),

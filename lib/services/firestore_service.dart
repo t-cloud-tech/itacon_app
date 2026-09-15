@@ -102,6 +102,8 @@ class FirestoreService {
     String? assignedSalespersonId,
     String? userReferralCode,
     bool isVerified = false,
+    String? passwordHash,
+    String? passwordSalt,
   }) async {
     try {
       final categoryLabel = UserCategory.getLabel(role);
@@ -161,6 +163,8 @@ class FirestoreService {
         'state': state ?? stateCode ?? '',
         'pincode': pincode ?? '',
         'isVerified': isVerified,
+        'passwordHash': ?passwordHash,
+        'passwordSalt': ?passwordSalt,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -182,6 +186,33 @@ class FirestoreService {
         'categoryLabel': categoryLabel,
       }, SetOptions(merge: true));
     } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Updates user password hash and salt in `users` and category collections.
+  Future<void> updateUserPassword({
+    required String uid,
+    required String passwordHash,
+    required String passwordSalt,
+    String? role,
+  }) async {
+    try {
+      final updateData = {
+        'passwordHash': passwordHash,
+        'passwordSalt': passwordSalt,
+        'passwordUpdatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await _usersRef.doc(uid).set(updateData, SetOptions(merge: true));
+
+      if (role != null && role.isNotEmpty) {
+        final catColName = _getCategoryCollectionName(role);
+        await _db.collection(catColName).doc(uid).set(updateData, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Error updating password in Firestore: $e');
       rethrow;
     }
   }

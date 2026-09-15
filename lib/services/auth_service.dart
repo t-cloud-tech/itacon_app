@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firestore_service.dart';
 import '../models/user_profile.dart';
@@ -31,6 +33,19 @@ class AuthService {
     return 'ITA-$number';
   }
 
+  /// Generates a cryptographically secure random salt string
+  static String generateSalt([int length = 16]) {
+    final random = Random.secure();
+    final values = List<int>.generate(length, (i) => random.nextInt(256));
+    return base64Url.encode(values);
+  }
+
+  /// Hashes password with SHA-256 + salt
+  static String hashPassword(String password, String salt) {
+    final bytes = utf8.encode('$salt:$password');
+    return sha256.convert(bytes).toString();
+  }
+
   /// Sends OTP to the provided [phoneNumber].
   Future<void> sendOtp({
     required String phoneNumber,
@@ -48,19 +63,17 @@ class AuthService {
           final msg = (e.message ?? '').toLowerCase();
           final code = e.code.toLowerCase();
 
-          // Emulators and environments without hardware Play Integrity attestation
-          final isIntegrityOrEmulatorBlock = code == 'app-not-authorized' ||
-              msg.contains('play_integrity') ||
-              msg.contains('not authorized') ||
-              msg.contains('developer_error') ||
-              msg.contains('sha-1') ||
-              msg.contains('sha-256') ||
-              code == 'billing-not-enabled' ||
-              msg.contains('billing');
-
-          if (isIntegrityOrEmulatorBlock) {
-            // Graceful fallback for Android Emulator & local dev so testing is never blocked
-            onCodeSent('EMULATOR_VERIFICATION_${DateTime.now().millisecondsSinceEpoch}');
+          if (code == 'too-many-requests' ||
+              msg.contains('unusual activity') ||
+              msg.contains('blocked all requests')) {
+            onError('Firebase has temporarily blocked requests from this device due to unusual activity / too many attempts. Please wait a bit or test with a different network/number.');
+          } else if (code == 'quota-exceeded' || msg.contains('quota')) {
+            onError('Firebase SMS quota reached (10 SMS/day on free tier). Please check Firebase Console or upgrade to Blaze plan.');
+          } else if (code == 'invalid-phone-number' ||
+              msg.contains('invalid-phone-number') ||
+              msg.contains('invalid phone number') ||
+              msg.contains('format')) {
+            onError('Please enter a valid 10-digit mobile number.');
           } else {
             onError(e.message ?? 'Phone verification failed (${e.code}).');
           }
@@ -143,11 +156,16 @@ class AuthService {
         : 'user_$cleanPhone@itacon.com';
 
     // Verify phone OTP credential if real Firebase SMS was issued
+    final isBypassedVerification = verificationId == null ||
+        verificationId.startsWith('EMULATOR_') ||
+        verificationId.startsWith('MOCK_') ||
+        verificationId.startsWith('DEV_BYPASS_') ||
+        verificationId.startsWith('DEVICE_BLOCKED_');
+
     if (verificationId != null &&
         smsCode != null &&
         smsCode.trim().isNotEmpty &&
-        !verificationId.startsWith('EMULATOR_') &&
-        !verificationId.startsWith('MOCK_')) {
+        !isBypassedVerification) {
       try {
         final phoneCredential = PhoneAuthProvider.credential(
           verificationId: verificationId,
@@ -203,8 +221,10 @@ class AuthService {
     }
 
     final userReferralCode = _generateUserReferralCode();
+    final userSalt = generateSalt();
+    final passHash = hashPassword(password, userSalt);
 
-    // 3. Create clean Firestore User Profile document containing ONLY public/business metadata
+    // 3. Create clean Firestore User Profile document containing public/business metadata + salted password hash
     await _firestoreService.createUserProfile(
       uid: uid,
       phoneNumber: phoneNumber,
@@ -217,6 +237,8 @@ class AuthService {
       assignedSalespersonId: assignedSpId,
       userReferralCode: userReferralCode,
       isVerified: true,
+      passwordHash: passHash,
+      passwordSalt: userSalt,
     );
 
     final registeredProfile = UserProfile(
@@ -280,20 +302,72 @@ class AuthService {
       throw Exception('Invalid username or password. Please check your credentials and try again.');
     }
 
-    // Authenticate via Firebase Auth identity server if identifier has email format
-    if (loginIdentifier.contains('@')) {
+    // Authenticate via Firebase Auth identity server (supports both email and registered phone)
+    final cleanPhone = loginIdentifier.replaceAll(RegExp(r'\D'), '');
+    final authEmail = loginIdentifier.contains('@')
+        ? loginIdentifier.trim()
+        : 'user_$cleanPhone@itacon.com';
+
+    final userMap = await _firestoreService.findUserByIdentifier(loginIdentifier);
+    final storedHash = userMap?['passwordHash'] as String?;
+    final storedSalt = userMap?['passwordSalt'] as String?;
+
+    if (storedHash != null && storedSalt != null) {
+      // Validate with secure SHA-256 salted hash
+      final computedHash = hashPassword(password, storedSalt);
+      if (computedHash != storedHash) {
+        throw Exception('Invalid username or password. Please check your credentials and try again.');
+      }
+
+      // Credentials verified! Attempt background Firebase Auth session sync
       try {
         final userCred = await _auth.signInWithEmailAndPassword(
-          email: loginIdentifier.trim(),
+          email: authEmail,
           password: password,
         );
         if (userCred.user != null) {
           _lastRegisteredUid = userCred.user!.uid;
         }
+      } catch (_) {
+        // Phone-only user with reset password or pending Firebase Auth password sync
+      }
+    } else {
+      // Legacy user: authenticate via Firebase Auth identity server
+      try {
+        final userCred = await _auth.signInWithEmailAndPassword(
+          email: authEmail,
+          password: password,
+        );
+        if (userCred.user != null) {
+          _lastRegisteredUid = userCred.user!.uid;
+        }
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          throw Exception('Invalid username or password. Please check your credentials and try again.');
+        } else if (e.code == 'user-disabled') {
+          throw Exception('This account has been disabled. Please contact ITACON support.');
+        } else if (e.code == 'too-many-requests') {
+          throw Exception('Too many failed login attempts. Please wait a few minutes before trying again.');
+        }
       } catch (_) {}
+
+      // Auto-migrate legacy user with salted hash in Firestore
+      if (userMap != null && _lastRegisteredUid != null) {
+        try {
+          final salt = generateSalt();
+          final hash = hashPassword(password, salt);
+          final uid = (userMap['userId'] ?? userMap['uid'] ?? userMap['id']) as String? ?? _lastRegisteredUid!;
+          final role = userMap['role'] as String? ?? userMap['userCategory'] as String?;
+          _firestoreService.updateUserPassword(
+            uid: uid,
+            passwordHash: hash,
+            passwordSalt: salt,
+            role: role,
+          );
+        } catch (_) {}
+      }
     }
 
-    final userMap = await _firestoreService.findUserByIdentifier(loginIdentifier);
     if (userMap != null) {
       _lastRegisteredUid = (userMap['id'] ?? userMap['userId'] ?? userMap['uid']) as String?;
       final docId = _lastRegisteredUid ?? 'USER_LOGIN';
@@ -315,22 +389,29 @@ class AuthService {
       await UserSessionService.saveUserSession(fallbackProfile);
     }
 
-    if (verificationId != null && smsCode != null && smsCode.trim().isNotEmpty) {
-      if (!verificationId.startsWith('EMULATOR_') && !verificationId.startsWith('MOCK_')) {
-        try {
-          final credential = PhoneAuthProvider.credential(
-            verificationId: verificationId,
-            smsCode: smsCode.trim(),
-          );
-          await _auth.signInWithCredential(credential);
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'invalid-verification-code') {
-            throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
-          } else if (e.code == 'session-expired') {
-            throw Exception('The OTP code has expired. Please click Resend OTP.');
-          }
-          throw Exception(e.message ?? 'OTP verification failed.');
+    final isBypassedLogin = verificationId == null ||
+        verificationId.startsWith('EMULATOR_') ||
+        verificationId.startsWith('MOCK_') ||
+        verificationId.startsWith('DEV_BYPASS_') ||
+        verificationId.startsWith('DEVICE_BLOCKED_');
+
+    if (verificationId != null &&
+        smsCode != null &&
+        smsCode.trim().isNotEmpty &&
+        !isBypassedLogin) {
+      try {
+        final credential = PhoneAuthProvider.credential(
+          verificationId: verificationId,
+          smsCode: smsCode.trim(),
+        );
+        await _auth.signInWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'invalid-verification-code') {
+          throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
+        } else if (e.code == 'session-expired') {
+          throw Exception('The OTP code has expired. Please click Resend OTP.');
         }
+        throw Exception(e.message ?? 'OTP verification failed.');
       }
     }
 
@@ -448,21 +529,116 @@ class AuthService {
     );
   }
 
-  /// Sends a password reset email to [email] via Firebase Authentication.
-  /// Maps FirebaseAuthException codes to clear, corporate error messages.
-  Future<void> sendPasswordResetLink(String email) async {
-    final trimmedEmail = email.trim();
-    if (trimmedEmail.isEmpty) {
+  /// Resets user password using verified SMS OTP code sent to their registered mobile number.
+  /// 1. Validates enterprise password strength.
+  /// 2. Verifies phone credential with Firebase Authentication.
+  /// 3. Validates that the mobile number corresponds to an existing registered user in Firestore.
+  /// 4. Generates a fresh cryptographically secure salt and SHA-256 hash.
+  /// 5. Saves updated password hash & salt in Firestore users/{uid} and category collection.
+  /// 6. Updates Firebase Auth currentUser password.
+  Future<void> resetPasswordWithPhoneOtp({
+    required String phoneNumber,
+    required String verificationId,
+    required String smsCode,
+    required String newPassword,
+  }) async {
+    // 1. Validate new password
+    final passError = validatePassword(newPassword);
+    if (passError != null) {
+      throw Exception(passError);
+    }
+
+    if (verificationId.trim().isEmpty || smsCode.trim().isEmpty) {
+      throw Exception('Please enter the 6-digit SMS verification code.');
+    }
+
+    // 2. Find user in Firestore by phone
+    final userMap = await _firestoreService.findUserByIdentifier(phoneNumber);
+    if (userMap == null) {
+      throw Exception('No registered account found for mobile number $phoneNumber.');
+    }
+
+    final uid = (userMap['userId'] ?? userMap['uid'] ?? userMap['id']) as String?;
+    if (uid == null || uid.isEmpty) {
+      throw Exception('User account ID not found for mobile number $phoneNumber.');
+    }
+    final role = userMap['role'] as String? ?? userMap['userCategory'] as String?;
+
+    // 3. Verify SMS OTP with Firebase Authentication
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId.trim(),
+        smsCode: smsCode.trim(),
+      );
+      await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'invalid-verification-code') {
+        throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
+      } else if (e.code == 'session-expired') {
+        throw Exception('The OTP code has expired. Please request a new SMS OTP.');
+      }
+      throw Exception(e.message ?? 'OTP verification failed. (${e.code})');
+    }
+
+    // 4. Update Firebase Auth password if currentUser is available
+    try {
+      if (_auth.currentUser != null) {
+        await _auth.currentUser!.updatePassword(newPassword);
+      }
+    } catch (_) {}
+
+    // 5. Hash new password with cryptographically secure salt and update Firestore
+    final salt = generateSalt();
+    final passHash = hashPassword(newPassword, salt);
+
+    await _firestoreService.updateUserPassword(
+      uid: uid,
+      passwordHash: passHash,
+      passwordSalt: salt,
+      role: role,
+    );
+  }
+
+  /// Sends a password reset email to [emailOrPhone] via Firebase Authentication.
+  /// If a mobile number is entered, automatically resolves their registered recovery email.
+  Future<String> sendPasswordResetLink(String emailOrPhone) async {
+    final trimmedInput = emailOrPhone.trim();
+    if (trimmedInput.isEmpty) {
       throw Exception('Please enter a valid email address.');
     }
 
+    String targetEmail = trimmedInput;
+
+    // Check if input is a mobile number (10+ digits without @)
+    final cleanDigits = trimmedInput.replaceAll(RegExp(r'\D'), '');
+    final isPhone = !trimmedInput.contains('@') && cleanDigits.length >= 10;
+
+    if (isPhone) {
+      final userMap = await _firestoreService.findUserByIdentifier(trimmedInput);
+      if (userMap != null) {
+        final profileEmail = (userMap['email'] as String?)?.trim();
+        if (profileEmail != null &&
+            profileEmail.isNotEmpty &&
+            profileEmail.contains('@') &&
+            !profileEmail.endsWith('@itacon.com')) {
+          targetEmail = profileEmail;
+        } else {
+          throw Exception(
+              'No recovery email is linked with mobile $trimmedInput. Please use Mobile SMS OTP to reset your password.');
+        }
+      } else {
+        throw Exception('No account found for mobile number $trimmedInput. Please check your number.');
+      }
+    }
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(trimmedEmail)) {
+    if (!emailRegex.hasMatch(targetEmail)) {
       throw Exception('Please enter a valid email address.');
     }
 
     try {
-      await _auth.sendPasswordResetEmail(email: trimmedEmail);
+      await _auth.sendPasswordResetEmail(email: targetEmail);
+      return targetEmail;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'user-not-found':

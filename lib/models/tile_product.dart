@@ -147,6 +147,22 @@ class TileProduct {
     return list;
   }
 
+  /// The front display image used on product collection cards, lists, and catalog showcases.
+  /// Prioritizes the architectural room mockup (`mockupImages.first`),
+  /// falling back to lifestyle images, and then flat tile face images.
+  String get frontCardImage {
+    if (mockupImages != null && mockupImages!.isNotEmpty && mockupImages!.first.isNotEmpty) {
+      return mockupImages!.first;
+    }
+    if (lifestyleImages.isNotEmpty && lifestyleImages.first.isNotEmpty) {
+      return lifestyleImages.first;
+    }
+    if (images.isNotEmpty && images.first.isNotEmpty) {
+      return images.first;
+    }
+    return '';
+  }
+
   bool get isAdhesive =>
       productLine == 'adhesives' || unit == 'bag' || categoryId == 'CAT_ADHESIVES' || sku.startsWith('ITA-LX');
 
@@ -203,6 +219,7 @@ class TileProduct {
       'randomPattern': randomPattern,
       'priceCategory': priceCategory,
       'shade': shade,
+      'mockupImages': mockupImages,
       'lifestyleImages': lifestyleImages,
       'packingDetails': packingDetails,
       'createdAt': createdAt != null
@@ -254,6 +271,9 @@ class TileProduct {
       reservedStock: rStock,
       availableStock: aStock,
       images: List<String>.from(map['images'] ?? []),
+      mockupImages: map['mockupImages'] != null
+          ? List<String>.from(map['mockupImages'])
+          : null,
       isActive: map['isActive'] ?? true,
       isComingSoon: map['isComingSoon'] ?? false,
       collection: map['collection'] ?? (prodLine == 'adhesives' ? 'Fixing Solutions' : 'Endless'),
