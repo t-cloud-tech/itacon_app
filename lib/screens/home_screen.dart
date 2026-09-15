@@ -379,9 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 image: const DecorationImage(
-                  image: NetworkImage(
-                    'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80',
-                  ),
+                  image: AssetImage('assets/images/splash_kitchen.jpg'),
                   fit: BoxFit.cover,
                 ),
               ),

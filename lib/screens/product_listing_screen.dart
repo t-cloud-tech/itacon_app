@@ -630,28 +630,29 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       return AdhesiveCard(product: product);
     }
 
-    return AppPressable(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ProductDetailScreen(product: product),
+    return RepaintBoundary(
+      child: AppPressable(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: product),
+            ),
+          );
+        },
+        scaleDown: 0.97,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.8)),
+            boxShadow: AppTheme.luxuryShadows,
           ),
-        );
-      },
-      scaleDown: 0.97,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.borderSubtle.withValues(alpha: 0.8)),
-          boxShadow: AppTheme.luxuryShadows,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Uniform 1:1 Square Tile Image Showcase
             AspectRatio(
               aspectRatio: 1.0,
@@ -850,6 +851,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
