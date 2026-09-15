@@ -48,19 +48,20 @@ class AuthService {
           final msg = (e.message ?? '').toLowerCase();
           final code = e.code.toLowerCase();
 
-          // Only block if the user entered an invalid phone number format
-          if (code == 'invalid-phone-number' ||
+          if (code == 'too-many-requests' ||
+              msg.contains('unusual activity') ||
+              msg.contains('blocked all requests')) {
+            onError('Firebase has temporarily blocked requests from this device due to unusual activity / too many attempts. Please wait a bit or test with a different network/number.');
+          } else if (code == 'quota-exceeded' || msg.contains('quota')) {
+            onError('Firebase SMS quota reached (10 SMS/day on free tier). Please check Firebase Console or upgrade to Blaze plan.');
+          } else if (code == 'invalid-phone-number' ||
               msg.contains('invalid-phone-number') ||
               msg.contains('invalid phone number') ||
               msg.contains('format')) {
             onError('Please enter a valid 10-digit mobile number.');
-            return;
+          } else {
+            onError(e.message ?? 'Phone verification failed (${e.code}).');
           }
-
-          // For all other carrier, device rate-limiting, reCAPTCHA token expiry,
-          // or Play Integrity/application verifier failures:
-          // Seamlessly engage bypass so no user or team member is ever blocked from onboarding.
-          onCodeSent('DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}');
         },
         codeSent: (String verificationId, int? resendToken) {
           onCodeSent(verificationId);
@@ -68,12 +69,7 @@ class AuthService {
         codeAutoRetrievalTimeout: (String verificationId) {},
       );
     } catch (e) {
-      final str = e.toString().toLowerCase();
-      if (str.contains('invalid phone') || str.contains('invalid-phone')) {
-        onError('Please enter a valid 10-digit mobile number.');
-      } else {
-        onCodeSent('DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}');
-      }
+      onError('Failed to send OTP: ${e.toString()}');
     }
   }
 

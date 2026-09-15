@@ -65,115 +65,25 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
-        final isBypassed = verId.startsWith('EMULATOR_') ||
-            verId.startsWith('MOCK_') ||
-            verId.startsWith('DEV_BYPASS_') ||
-            verId.startsWith('DEVICE_BLOCKED_');
         setState(() {
           _verificationId = verId;
           _loginOtpSent = true;
           _isLoading = false;
-          if (isBypassed) {
-            _loginOtpController.text = '123456';
-          }
+          _loginOtpController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isBypassed
-                ? 'Verification fallback active: OTP 123456 auto-filled.'
-                : 'OTP sent successfully! Please check your SMS.'),
-            duration: const Duration(seconds: 4),
+          const SnackBar(
+            content: Text('OTP sent successfully! Please check your SMS.'),
+            duration: Duration(seconds: 4),
           ),
         );
       },
       onError: (err) {
         if (!mounted) return;
-        final errLower = err.toLowerCase();
-        if (errLower.contains('blocked') ||
-            errLower.contains('unusual') ||
-            errLower.contains('too-many') ||
-            errLower.contains('rate') ||
-            errLower.contains('quota') ||
-            errLower.contains('identifier') ||
-            errLower.contains('integrity')) {
-          setState(() {
-            _verificationId = 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-            _loginOtpSent = true;
-            _isLoading = false;
-            _loginOtpController.text = '123456';
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Device limit detected: OTP 123456 auto-filled.'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-          return;
-        }
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(err)));
       },
-    );
-  }
-
-  void _useTestLoginOtp() {
-    setState(() {
-      _verificationId = 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-      _loginOtpSent = true;
-      _isLoading = false;
-      _loginOtpController.text = '123456';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Test OTP 123456 activated! Enter password and click Continue.'),
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
-  void _useTestSignupOtp() {
-    setState(() {
-      _verificationId = 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-      _otpSent = true;
-      _isLoading = false;
-      _regOtpController.text = '123456';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Test OTP 123456 activated! Fill password and click Continue.'),
-        duration: Duration(seconds: 3),
-      ),
-    );
-  }
-
-  Widget _buildTestOtpBypassPrompt({required VoidCallback onTap}) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          GestureDetector(
-            onTap: onTap,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.flash_on_rounded, size: 14, color: Color(0xFFF16528)),
-                const SizedBox(width: 4),
-                Text(
-                  'Instant Test OTP (123456)',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFFF16528),
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -237,51 +147,21 @@ class _AuthScreenState extends State<AuthScreen> {
       phoneNumber: formattedPhone,
       onCodeSent: (verId) {
         if (!mounted) return;
-        final isBypassed = verId.startsWith('EMULATOR_') ||
-            verId.startsWith('MOCK_') ||
-            verId.startsWith('DEV_BYPASS_') ||
-            verId.startsWith('DEVICE_BLOCKED_');
         setState(() {
           _verificationId = verId;
           _otpSent = true;
           _isLoading = false;
-          if (isBypassed) {
-            _regOtpController.text = '123456';
-          }
+          _regOtpController.clear();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(isBypassed
-                ? 'Verification fallback active: OTP 123456 auto-filled.'
-                : 'OTP sent successfully! Please check your SMS.'),
-            duration: const Duration(seconds: 4),
+          const SnackBar(
+            content: Text('OTP sent successfully! Please check your SMS.'),
+            duration: Duration(seconds: 4),
           ),
         );
       },
       onError: (err) {
         if (!mounted) return;
-        final errLower = err.toLowerCase();
-        if (errLower.contains('blocked') ||
-            errLower.contains('unusual') ||
-            errLower.contains('too-many') ||
-            errLower.contains('rate') ||
-            errLower.contains('quota') ||
-            errLower.contains('identifier') ||
-            errLower.contains('integrity')) {
-          setState(() {
-            _verificationId = 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-            _otpSent = true;
-            _isLoading = false;
-            _regOtpController.text = '123456';
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Device limit detected: OTP 123456 auto-filled.'),
-              duration: Duration(seconds: 4),
-            ),
-          );
-          return;
-        }
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(err)));
@@ -299,16 +179,25 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
+    if (!_otpSent || _regOtpController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
+      );
+      return;
+    }
+
+    if (_regOtpController.text.trim().length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
+      );
+      return;
+    }
+
     final formattedPhone = _regE164Phone.isNotEmpty
         ? _regE164Phone
         : (_regPhoneController.text.trim().startsWith('+')
             ? _regPhoneController.text.trim()
             : '+91${_regPhoneController.text.trim()}');
-
-    final effectiveVerId = _verificationId ?? 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-    final effectiveOtp = _regOtpController.text.trim().isNotEmpty
-        ? _regOtpController.text.trim()
-        : '123456';
 
     setState(() => _isLoading = true);
     try {
@@ -319,8 +208,8 @@ class _AuthScreenState extends State<AuthScreen> {
         password: _regPasswordController.text.trim(),
         companyName: _regCompanyNameController.text.trim(),
         dateOfBirth: _regDobController.text.trim(),
-        verificationId: effectiveVerId,
-        smsCode: effectiveOtp,
+        verificationId: _verificationId,
+        smsCode: _regOtpController.text.trim(),
       );
 
       final uid = _authService.currentUser?.uid;
@@ -582,10 +471,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (_loginStep == 1) {
       if (!_loginOtpSent || _loginOtpController.text.trim().isEmpty) {
-        // Auto-fulfill test OTP so team members and testers are never blocked
-        _loginOtpSent = true;
-        _verificationId ??= 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-        _loginOtpController.text = '123456';
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
+        );
+        return;
+      }
+      if (_loginOtpController.text.trim().length < 6) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
+        );
+        return;
       }
 
       // Verify username and password credentials directly on Step 1
@@ -595,16 +490,11 @@ class _AuthScreenState extends State<AuthScreen> {
             ? _loginUsernameController.text.trim()
             : '+91${_loginPhoneController.text.trim()}';
 
-        final effectiveVerId = _verificationId ?? 'DEV_BYPASS_${DateTime.now().millisecondsSinceEpoch}';
-        final effectiveOtp = _loginOtpController.text.trim().isNotEmpty
-            ? _loginOtpController.text.trim()
-            : '123456';
-
         await _authService.loginUser(
           loginIdentifier: identifier,
           password: _loginPasswordController.text.trim(),
-          verificationId: effectiveVerId,
-          smsCode: effectiveOtp,
+          verificationId: _verificationId,
+          smsCode: _loginOtpController.text.trim(),
         );
 
         // Only transition to Step 2 (Customer Referral Code) if credentials are valid!
@@ -1095,8 +985,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ],
           ),
-          _buildTestOtpBypassPrompt(onTap: _useTestLoginOtp),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // OTP Field if sent
           if (_loginOtpSent) ...[
@@ -1768,8 +1657,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ],
         ),
-        _buildTestOtpBypassPrompt(onTap: _useTestSignupOtp),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
 
         // OTP Field if sent
         if (_otpSent) ...[
@@ -2029,6 +1917,18 @@ class _AuthScreenState extends State<AuthScreen> {
                 if (_signupStep < 2) {
                   if (_signupStep == 1) {
                     if (!_formKey.currentState!.validate()) return;
+                    if (!_otpSent || _regOtpController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
+                      );
+                      return;
+                    }
+                    if (_regOtpController.text.trim().length < 6) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
+                      );
+                      return;
+                    }
                   }
                   setState(() {
                     _signupStep++;
