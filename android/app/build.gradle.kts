@@ -40,7 +40,6 @@ android {
 }
 
 dependencies {
-    implementation("com.google.android.play:integrity:1.4.0")
     implementation("com.google.android.gms:play-services-auth:21.3.0")
 }
 
