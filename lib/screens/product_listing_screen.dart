@@ -110,93 +110,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           return false;
         }
       }
-      // 2. Spaces Multi-Select
-      if (_activeFilter.selectedSpaces.isNotEmpty &&
-          !p.spaces.any((sp) => _activeFilter.selectedSpaces.contains(sp))) {
-        return false;
-      }
-      // 3. Surfaces Multi-Select
-      if (_activeFilter.selectedSurfaces.isNotEmpty &&
-          !_activeFilter.selectedSurfaces.contains(p.surface) &&
-          !_activeFilter.selectedSurfaces.contains(p.finish)) {
-        return false;
-      }
-      // 4. Base Colours Multi-Select
-      if (_activeFilter.selectedBaseColours.isNotEmpty) {
-        final matchesColour = _activeFilter.selectedBaseColours.any((selectedCol) {
-          final sCol = selectedCol.toLowerCase().trim();
-          final pBase = p.baseColour.toLowerCase().trim();
-          final pCol = p.color.toLowerCase().trim();
-
-          if (pBase == sCol || pCol == sCol) return true;
-
-          // Accurate palette mappings matching catalog products
-          if (sCol == 'white') {
-            return pBase.contains('white') || pBase.contains('statuario') || pCol.contains('white');
-          }
-          if (sCol == 'grey') {
-            return pBase.contains('grey') || pBase.contains('grery') || pCol.contains('grey');
-          }
-          if (sCol == 'beige') {
-            return pBase.contains('beige') || pBase.contains('taupe') || pCol.contains('beige');
-          }
-          if (sCol == 'brown') {
-            return pBase.contains('brown') || pCol.contains('brown');
-          }
-          if (sCol == 'blue') {
-            return pBase.contains('blue') || pCol.contains('blue');
-          }
-          if (sCol == 'aqua') {
-            return pBase.contains('aqua') || pCol.contains('aqua');
-          }
-          if (sCol == 'crema') {
-            return pBase.contains('crem') || pCol.contains('crem');
-          }
-          if (sCol == 'bianco') {
-            return pBase.contains('bianco') || pCol.contains('bianco');
-          }
-          if (sCol == 'ivory') {
-            return pBase.contains('ivory') || pCol.contains('ivory');
-          }
-
-          return pBase.contains(sCol) || sCol.contains(pBase) || pCol.contains(sCol);
-        });
-        if (!matchesColour) return false;
-      }
-      // 5. Collections / Design Multi-Select
-      if (_activeFilter.selectedCollections.isNotEmpty) {
-        final matchesCollection = _activeFilter.selectedCollections.any((selectedCol) {
-          final sCol = selectedCol.toLowerCase().trim();
-          final pCol = p.collection.toLowerCase().trim();
-          final pPat = p.pattern.toLowerCase().trim();
-
-          if (pCol == sCol || pPat == sCol) return true;
-
-          // Flexible sub-matching e.g. "Endless" or "Random" or "Décor"
-          if (sCol.contains('endless') && (pCol.contains('endless') || pPat.contains('endless'))) return true;
-          if (sCol.contains('random') && (pCol.contains('random') || pPat.contains('random'))) return true;
-          if (sCol.contains('décor') || sCol.contains('decor')) {
-            return pCol.contains('décor') || pCol.contains('decor') || pPat.contains('décor') || pPat.contains('decor');
-          }
-          if (sCol.contains('plain') && (pCol.contains('plain') || pPat.contains('plain'))) return true;
-          if (sCol.contains('marble') && (pCol.contains('marble') || pPat.contains('marble'))) return true;
-
-          return pCol.contains(sCol) || sCol.contains(pCol) || pPat.contains(sCol);
-        });
-        if (!matchesCollection) return false;
-      }
-      // 6. Product Type Segment
-      if (_activeFilter.selectedProductType != 'All' &&
-          _activeFilter.selectedProductType.isNotEmpty &&
-          p.productType != _activeFilter.selectedProductType) {
-        return false;
-      }
-      // 7. Sizes Multi-Select
-      if (_activeFilter.selectedSizes.isNotEmpty &&
-          !_activeFilter.selectedSizes.contains(p.size)) {
-        return false;
-      }
-      return true;
+      return _activeFilter.matches(p);
     }).toList();
 
     // Apply Sorting
@@ -218,6 +132,8 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => ProductFilterBottomSheet(
         initialFilter: _activeFilter,
+        allProducts: _allProducts,
+        searchQuery: _searchQuery,
         onApplyFilter: (newFilter) {
           setState(() {
             _activeFilter = newFilter;
