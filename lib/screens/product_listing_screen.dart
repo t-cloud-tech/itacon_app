@@ -735,9 +735,10 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
               // Product Details Block
               Padding(
-                padding: const EdgeInsets.all(12.0),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       product.name,
@@ -747,20 +748,25 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.primaryNavy,
+                        height: 1.15,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Row(
                       children: [
                         const Icon(Icons.straighten_rounded, size: 12, color: AppTheme.textSubtle),
                         const SizedBox(width: 4),
                         Text(
                           product.size,
-                          style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSubtle),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: AppTheme.textSubtle,
+                            height: 1.15,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
 
                     // Pricing & Add Button
                     ListenableBuilder(
@@ -781,6 +787,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   FittedBox(
                                     fit: BoxFit.scaleDown,
@@ -793,6 +800,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                         fontSize: context.sp(13.5),
                                         fontWeight: FontWeight.w800,
                                         color: AppTheme.accentOrange,
+                                        height: 1.15,
                                       ),
                                     ),
                                   ),
@@ -806,6 +814,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                           fontSize: context.sp(9.5),
                                           color: Colors.grey,
                                           decoration: TextDecoration.lineThrough,
+                                          height: 1.15,
                                         ),
                                       ),
                                     ),

@@ -445,85 +445,6 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildSearchAndPopularChips(context),
             const SizedBox(height: 26),
 
-            // Shop by Space Section (Living Room, Bath Room, Bedroom, Outdoor)
-            Text(
-              'Shop by Space',
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textDark,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Horizontal Scrollable Space Cards with Tactile AppPressable
-            SizedBox(
-              height: 110,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: ProductEnums.spaces.length,
-                separatorBuilder: (context, index) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final spaceName = ProductEnums.spaces[index];
-                  return AppPressable(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ProductListingScreen(
-                            subcategoryTitle: '$spaceName Tiles',
-                          ),
-                        ),
-                      );
-                    },
-                    scaleDown: 0.95,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      width: 120,
-                      decoration: AppTheme.luxuryCardDecoration,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 48,
-                            height: 48,
-                            child: Image.asset(
-                              _getSpaceImagePath(spaceName),
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Icon(
-                                _getSpaceIcon(spaceName),
-                                color: AppTheme.primaryNavy,
-                                size: 36,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            spaceName,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-
             // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -799,6 +720,85 @@ class _HomeScreenState extends State<HomeScreen> {
 
             // High-Bond Tile Adhesive Bags Section
             const AdhesiveSectionWidget(),
+            const SizedBox(height: 30),
+
+            // Shop by Space Section (Living Room, Bath Room, Bedroom, Outdoor)
+            Text(
+              'Shop by Space',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Horizontal Scrollable Space Cards with Tactile AppPressable
+            SizedBox(
+              height: 110,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: ProductEnums.spaces.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final spaceName = ProductEnums.spaces[index];
+                  return AppPressable(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProductListingScreen(
+                            subcategoryTitle: '$spaceName Tiles',
+                          ),
+                        ),
+                      );
+                    },
+                    scaleDown: 0.95,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 120,
+                      decoration: AppTheme.luxuryCardDecoration,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 10,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Image.asset(
+                              _getSpaceImagePath(spaceName),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Icon(
+                                _getSpaceIcon(spaceName),
+                                color: AppTheme.primaryNavy,
+                                size: 36,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            spaceName,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 30),
 
             // Why ITACON Trust Section (Brand Pillars & Quality Promise)
