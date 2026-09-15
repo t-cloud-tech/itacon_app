@@ -634,9 +634,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(10),
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 product.name,
@@ -644,6 +645,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: AppTheme.textDark,
+                                  height: 1.15,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -654,6 +656,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: AppTheme.textSubtle,
+                                  height: 1.15,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -670,6 +673,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontSize: 13,
                                         fontWeight: FontWeight.w800,
                                         color: AppTheme.accentOrange,
+                                        height: 1.15,
                                       ),
                                     ),
                                   ),
@@ -1263,9 +1267,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             // Product Details
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     product.name,
@@ -1275,9 +1280,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w700,
                                       color: AppTheme.textDark,
+                                      height: 1.15,
                                     ),
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 2),
                                   Text(
                                     '${product.size} • ${product.surface}',
                                     maxLines: 1,
@@ -1286,9 +1292,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       fontSize: 11,
                                       color: AppTheme.textSubtle,
                                       fontWeight: FontWeight.w500,
+                                      height: 1.15,
                                     ),
                                   ),
-                                  const SizedBox(height: 5),
+                                  const SizedBox(height: 4),
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
@@ -1302,6 +1309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             fontSize: 12,
                                             fontWeight: FontWeight.w800,
                                             color: AppTheme.accentOrange,
+                                            height: 1.15,
                                           ),
                                         ),
                                       ),

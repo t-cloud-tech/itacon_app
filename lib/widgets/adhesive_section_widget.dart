@@ -534,9 +534,10 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                     ),
                     // Product Meta Text (Identical to Trending Collection)
                     Padding(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             adhesive.name,
@@ -544,6 +545,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.textDark,
+                              height: 1.15,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -554,6 +556,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               color: AppTheme.textSubtle,
+                              height: 1.15,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -569,6 +572,7 @@ class _AdhesiveSectionWidgetState extends State<AdhesiveSectionWidget> {
                                     fontSize: 13,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.accentOrange,
+                                    height: 1.15,
                                   ),
                                 ),
                               ),

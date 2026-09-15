@@ -142,17 +142,19 @@ class FavoritesScreen extends StatelessWidget {
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: AppTheme.textDark,
+                                      height: 1.15,
                                     ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Text(
                                     '${product.size} • ${product.finish}',
                                     style: GoogleFonts.inter(
                                       fontSize: 12,
                                       color: AppTheme.textSubtle,
+                                      height: 1.15,
                                     ),
                                   ),
-                                  const SizedBox(height: 6),
+                                  const SizedBox(height: 4),
                                   Text(
                                     product.isAdhesive
                                         ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
@@ -322,9 +324,10 @@ class FavoritesScreen extends StatelessWidget {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
                                     product.name,
@@ -334,6 +337,7 @@ class FavoritesScreen extends StatelessWidget {
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
                                       color: AppTheme.textDark,
+                                      height: 1.15,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -344,6 +348,7 @@ class FavoritesScreen extends StatelessWidget {
                                     style: GoogleFonts.inter(
                                       fontSize: 10.5,
                                       color: AppTheme.textSubtle,
+                                      height: 1.15,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -359,6 +364,7 @@ class FavoritesScreen extends StatelessWidget {
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w800,
                                           color: AppTheme.accentOrange,
+                                          height: 1.15,
                                         ),
                                       ),
                                       AppPressable(
