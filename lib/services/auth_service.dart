@@ -67,6 +67,10 @@ class AuthService {
               msg.contains('unusual activity') ||
               msg.contains('blocked all requests')) {
             onError('Firebase has temporarily blocked requests from this device due to unusual activity / too many attempts. Please wait a bit or test with a different network/number.');
+          } else if (msg.contains('invalid app info') ||
+              msg.contains('play_integrity') ||
+              code == 'invalid-app-credential') {
+            onError('Firebase App Verification Error: SHA-256 fingerprint is missing in Firebase Console. Please add SHA-256 in Firebase Console (Project Settings -> Android app).');
           } else if (code == 'quota-exceeded' || msg.contains('quota')) {
             onError('Firebase SMS quota reached (10 SMS/day on free tier). Please check Firebase Console or upgrade to Blaze plan.');
           } else if (code == 'invalid-phone-number' ||

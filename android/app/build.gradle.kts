@@ -26,6 +26,15 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("itacon_debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")

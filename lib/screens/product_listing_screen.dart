@@ -859,7 +859,6 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
