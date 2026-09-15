@@ -1030,16 +1030,23 @@ class _AuthScreenState extends State<AuthScreen> {
           Align(
             alignment: Alignment.centerRight,
             child: InkWell(
-              onTap: () {
+              onTap: () async {
                 final prefill = _loginUsernameController.text.trim().isNotEmpty
                     ? _loginUsernameController.text.trim()
                     : (_loginPhoneController.text.trim().isNotEmpty
                         ? _loginPhoneController.text.trim()
                         : null);
-                ForgotPasswordScreen.showAsBottomSheet(
+                final resetPhone = await ForgotPasswordScreen.showAsBottomSheet(
                   context,
-                  initialEmail: prefill,
+                  initialPhone: prefill,
                 );
+                if (resetPhone != null && resetPhone.isNotEmpty && mounted) {
+                  setState(() {
+                    _loginUsernameController.text = resetPhone;
+                    _loginPhoneController.text = resetPhone;
+                    _loginPasswordController.clear();
+                  });
+                }
               },
               borderRadius: BorderRadius.circular(6),
               child: const Padding(
