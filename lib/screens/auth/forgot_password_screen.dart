@@ -168,7 +168,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final fullPhone = '+91$rawDigits';
     await _authService.sendOtp(
       phoneNumber: fullPhone,
-      onCodeSent: (verificationId) {
+      onCodeSent: (verificationId, resendToken) {
         if (!mounted) return;
         setState(() {
           _isLoading = false;
@@ -201,7 +201,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final fullPhone = '+91$_verifiedPhoneNumber';
     await _authService.sendOtp(
       phoneNumber: fullPhone,
-      onCodeSent: (verificationId) {
+      onCodeSent: (verificationId, resendToken) {
         if (!mounted) return;
         setState(() {
           _isLoading = false;

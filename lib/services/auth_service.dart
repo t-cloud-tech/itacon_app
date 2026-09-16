@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'firestore_service.dart';
 import '../models/user_profile.dart';
 import 'user_session_service.dart';
@@ -26,104 +28,305 @@ class AuthService {
     }
   }
 
-  /// Helper to generate a unique user referral code (e.g. ITA-582910)
+  static String? _lastRegisteredUid;
+
+  String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
+
+  // ============================================================
+  // REFERRAL CODE
+  // ============================================================
+
   String _generateUserReferralCode() {
     final random = Random();
     final number = random.nextInt(900000) + 100000;
     return 'ITA-$number';
   }
 
-  /// Generates a cryptographically secure random salt string
+  // ============================================================
+  // PASSWORD HELPERS
+  // ============================================================
+
   static String generateSalt([int length = 16]) {
     final random = Random.secure();
-    final values = List<int>.generate(length, (i) => random.nextInt(256));
+
+    final values = List<int>.generate(
+      length,
+      (_) => random.nextInt(256),
+    );
+
     return base64Url.encode(values);
   }
 
-  /// Hashes password with SHA-256 + salt
   static String hashPassword(String password, String salt) {
     final bytes = utf8.encode('$salt:$password');
     return sha256.convert(bytes).toString();
   }
 
-  /// Sends OTP to the provided [phoneNumber].
-  Future<void> sendOtp({
-    required String phoneNumber,
-    required Function(String verificationId) onCodeSent,
-    required Function(String error) onError,
-  }) async {
-    final e164Phone = phoneNumber.startsWith('+') ? phoneNumber : '+$phoneNumber';
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: e164Phone,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          await _auth.signInWithCredential(credential);
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          final msg = (e.message ?? '').toLowerCase();
-          final code = e.code.toLowerCase();
-
-          if (code == 'too-many-requests' ||
-              msg.contains('unusual activity') ||
-              msg.contains('blocked all requests')) {
-            onError('Firebase has temporarily blocked requests from this device due to unusual activity / too many attempts. Please wait a bit or test with a different network/number.');
-          } else if (msg.contains('invalid app info') ||
-              msg.contains('play_integrity') ||
-              code == 'invalid-app-credential') {
-            onError('Firebase App Verification Error: SHA-256 fingerprint is missing in Firebase Console. Please add SHA-256 in Firebase Console (Project Settings -> Android app).');
-          } else if (code == 'quota-exceeded' || msg.contains('quota')) {
-            onError('Firebase SMS quota reached (10 SMS/day on free tier). Please check Firebase Console or upgrade to Blaze plan.');
-          } else if (code == 'invalid-phone-number' ||
-              msg.contains('invalid-phone-number') ||
-              msg.contains('invalid phone number') ||
-              msg.contains('format')) {
-            onError('Please enter a valid 10-digit mobile number.');
-          } else {
-            onError(e.message ?? 'Phone verification failed (${e.code}).');
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          onCodeSent(verificationId);
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {},
-      );
-    } catch (e) {
-      onError('Failed to send OTP: ${e.toString()}');
-    }
-  }
-
-  /// Client password validator according to enterprise security standards:
-  /// - Minimum 8 characters
-  /// - At least 1 uppercase letter (A-Z)
-  /// - At least 1 lowercase letter (a-z)
-  /// - At least 1 number (0-9)
-  /// - At least 1 special character (!@#$%^&*)
   static String? validatePassword(String? password) {
     if (password == null || password.trim().isEmpty) {
       return 'Password is required.';
     }
+
     final trimmed = password.trim();
+
     if (trimmed.length < 8) {
       return 'Password must be at least 8 characters long.';
     }
+
     if (!RegExp(r'[A-Z]').hasMatch(trimmed)) {
       return 'Password must contain at least 1 uppercase letter (A-Z).';
     }
+
     if (!RegExp(r'[a-z]').hasMatch(trimmed)) {
       return 'Password must contain at least 1 lowercase letter (a-z).';
     }
+
     if (!RegExp(r'[0-9]').hasMatch(trimmed)) {
       return 'Password must contain at least 1 number (0-9).';
     }
+
     if (!RegExp(r'[!@#$%^&*]').hasMatch(trimmed)) {
       return r'Password must contain at least 1 special character (!@#$%^&*).';
     }
+
     return null;
   }
 
-  /// Registers a new user using Firebase Authentication identity server
-  /// (managing password salting & scrypt hashing) and creates a clean UserProfile
-  /// document in Firestore (WITHOUT storing any password or token fields).
+  // ============================================================
+  // PHONE NUMBER
+  // ============================================================
+
+  String _normalizeIndianPhone(String phoneNumber) {
+    String digits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+
+    // +91XXXXXXXXXX
+    if (digits.startsWith('91') && digits.length == 12) {
+      return '+$digits';
+    }
+
+    // XXXXXXXXXX
+    if (digits.length == 10) {
+      return '+91$digits';
+    }
+
+    // Fallback
+    if (phoneNumber.trim().startsWith('+')) {
+      return phoneNumber.trim();
+    }
+
+    return '+$digits';
+  }
+
+  // ============================================================
+  // REAL FIREBASE SMS OTP
+  // ============================================================
+
+  Future<void> sendOtp({
+    required String phoneNumber,
+    required Function(String verificationId, int? resendToken) onCodeSent,
+    required Function(String error) onError,
+    int? forceResendingToken,
+  }) async {
+    try {
+      String normalizedPhone = phoneNumber.trim();
+
+      if (!normalizedPhone.startsWith('+')) {
+        if (normalizedPhone.startsWith('91')) {
+          normalizedPhone = '+$normalizedPhone';
+        } else {
+          normalizedPhone = '+91$normalizedPhone';
+        }
+      }
+
+      await _auth.verifyPhoneNumber(
+        phoneNumber: normalizedPhone,
+
+        // Android can sometimes automatically verify the SMS.
+        // We keep this empty so the UI waits for the OTP flow normally.
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Do not automatically sign in here.
+          // User will enter the OTP manually.
+        },
+
+        verificationFailed: (FirebaseAuthException e) {
+          String message;
+
+          switch (e.code) {
+            case 'invalid-phone-number':
+              message = 'Please enter a valid phone number.';
+              break;
+
+            case 'too-many-requests':
+              message = 'Too many OTP requests. Please try again later.';
+              break;
+
+            case 'quota-exceeded':
+              message = 'SMS quota exceeded. Please try again later.';
+              break;
+
+            case 'invalid-app-credential':
+              message = 'App verification failed. Please try again.';
+              break;
+
+            case 'network-request-failed':
+              message = 'Network error. Please check your internet connection.';
+              break;
+
+            default:
+              message = e.message ?? 'Failed to send OTP.';
+          }
+
+          onError(message);
+        },
+
+        codeSent: (String verificationId, int? resendToken) {
+          onCodeSent(verificationId, resendToken);
+        },
+
+        codeAutoRetrievalTimeout: (String verificationId) {
+          onCodeSent(verificationId, null);
+        },
+
+        // This is the important part for RESEND OTP.
+        forceResendingToken: forceResendingToken,
+      );
+    } catch (e) {
+      onError(e.toString());
+    }
+  }
+
+  // ============================================================
+  // VERIFY PHONE OTP
+  // ============================================================
+
+  Future<UserCredential> verifyPhoneOtp({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    if (verificationId.trim().isEmpty) {
+      throw Exception(
+        'OTP verification session is missing. Please request a new OTP.',
+      );
+    }
+
+    if (smsCode.trim().length != 6) {
+      throw Exception(
+        'Please enter the complete 6-digit OTP code.',
+      );
+    }
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId.trim(),
+        smsCode: smsCode.trim(),
+      );
+
+      return await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-verification-code':
+          throw Exception(
+            'The OTP code entered is invalid. Please check your SMS and try again.',
+          );
+
+        case 'session-expired':
+          throw Exception(
+            'The OTP code has expired. Please request a new OTP.',
+          );
+
+        case 'credential-already-in-use':
+          throw Exception(
+            'This phone number is already linked to another account.',
+          );
+
+        case 'too-many-requests':
+          throw Exception(
+            'Too many verification attempts. Please wait and try again later.',
+          );
+
+        case 'network-request-failed':
+          throw Exception(
+            'Network error. Please check your internet connection.',
+          );
+
+        default:
+          throw Exception(
+            e.message ?? 'OTP verification failed. Please try again.',
+          );
+      }
+    }
+  }
+
+  // ============================================================
+  // LOGIN WITH PHONE OTP
+  // ============================================================
+
+  Future<void> loginWithPhoneOtp({
+    required String phoneNumber,
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final formattedPhone =
+        _normalizeIndianPhone(phoneNumber);
+
+    // REAL Firebase OTP verification
+    final userCredential = await verifyPhoneOtp(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+
+    final firebaseUser = userCredential.user;
+
+    if (firebaseUser == null) {
+      throw Exception(
+        'Firebase could not create a user session.',
+      );
+    }
+
+    _lastRegisteredUid = firebaseUser.uid;
+
+    // Find application profile in Firestore.
+    final userMap =
+        await _firestoreService.findUserByIdentifier(
+      formattedPhone,
+    );
+
+    if (userMap != null) {
+      final docId =
+          (userMap['id'] ??
+                  userMap['userId'] ??
+                  userMap['uid'] ??
+                  firebaseUser.uid)
+              .toString();
+
+      final profile =
+          UserProfile.fromMap(userMap, docId);
+
+      await UserSessionService.saveUserSession(profile);
+    } else {
+      // Phone is valid in Firebase but no ITACON profile exists.
+      // This fallback prevents the app from crashing.
+      final fallbackProfile = UserProfile(
+        userId: firebaseUser.uid,
+        name: 'User ${formattedPhone.substring(3)}',
+        phone: formattedPhone,
+        companyName: '',
+        email: firebaseUser.email ?? '',
+        userCategory: 'Dealer',
+        role: 'customer',
+        phoneVerified: true,
+      );
+
+      await UserSessionService.saveUserSession(
+        fallbackProfile,
+      );
+    }
+  }
+
+  // ============================================================
+  // REGISTER USER
+  // ============================================================
+
   Future<void> registerUser({
     required String fullName,
     required String phoneNumber,
@@ -137,101 +340,178 @@ class AuthService {
     String? verificationId,
     String? smsCode,
   }) async {
-    // 1. Enforce client-side password validation rules
-    final passError = validatePassword(password);
-    if (passError != null) {
-      throw Exception(passError);
+    // ----------------------------------------------------------
+    // 1. Validate password
+    // ----------------------------------------------------------
+
+    final passwordError =
+        validatePassword(password);
+
+    if (passwordError != null) {
+      throw Exception(passwordError);
     }
+
+    // ----------------------------------------------------------
+    // 2. OTP is REQUIRED for registration
+    // ----------------------------------------------------------
+
+    if (verificationId == null ||
+        verificationId.trim().isEmpty) {
+      throw Exception(
+        'Please request an OTP before creating your account.',
+      );
+    }
+
+    if (smsCode == null ||
+        smsCode.trim().length != 6) {
+      throw Exception(
+        'Please enter the complete 6-digit OTP code.',
+      );
+    }
+
+    final formattedPhone =
+        _normalizeIndianPhone(phoneNumber);
+
+    // ----------------------------------------------------------
+    // 3. Verify real Firebase SMS OTP
+    // ----------------------------------------------------------
+
+    final userCredential = await verifyPhoneOtp(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+
+    final firebaseUser = userCredential.user;
+
+    if (firebaseUser == null) {
+      throw Exception(
+        'Phone verification failed. Please try again.',
+      );
+    }
+
+    final uid = firebaseUser.uid;
+
+    _lastRegisteredUid = uid;
+
+    // ----------------------------------------------------------
+    // 4. Check referral code
+    // ----------------------------------------------------------
 
     String? assignedSpId;
 
-    // Check referral code if user entered one
-    if (referralCode != null && referralCode.trim().isNotEmpty) {
-      final spProfile = await _firestoreService
-          .verifySalespersonReferralCode(referralCode.trim());
-      if (spProfile != null) {
-        assignedSpId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String?;
-      }
-    }
-
-    final cleanPhone = phoneNumber.replaceAll(RegExp(r'\D'), '');
-    final registrationEmail = (email != null && email.trim().isNotEmpty && email.contains('@'))
-        ? email.trim()
-        : 'user_$cleanPhone@itacon.com';
-
-    // Verify phone OTP credential if real Firebase SMS was issued
-    final isBypassedVerification = verificationId == null ||
-        verificationId.startsWith('EMULATOR_') ||
-        verificationId.startsWith('MOCK_') ||
-        verificationId.startsWith('DEV_BYPASS_') ||
-        verificationId.startsWith('DEVICE_BLOCKED_');
-
-    if (verificationId != null &&
-        smsCode != null &&
-        smsCode.trim().isNotEmpty &&
-        !isBypassedVerification) {
-      try {
-        final phoneCredential = PhoneAuthProvider.credential(
-          verificationId: verificationId,
-          smsCode: smsCode.trim(),
-        );
-        await _auth.signInWithCredential(phoneCredential);
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'invalid-verification-code') {
-          throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
-        } else if (e.code == 'session-expired') {
-          throw Exception('The OTP code has expired. Please click Resend OTP.');
-        }
-        throw Exception(e.message ?? 'OTP verification failed.');
-      }
-    }
-
-    String uid = '';
-
-    // 2. Handle user registration using FirebaseAuth identity server
-    try {
-      final userCred = await _auth.createUserWithEmailAndPassword(
-        email: registrationEmail,
-        password: password,
+    if (referralCode != null &&
+        referralCode.trim().isNotEmpty) {
+      final spProfile =
+          await _firestoreService
+              .verifySalespersonReferralCode(
+        referralCode.trim(),
       );
-      if (userCred.user != null) {
-        uid = userCred.user!.uid;
-        _lastRegisteredUid = uid;
+
+      if (spProfile != null) {
+        assignedSpId =
+            (spProfile['id'] ??
+                    spProfile['salesPersonId'] ??
+                    spProfile['salespersonId'])
+                ?.toString();
       }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
+    }
+
+    // ----------------------------------------------------------
+    // 5. Optional email
+    // ----------------------------------------------------------
+
+    final cleanPhone =
+        formattedPhone.replaceAll(
+      RegExp(r'\D'),
+      '',
+    );
+
+    final registrationEmail =
+        (email != null &&
+                email.trim().isNotEmpty &&
+                email.contains('@'))
+            ? email.trim()
+            : 'user_$cleanPhone@itacon.com';
+
+    // ----------------------------------------------------------
+    // 6. IMPORTANT:
+    //
+    // DO NOT create a second Firebase Email/Password account.
+    //
+    // The Firebase Phone Auth user above IS the Firebase user.
+    // ----------------------------------------------------------
+
+    // If the phone user does not already have an email,
+    // we can optionally link an email/password credential.
+    //
+    // However, this is only attempted when the generated/real
+    // email is suitable. If it is already linked, we simply
+    // continue with the phone-auth account.
+
+    try {
+      final existingProviders =
+          firebaseUser.providerData
+              .map((provider) => provider.providerId)
+              .toList();
+
+      final hasPasswordProvider =
+          existingProviders.contains(
+        'password',
+      );
+
+      if (!hasPasswordProvider &&
+          email != null &&
+          email.trim().isNotEmpty &&
+          email.contains('@')) {
         try {
-          final userCred = await _auth.signInWithEmailAndPassword(
+          final emailCredential =
+              EmailAuthProvider.credential(
             email: registrationEmail,
             password: password,
           );
-          if (userCred.user != null) {
-            uid = userCred.user!.uid;
-            _lastRegisteredUid = uid;
+
+          await firebaseUser.linkWithCredential(
+            emailCredential,
+          );
+        } on FirebaseAuthException catch (e) {
+          // Do not fail phone registration if the optional
+          // email linking cannot be completed.
+          if (e.code != 'provider-already-linked' &&
+              e.code != 'email-already-in-use') {
+            // Continue with phone authentication.
           }
-        } catch (_) {}
+        }
       }
     } catch (_) {
-      // Fallback in unit test / mock environment
-      if (uid.isEmpty) {
-        uid = _auth.currentUser?.uid ?? 'USER_${DateTime.now().millisecondsSinceEpoch}';
-        _lastRegisteredUid = uid;
-      }
+      // Phone account remains the primary authentication.
     }
 
-    if (uid.isEmpty) {
-      uid = 'USER_${DateTime.now().millisecondsSinceEpoch}';
-      _lastRegisteredUid = uid;
-    }
+    // ----------------------------------------------------------
+    // 7. Generate application referral code
+    // ----------------------------------------------------------
 
-    final userReferralCode = _generateUserReferralCode();
+    final userReferralCode =
+        _generateUserReferralCode();
+
+    // ----------------------------------------------------------
+    // 8. Password hash for existing application's
+    //    Firestore password-based features
+    // ----------------------------------------------------------
+
     final userSalt = generateSalt();
-    final passHash = hashPassword(password, userSalt);
 
-    // 3. Create clean Firestore User Profile document containing public/business metadata + salted password hash
+    final passHash = hashPassword(
+      password,
+      userSalt,
+    );
+
+    // ----------------------------------------------------------
+    // 9. Create Firestore user profile
+    // ----------------------------------------------------------
+
     await _firestoreService.createUserProfile(
       uid: uid,
-      phoneNumber: phoneNumber,
+      phoneNumber: formattedPhone,
       fullName: fullName,
       role: categoryId,
       religion: religion,
@@ -245,13 +525,18 @@ class AuthService {
       passwordSalt: userSalt,
     );
 
-    final registeredProfile = UserProfile(
+    // ----------------------------------------------------------
+    // 10. Create local session
+    // ----------------------------------------------------------
+
+    final registeredProfile =
+        UserProfile(
       userId: uid,
       name: fullName,
       religion: religion ?? '',
       dateOfBirth: dateOfBirth ?? '',
       companyName: companyName ?? '',
-      phone: phoneNumber,
+      phone: formattedPhone,
       email: registrationEmail,
       userCategory: categoryId,
       role: categoryId,
@@ -263,38 +548,48 @@ class AuthService {
       createdAt: DateTime.now(),
     );
 
-    await UserSessionService.saveUserSession(registeredProfile);
+    await UserSessionService.saveUserSession(
+      registeredProfile,
+    );
 
-    // Save referral code in customer_referrals datastore if provided
-    if (referralCode != null && referralCode.trim().isNotEmpty) {
+    // ----------------------------------------------------------
+    // 11. Save customer referral
+    // ----------------------------------------------------------
+
+    if (referralCode != null &&
+        referralCode.trim().isNotEmpty) {
       await _firestoreService.saveCustomerReferralCode(
         userId: uid,
         referralCode: referralCode.trim(),
         userName: fullName,
-        userPhone: phoneNumber,
+        userPhone: formattedPhone,
         userCategory: categoryId,
       );
     }
 
-    // Assign salesperson if referral code was provided
-    if (assignedSpId != null) {
-      await _firestoreService.executeAtomicClientAssignment(
+    // ----------------------------------------------------------
+    // 12. Assign salesperson
+    // ----------------------------------------------------------
+
+    if (assignedSpId != null &&
+        assignedSpId.isNotEmpty) {
+      await _firestoreService
+          .executeAtomicClientAssignment(
         clientId: uid,
         salespersonId: assignedSpId,
         assignmentType: 'manual_referral',
         clientName: fullName,
-        clientPhone: phoneNumber,
+        clientPhone: formattedPhone,
         companyName: companyName,
         clientCategory: categoryId,
       );
     }
   }
 
-  static String? _lastRegisteredUid;
+  // ============================================================
+  // EXISTING PASSWORD LOGIN
+  // ============================================================
 
-  String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
-
-  /// Log in existing user using Firebase Authentication identity server
   Future<void> loginUser({
     required String loginIdentifier,
     required String password,
@@ -303,135 +598,187 @@ class AuthService {
     String? smsCode,
   }) async {
     if (password.trim().isEmpty) {
-      throw Exception('Invalid username or password. Please check your credentials and try again.');
+      throw Exception(
+        'Invalid username or password. Please check your credentials and try again.',
+      );
     }
 
-    // Authenticate via Firebase Auth identity server (supports both email and registered phone)
-    final cleanPhone = loginIdentifier.replaceAll(RegExp(r'\D'), '');
-    final authEmail = loginIdentifier.contains('@')
-        ? loginIdentifier.trim()
-        : 'user_$cleanPhone@itacon.com';
+    final cleanPhone =
+        loginIdentifier.replaceAll(
+      RegExp(r'\D'),
+      '',
+    );
 
-    final userMap = await _firestoreService.findUserByIdentifier(loginIdentifier);
-    final storedHash = userMap?['passwordHash'] as String?;
-    final storedSalt = userMap?['passwordSalt'] as String?;
+    final isPhone =
+        !loginIdentifier.contains('@') &&
+            cleanPhone.length >= 10;
 
-    if (storedHash != null && storedSalt != null) {
-      // Validate with secure SHA-256 salted hash
-      final computedHash = hashPassword(password, storedSalt);
-      if (computedHash != storedHash) {
-        throw Exception('Invalid username or password. Please check your credentials and try again.');
+    // ----------------------------------------------------------
+    // PHONE LOGIN
+    // ----------------------------------------------------------
+
+    if (isPhone &&
+        verificationId != null &&
+        verificationId.trim().isNotEmpty &&
+        smsCode != null &&
+        smsCode.trim().isNotEmpty) {
+      await loginWithPhoneOtp(
+        phoneNumber: loginIdentifier,
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+
+      // Referral handling
+      if (referralCode != null &&
+          referralCode.trim().isNotEmpty) {
+        await verifyAndLinkReferralCode(
+          referralCode.trim(),
+        );
       }
 
-      // Credentials verified! Attempt background Firebase Auth session sync
+      return;
+    }
+
+    // ----------------------------------------------------------
+    // EMAIL / PASSWORD LOGIN
+    // ----------------------------------------------------------
+
+    final authEmail =
+        loginIdentifier.contains('@')
+            ? loginIdentifier.trim()
+            : 'user_$cleanPhone@itacon.com';
+
+    final userMap =
+        await _firestoreService.findUserByIdentifier(
+      loginIdentifier,
+    );
+
+    final storedHash =
+        userMap?['passwordHash'] as String?;
+
+    final storedSalt =
+        userMap?['passwordSalt'] as String?;
+
+    if (storedHash != null &&
+        storedSalt != null) {
+      final computedHash =
+          hashPassword(
+        password,
+        storedSalt,
+      );
+
+      if (computedHash != storedHash) {
+        throw Exception(
+          'Invalid username or password. Please check your credentials and try again.',
+        );
+      }
+
+      // Try Firebase Email/Password session.
       try {
-        final userCred = await _auth.signInWithEmailAndPassword(
+        final userCred =
+            await _auth.signInWithEmailAndPassword(
           email: authEmail,
           password: password,
         );
-        if (userCred.user != null) {
-          _lastRegisteredUid = userCred.user!.uid;
-        }
+
+        _lastRegisteredUid =
+            userCred.user?.uid;
       } catch (_) {
-        // Phone-only user with reset password or pending Firebase Auth password sync
+        // Phone-auth accounts may not have email/password.
+        // Firestore authentication above remains valid.
       }
     } else {
-      // Legacy user: authenticate via Firebase Auth identity server
       try {
-        final userCred = await _auth.signInWithEmailAndPassword(
+        final userCred =
+            await _auth.signInWithEmailAndPassword(
           email: authEmail,
           password: password,
         );
-        if (userCred.user != null) {
-          _lastRegisteredUid = userCred.user!.uid;
-        }
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
-          throw Exception('Invalid username or password. Please check your credentials and try again.');
-        } else if (e.code == 'user-disabled') {
-          throw Exception('This account has been disabled. Please contact ITACON support.');
-        } else if (e.code == 'too-many-requests') {
-          throw Exception('Too many failed login attempts. Please wait a few minutes before trying again.');
-        }
-      } catch (_) {}
 
-      // Auto-migrate legacy user with salted hash in Firestore
-      if (userMap != null && _lastRegisteredUid != null) {
-        try {
-          final salt = generateSalt();
-          final hash = hashPassword(password, salt);
-          final uid = (userMap['userId'] ?? userMap['uid'] ?? userMap['id']) as String? ?? _lastRegisteredUid!;
-          final role = userMap['role'] as String? ?? userMap['userCategory'] as String?;
-          _firestoreService.updateUserPassword(
-            uid: uid,
-            passwordHash: hash,
-            passwordSalt: salt,
-            role: role,
-          );
-        } catch (_) {}
+        _lastRegisteredUid =
+            userCred.user?.uid;
+      } on FirebaseAuthException catch (e) {
+        switch (e.code) {
+          case 'wrong-password':
+          case 'invalid-credential':
+            throw Exception(
+              'Invalid username or password. Please check your credentials and try again.',
+            );
+
+          case 'user-disabled':
+            throw Exception(
+              'This account has been disabled. Please contact ITACON support.',
+            );
+
+          case 'too-many-requests':
+            throw Exception(
+              'Too many failed login attempts. Please wait a few minutes before trying again.',
+            );
+
+          default:
+            throw Exception(
+              e.message ??
+                  'Invalid username or password.',
+            );
+        }
       }
     }
+
+    // ----------------------------------------------------------
+    // Save profile session
+    // ----------------------------------------------------------
 
     if (userMap != null) {
-      _lastRegisteredUid = (userMap['id'] ?? userMap['userId'] ?? userMap['uid']) as String?;
-      final docId = _lastRegisteredUid ?? 'USER_LOGIN';
-      final profile = UserProfile.fromMap(userMap, docId);
-      await UserSessionService.saveUserSession(profile);
-    } else {
-      if (_auth.currentUser == null && !loginIdentifier.toLowerCase().contains('user_') && !loginIdentifier.toLowerCase().contains('test')) {
-        throw Exception('Invalid username or password. Please check your credentials and try again.');
-      }
-      final fallbackProfile = UserProfile(
-        userId: _lastRegisteredUid ?? 'USER_LOGIN',
-        name: loginIdentifier.contains('@') ? loginIdentifier.split('@')[0] : loginIdentifier,
-        companyName: '',
-        phone: loginIdentifier,
-        email: loginIdentifier.contains('@') ? loginIdentifier : '',
-        userCategory: 'Dealer',
-        role: 'customer',
+      _lastRegisteredUid =
+          (userMap['id'] ??
+                  userMap['userId'] ??
+                  userMap['uid'])
+              ?.toString();
+
+      final docId =
+          _lastRegisteredUid ?? 'USER_LOGIN';
+
+      final profile =
+          UserProfile.fromMap(
+        userMap,
+        docId,
       );
-      await UserSessionService.saveUserSession(fallbackProfile);
+
+      await UserSessionService.saveUserSession(
+        profile,
+      );
+    } else {
+      throw Exception(
+        'No registered account was found. Please check your credentials.',
+      );
     }
 
-    final isBypassedLogin = verificationId == null ||
-        verificationId.startsWith('EMULATOR_') ||
-        verificationId.startsWith('MOCK_') ||
-        verificationId.startsWith('DEV_BYPASS_') ||
-        verificationId.startsWith('DEVICE_BLOCKED_');
+    // ----------------------------------------------------------
+    // Referral
+    // ----------------------------------------------------------
 
-    if (verificationId != null &&
-        smsCode != null &&
-        smsCode.trim().isNotEmpty &&
-        !isBypassedLogin) {
-      try {
-        final credential = PhoneAuthProvider.credential(
-          verificationId: verificationId,
-          smsCode: smsCode.trim(),
-        );
-        await _auth.signInWithCredential(credential);
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'invalid-verification-code') {
-          throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
-        } else if (e.code == 'session-expired') {
-          throw Exception('The OTP code has expired. Please click Resend OTP.');
-        }
-        throw Exception(e.message ?? 'OTP verification failed.');
-      }
-    }
-
-    if (referralCode != null && referralCode.trim().isNotEmpty) {
+    if (referralCode != null &&
+        referralCode.trim().isNotEmpty) {
       final uid = currentUid;
+
       if (uid != null && uid.isNotEmpty) {
-        await _firestoreService.saveCustomerReferralCode(
+        await _firestoreService
+            .saveCustomerReferralCode(
           userId: uid,
           referralCode: referralCode.trim(),
         );
       }
-      await verifyAndLinkReferralCode(referralCode.trim());
+
+      await verifyAndLinkReferralCode(
+        referralCode.trim(),
+      );
     }
   }
 
-  /// Verifies a salesperson/customer referral code and links it if applicable.
+  // ============================================================
+  // REFERRAL LINKING
+  // ============================================================
+
   Future<bool> verifyAndLinkReferralCode(
     String referralCode, {
     String? clientName,
@@ -440,9 +787,12 @@ class AuthService {
     String? clientCategory,
   }) async {
     final uid = currentUid;
+
     final code = referralCode.trim();
 
-    if (code.isEmpty) return true;
+    if (code.isEmpty) {
+      return true;
+    }
 
     if (uid != null && uid.isNotEmpty) {
       await _firestoreService.saveCustomerReferralCode(
@@ -453,21 +803,36 @@ class AuthService {
         userCategory: clientCategory,
       );
 
-      final existingUser = await _firestoreService.getUserProfile(uid);
-      final existingSpId = existingUser?.salesPersonId;
-      if (existingSpId != null && existingSpId.isNotEmpty) {
+      final existingUser =
+          await _firestoreService.getUserProfile(
+        uid,
+      );
+
+      final existingSpId =
+          existingUser?.salesPersonId;
+
+      if (existingSpId != null &&
+          existingSpId.isNotEmpty) {
         return true;
       }
     }
 
     final spProfile =
-        await _firestoreService.verifySalespersonReferralCode(code);
+        await _firestoreService
+            .verifySalespersonReferralCode(
+      code,
+    );
 
     if (spProfile != null) {
-      final spId = (spProfile['id'] ?? spProfile['salesPersonId'] ?? spProfile['salespersonId']) as String;
+      final spId =
+          (spProfile['id'] ??
+                  spProfile['salesPersonId'] ??
+                  spProfile['salespersonId'])
+              .toString();
 
       if (uid != null && uid.isNotEmpty) {
-        await _firestoreService.executeAtomicClientAssignment(
+        await _firestoreService
+            .executeAtomicClientAssignment(
           clientId: uid,
           salespersonId: spId,
           assignmentType: 'manual_referral',
@@ -478,19 +843,32 @@ class AuthService {
         );
       }
     }
+
     return true;
   }
 
-  /// Auto assigns an active sales executive to the current user and returns details.
-  Future<Map<String, String>> autoAssignSalespersonDetails({String? targetUserId}) async {
-    final uid = targetUserId ?? currentUid;
+  // ============================================================
+  // AUTO ASSIGN SALESPERSON
+  // ============================================================
+
+  Future<Map<String, String>>
+      autoAssignSalespersonDetails({
+    String? targetUserId,
+  }) async {
+    final uid =
+        targetUserId ?? currentUid;
+
     String? name;
     String? phone;
     String? company;
     String? category;
 
     if (uid != null && uid.isNotEmpty) {
-      final profile = await _firestoreService.getUserProfile(uid);
+      final profile =
+          await _firestoreService.getUserProfile(
+        uid,
+      );
+
       if (profile != null) {
         name = profile.name;
         phone = profile.phone;
@@ -499,7 +877,8 @@ class AuthService {
       }
     }
 
-    return await _firestoreService.autoAssignSalespersonDetails(
+    return await _firestoreService
+        .autoAssignSalespersonDetails(
       userId: uid,
       clientName: name,
       clientPhone: phone,
@@ -508,13 +887,21 @@ class AuthService {
     );
   }
 
-  /// Auto assigns an active sales executive to the current user.
-  Future<String?> autoAssignSalesperson({String? targetUserId}) async {
-    final details = await autoAssignSalespersonDetails(targetUserId: targetUserId);
+  Future<String?> autoAssignSalesperson({
+    String? targetUserId,
+  }) async {
+    final details =
+        await autoAssignSalespersonDetails(
+      targetUserId: targetUserId,
+    );
+
     return details['salespersonId'];
   }
 
-  /// Registers and stores a Salesperson profile directly in the dedicated `salesPersons` collection.
+  // ============================================================
+  // SALESPERSON REGISTRATION
+  // ============================================================
+
   Future<void> registerSalesperson({
     required String fullName,
     required String phoneNumber,
@@ -522,8 +909,12 @@ class AuthService {
     String? salespersonId,
     String? employeeId,
   }) async {
-    final spId = salespersonId ?? 'SP_${DateTime.now().millisecondsSinceEpoch}';
-    await _firestoreService.createSalespersonProfile(
+    final spId =
+        salespersonId ??
+            'SP_${DateTime.now().millisecondsSinceEpoch}';
+
+    await _firestoreService
+        .createSalespersonProfile(
       salespersonId: spId,
       fullName: fullName,
       phoneNumber: phoneNumber,
@@ -533,67 +924,89 @@ class AuthService {
     );
   }
 
-  /// Resets user password using verified SMS OTP code sent to their registered mobile number.
-  /// 1. Validates enterprise password strength.
-  /// 2. Verifies phone credential with Firebase Authentication.
-  /// 3. Validates that the mobile number corresponds to an existing registered user in Firestore.
-  /// 4. Generates a fresh cryptographically secure salt and SHA-256 hash.
-  /// 5. Saves updated password hash & salt in Firestore users/{uid} and category collection.
-  /// 6. Updates Firebase Auth currentUser password.
+  // ============================================================
+  // RESET PASSWORD USING SMS OTP
+  // ============================================================
+
   Future<void> resetPasswordWithPhoneOtp({
     required String phoneNumber,
     required String verificationId,
     required String smsCode,
     required String newPassword,
   }) async {
-    // 1. Validate new password
-    final passError = validatePassword(newPassword);
-    if (passError != null) {
-      throw Exception(passError);
+    final passwordError =
+        validatePassword(newPassword);
+
+    if (passwordError != null) {
+      throw Exception(passwordError);
     }
 
-    if (verificationId.trim().isEmpty || smsCode.trim().isEmpty) {
-      throw Exception('Please enter the 6-digit SMS verification code.');
-    }
-
-    // 2. Find user in Firestore by phone
-    final userMap = await _firestoreService.findUserByIdentifier(phoneNumber);
-    if (userMap == null) {
-      throw Exception('No registered account found for mobile number $phoneNumber.');
-    }
-
-    final uid = (userMap['userId'] ?? userMap['uid'] ?? userMap['id']) as String?;
-    if (uid == null || uid.isEmpty) {
-      throw Exception('User account ID not found for mobile number $phoneNumber.');
-    }
-    final role = userMap['role'] as String? ?? userMap['userCategory'] as String?;
-
-    // 3. Verify SMS OTP with Firebase Authentication
-    try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: verificationId.trim(),
-        smsCode: smsCode.trim(),
+    if (verificationId.trim().isEmpty ||
+        smsCode.trim().isEmpty) {
+      throw Exception(
+        'Please enter the 6-digit SMS verification code.',
       );
-      await _auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'invalid-verification-code') {
-        throw Exception('The OTP code entered is invalid. Please check your SMS and try again.');
-      } else if (e.code == 'session-expired') {
-        throw Exception('The OTP code has expired. Please request a new SMS OTP.');
-      }
-      throw Exception(e.message ?? 'OTP verification failed. (${e.code})');
     }
 
-    // 4. Update Firebase Auth password if currentUser is available
-    try {
-      if (_auth.currentUser != null) {
-        await _auth.currentUser!.updatePassword(newPassword);
-      }
-    } catch (_) {}
+    final formattedPhone =
+        _normalizeIndianPhone(phoneNumber);
 
-    // 5. Hash new password with cryptographically secure salt and update Firestore
+    // Find user first.
+    final userMap =
+        await _firestoreService.findUserByIdentifier(
+      formattedPhone,
+    );
+
+    if (userMap == null) {
+      throw Exception(
+        'No registered account found for mobile number $formattedPhone.',
+      );
+    }
+
+    final uid =
+        (userMap['userId'] ??
+                userMap['uid'] ??
+                userMap['id'])
+            ?.toString();
+
+    if (uid == null || uid.isEmpty) {
+      throw Exception(
+        'User account ID not found for this mobile number.',
+      );
+    }
+
+    final role =
+        userMap['role'] as String? ??
+            userMap['userCategory'] as String?;
+
+    // Verify real SMS OTP.
+    await verifyPhoneOtp(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+
+    // Update Firebase password if email/password
+    // provider is linked.
+    try {
+      final user = _auth.currentUser;
+
+      if (user != null) {
+        await user.updatePassword(
+          newPassword,
+        );
+      }
+    } catch (_) {
+      // Continue with application password update.
+    }
+
+    // Update application's password hash.
     final salt = generateSalt();
-    final passHash = hashPassword(newPassword, salt);
+
+    final passHash =
+        hashPassword(
+      newPassword,
+      salt,
+    );
 
     await _firestoreService.updateUserPassword(
       uid: uid,
@@ -603,72 +1016,116 @@ class AuthService {
     );
   }
 
-  /// Sends a password reset email to [emailOrPhone] via Firebase Authentication.
-  /// If a mobile number is entered, automatically resolves their registered recovery email.
-  Future<String> sendPasswordResetLink(String emailOrPhone) async {
-    final trimmedInput = emailOrPhone.trim();
+  // ============================================================
+  // PASSWORD RESET EMAIL
+  // ============================================================
+
+  Future<String> sendPasswordResetLink(
+    String emailOrPhone,
+  ) async {
+    final trimmedInput =
+        emailOrPhone.trim();
+
     if (trimmedInput.isEmpty) {
-      throw Exception('Please enter a valid email address.');
+      throw Exception(
+        'Please enter a valid email address.',
+      );
     }
 
     String targetEmail = trimmedInput;
 
-    // Check if input is a mobile number (10+ digits without @)
-    final cleanDigits = trimmedInput.replaceAll(RegExp(r'\D'), '');
-    final isPhone = !trimmedInput.contains('@') && cleanDigits.length >= 10;
+    final cleanDigits =
+        trimmedInput.replaceAll(
+      RegExp(r'\D'),
+      '',
+    );
+
+    final isPhone =
+        !trimmedInput.contains('@') &&
+            cleanDigits.length >= 10;
 
     if (isPhone) {
-      final userMap = await _firestoreService.findUserByIdentifier(trimmedInput);
+      final userMap =
+          await _firestoreService
+              .findUserByIdentifier(
+        trimmedInput,
+      );
+
       if (userMap != null) {
-        final profileEmail = (userMap['email'] as String?)?.trim();
+        final profileEmail =
+            (userMap['email'] as String?)
+                ?.trim();
+
         if (profileEmail != null &&
             profileEmail.isNotEmpty &&
             profileEmail.contains('@') &&
-            !profileEmail.endsWith('@itacon.com')) {
+            !profileEmail.endsWith(
+              '@itacon.com',
+            )) {
           targetEmail = profileEmail;
         } else {
           throw Exception(
-              'No recovery email is linked with mobile $trimmedInput. Please use Mobile SMS OTP to reset your password.');
+            'No recovery email is linked with mobile $trimmedInput. Please use Mobile SMS OTP to reset your password.',
+          );
         }
       } else {
-        throw Exception('No account found for mobile number $trimmedInput. Please check your number.');
+        throw Exception(
+          'No account found for mobile number $trimmedInput. Please check your number.',
+        );
       }
     }
 
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex =
+        RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,4}$');
+
     if (!emailRegex.hasMatch(targetEmail)) {
-      throw Exception('Please enter a valid email address.');
+      throw Exception(
+        'Please enter a valid email address.',
+      );
     }
 
     try {
-      await _auth.sendPasswordResetEmail(email: targetEmail);
+      await _auth.sendPasswordResetEmail(
+        email: targetEmail,
+      );
+
       return targetEmail;
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'user-not-found':
           throw Exception(
-              'No account registered with this email address. Please check and try again.');
+            'No account registered with this email address. Please check and try again.',
+          );
+
         case 'invalid-email':
-          throw Exception('Please enter a valid email address.');
+          throw Exception(
+            'Please enter a valid email address.',
+          );
+
         case 'too-many-requests':
           throw Exception(
-              'Too many reset requests. Please wait a few minutes before trying again.');
+            'Too many reset requests. Please wait a few minutes before trying again.',
+          );
+
         case 'network-request-failed':
           throw Exception(
-              'Network error. Please check your internet connection.');
+            'Network error. Please check your internet connection.',
+          );
+
         default:
           throw Exception(
-              e.message ?? 'Failed to send password reset email. Please try again.');
+            e.message ??
+                'Failed to send password reset email. Please try again.',
+          );
       }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception(e.toString());
     }
   }
 
-  /// Signs out current user
+  // ============================================================
+  // SIGN OUT
+  // ============================================================
+
   Future<void> signOut() async {
     await _auth.signOut();
   }
 }
-

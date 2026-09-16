@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/floating_bottom_bar.dart';
+import '../widgets/app_navigation_drawer.dart';
 import '../utils/app_notification_utils.dart';
 import 'home_screen.dart';
 import 'product_listing_screen.dart';
@@ -22,7 +23,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   late int _currentIndex;
-  final GlobalKey<ScaffoldState> _homeScaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _mainScaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -31,8 +32,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _onTabSelected(int index) {
-    if (_homeScaffoldKey.currentState?.isDrawerOpen == true) {
-      _homeScaffoldKey.currentState?.closeDrawer();
+    if (_mainScaffoldKey.currentState?.isDrawerOpen == true) {
+      _mainScaffoldKey.currentState?.closeDrawer();
     }
     AppNotificationUtils.dismissAll(context);
     setState(() {
@@ -45,7 +46,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final List<Widget> pages = [
       HomeScreen(
         onNavigateTab: _onTabSelected,
-        scaffoldKey: _homeScaffoldKey,
+        onOpenDrawer: () => _mainScaffoldKey.currentState?.openDrawer(),
       ),
       ProductListingScreen(
         subcategoryTitle: 'Products Collection',
@@ -64,6 +65,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ];
 
     return Scaffold(
+      key: _mainScaffoldKey,
+      drawer: AppNavigationDrawer(
+        onSelectTab: (idx) {
+          if (_mainScaffoldKey.currentState?.isDrawerOpen == true) {
+            _mainScaffoldKey.currentState?.closeDrawer();
+          }
+          _onTabSelected(idx);
+        },
+      ),
       backgroundColor: AppTheme.backgroundColor,
       body: ResponsiveConstraint(
         maxContentWidth: 720,

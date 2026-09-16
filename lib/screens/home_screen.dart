@@ -23,11 +23,13 @@ import '../widgets/revolving_border_search_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
+  final VoidCallback? onOpenDrawer;
   final GlobalKey<ScaffoldState>? scaffoldKey;
 
   const HomeScreen({
     super.key,
     this.onNavigateTab,
+    this.onOpenDrawer,
     this.scaffoldKey,
   });
 
@@ -277,21 +279,29 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Scaffold(
       key: _scaffoldKey,
-      drawer: AppNavigationDrawer(
-        onSelectTab: (idx) {
-          if (_scaffoldKey.currentState?.isDrawerOpen == true) {
-            _scaffoldKey.currentState?.closeDrawer();
-          }
-          if (widget.onNavigateTab != null) {
-            widget.onNavigateTab!(idx);
-          }
-        },
-      ),
+      drawer: widget.onOpenDrawer != null
+          ? null
+          : AppNavigationDrawer(
+              onSelectTab: (idx) {
+                if (_scaffoldKey.currentState?.isDrawerOpen == true) {
+                  _scaffoldKey.currentState?.closeDrawer();
+                }
+                if (widget.onNavigateTab != null) {
+                  widget.onNavigateTab!(idx);
+                }
+              },
+            ),
       appBar: AppBar(
         leading: Builder(
           builder: (context) => Center(
             child: AppPressable(
-              onTap: () => Scaffold.of(context).openDrawer(),
+              onTap: () {
+                if (widget.onOpenDrawer != null) {
+                  widget.onOpenDrawer!();
+                } else {
+                  Scaffold.of(context).openDrawer();
+                }
+              },
               scaleDown: 0.88,
               borderRadius: BorderRadius.circular(20),
               child: const Padding(

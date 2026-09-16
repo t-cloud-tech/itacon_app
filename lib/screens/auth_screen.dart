@@ -49,40 +49,61 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _requestLoginOtp() async {
     final rawPhone = _loginPhoneController.text.trim();
+
     if (rawPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please enter a valid mobile number.')),
+          content: Text('Please enter a valid mobile number.'),
+        ),
       );
       return;
     }
+
     final formattedPhone = _loginE164Phone.isNotEmpty
         ? _loginE164Phone
         : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
 
     setState(() => _isLoading = true);
+
     await _authService.sendOtp(
       phoneNumber: formattedPhone,
-      onCodeSent: (verId) {
+
+      // IMPORTANT:
+      // On first request this is null.
+      // On Resend this contains Firebase's resend token.
+      forceResendingToken: _resendToken,
+
+      onCodeSent: (verId, resendToken) {
         if (!mounted) return;
+
         setState(() {
           _verificationId = verId;
+          _resendToken = resendToken;
           _loginOtpSent = true;
           _isLoading = false;
+
+          // Remove the previous OTP from the input field.
           _loginOtpController.clear();
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('OTP sent successfully! Please check your SMS.'),
+            content: Text(
+              'OTP sent successfully! Please check your SMS.',
+            ),
             duration: Duration(seconds: 4),
           ),
         );
       },
+
       onError: (err) {
         if (!mounted) return;
+
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(err)));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err)),
+        );
       },
     );
   }
@@ -100,6 +121,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   // OTP State
   String? _verificationId;
+  int? _resendToken;
   bool _otpSent = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -131,40 +153,61 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _requestOtp() async {
     final rawPhone = _regPhoneController.text.trim();
+
     if (rawPhone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please enter a valid mobile number.')),
+          content: Text('Please enter a valid mobile number.'),
+        ),
       );
       return;
     }
+
     final formattedPhone = _regE164Phone.isNotEmpty
         ? _regE164Phone
         : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
 
     setState(() => _isLoading = true);
+
     await _authService.sendOtp(
       phoneNumber: formattedPhone,
-      onCodeSent: (verId) {
+
+      // IMPORTANT:
+      // First Send OTP = null
+      // Resend OTP = previous Firebase resend token
+      forceResendingToken: _resendToken,
+
+      onCodeSent: (verId, resendToken) {
         if (!mounted) return;
+
         setState(() {
           _verificationId = verId;
+          _resendToken = resendToken;
           _otpSent = true;
           _isLoading = false;
+
+          // Clear the old OTP when a new OTP is requested.
           _regOtpController.clear();
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('OTP sent successfully! Please check your SMS.'),
+            content: Text(
+              'OTP sent successfully! Please check your SMS.',
+            ),
             duration: Duration(seconds: 4),
           ),
         );
       },
+
       onError: (err) {
         if (!mounted) return;
+
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(err)));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err)),
+        );
       },
     );
   }

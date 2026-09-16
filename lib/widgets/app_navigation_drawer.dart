@@ -35,6 +35,12 @@ class AppNavigationDrawer extends StatelessWidget {
     return Drawer(
       backgroundColor: AppTheme.backgroundColor,
       elevation: 16,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topRight: Radius.circular(20),
+          bottomRight: Radius.zero,
+        ),
+      ),
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) => true,
         child: ListenableBuilder(
@@ -467,33 +473,36 @@ class AppNavigationDrawer extends StatelessWidget {
               ),
 
               // 3. Bottom Log Out Section
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: AppTheme.borderSubtle),
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppTheme.borderSubtle),
+                    ),
                   ),
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        backgroundColor: Colors.red.withValues(alpha: 0.06),
                       ),
-                      backgroundColor: Colors.red.withValues(alpha: 0.06),
-                    ),
-                    icon: const Icon(Icons.logout_rounded, size: 20),
-                    label: const Text(
-                      'Log Out',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                      icon: const Icon(Icons.logout_rounded, size: 20),
+                      label: const Text(
+                        'Log Out',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
+                      onPressed: () => _performDirectLogout(context),
                     ),
-                    onPressed: () => _performDirectLogout(context),
                   ),
                 ),
               ),
