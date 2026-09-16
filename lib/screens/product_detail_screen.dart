@@ -428,29 +428,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(4),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.38),
-                                        blurRadius: 24,
-                                        spreadRadius: 0,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.22),
-                                        blurRadius: 10,
-                                        spreadRadius: 0,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                      BoxShadow(
-                                        color: const Color(0xFF0F172A).withValues(alpha: 0.26),
-                                        blurRadius: 32,
-                                        spreadRadius: 2,
-                                        offset: const Offset(0, 14),
-                                      ),
-                                    ],
                                     border: Border.all(
-                                      color: Colors.black.withValues(alpha: 0.18),
-                                      width: 1.2,
+                                      color: const Color(0xFF4A5568),
+                                      width: 1.5,
                                     ),
                                   ),
                                   child: ClipRRect(
