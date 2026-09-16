@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_product.dart';
 import '../services/app_state_service.dart';
+import '../services/pricing_service.dart';
 import '../models/product_enums.dart';
 import 'categories_screen.dart';
 import 'product_listing_screen.dart';
@@ -12,11 +13,13 @@ import 'notifications_screen.dart';
 import '../services/firestore_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/adhesive_section_widget.dart';
+import '../widgets/adhesive_card.dart';
 import '../widgets/app_product_image.dart';
 import '../widgets/interactive_pressable.dart';
 import '../utils/app_notification_utils.dart';
 import '../services/user_demand_service.dart';
 import '../services/product_catalog_service.dart';
+import '../widgets/revolving_border_search_bar.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -36,6 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _internalScaffoldKey = GlobalKey<ScaffoldState>();
   GlobalKey<ScaffoldState> get _scaffoldKey => widget.scaffoldKey ?? _internalScaffoldKey;
   final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  bool _isSearchFocused = false;
 
   final List<_PopularChip> _popularChips = const [
     _PopularChip(
@@ -115,9 +120,50 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      if (_searchQuery != _searchController.text) {
+        setState(() {
+          _searchQuery = _searchController.text;
+        });
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  List<TileProduct> get _searchResults {
+    if (_searchQuery.trim().isEmpty) return const [];
+    final query = _searchQuery.toLowerCase().trim();
+    return ProductCatalogService.allCatalogProducts.where((p) {
+      final matchName = p.name.toLowerCase().contains(query);
+      final matchSize = p.size.toLowerCase().contains(query);
+      final matchSurface = p.surface.toLowerCase().contains(query);
+      final matchFinish = p.finish.toLowerCase().contains(query);
+      final matchColor = p.color.toLowerCase().contains(query);
+      final matchCollection = p.collection.toLowerCase().contains(query);
+      final matchType = p.productType.toLowerCase().contains(query);
+      final matchCategory = p.tileCategory.toLowerCase().contains(query);
+      final matchClassification = p.classification.toLowerCase().contains(query);
+      final matchPattern = p.pattern.toLowerCase().contains(query);
+      final matchSku = p.sku.toLowerCase().contains(query);
+      return matchName ||
+          matchSize ||
+          matchSurface ||
+          matchFinish ||
+          matchColor ||
+          matchCollection ||
+          matchType ||
+          matchCategory ||
+          matchClassification ||
+          matchPattern ||
+          matchSku;
+    }).toList();
   }
 
   void _navigateToProductListing({
@@ -214,8 +260,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final appState = AppStateService();
+    final isSearchActive = _isSearchFocused || _searchQuery.trim().isNotEmpty;
 
-    return Scaffold(
+    return PopScope(
+      canPop: !isSearchActive,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (isSearchActive) {
+          _searchController.clear();
+          FocusScope.of(context).unfocus();
+          setState(() {
+            _searchQuery = '';
+            _isSearchFocused = false;
+          });
+        }
+      },
+      child: Scaffold(
       key: _scaffoldKey,
       drawer: AppNavigationDrawer(
         onSelectTab: (idx) {
@@ -366,89 +426,58 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Dark Navy Hero Banner
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 180),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/splash_kitchen.jpg'),
-                  fit: BoxFit.cover,
-                ),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.primaryNavy.withValues(alpha: 0.95),
-                      AppTheme.primaryNavy.withValues(alpha: 0.5),
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Smooth Parallax Hero Banner: slides up and collapses when search bar is clicked/focused
+              ClipRect(
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 380),
+                  curve: Curves.easeInOutCubic,
+                  alignment: Alignment.topCenter,
+                  heightFactor: isSearchActive ? 0.0 : 1.0,
+                  child: AnimatedSlide(
+                    duration: const Duration(milliseconds: 380),
+                    curve: Curves.easeInOutCubic,
+                    offset: isSearchActive
+                        ? const Offset(0, -0.4)
+                        : Offset.zero,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeInOut,
+                      opacity: isSearchActive ? 0.0 : 1.0,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 20.0),
+                        child: _buildHeroBanner(context),
+                      ),
+                    ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Strength. Elegance. Timeless.',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Premium Vitrified & Ceramic Surfaces Direct from Manufacturer',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    AppButton(
-                      text: 'Explore Collection →',
-                      variant: AppButtonVariant.secondary,
-                      height: 40,
-                      fontSize: 13,
-                      onPressed: () {
-                        if (widget.onNavigateTab != null) {
-                          widget.onNavigateTab!(1);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const ProductListingScreen()),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
               ),
-            ),
-            const SizedBox(height: 20),
 
-            // Search Bar + Popular Material / Search Chips (Replaces Top Shortcut Row)
-            _buildSearchAndPopularChips(context),
-            const SizedBox(height: 26),
+              // Live Search Bar (Matches Product Listing / Search Screen)
+              _buildSearchBar(context),
+              const SizedBox(height: 16),
 
-            // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+            if (isSearchActive) ...[
+              _buildSearchResultsSection(context, appState, _searchResults),
+            ] else ...[
+              // Popular Searches & Materials Chips
+              _buildPopularChips(context),
+              const SizedBox(height: 26),
+
+              // Shop by Category Section (Floor Tiles, Wall Tiles, Slab Tiles, Heavy Duty Parking)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                 Text(
                   'Shop by Category',
                   style: GoogleFonts.inter(
@@ -808,11 +837,14 @@ class _HomeScreenState extends State<HomeScreen> {
             // Why ITACON Trust Section (Brand Pillars & Quality Promise)
             _buildWhyItaconSection(context),
             const SizedBox(height: 24),
+            ],
           ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildShopByCategoryCard(BuildContext context, Map<String, dynamic> cat) {
     final label = cat['label'] as String;
@@ -1370,135 +1402,145 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchAndPopularChips(BuildContext context) {
+  /// Dark Navy Hero Banner with background image & gradient
+  Widget _buildHeroBanner(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 180),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        image: const DecorationImage(
+          image: AssetImage('assets/images/splash_kitchen.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primaryNavy.withValues(alpha: 0.95),
+              AppTheme.primaryNavy.withValues(alpha: 0.5),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Strength. Elegance. Timeless.',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Premium Vitrified & Ceramic Surfaces Direct from Manufacturer',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 14),
+            AppButton(
+              text: 'Explore Collection →',
+              variant: AppButtonVariant.secondary,
+              height: 40,
+              fontSize: 13,
+              onPressed: () {
+                if (widget.onNavigateTab != null) {
+                  widget.onNavigateTab!(1);
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ProductListingScreen()),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 1. Live Search Bar Widget with Revolving Theme Blue Border Beam & Parallax Shift
+  Widget _buildSearchBar(BuildContext context) {
+    final isSearchActive = _isSearchFocused || _searchQuery.trim().isNotEmpty;
+
+    return Row(
+      children: [
+        Expanded(
+          child: AppRevolvingBorderSearchBar(
+            controller: _searchController,
+            hintText: 'Search tiles by name, size, surface, color...',
+            onFocusChanged: (focused) {
+              if (_isSearchFocused != focused) {
+                setState(() {
+                  _isSearchFocused = focused;
+                });
+              }
+            },
+            onChanged: (text) {
+              setState(() {
+                _searchQuery = text;
+              });
+            },
+            onSubmitted: (query) {
+              if (query.trim().isNotEmpty) {
+                AppStateService.instance.recordSearchQuery(query.trim());
+              }
+            },
+            onClear: () {
+              setState(() {
+                _searchQuery = '';
+              });
+            },
+          ),
+        ),
+        if (isSearchActive) ...[
+          const SizedBox(width: 8),
+          AppPressable(
+            onTap: () {
+              _searchController.clear();
+              FocusScope.of(context).unfocus();
+              setState(() {
+                _searchQuery = '';
+                _isSearchFocused = false;
+              });
+            },
+            scaleDown: 0.92,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.accentOrange,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 2. Horizontal Popular Search & Material Chips
+  Widget _buildPopularChips(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Luxury Live Search Bar Container
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E9F0)),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryNavy.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: Row(
-            children: [
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.search_rounded,
-                color: AppTheme.primaryNavy,
-                size: 22,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (query) {
-                    if (query.trim().isNotEmpty) {
-                      AppStateService.instance.recordSearchQuery(query.trim());
-                      _navigateToProductListing(query: query.trim());
-                    }
-                  },
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    color: AppTheme.textDark,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Search tiles, marble, size, finishes...',
-                    hintStyle: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade400,
-                      fontWeight: FontWeight.w400,
-                    ),
-                    border: InputBorder.none,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                ),
-              ),
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: _searchController,
-                builder: (context, value, _) {
-                  if (value.text.isNotEmpty) {
-                    return IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          size: 18, color: AppTheme.textSubtle),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () {
-                        _searchController.clear();
-                      },
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-              const SizedBox(width: 4),
-              AppPressable(
-                onTap: () {
-                  final text = _searchController.text.trim();
-                  if (text.isNotEmpty) {
-                    AppStateService.instance.recordSearchQuery(text);
-                  }
-                  _navigateToProductListing(
-                    query: text.isNotEmpty ? text : null,
-                  );
-                },
-                scaleDown: 0.94,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryNavy.withValues(alpha: 0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Search',
-                        style: GoogleFonts.inter(
-                          color: Colors.white,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        color: AppTheme.accentOrange,
-                        size: 14,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // 2. Popular Searches / Trending Materials Section Header
         Row(
           children: [
             Container(
@@ -1525,10 +1567,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-
         const SizedBox(height: 8),
-
-        // 3. Horizontal Scrollable Popular Material & Search Chips
         SizedBox(
           height: 34,
           child: ListView.separated(
@@ -1539,17 +1578,9 @@ class _HomeScreenState extends State<HomeScreen> {
               final chip = _popularChips[index];
               return AppPressable(
                 onTap: () {
-                  if (chip.query != null && chip.query!.isNotEmpty) {
-                    AppStateService.instance.recordSearchQuery(chip.query!);
-                  } else if (chip.label.isNotEmpty) {
-                    AppStateService.instance.recordSearchQuery(chip.label);
-                  }
-                  _navigateToProductListing(
-                    query: chip.query,
-                    surface: chip.surface,
-                    size: chip.size,
-                    title: chip.label,
-                  );
+                  final term = chip.query ?? chip.label;
+                  _searchController.text = term;
+                  AppStateService.instance.recordSearchQuery(term);
                 },
                 scaleDown: 0.95,
                 borderRadius: BorderRadius.circular(20),
@@ -1596,6 +1627,548 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// 3. Live Search Results Section shown below the Search Bar
+  Widget _buildSearchResultsSection(
+      BuildContext context, AppStateService appState, List<TileProduct> results) {
+    // If no keyword is written in search box, display "No search found" with quick suggestion chips
+    if (_searchQuery.trim().isEmpty) {
+      return Center(
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.borderSubtle),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.06),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.search_off_rounded,
+                  size: 34,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No search found',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryNavy,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Please write a keyword in the search box to view products',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: AppTheme.textSubtle,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  '600x1200 mm',
+                  'Glossy',
+                  'Floor Tiles',
+                  'Statuario',
+                  'Carving',
+                  'Matt',
+                ].map((keyword) {
+                  return AppPressable(
+                    onTap: () {
+                      _searchController.text = keyword;
+                      _searchController.selection = TextSelection.fromPosition(
+                        TextPosition(offset: keyword.length),
+                      );
+                      setState(() {
+                        _searchQuery = keyword;
+                      });
+                    },
+                    scaleDown: 0.94,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F7FC),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.search_rounded,
+                            size: 13,
+                            color: AppTheme.accentOrange,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            keyword,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryNavy,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    results.length == 1
+                        ? '1 Product Found'
+                        : '${results.length} Products Found',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Matching "$_searchQuery"',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.textSubtle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                AppPressable(
+                  onTap: () {
+                    _navigateToProductListing(query: _searchQuery.trim());
+                  },
+                  scaleDown: 0.94,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Full Listing',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.accentOrange,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: AppTheme.accentOrange,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                AppPressable(
+                  onTap: () {
+                    _searchController.clear();
+                  },
+                  scaleDown: 0.94,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Text(
+                      'Clear',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (results.isEmpty)
+          Center(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.borderSubtle),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.search_off_rounded,
+                    size: 54,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'No search found',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'No products match "$_searchQuery". Try searching with a different tile name, size (e.g. 600x1200), surface finish, or color.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: AppTheme.textSubtle,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  AppButton(
+                    text: 'Clear Search',
+                    icon: Icons.close_rounded,
+                    variant: AppButtonVariant.secondary,
+                    height: 38,
+                    fontSize: 12,
+                    onPressed: () {
+                      _searchController.clear();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: results.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: MediaQuery.of(context).size.width < 360
+                  ? 0.62
+                  : (MediaQuery.of(context).size.width < 400 ? 0.65 : 0.70),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemBuilder: (context, index) {
+              final product = results[index];
+              return _buildLuxuryTileCard(context, product, appState);
+            },
+          ),
+      ],
+    );
+  }
+
+  /// 4. Tile and Adhesive Product Card matching ProductListingScreen standard
+  Widget _buildLuxuryTileCard(
+      BuildContext context, TileProduct product, AppStateService appState) {
+    if (product.isAdhesive) {
+      return AdhesiveCard(product: product);
+    }
+
+    return RepaintBoundary(
+      child: AppPressable(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProductDetailScreen(product: product),
+            ),
+          );
+        },
+        scaleDown: 0.97,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: AppTheme.borderSubtle.withValues(alpha: 0.8)),
+            boxShadow: AppTheme.luxuryShadows,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Uniform 1:1 Square Tile Image Showcase
+              AspectRatio(
+                aspectRatio: 1.0,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: AppProductImage(
+                        imagePath: product.frontCardImage,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+
+                    // Surface Finish Badge
+                    if (product.surface.isNotEmpty)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryNavy.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            product.surface,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Quick Favorite Button with Tactile Press
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: ListenableBuilder(
+                        listenable: appState,
+                        builder: (context, _) {
+                          final isFav = appState.isFavorite(product.id);
+                          return AppPressable(
+                            onTap: () => appState.toggleFavorite(product),
+                            scaleDown: 0.84,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.92),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.08),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                isFav
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
+                                color: isFav ? Colors.red : AppTheme.textSubtle,
+                                size: 16,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Product Details Block
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryNavy,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.straighten_rounded,
+                            size: 12, color: AppTheme.textSubtle),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            product.size,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: AppTheme.textSubtle,
+                              height: 1.15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Pricing & Add Button
+                    ListenableBuilder(
+                      listenable: appState,
+                      builder: (context, _) {
+                        final effectivePrice = PricingService.getEffectivePrice(
+                          basePrice: product.basePrice,
+                          size: product.size,
+                          surface: product.surface,
+                          userProfile: appState.currentUserProfile,
+                        );
+                        final hasDiscount = effectivePrice < product.basePrice;
+
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      product.isAdhesive
+                                          ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
+                                          : '₹${effectivePrice.toStringAsFixed(0)}/sq ft',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppTheme.accentOrange,
+                                        height: 1.15,
+                                      ),
+                                    ),
+                                  ),
+                                  if (hasDiscount)
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        'MRP ₹${product.basePrice.toStringAsFixed(0)}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 9.5,
+                                          color: Colors.grey,
+                                          decoration:
+                                              TextDecoration.lineThrough,
+                                          height: 1.15,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            AppPressable(
+                              onTap: () {
+                                appState.addToCart(
+                                  product,
+                                  size: product.size,
+                                  finish: product.surface,
+                                  quantity: 1,
+                                );
+                                AppNotificationUtils.showAddToCartSnackBar(
+                                  context,
+                                  productName: product.name,
+                                );
+                              },
+                              scaleDown: 0.88,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryNavy,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppTheme.primaryNavy
+                                          .withValues(alpha: 0.25),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.add_shopping_cart_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

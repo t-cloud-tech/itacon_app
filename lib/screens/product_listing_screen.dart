@@ -12,6 +12,7 @@ import '../widgets/floating_bottom_bar.dart';
 import '../widgets/interactive_pressable.dart';
 import '../widgets/adhesive_card.dart';
 import '../widgets/app_product_image.dart';
+import '../widgets/revolving_border_search_bar.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 
@@ -306,42 +307,23 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       ),
       body: Column(
         children: [
-          // 1. Live Search Bar Header Widget
+          // 1. Live Search Bar Header Widget with Revolving Theme Blue Border Beam
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
+            child: AppRevolvingBorderSearchBar(
               controller: _searchController,
-              textInputAction: TextInputAction.search,
+              hintText: 'Search tiles by name, size, surface, color...',
               onSubmitted: (query) {
                 if (query.trim().isNotEmpty) {
                   _appState.recordSearchQuery(query.trim());
                 }
               },
-              decoration: InputDecoration(
-                hintText: 'Search tiles by name, size, surface, color...',
-                hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryNavy, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded, size: 18, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      )
-                    : null,
-                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                filled: true,
-                fillColor: const Color(0xFFF4F7FC),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
-                ),
-              ),
+              onClear: () {
+                setState(() {
+                  _searchQuery = '';
+                });
+              },
             ),
           ),
 
