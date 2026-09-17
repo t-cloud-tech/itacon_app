@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../models/user_category.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/interactive_pressable.dart';
 import 'referral_gate_screen.dart';
 import 'main_navigation_screen.dart';
@@ -266,6 +267,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
 
+      await NotificationService.saveCurrentUserToken();
       setState(() => _isLoading = false);
       if (!mounted) return;
 
@@ -582,6 +584,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
 
+      await NotificationService.saveCurrentUserToken();
       setState(() => _isLoading = false);
 
       if (!mounted) return;

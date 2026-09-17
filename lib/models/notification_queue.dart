@@ -13,6 +13,7 @@ class NotificationQueueItem {
   final bool isRead; // Read status
   final String relatedOrderId; // Related order ID
   final String relatedEstimateId; // Related estimate ID
+  final String relatedOfferId; // Related offer ID for type: 'offer'
   final Map<String, dynamic> channels; // inApp / email / whatsapp
   final String status; // pending / sent / failed
   final String orderId;
@@ -34,6 +35,7 @@ class NotificationQueueItem {
     this.isRead = false,
     this.relatedOrderId = '',
     this.relatedEstimateId = '',
+    this.relatedOfferId = '',
     this.channels = const {'inApp': true, 'email': true, 'whatsapp': true},
     this.status = 'pending',
     this.orderId = '',
@@ -45,6 +47,7 @@ class NotificationQueueItem {
   });
 
   String get id => notificationId;
+  String get offerId => relatedOfferId;
 
   Map<String, dynamic> toMap() {
     return {
@@ -62,6 +65,8 @@ class NotificationQueueItem {
       'isRead': isRead,
       'relatedOrderId': relatedOrderId.isNotEmpty ? relatedOrderId : orderId,
       'relatedEstimateId': relatedEstimateId,
+      if (relatedOfferId.isNotEmpty) 'offerId': relatedOfferId,
+      if (relatedOfferId.isNotEmpty) 'relatedOfferId': relatedOfferId,
       'channels': channels,
       'status': status,
       'orderId': orderId.isNotEmpty ? orderId : relatedOrderId,
@@ -73,6 +78,7 @@ class NotificationQueueItem {
               'title': title,
               'message': message,
               'orderId': relatedOrderId,
+              'offerId': relatedOfferId,
               'bannerImageUrl': bannerImageUrl,
             },
       'createdAt': createdAt != null
@@ -95,6 +101,7 @@ class NotificationQueueItem {
       isRead: map['isRead'] ?? map['read'] ?? false,
       relatedOrderId: map['relatedOrderId'] ?? map['orderId'] ?? '',
       relatedEstimateId: map['relatedEstimateId'] ?? '',
+      relatedOfferId: map['offerId'] ?? map['relatedOfferId'] ?? '',
       channels: Map<String, dynamic>.from(map['channels'] ?? {'inApp': true, 'email': true, 'whatsapp': true}),
       status: map['status'] ?? 'pending',
       orderId: map['orderId'] ?? map['relatedOrderId'] ?? '',

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
 import 'services/firestore_service.dart';
+import 'services/notification_service.dart';
 import 'models/user_category.dart';
 import 'models/tile_product.dart';
 import 'models/tile_order.dart';
@@ -30,6 +31,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    await NotificationService.initialize();
   } catch (e) {
     debugPrint('Firebase initialization note: $e');
   }
@@ -57,6 +59,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: NotificationService.navigatorKey,
       title: 'ITACON GRANITO',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.luxuryTheme,

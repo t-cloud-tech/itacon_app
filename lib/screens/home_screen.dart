@@ -344,10 +344,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
                 scaleDown: 0.88,
-                borderRadius: BorderRadius.circular(20),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Stack(
+                    clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
                       const Icon(Icons.notifications_none_rounded,
@@ -394,10 +394,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
                 scaleDown: 0.88,
-                borderRadius: BorderRadius.circular(20),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   child: Stack(
+                    clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
                       const Icon(Icons.shopping_bag_outlined,
@@ -433,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 14),
         ],
       ),
       body: GestureDetector(

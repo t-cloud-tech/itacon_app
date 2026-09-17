@@ -258,27 +258,6 @@ class OrderSummaryCard extends StatelessWidget {
             SizedBox(height: context.h(6)),
           ],
 
-          // Freight & Shipping Fee Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  'Logistics & Freight Fee',
-                  style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
-                ),
-              ),
-              Text(
-                freightFee == 0 ? 'FREE' : '₹${freightFee.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: context.sp(12.5),
-                  fontWeight: FontWeight.bold,
-                  color: freightFee == 0 ? Colors.green : AppTheme.textDark,
-                ),
-              ),
-            ],
-          ),
-
           Divider(height: context.h(18), color: AppTheme.borderSubtle),
 
           // Grand Total Row

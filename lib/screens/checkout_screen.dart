@@ -22,7 +22,6 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _currentStep = 0; // 0: PO Estimate, 1: Address, 2: Payment, 3: Review
-  bool _isEstimateApproved = true;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -197,15 +196,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: AppPressable(
                 onTap: () {
                   if (_currentStep == 0) {
-                    if (!_isEstimateApproved) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please approve the Purchase Order Estimate to proceed.'),
-                          backgroundColor: AppTheme.statusWarning,
-                        ),
-                      );
-                      return;
-                    }
                     _changeStep(1);
                   } else if (_currentStep == 1) {
                     if (_addressLineController.text.trim().isEmpty || _cityController.text.trim().isEmpty) {
@@ -242,7 +232,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     fit: BoxFit.scaleDown,
                     child: Text(
                       _currentStep == 0
-                          ? 'APPROVE ESTIMATE & CONTINUE →'
+                          ? 'CONTINUE TO ADDRESS →'
                           : (_currentStep == 1
                               ? 'CONFIRM ADDRESS & PROCEED →'
                               : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
@@ -343,7 +333,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final netSubtotal = appState.subtotal;
     final discountSavings = grossBaseSubtotal > netSubtotal ? grossBaseSubtotal - netSubtotal : 0.0;
     final gstAmount = netSubtotal * 0.18;
-    final grandTotalEstimate = netSubtotal + gstAmount + appState.freightFee;
+    final grandTotalEstimate = netSubtotal + gstAmount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,26 +529,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           discountAmount: discountSavings,
           discountLabel: 'Trade Partner Discount ($discountPct% OFF)',
           taxAmount: gstAmount,
-          freightFee: appState.freightFee,
+          freightFee: 0.0,
           grandTotal: grandTotalEstimate,
           totalBoxes: appState.totalBoxes,
           totalWeightTons: appState.totalWeightTons,
           totalWeightKg: appState.totalWeightKg,
           title: 'PO Estimate & Logistics Summary',
-        ),
-        const SizedBox(height: 16),
-
-        // Estimate Approval Checkbox
-        CheckboxListTile(
-          value: _isEstimateApproved,
-          onChanged: (val) => setState(() => _isEstimateApproved = val ?? true),
-          activeColor: AppTheme.primaryNavy,
-          contentPadding: EdgeInsets.zero,
-          controlAffinity: ListTileControlAffinity.leading,
-          title: const Text(
-            'I approve this Purchase Order Estimate with partner rates as specified above.',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textDark),
-          ),
         ),
       ],
     );
@@ -724,7 +700,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildReviewStep(AppStateService appState, UserProfile user) {
     final netSubtotal = appState.subtotal;
     final gstAmount = netSubtotal * 0.18;
-    final grandTotal = netSubtotal + gstAmount + appState.freightFee;
+    final grandTotal = netSubtotal + gstAmount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

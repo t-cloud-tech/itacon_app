@@ -24,7 +24,9 @@ import '../models/client_assignment.dart';
 import '../models/promotion_model.dart';
 import '../models/system_config_model.dart';
 import '../models/festival_greeting.dart';
+import '../models/offer_model.dart';
 import 'product_catalog_service.dart';
+import 'app_state_service.dart' show AppStateService;
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
@@ -53,6 +55,7 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _estimatesRef => _db.collection('estimates');
   CollectionReference<Map<String, dynamic>> get _notificationsRef => _db.collection('notifications');
   CollectionReference<Map<String, dynamic>> get _festivalGreetingsRef => _db.collection('festivalGreetings');
+  CollectionReference<Map<String, dynamic>> get _offersRef => _db.collection('offers');
   CollectionReference<Map<String, dynamic>> get _handoffsRef => _db.collection('handoffs');
   CollectionReference<Map<String, dynamic>> get _customerSummaryRef => _db.collection('customerSummary');
   CollectionReference<Map<String, dynamic>> get _loyaltyTransactionsRef => _db.collection('loyaltyTransactions');
@@ -387,6 +390,18 @@ class FirestoreService {
       return UserProfile.fromMap(doc.data()!, doc.id);
     }
     return null;
+  }
+
+  Future<void> saveFcmToken(String uid, String token) async {
+    if (uid.isEmpty || token.isEmpty) return;
+
+    await _usersRef.doc(uid).set(
+      {
+        'fcmToken': token,
+        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
   }
 
   Future<List<Map<String, dynamic>>> getUsersByCategory(String categoryId) async {
@@ -1505,6 +1520,18 @@ class FirestoreService {
     );
   }
 
+  /// Retrieves estimate document by ID
+  Future<Estimate?> getEstimate(String estimateId) async {
+    if (estimateId.isEmpty) return null;
+    try {
+      final doc = await _estimatesRef.doc(estimateId).get();
+      if (doc.exists && doc.data() != null) {
+        return Estimate.fromMap(doc.data()!, doc.id);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> sendNotification({
     required String recipientId,
     required String type,
@@ -1514,7 +1541,12 @@ class FirestoreService {
     required String relatedOrderId,
     String relatedEstimateId = '',
   }) async {
-    final docRef = _notificationsRef.doc();
+    final docRef = _db
+        .collection('users')
+        .doc(recipientId)
+        .collection('notifications')
+        .doc();
+
     final item = NotificationQueueItem(
       notificationId: docRef.id,
       recipientId: recipientId,
@@ -1529,6 +1561,45 @@ class FirestoreService {
     );
 
     await docRef.set(item.toMap());
+  }
+
+  // ===========================================================================
+  // TEMPORARY TEST METHOD (Can be safely removed after testing)
+  // Writes one test notification to users/{currentUserId}/notifications/{notificationId}
+  // ===========================================================================
+  Future<String> createTestNotificationForCurrentUser({String? targetUserId}) async {
+    final currentUserId = (targetUserId != null && targetUserId.isNotEmpty)
+        ? targetUserId
+        : AppStateService.instance.currentUserProfile.userId;
+
+    if (currentUserId.isEmpty) {
+      debugPrint('[TEST NOTIFICATION] Cannot create: current user ID is empty (user not logged in).');
+      return '';
+    }
+
+    final docRef = _db
+        .collection('users')
+        .doc(currentUserId)
+        .collection('notifications')
+        .doc();
+
+    final item = NotificationQueueItem(
+      notificationId: docRef.id,
+      recipientId: currentUserId,
+      type: 'announcement',
+      event: 'test_notification',
+      title: 'ITACON Test',
+      message: 'Notification data flow is working!',
+      isRead: false,
+      status: 'sent',
+      createdAt: null, // toMap() serializes null as FieldValue.serverTimestamp()
+      relatedOrderId: '',
+      relatedEstimateId: '',
+    );
+
+    await docRef.set(item.toMap());
+    debugPrint('[TEST NOTIFICATION] Successfully created test notification ${docRef.id} at users/$currentUserId/notifications/${docRef.id}');
+    return docRef.id;
   }
 
   // ===========================================================================
@@ -1910,6 +1981,177 @@ class FirestoreService {
     for (var item in defaults) {
       await _festivalGreetingsRef.doc(item.greetingId).set(item.toMap(), SetOptions(merge: true));
     }
+  }
+
+  // ===========================================================================
+  // OFFERS COLLECTION & NOTIFICATION PAYLOAD SUPPORT
+  // ===========================================================================
+
+  /// Streams all active offers from `offers` collection
+  Stream<List<OfferModel>> streamActiveOffers() {
+    return _offersRef
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => OfferModel.fromMap(doc.data(), doc.id))
+            .where((offer) => offer.isCurrentlyValid)
+            .toList());
+  }
+
+  /// Retrieves active offers matching a specific user based on targetAudience,
+  /// selectedCustomerIds, applicableRegions, and order history.
+  Future<List<OfferModel>> getActiveOffersForUser(
+    UserProfile user, {
+    int totalOrders = 0,
+  }) async {
+    try {
+      final snap = await _offersRef.where('isActive', isEqualTo: true).get();
+      final allOffers = snap.docs.map((doc) => OfferModel.fromMap(doc.data(), doc.id)).toList();
+
+      return allOffers.where((offer) => offer.matchesUser(user: user, totalOrders: totalOrders)).toList();
+    } catch (e) {
+      debugPrint('[FirestoreService] Error fetching offers for user: $e');
+      return [];
+    }
+  }
+
+  /// Fetches a single offer by ID from `offers` collection
+  Future<OfferModel?> getOffer(String offerId) async {
+    if (offerId.isEmpty) return null;
+    try {
+      final doc = await _offersRef.doc(offerId).get();
+      if (!doc.exists || doc.data() == null) return null;
+      return OfferModel.fromMap(doc.data()!, doc.id);
+    } catch (e) {
+      debugPrint('[FirestoreService] Error fetching offer $offerId: $e');
+      return null;
+    }
+  }
+
+  /// Creates or updates an offer in `offers` collection
+  Future<void> saveOffer(OfferModel offer) async {
+    if (offer.offerId.isEmpty) return;
+    await _offersRef.doc(offer.offerId).set(offer.toMap(), SetOptions(merge: true));
+  }
+
+  /// Seeds default promotional offers for all 4 target audiences into `offers` master collection
+  Future<void> seedDefaultOffers() async {
+    final now = DateTime.now();
+    final oneMonthLater = now.add(const Duration(days: 30));
+
+    final List<OfferModel> defaults = [
+      OfferModel(
+        offerId: 'OFFER_ALL_WELCOME_2026',
+        title: 'Exclusive Dealer Launch Offer! 🎉',
+        message: 'Get an additional 5% margin credit on all premium glazed vitrified tiles this month.',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80',
+        offerType: OfferType.percentageDiscount,
+        discountText: '5% Extra Margin',
+        validFrom: now,
+        validUntil: oneMonthLater,
+        applicableRegions: const ['All'],
+        targetAudience: OfferTargetAudience.allCustomers,
+        isActive: true,
+      ),
+      OfferModel(
+        offerId: 'OFFER_EXISTING_LOYALTY_2026',
+        title: 'Repeat Partner Loyalty Reward ⭐',
+        message: 'Special 2x loyalty points on bulk truckload dispatches for all verified existing accounts.',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=800&q=80',
+        offerType: OfferType.tierBonus,
+        discountText: '2X Points',
+        validFrom: now,
+        validUntil: oneMonthLater,
+        applicableRegions: const ['All'],
+        targetAudience: OfferTargetAudience.existingCustomers,
+        isActive: true,
+      ),
+      OfferModel(
+        offerId: 'OFFER_WEST_MONSOON_2026',
+        title: 'West India High-Traffic Matte Clearance 🌧️',
+        message: 'Special factory clearance rates on 600x1200mm outdoor anti-skid porcelain for Gujarat & Maharashtra.',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=800&q=80',
+        offerType: OfferType.clearance,
+        discountText: 'Up to 20% Off',
+        validFrom: now,
+        validUntil: oneMonthLater,
+        applicableRegions: const ['West India (Gujarat/Maharashtra)'],
+        targetAudience: OfferTargetAudience.regionBased,
+        isActive: true,
+      ),
+      OfferModel(
+        offerId: 'OFFER_VIP_DIRECT_2026',
+        title: 'Special Project Quotation Rebate 💼',
+        message: 'Curated custom rebate applicable on large commercial architectural specifications.',
+        bannerImageUrl: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+        offerType: OfferType.flatDiscount,
+        discountText: 'Flat ₹10,000 Rebate',
+        validFrom: now,
+        validUntil: oneMonthLater,
+        applicableRegions: const ['All'],
+        targetAudience: OfferTargetAudience.selectedCustomers,
+        selectedCustomerIds: const ['curhNkfDRveFrBxdtSeOpUosZKD3'], // Configured test account
+        isActive: true,
+      ),
+    ];
+
+    for (final item in defaults) {
+      await _offersRef.doc(item.offerId).set(item.toMap(), SetOptions(merge: true));
+    }
+  }
+
+  /// Dispatches an offer notification to a target user's `users/{userId}/notifications/{notificationId}`
+  /// with payload:
+  /// - type: 'offer'
+  /// - event: 'offer_available'
+  /// - offerId: `<offerId>`
+  ///
+  /// Prevents duplicate notifications using deterministic ID: `offer_${cleanOfferId}_${cleanUserId}`
+  Future<String> sendOfferNotificationToUser({
+    required String userId,
+    required OfferModel offer,
+    String? customRegion,
+  }) async {
+    if (userId.isEmpty || offer.offerId.isEmpty) return '';
+
+    final cleanOfferId = offer.offerId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final cleanUserId = userId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final notificationId = 'offer_${cleanOfferId}_$cleanUserId';
+
+    final notifRef = _db.collection('users').doc(userId).collection('notifications').doc(notificationId);
+
+    // Idempotency: skip if already sent
+    final existing = await notifRef.get();
+    if (existing.exists) {
+      debugPrint('[FirestoreService] Offer notification $notificationId already exists for user $userId. Skipping duplicate.');
+      return notificationId;
+    }
+
+    final item = NotificationQueueItem(
+      notificationId: notificationId,
+      recipientId: userId,
+      type: 'offer',
+      event: 'offer_available',
+      title: offer.title,
+      message: offer.message,
+      bannerImageUrl: offer.bannerImageUrl,
+      region: customRegion ?? (offer.applicableRegions.isNotEmpty ? offer.applicableRegions.first : 'All'),
+      relatedOfferId: offer.offerId,
+      isRead: false,
+      status: 'sent',
+      payload: {
+        'type': 'offer',
+        'event': 'offer_available',
+        'offerId': offer.offerId,
+        'title': offer.title,
+        'message': offer.message,
+        'bannerImageUrl': offer.bannerImageUrl,
+      },
+    );
+
+    await notifRef.set(item.toMap(), SetOptions(merge: true));
+    debugPrint('[FirestoreService] Created offer notification $notificationId under users/$userId/notifications');
+    return notificationId;
   }
 
   /// Streams notifications for a specific recipient user from `users/{userId}/notifications`

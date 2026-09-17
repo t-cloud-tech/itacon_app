@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/floating_bottom_bar.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../utils/app_notification_utils.dart';
+import '../services/notification_service.dart';
 import 'home_screen.dart';
 import 'product_listing_screen.dart';
 import 'favorites_screen.dart';
@@ -29,6 +30,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialTab;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.onAppReady();
+    });
   }
 
   void _onTabSelected(int index) {

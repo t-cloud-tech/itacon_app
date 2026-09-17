@@ -10,7 +10,7 @@
     "axios": "^1.6.2"
   },
   "engines": {
-    "node": "18"
+    "node": "20"
   },
   "private": true
 }

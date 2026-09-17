@@ -22,6 +22,7 @@ export 'wishlist.dart';
 export 'client_assignment.dart';
 export 'assigned_client_snapshot.dart';
 export 'promotion_model.dart';
+export 'offer_model.dart';
 export 'category_model.dart';
 export 'product_model.dart';
 export 'system_config_model.dart';

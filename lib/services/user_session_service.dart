@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
 import 'app_state_service.dart';
+import 'notification_service.dart';
 
 /// Manages persistent user login session across app restarts
 class UserSessionService {
@@ -54,6 +55,7 @@ class UserSessionService {
     // Also update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
     AppStateService.instance.loadUserWishlist(profile.userId);
+    NotificationService.saveCurrentUserToken();
   }
 
   /// Restores active user session from SharedPreferences or Firebase Auth
@@ -126,6 +128,7 @@ class UserSessionService {
     // Update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
     AppStateService.instance.loadUserWishlist(profile.userId);
+    NotificationService.saveCurrentUserToken();
     return profile;
   }
 

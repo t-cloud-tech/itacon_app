@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
+import '../services/notification_service.dart';
 import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -78,6 +79,7 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       final restoredProfile = await UserSessionService.restoreUserSession();
       if (restoredProfile != null) {
+        await NotificationService.saveCurrentUserToken();
         targetScreen = const MainNavigationScreen();
       } else {
         final currentUser = FirebaseAuth.instance.currentUser;
@@ -87,6 +89,7 @@ class _SplashScreenState extends State<SplashScreen>
           final profile = await _firestoreService.getUserProfile(uid);
           if (profile != null) {
             await UserSessionService.saveUserSession(profile);
+            await NotificationService.saveCurrentUserToken();
             targetScreen = const MainNavigationScreen();
           } else {
             targetScreen = const AuthScreen();
@@ -124,6 +127,10 @@ class _SplashScreenState extends State<SplashScreen>
         transitionDuration: const Duration(milliseconds: 650),
       ),
     );
+
+    if (targetScreen is MainNavigationScreen) {
+      NotificationService.onAppReady();
+    }
   }
 
   @override

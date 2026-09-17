@@ -58,8 +58,8 @@ class AppStateService extends ChangeNotifier {
 
   double get subtotal =>
       _cartItems.fold(0.0, (sum, item) => sum + item.itemTotal);
-  double get freightFee => subtotal > 0 ? (subtotal > 10000 ? 0.0 : 450.0) : 0.0;
-  double get totalAmount => subtotal + freightFee;
+  double get freightFee => 0.0;
+  double get totalAmount => subtotal;
 
   bool isFavorite(String productId) => _favoriteProductsMap.containsKey(productId);
 
