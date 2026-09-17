@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "889001862943-953fga0n32v6r13p2isriirv2rcidc1c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.itacon_app",
+            "certificate_hash": "97fd0cbfc3fdd3d49fc25ba003d2fb16b9bf48b6"
+          }
+        },
+        {
           "client_id": "889001862943-f78a10v4jg08caobgnnici1ulhr54cdb.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
