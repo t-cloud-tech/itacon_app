@@ -19,7 +19,7 @@ class ForgotPasswordScreen extends StatefulWidget {
     this.isBottomSheet = false,
   });
 
-  /// Static helper to launch ForgotPasswordScreen as a luxury bottom sheet
+  /// Static helper to launch ForgotPasswordScreen as a luxury responsive bottom sheet
   static Future<String?> showAsBottomSheet(
     BuildContext context, {
     String? initialPhone,
@@ -29,23 +29,35 @@ class ForgotPasswordScreen extends StatefulWidget {
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      builder: (context) {
+        final mediaQuery = MediaQuery.of(context);
+        final keyboardInset = mediaQuery.viewInsets.bottom;
+        final screenHeight = mediaQuery.size.height;
+        // Keep sheet within responsive bounds above keyboard
+        final maxHeight = (screenHeight * 0.92) - (keyboardInset > 0 ? 0 : mediaQuery.padding.top);
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: keyboardInset),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: maxHeight,
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: ForgotPasswordScreen(
+                initialPhone: effectivePhone,
+                isBottomSheet: true,
+              ),
+            ),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: ForgotPasswordScreen(
-            initialPhone: effectivePhone,
-            isBottomSheet: true,
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -305,42 +317,66 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+
+    // Responsive padding based on viewport dimensions
+    final responsiveHorizontalPadding = (screenWidth * 0.055).clamp(16.0, 24.0);
+    final responsiveVerticalPadding = (screenHeight * 0.02).clamp(12.0, 20.0);
+
     Widget content;
     switch (_step) {
       case 2:
-        content = _buildOtpAndNewPasswordView();
+        content = _buildOtpAndNewPasswordView(context);
         break;
       case 3:
-        content = _buildSuccessConfirmationView();
+        content = _buildSuccessConfirmationView(context);
         break;
       case 1:
       default:
-        content = _buildPhoneInputView();
+        content = _buildPhoneInputView(context);
         break;
     }
 
-    final scrollableContent = SingleChildScrollView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-      child: content,
-    );
-
     if (widget.isBottomSheet) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle pill for bottom sheet
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
+      return SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Responsive Drag handle pill for bottom sheet
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Center(
+                child: Container(
+                  width: (screenWidth * 0.1).clamp(36.0, 48.0),
+                  height: 4.5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2.5),
+                  ),
+                ),
+              ),
             ),
-          ),
-          scrollableContent,
-        ],
+            // Flexible SingleChildScrollView dynamically shrinks/grows with zero overflow
+            Flexible(
+              fit: FlexFit.loose,
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.fromLTRB(
+                  responsiveHorizontalPadding,
+                  4,
+                  responsiveHorizontalPadding,
+                  responsiveVerticalPadding + (mediaQuery.padding.bottom > 0 ? mediaQuery.padding.bottom : 12.0),
+                ),
+                child: content,
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -364,20 +400,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         title: Text(
           _step == 2 ? 'Verify & Reset Password' : 'Reset Password',
-          style: const TextStyle(
+          style: TextStyle(
             color: AppTheme.primaryNavy,
-            fontSize: 18,
+            fontSize: (screenWidth * 0.045).clamp(16.0, 19.0),
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
       ),
-      body: SafeArea(child: scrollableContent),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.symmetric(
+            horizontal: responsiveHorizontalPadding,
+            vertical: responsiveVerticalPadding,
+          ),
+          child: content,
+        ),
+      ),
     );
   }
 
   /// Step 1: Input Mobile Number
-  Widget _buildPhoneInputView() {
+  Widget _buildPhoneInputView(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+
+    final titleSize = (screenWidth * 0.058).clamp(20.0, 24.0);
+    final subtitleSize = (screenWidth * 0.033).clamp(12.0, 13.5);
+    final labelSize = (screenWidth * 0.033).clamp(12.0, 13.0);
+    final buttonHeight = (screenHeight * 0.058).clamp(46.0, 52.0);
+    final sectionGap = (screenHeight * 0.02).clamp(14.0, 22.0);
+
     return Form(
       key: _phoneFormKey,
       child: Column(
@@ -388,60 +444,62 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: (screenWidth * 0.1).clamp(38.0, 44.0),
+                  height: (screenWidth * 0.1).clamp(38.0, 44.0),
                   decoration: BoxDecoration(
                     color: AppTheme.primaryNavy.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.lock_reset_rounded,
                     color: AppTheme.primaryNavy,
-                    size: 24,
+                    size: (screenWidth * 0.055).clamp(20.0, 24.0),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: Colors.grey),
                   onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: (screenHeight * 0.012).clamp(8.0, 12.0)),
           ],
 
           // Title & Subtitle
-          const Text(
+          Text(
             'Forgot Password?',
             style: TextStyle(
-              fontSize: 24,
+              fontSize: titleSize,
               fontWeight: FontWeight.w800,
               color: AppTheme.primaryNavy,
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: (screenHeight * 0.008).clamp(6.0, 8.0)),
+          Text(
             'Enter your registered 10-digit mobile number. We will send a secure 6-digit verification code directly to your phone via SMS.',
             style: TextStyle(
-              fontSize: 13.5,
-              color: Color(0xFF6B7280),
+              fontSize: subtitleSize,
+              color: const Color(0xFF6B7280),
               height: 1.4,
               fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: sectionGap),
 
           // Error Banner if present
           if (_errorMessage != null) ...[
             _buildErrorBanner(_errorMessage!),
-            const SizedBox(height: 16),
+            SizedBox(height: (screenHeight * 0.014).clamp(10.0, 16.0)),
           ],
 
           // Mobile Number Input Field
-          const Text(
+          Text(
             'Registered Mobile Number *',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: labelSize,
               fontWeight: FontWeight.w600,
               color: AppTheme.primaryNavy,
             ),
@@ -451,8 +509,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             maxLength: 10,
-            style: const TextStyle(
-              fontSize: 15,
+            style: TextStyle(
+              fontSize: (screenWidth * 0.04).clamp(14.0, 16.0),
               color: AppTheme.textDark,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.2,
@@ -465,27 +523,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               counterText: '',
               hintText: '98765 43210',
               hintStyle: TextStyle(
-                fontSize: 14,
+                fontSize: (screenWidth * 0.035).clamp(13.0, 14.0),
                 color: Colors.grey.shade400,
                 letterSpacing: 0,
               ),
               prefixIcon: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 margin: const EdgeInsets.only(right: 8),
                 decoration: const BoxDecoration(
                   border: Border(
                     right: BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('🇮🇳', style: TextStyle(fontSize: 16)),
-                    SizedBox(width: 6),
+                    const Text('🇮🇳', style: TextStyle(fontSize: 16)),
+                    const SizedBox(width: 6),
                     Text(
                       '+91',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: (screenWidth * 0.035).clamp(13.0, 14.0),
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryNavy,
                       ),
@@ -496,7 +554,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               fillColor: const Color(0xFFF6F8FB),
               filled: true,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -528,12 +586,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               return null;
             },
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: sectionGap),
 
           // Send SMS OTP Button
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: buttonHeight,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0E274D),
@@ -546,22 +604,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               onPressed: _isLoading ? null : _handleSendSmsOtp,
               child: _isLoading
                   ? const SizedBox(
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         color: Colors.white,
-                        strokeWidth: 2.5,
+                        strokeWidth: 2.2,
                       ),
                     )
-                  : const Row(
+                  : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.sms_rounded, size: 20),
-                        SizedBox(width: 8),
+                        const Icon(Icons.sms_rounded, size: 18),
+                        const SizedBox(width: 8),
                         Text(
                           'Send OTP via SMS',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: (screenWidth * 0.038).clamp(14.0, 15.5),
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.3,
                           ),
@@ -576,7 +634,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   /// Step 2: Enter 6-digit OTP & Set New Password
-  Widget _buildOtpAndNewPasswordView() {
+  Widget _buildOtpAndNewPasswordView(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+
+    final titleSize = (screenWidth * 0.052).clamp(18.0, 22.0);
+    final subtitleSize = (screenWidth * 0.032).clamp(11.5, 13.0);
+    final labelSize = (screenWidth * 0.032).clamp(11.5, 13.0);
+    final fieldGap = (screenHeight * 0.015).clamp(10.0, 14.0);
+    final buttonHeight = (screenHeight * 0.056).clamp(46.0, 52.0);
+
     return Form(
       key: _resetFormKey,
       child: Column(
@@ -594,39 +662,45 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       _errorMessage = null;
                     });
                   },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: Colors.grey),
                   onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: (screenHeight * 0.008).clamp(4.0, 8.0)),
           ],
 
           // Title & Phone badge
-          const Text(
+          Text(
             'Verify SMS & Set Password',
             style: TextStyle(
-              fontSize: 22,
+              fontSize: titleSize,
               fontWeight: FontWeight.w800,
               color: AppTheme.primaryNavy,
               letterSpacing: -0.4,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: (screenHeight * 0.006).clamp(4.0, 8.0)),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: Text(
                   'Enter the 6-digit OTP sent to +91 $_verifiedPhoneNumber and choose a new password.',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF6B7280),
-                    height: 1.4,
+                  style: TextStyle(
+                    fontSize: subtitleSize,
+                    color: const Color(0xFF6B7280),
+                    height: 1.35,
                   ),
                 ),
               ),
+              const SizedBox(width: 4),
               TextButton(
                 onPressed: () {
                   setState(() {
@@ -635,48 +709,48 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   });
                 },
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   'Change',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: subtitleSize,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFF16528),
+                    color: const Color(0xFFF16528),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: fieldGap),
 
           // Error Banner if present
           if (_errorMessage != null) ...[
             _buildErrorBanner(_errorMessage!),
-            const SizedBox(height: 16),
+            SizedBox(height: fieldGap),
           ],
 
           // 6-digit SMS OTP Field
-          const Text(
+          Text(
             'Enter 6-digit SMS OTP *',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: labelSize,
               fontWeight: FontWeight.w600,
               color: AppTheme.primaryNavy,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           TextFormField(
             controller: _otpController,
             keyboardType: TextInputType.number,
             maxLength: 6,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 22,
+            style: TextStyle(
+              fontSize: (screenWidth * 0.052).clamp(18.0, 22.0),
               fontWeight: FontWeight.bold,
-              letterSpacing: 10,
+              letterSpacing: (screenWidth * 0.02).clamp(5.0, 8.0),
               color: AppTheme.primaryNavy,
             ),
             inputFormatters: [
@@ -687,19 +761,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               counterText: '',
               hintText: '••••••',
               hintStyle: TextStyle(
-                fontSize: 20,
-                letterSpacing: 8,
+                fontSize: (screenWidth * 0.048).clamp(16.0, 20.0),
+                letterSpacing: (screenWidth * 0.018).clamp(4.0, 8.0),
                 color: Colors.grey.shade400,
               ),
               prefixIcon: const Icon(
                 Icons.mark_chat_read_rounded,
                 color: AppTheme.primaryNavy,
-                size: 20,
+                size: 19,
               ),
               fillColor: const Color(0xFFF6F8FB),
               filled: true,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -724,33 +798,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: fieldGap),
 
           // New Password Field
-          const Text(
+          Text(
             'New Password *',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: labelSize,
               fontWeight: FontWeight.w600,
               color: AppTheme.primaryNavy,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           TextFormField(
             controller: _newPasswordController,
             obscureText: _obscureNewPassword,
-            style: const TextStyle(
-              fontSize: 14,
+            style: TextStyle(
+              fontSize: (screenWidth * 0.036).clamp(13.0, 14.5),
               color: AppTheme.textDark,
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
               hintText: 'Enter new password',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              hintStyle: TextStyle(
+                fontSize: (screenWidth * 0.033).clamp(12.0, 13.0),
+                color: Colors.grey.shade400,
+              ),
               prefixIcon: const Icon(
                 Icons.lock_outline_rounded,
                 color: AppTheme.primaryNavy,
-                size: 20,
+                size: 19,
               ),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -758,7 +835,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   color: Colors.grey.shade600,
-                  size: 20,
+                  size: 19,
                 ),
                 onPressed: () {
                   setState(() {
@@ -769,7 +846,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               fillColor: const Color(0xFFF6F8FB),
               filled: true,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -789,33 +866,36 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             validator: (val) => AuthService.validatePassword(val),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: fieldGap),
 
           // Confirm Password Field
-          const Text(
+          Text(
             'Confirm New Password *',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: labelSize,
               fontWeight: FontWeight.w600,
               color: AppTheme.primaryNavy,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           TextFormField(
             controller: _confirmPasswordController,
             obscureText: _obscureConfirmPassword,
-            style: const TextStyle(
-              fontSize: 14,
+            style: TextStyle(
+              fontSize: (screenWidth * 0.036).clamp(13.0, 14.5),
               color: AppTheme.textDark,
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
               hintText: 'Re-enter new password',
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              hintStyle: TextStyle(
+                fontSize: (screenWidth * 0.033).clamp(12.0, 13.0),
+                color: Colors.grey.shade400,
+              ),
               prefixIcon: const Icon(
                 Icons.lock_reset_rounded,
                 color: AppTheme.primaryNavy,
-                size: 20,
+                size: 19,
               ),
               suffixIcon: IconButton(
                 icon: Icon(
@@ -823,7 +903,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   color: Colors.grey.shade600,
-                  size: 20,
+                  size: 19,
                 ),
                 onPressed: () {
                   setState(() {
@@ -834,7 +914,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               fillColor: const Color(0xFFF6F8FB),
               filled: true,
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -862,39 +942,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               return null;
             },
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: (screenHeight * 0.012).clamp(8.0, 12.0)),
 
           // Security password requirements note
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: const Color(0xFFF0F4F8),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.shield_outlined, size: 16, color: AppTheme.primaryNavy),
-                SizedBox(width: 8),
+                const Icon(Icons.shield_outlined, size: 15, color: AppTheme.primaryNavy),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Text(
                     'Must be 8+ chars with uppercase (A-Z), lowercase (a-z), digit (0-9), & special symbol (!@#\$%^&*).',
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: (screenWidth * 0.029).clamp(10.5, 11.5),
                       color: AppTheme.primaryNavy,
-                      height: 1.35,
+                      height: 1.3,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: fieldGap * 1.2),
 
           // Reset Password Button
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: buttonHeight,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0E274D),
@@ -907,35 +987,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               onPressed: _isLoading ? null : _handleResetPassword,
               child: _isLoading
                   ? const SizedBox(
-                      width: 22,
-                      height: 22,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         color: Colors.white,
-                        strokeWidth: 2.5,
+                        strokeWidth: 2.2,
                       ),
                     )
-                  : const Text(
+                  : Text(
                       'Reset Password',
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: (screenWidth * 0.038).clamp(14.0, 15.5),
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.3,
                       ),
                     ),
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: (screenHeight * 0.01).clamp(6.0, 10.0)),
 
           // Resend OTP via SMS with Cooldown
           Center(
             child: TextButton(
               onPressed: _cooldownSeconds > 0 || _isLoading ? null : _handleResendOtp,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: _isLoading
                   ? const SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 15,
+                      height: 15,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
+                        strokeWidth: 1.8,
                         color: Color(0xFFF16528),
                       ),
                     )
@@ -944,7 +1029,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ? 'Resend SMS code in ${_cooldownSeconds}s'
                           : 'Resend OTP via SMS',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: (screenWidth * 0.032).clamp(11.5, 13.0),
                         fontWeight: FontWeight.w600,
                         color: _cooldownSeconds > 0
                             ? Colors.grey.shade400
@@ -959,45 +1044,54 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   /// Step 3: Success Confirmation View
-  Widget _buildSuccessConfirmationView() {
+  Widget _buildSuccessConfirmationView(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
+
+    final iconSize = (screenWidth * 0.16).clamp(56.0, 72.0);
+    final titleSize = (screenWidth * 0.052).clamp(18.0, 22.0);
+    final textSize = (screenWidth * 0.033).clamp(12.0, 13.5);
+    final buttonHeight = (screenHeight * 0.056).clamp(46.0, 52.0);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const SizedBox(height: 16),
+        SizedBox(height: (screenHeight * 0.015).clamp(10.0, 16.0)),
         Container(
-          width: 76,
-          height: 76,
+          width: iconSize,
+          height: iconSize,
           decoration: BoxDecoration(
             color: const Color(0xFFECFDF5),
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0xFFA7F3D0), width: 2),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.check_circle_rounded,
-            color: Color(0xFF059669),
-            size: 42,
+            color: const Color(0xFF059669),
+            size: iconSize * 0.55,
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: (screenHeight * 0.02).clamp(14.0, 20.0)),
 
-        const Text(
+        Text(
           'Password Reset Successfully!',
           style: TextStyle(
-            fontSize: 22,
+            fontSize: titleSize,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF0E274D),
+            color: const Color(0xFF0E274D),
             letterSpacing: -0.4,
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: (screenHeight * 0.01).clamp(6.0, 10.0)),
         RichText(
           textAlign: TextAlign.center,
           text: TextSpan(
-            style: const TextStyle(
-              fontSize: 13.5,
-              color: Color(0xFF4B5563),
+            style: TextStyle(
+              fontSize: textSize,
+              color: const Color(0xFF4B5563),
               height: 1.5,
             ),
             children: [
@@ -1016,12 +1110,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        SizedBox(height: (screenHeight * 0.03).clamp(20.0, 32.0)),
 
         // Primary Button: Back to Login
         SizedBox(
           width: double.infinity,
-          height: 50,
+          height: buttonHeight,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0E274D),
@@ -1034,17 +1128,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             onPressed: () {
               Navigator.pop(context, _verifiedPhoneNumber);
             },
-            child: const Text(
+            child: Text(
               'Back to Login',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: (screenWidth * 0.038).clamp(14.0, 15.5),
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.3,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: (screenHeight * 0.01).clamp(8.0, 12.0)),
       ],
     );
   }
@@ -1052,7 +1146,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   /// Reusable Error Banner
   Widget _buildErrorBanner(String message) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFFEF2F2),
         borderRadius: BorderRadius.circular(10),
@@ -1060,13 +1154,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 20),
-          const SizedBox(width: 10),
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 color: Color(0xFF991B1B),
                 fontWeight: FontWeight.w500,
               ),
@@ -1077,3 +1171,4 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
+
