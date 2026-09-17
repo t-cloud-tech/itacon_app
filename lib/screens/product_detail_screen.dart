@@ -12,10 +12,12 @@ import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final TileProduct? product;
+  final bool initialMockupMode;
 
   const ProductDetailScreen({
     super.key,
     this.product,
+    this.initialMockupMode = false,
   });
 
   @override
@@ -88,7 +90,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _selectedSize = _product.size;
     _selectedFinish = _product.surface;
     _quantity = 1;
-    _isMockupMode = !_product.isAdhesive && _product.resolvedMockupImages.isNotEmpty;
+    _isMockupMode = widget.initialMockupMode;
   }
 
   void _showManualQuantityDialog() {
@@ -446,6 +448,65 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     },
                   ),
                 ),
+
+                // Quick Toggle Badge (Left) - tap to see mockup or tile view
+                if (!_product.isAdhesive && _currentMockupImages.isNotEmpty)
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    child: AppPressable(
+                      onTap: () {
+                        setState(() {
+                          _isMockupMode = !_isMockupMode;
+                          _currentImageIndex = 0;
+                        });
+                        _pageController.jumpToPage(0);
+                      },
+                      scaleDown: 0.92,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isMockupMode
+                              ? Colors.white.withValues(alpha: 0.92)
+                              : AppTheme.primaryNavy.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isMockupMode
+                                  ? Icons.grid_view_rounded
+                                  : Icons.chair_outlined,
+                              color: _isMockupMode
+                                  ? AppTheme.primaryNavy
+                                  : Colors.white,
+                              size: 13,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              _isMockupMode ? 'Tile View' : 'See Mockup',
+                              style: TextStyle(
+                                color: _isMockupMode
+                                    ? AppTheme.primaryNavy
+                                    : Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // Photo Counter Badge (Right)
                 if (_activeImages.length > 1)

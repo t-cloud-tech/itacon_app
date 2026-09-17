@@ -1487,6 +1487,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isSearchActive = _isSearchFocused || _searchQuery.trim().isNotEmpty;
 
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: AppRevolvingBorderSearchBar(
@@ -1529,12 +1530,14 @@ class _HomeScreenState extends State<HomeScreen> {
             },
             scaleDown: 0.92,
             borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Container(
+              height: 48,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 'Cancel',
                 style: GoogleFonts.inter(
-                  fontSize: 13,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.accentOrange,
                 ),

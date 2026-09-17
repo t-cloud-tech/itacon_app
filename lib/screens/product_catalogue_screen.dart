@@ -30,16 +30,26 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
   bool _isLoading = true;
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _isSearchFocused = false;
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
+    _searchFocusNode.addListener(() {
+      if (mounted && _isSearchFocused != _searchFocusNode.hasFocus) {
+        setState(() {
+          _isSearchFocused = _searchFocusNode.hasFocus;
+        });
+      }
+    });
     _loadInitialData();
   }
 
   @override
   void dispose() {
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -99,26 +109,62 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
     }).toList();
   }
 
+  void _handleBackPress() {
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final hasSearchFocus = _searchFocusNode.hasFocus || _isSearchFocused;
+
+    if (hasSearchFocus || isKeyboardOpen) {
+      _searchFocusNode.unfocus();
+      FocusScope.of(context).unfocus();
+      if (_isSearchFocused) {
+        setState(() {
+          _isSearchFocused = false;
+        });
+      }
+      return;
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      _searchController.clear();
+      setState(() {
+        _searchQuery = '';
+      });
+      return;
+    }
+
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userName = _userProfile?.name ?? 'Valued Customer';
     final userCategoryLabel =
         _userProfile != null ? _userProfile!.userCategory.toUpperCase() : 'PARTNER';
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final isSearchActive =
+        _isSearchFocused ||
+        _searchFocusNode.hasFocus ||
+        isKeyboardOpen ||
+        _searchQuery.trim().isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A237E),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          },
-        ),
+    return PopScope(
+      canPop: !isSearchActive && Navigator.canPop(context),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPress();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F6FA),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A237E),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            tooltip: 'Back',
+            onPressed: _handleBackPress,
+          ),
         title: const Row(
           children: [
             Icon(Icons.grid_view_rounded, color: Color(0xFFFF8F00), size: 24),
@@ -210,6 +256,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                         // Search Bar
                         TextField(
                           controller: _searchController,
+                          focusNode: _searchFocusNode,
                           onChanged: (val) => setState(() => _searchQuery = val),
                           style: const TextStyle(color: Colors.black87, fontSize: 14),
                           decoration: InputDecoration(
@@ -305,6 +352,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                             ),
                           )
                         : GridView.builder(
+                            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                             padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
@@ -322,7 +370,8 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                 ],
               ),
             ),
-      bottomNavigationBar: const AppFloatingBottomBar(currentIndex: 1),
+        bottomNavigationBar: const AppFloatingBottomBar(currentIndex: 1),
+      ),
     );
   }
 

@@ -39,7 +39,7 @@ class AppRevolvingBorderSearchBar extends StatefulWidget {
     this.borderWidth = 1.5,
     this.rotationDuration = const Duration(milliseconds: 3500),
     this.autoFocus = false,
-    this.parallaxLift = -6.0,
+    this.parallaxLift = 0.0,
   });
 
   @override

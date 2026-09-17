@@ -43,6 +43,8 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   late ProductFilterCriteria _activeFilter;
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
+  late final FocusNode _searchFocusNode;
+  bool _isSearchFocused = false;
   
   String _searchQuery = '';
   String _sortOption = 'default'; // 'default', 'price_asc', 'price_desc', 'name_asc'
@@ -55,6 +57,15 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     _searchQuery = widget.initialSearchQuery ?? '';
     _searchController = TextEditingController(text: _searchQuery);
     _scrollController = ScrollController();
+    _searchFocusNode = FocusNode();
+
+    _searchFocusNode.addListener(() {
+      if (mounted && _isSearchFocused != _searchFocusNode.hasFocus) {
+        setState(() {
+          _isSearchFocused = _searchFocusNode.hasFocus;
+        });
+      }
+    });
 
     _searchController.addListener(() {
       setState(() {
@@ -84,6 +95,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
   @override
   void dispose() {
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -237,97 +249,144 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     });
   }
 
+  void _handleBackPress() {
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final hasSearchFocus = _searchFocusNode.hasFocus || _isSearchFocused;
+
+    if (hasSearchFocus || isKeyboardOpen) {
+      // Dismiss keyboard and clear focus first, keeping user on current screen
+      _searchFocusNode.unfocus();
+      FocusScope.of(context).unfocus();
+      if (_isSearchFocused) {
+        setState(() {
+          _isSearchFocused = false;
+        });
+      }
+      return;
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      // If a search query is active, clear it first so user sees full collection
+      _searchController.clear();
+      setState(() {
+        _searchQuery = '';
+      });
+      return;
+    }
+
+    // Default back navigation
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else if (widget.onBackToHome != null) {
+      widget.onBackToHome!();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredProducts;
     final hasActiveFilters = !_activeFilter.isEmpty || _searchQuery.isNotEmpty;
     final activeCount = _activeFilter.activeFilterCount;
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final isSearchActive =
+        _isSearchFocused ||
+        _searchFocusNode.hasFocus ||
+        isKeyboardOpen ||
+        _searchQuery.trim().isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else if (widget.onBackToHome != null) {
-              widget.onBackToHome!();
-            }
-          },
-        ),
-        title: Text(widget.subcategoryTitle),
-        actions: [
-          ListenableBuilder(
-            listenable: _appState,
-            builder: (context, _) {
-              return Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryNavy),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CartScreen()),
-                      );
-                    },
-                  ),
-                  if (_appState.cartCount > 0)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppTheme.accentOrange,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '${_appState.cartCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+    return PopScope(
+      canPop: !isSearchActive && Navigator.canPop(context),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPress();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+            tooltip: 'Back',
+            onPressed: _handleBackPress,
+          ),
+          title: Text(widget.subcategoryTitle),
+          actions: [
+            ListenableBuilder(
+              listenable: _appState,
+              builder: (context, _) {
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.primaryNavy),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CartScreen()),
+                        );
+                      },
+                    ),
+                    if (_appState.cartCount > 0)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.accentOrange,
+                            shape: BoxShape.circle,
                           ),
-                          textAlign: TextAlign.center,
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            '${_appState.cartCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Column(
-        children: [
-          // 1. Live Search Bar Header Widget with Revolving Theme Blue Border Beam
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: AppRevolvingBorderSearchBar(
-              controller: _searchController,
-              hintText: 'Search tiles by name, size, surface, color...',
-              onSubmitted: (query) {
-                if (query.trim().isNotEmpty) {
-                  _appState.recordSearchQuery(query.trim());
-                }
-              },
-              onClear: () {
-                setState(() {
-                  _searchQuery = '';
-                });
+                  ],
+                );
               },
             ),
-          ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: Column(
+          children: [
+            // 1. Live Search Bar Header Widget with Revolving Theme Blue Border Beam
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: AppRevolvingBorderSearchBar(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                hintText: 'Search tiles by name, size, surface, color...',
+                onFocusChanged: (focused) {
+                  if (mounted && _isSearchFocused != focused) {
+                    setState(() {
+                      _isSearchFocused = focused;
+                    });
+                  }
+                },
+                onSubmitted: (query) {
+                  if (query.trim().isNotEmpty) {
+                    _appState.recordSearchQuery(query.trim());
+                  }
+                },
+                onClear: () {
+                  setState(() {
+                    _searchQuery = '';
+                  });
+                },
+              ),
+            ),
 
-          const Divider(height: 1, color: AppTheme.borderSubtle),
+            const Divider(height: 1, color: AppTheme.borderSubtle),
 
           // 3. Pinned Lightweight Control Line (44px)
           Container(
@@ -501,6 +560,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                   )
                 : MasonryGridView.count(
                     controller: _scrollController,
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     physics: const BouncingScrollPhysics(
                         parent: AlwaysScrollableScrollPhysics()),
                     cacheExtent: 450,
@@ -527,6 +587,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       bottomNavigationBar: widget.showBottomNavBar
           ? const AppFloatingBottomBar(currentIndex: 1)
           : null,
+      ),
     );
   }
 
