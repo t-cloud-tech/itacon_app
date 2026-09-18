@@ -47,6 +47,22 @@ endpoints:
       retryConfig: {}
       timeZone: Asia/Kolkata
     entryPoint: sendRegionalGreetings
+  sendOfferNotifications:
+    availableMemoryMb: null
+    timeoutSeconds: null
+    minInstances: null
+    maxInstances: null
+    ingressSettings: null
+    concurrency: null
+    serviceAccountEmail: null
+    vpc: null
+    platform: gcfv2
+    labels: {}
+    scheduleTrigger:
+      schedule: 0 9 * * *
+      retryConfig: {}
+      timeZone: Asia/Kolkata
+    entryPoint: sendOfferNotifications
   sendFcmOnUserNotification:
     platform: gcfv1
     availableMemoryMb: null
