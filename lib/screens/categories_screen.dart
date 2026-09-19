@@ -5,6 +5,7 @@ import '../widgets/floating_bottom_bar.dart';
 import 'product_listing_screen.dart';
 import 'fixing_solutions_screen.dart';
 import 'cart_screen.dart';
+import '../widgets/app_product_image.dart';
 
 class CategoriesScreen extends StatelessWidget {
   const CategoriesScreen({super.key});
@@ -39,7 +40,7 @@ class CategoriesScreen extends StatelessWidget {
       'subtitle': 'Tile & Stone Adhesives',
       'count': '6 Products',
       'isComingSoon': false,
-      'image': 'assets/images/adhesives/ITA-LX-01.png',
+      'image': 'products/adhesives/ITA-LX-01.png',
       'categoryKey': 'CAT_ADHESIVES',
     },
     {
@@ -52,7 +53,7 @@ class CategoriesScreen extends StatelessWidget {
       'title': 'Quartz Surfaces',
       'count': '24 Products',
       'isComingSoon': false,
-      'image': 'assets/images/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-033_mockup.jpeg',
+      'image': 'products/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-033_mockup.jpeg',
     },
   ];
 
@@ -164,29 +165,13 @@ class CategoriesScreen extends StatelessWidget {
                   Expanded(
                     child: Stack(
                       children: [
-                        (cat['image'] as String).startsWith('assets/')
-                            ? Image.asset(
-                                cat['image'] as String,
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  color: const Color(0xFF0E274D).withValues(alpha: 0.1),
-                                  child: const Icon(Icons.grid_view_rounded,
-                                      color: AppTheme.primaryNavy, size: 36),
-                                ),
-                              )
-                            : Image.network(
-                                cat['image'] as String,
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => Container(
-                                  color: const Color(0xFF0E274D).withValues(alpha: 0.1),
-                                  child: const Icon(Icons.grid_view_rounded,
-                                      color: AppTheme.primaryNavy, size: 36),
-                                ),
-                              ),
+                        AppProductImage(
+                          imagePath: cat['image'] as String,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          cacheWidth: 600,
+                        ),
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

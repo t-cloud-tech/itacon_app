@@ -38,6 +38,7 @@ dependencies:
   firebase_auth: ^6.7.0
   cloud_firestore: ^6.10.0
   firebase_storage: ^13.6.0
+  cached_network_image: ^3.4.1
   flutter_staggered_grid_view: ^0.7.0
   shared_preferences: ^2.5.2
   url_launcher: ^6.2.5
@@ -75,9 +76,6 @@ flutter:
     - assets/images/
     - assets/images/Home/
     - assets/images/Home/Shop_by_space/
-    - assets/images/adhesives/
-    - assets/images/tiles/
-    - assets/images/mockups/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

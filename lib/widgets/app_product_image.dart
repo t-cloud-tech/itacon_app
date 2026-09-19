@@ -1,10 +1,16 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../services/storage_image_service.dart';
 import '../theme/app_theme.dart';
 
-/// Universal Product Image Widget that handles local assets (with path normalization for adhesives),
-/// network images, file images, and graceful fallback UI.
+/// Universal Product Image Widget that seamlessly handles:
+/// 1. Remote Firebase Storage paths (`products/tiles/...`, `products/mockups/...`, `products/adhesives/...`)
+/// 2. HTTPS/HTTP network image URLs (`https://...`) with memory and disk caching
+/// 3. Local bundled Flutter assets (`assets/images/...`) with automatic adhesive path normalization
+/// 4. Local file images on physical storage
+/// 5. Graceful multi-tier fallback UI (Storage -> Local Asset -> Fallback Placeholder)
 class AppProductImage extends StatelessWidget {
   final String imagePath;
   final double? width;
@@ -29,7 +35,7 @@ class AppProductImage extends StatelessWidget {
       return _buildFallback();
     }
 
-    // Adaptive decode cache dimension to optimize GPU RAM on all Android phones
+    // Adaptive decode cache dimension to optimize GPU RAM across all devices
     int? effectiveCacheWidth = cacheWidth;
     if (effectiveCacheWidth == null) {
       if (width != null && width!.isFinite && width! > 0) {
@@ -41,26 +47,64 @@ class AppProductImage extends StatelessWidget {
       }
     }
 
-    // 1. Network Image
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return Image.network(
-        imagePath,
-        width: width,
-        height: height,
-        fit: fit,
-        cacheWidth: effectiveCacheWidth,
-        filterQuality: FilterQuality.low,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
-            return child;
+    // 1. Firebase Storage Path (e.g. products/tiles/..., products/mockups/..., products/adhesives/...)
+    if (StorageImageService.isStoragePath(imagePath)) {
+      final cachedUrl = StorageImageService.getCachedUrl(imagePath);
+      if (cachedUrl != null && cachedUrl.isNotEmpty) {
+        return CachedNetworkImage(
+          imageUrl: cachedUrl,
+          width: width,
+          height: height,
+          fit: fit,
+          memCacheWidth: effectiveCacheWidth,
+          filterQuality: FilterQuality.low,
+          placeholder: (context, url) =>
+              _buildLocalFallbackOrPlaceholder(imagePath, effectiveCacheWidth),
+          errorWidget: (context, url, error) =>
+              _buildLocalFallbackOrGeneric(imagePath, effectiveCacheWidth),
+        );
+      }
+
+      return FutureBuilder<String?>(
+        future: StorageImageService.getDownloadUrl(imagePath),
+        builder: (context, snapshot) {
+          final resolvedUrl = snapshot.data;
+          if (resolvedUrl != null && resolvedUrl.isNotEmpty) {
+            return CachedNetworkImage(
+              imageUrl: resolvedUrl,
+              width: width,
+              height: height,
+              fit: fit,
+              memCacheWidth: effectiveCacheWidth,
+              filterQuality: FilterQuality.low,
+              placeholder: (context, url) =>
+                  _buildLocalFallbackOrPlaceholder(imagePath, effectiveCacheWidth),
+              errorWidget: (context, url, error) =>
+                  _buildLocalFallbackOrGeneric(imagePath, effectiveCacheWidth),
+            );
           }
-          return _buildFallback();
+          // While resolving or if network lookup fails, display local asset or placeholder
+          return _buildLocalFallbackOrPlaceholder(imagePath, effectiveCacheWidth);
         },
-        errorBuilder: (context, error, stackTrace) => _buildFallback(),
       );
     }
 
-    // 2. Local File (only check if path explicitly looks like a filesystem path and NOT on web)
+    // 2. Direct HTTP/HTTPS Network Image
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return CachedNetworkImage(
+        imageUrl: imagePath,
+        width: width,
+        height: height,
+        fit: fit,
+        memCacheWidth: effectiveCacheWidth,
+        filterQuality: FilterQuality.low,
+        placeholder: (context, url) => _buildPlaceholder(),
+        errorWidget: (context, url, error) =>
+            _buildLocalFallbackOrGeneric(imagePath, effectiveCacheWidth),
+      );
+    }
+
+    // 3. Local Filesystem File (only check if path explicitly looks like a filesystem path and NOT on web)
     if (!kIsWeb) {
       final isExplicitFilePath = imagePath.startsWith('/') ||
           imagePath.startsWith('file://') ||
@@ -86,7 +130,7 @@ class AppProductImage extends StatelessWidget {
       }
     }
 
-    // 3. Asset Image (Normalize asset paths e.g. adhesives)
+    // 4. Local Bundled Flutter Asset Image (with path normalization e.g. adhesives)
     String cleanPath = imagePath;
     if (!cleanPath.startsWith('assets/images/adhesives/') &&
         cleanPath.contains('adhesives/')) {
@@ -113,9 +157,68 @@ class AppProductImage extends StatelessWidget {
           fit: fit,
           cacheWidth: effectiveCacheWidth,
           filterQuality: FilterQuality.low,
-          errorBuilder: (context, error2, stackTrace2) => _buildFallback(),
+          errorBuilder: (context, error2, stackTrace2) {
+            // If local asset is not found, try remote storage fallback if mapping exists
+            final storagePath =
+                StorageImageService.getStoragePathFromLocalAsset(cleanPath);
+            if (storagePath != null) {
+              return AppProductImage(
+                imagePath: storagePath,
+                width: width,
+                height: height,
+                fit: fit,
+                fallback: fallback,
+                cacheWidth: cacheWidth,
+              );
+            }
+            return _buildFallback();
+          },
         );
       },
+    );
+  }
+
+  /// Builds the local asset fallback if available; otherwise returns the placeholder container
+  Widget _buildLocalFallbackOrPlaceholder(
+      String storagePath, int? effectiveCacheWidth) {
+    final localPath = StorageImageService.getLocalFallbackPath(storagePath);
+    if (localPath != null) {
+      return Image.asset(
+        localPath,
+        width: width,
+        height: height,
+        fit: fit,
+        cacheWidth: effectiveCacheWidth,
+        filterQuality: FilterQuality.low,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
+    return _buildPlaceholder();
+  }
+
+  /// Builds the local asset fallback if available; otherwise returns the standard fallback icon
+  Widget _buildLocalFallbackOrGeneric(
+      String storagePath, int? effectiveCacheWidth) {
+    final localPath = StorageImageService.getLocalFallbackPath(storagePath);
+    if (localPath != null) {
+      return Image.asset(
+        localPath,
+        width: width,
+        height: height,
+        fit: fit,
+        cacheWidth: effectiveCacheWidth,
+        filterQuality: FilterQuality.low,
+        errorBuilder: (context, error, stackTrace) => _buildFallback(),
+      );
+    }
+    return _buildFallback();
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: width,
+      height: height,
+      color: AppTheme.primaryNavy.withValues(alpha: 0.05),
     );
   }
 

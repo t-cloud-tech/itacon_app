@@ -4,6 +4,7 @@ import '../models/tile_product.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../screens/product_detail_screen.dart';
+import 'app_product_image.dart';
 import 'interactive_pressable.dart';
 
 /// Custom Adhesive Product Card for Fixing Solutions Line
@@ -29,7 +30,7 @@ class AdhesiveCard extends StatelessWidget {
 
     final imagePath = product.images.isNotEmpty
         ? product.images.first
-        : 'assets/images/adhesives/ITA-LX-01.png';
+        : 'products/adhesives/ITA-LX-01.png';
 
     return AppPressable(
       onTap: onTap ??
@@ -288,33 +289,11 @@ class AdhesiveCard extends StatelessWidget {
   }
 
   Widget _buildAdhesiveImage(String path) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(
-        path,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
-      );
-    }
-
-    String cleanPath = path;
-    if (!cleanPath.startsWith('assets/images/adhesives/') && cleanPath.contains('adhesives/')) {
-      final fileName = cleanPath.split('adhesives/').last;
-      cleanPath = 'assets/images/adhesives/$fileName';
-    }
-
-    return Image.asset(
-      cleanPath,
+    return AppProductImage(
+      imagePath: path,
       fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        final String alternatePath = cleanPath.contains('assets/images/adhesives')
-            ? cleanPath.replaceFirst('assets/images/adhesives', 'assets/adhesives')
-            : cleanPath;
-        return Image.asset(
-          alternatePath,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error2, stackTrace2) => _buildFallbackImage(),
-        );
-      },
+      cacheWidth: 400,
+      fallback: _buildFallbackImage(),
     );
   }
 

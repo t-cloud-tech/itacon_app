@@ -219,6 +219,7 @@ class TileProduct {
       'randomPattern': randomPattern,
       'priceCategory': priceCategory,
       'shade': shade,
+      'faceImages': faceImages,
       'mockupImages': mockupImages,
       'lifestyleImages': lifestyleImages,
       'packingDetails': packingDetails,
@@ -270,8 +271,13 @@ class TileProduct {
       currentStock: cStock,
       reservedStock: rStock,
       availableStock: aStock,
-      images: List<String>.from(map['images'] ?? []),
-      mockupImages: map['mockupImages'] != null
+      images: map['images'] is List
+          ? List<String>.from(map['images'])
+          : (map['imageUrl'] != null ? [map['imageUrl'].toString()] : <String>[]),
+      faceImages: map['faceImages'] is List
+          ? List<String>.from(map['faceImages'])
+          : null,
+      mockupImages: map['mockupImages'] is List
           ? List<String>.from(map['mockupImages'])
           : null,
       isActive: map['isActive'] ?? true,

@@ -6,6 +6,7 @@ import '../services/app_state_service.dart';
 import 'interactive_pressable.dart';
 import '../utils/app_notification_utils.dart';
 import '../screens/fixing_solutions_screen.dart';
+import 'app_product_image.dart';
 
 /// Data model representing an ITACON High-Bond Tile Adhesive Bag Product
 class AdhesiveProduct {
@@ -132,7 +133,7 @@ class AdhesiveData {
       rating: 4.8,
       reviewsCount: 142,
       packagingColor: Color(0xFF0E274D),
-      imageUrl: 'assets/images/adhesives/ITA-LX-01.png',
+      imageUrl: 'products/adhesives/ITA-LX-01.png',
     ),
     AdhesiveProduct(
       id: 'PROD_ADH_LX02',
@@ -165,7 +166,7 @@ class AdhesiveData {
       rating: 4.9,
       reviewsCount: 210,
       packagingColor: Color(0xFF1E3A8A),
-      imageUrl: 'assets/images/adhesives/ITA-LX-02.png',
+      imageUrl: 'products/adhesives/ITA-LX-02.png',
     ),
     AdhesiveProduct(
       id: 'PROD_ADH_LX03',
@@ -198,7 +199,7 @@ class AdhesiveData {
       rating: 4.9,
       reviewsCount: 184,
       packagingColor: Color(0xFFD97706),
-      imageUrl: 'assets/images/adhesives/ITA-LX-03.png',
+      imageUrl: 'products/adhesives/ITA-LX-03.png',
     ),
     AdhesiveProduct(
       id: 'PROD_ADH_LX03W',
@@ -231,7 +232,7 @@ class AdhesiveData {
       rating: 5.0,
       reviewsCount: 96,
       packagingColor: Color(0xFF0F766E),
-      imageUrl: 'assets/images/adhesives/ITA-LX-03W.png',
+      imageUrl: 'products/adhesives/ITA-LX-03W.png',
     ),
     AdhesiveProduct(
       id: 'PROD_ADH_LX04',
@@ -264,7 +265,7 @@ class AdhesiveData {
       rating: 5.0,
       reviewsCount: 230,
       packagingColor: Color(0xFFB45309),
-      imageUrl: 'assets/images/adhesives/ITA-LX-04.png',
+      imageUrl: 'products/adhesives/ITA-LX-04.png',
     ),
     AdhesiveProduct(
       id: 'PROD_ADH_LX04W',
@@ -297,7 +298,7 @@ class AdhesiveData {
       rating: 5.0,
       reviewsCount: 112,
       packagingColor: Color(0xFF6D28D9),
-      imageUrl: 'assets/images/adhesives/ITA-LX-04W.png',
+      imageUrl: 'products/adhesives/ITA-LX-04W.png',
     ),
   ];
 }
@@ -307,46 +308,13 @@ class AdhesiveSectionWidget extends StatefulWidget {
   const AdhesiveSectionWidget({super.key});
 
   static Widget buildAdhesiveImage(String path, Color fallbackColor) {
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return Image.network(
-        path,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.contain,
-        cacheWidth: 400,
-        filterQuality: FilterQuality.medium,
-        errorBuilder: (context, error, stackTrace) => _buildFallbackBox(fallbackColor),
-      );
-    }
-
-    String cleanPath = path;
-    if (!cleanPath.startsWith('assets/images/adhesives/') && cleanPath.contains('adhesives/')) {
-      final fileName = cleanPath.split('adhesives/').last;
-      cleanPath = 'assets/images/adhesives/$fileName';
-    }
-
-    final String altPath = cleanPath.contains('assets/images/adhesives')
-        ? cleanPath.replaceFirst('assets/images/adhesives', 'assets/adhesives')
-        : cleanPath;
-
-    return Image.asset(
-      cleanPath,
+    return AppProductImage(
+      imagePath: path,
       width: double.infinity,
       height: double.infinity,
       fit: BoxFit.contain,
       cacheWidth: 400,
-      filterQuality: FilterQuality.medium,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          altPath,
-          width: double.infinity,
-          height: double.infinity,
-          fit: BoxFit.contain,
-          cacheWidth: 400,
-          filterQuality: FilterQuality.medium,
-          errorBuilder: (context, error2, stackTrace2) => _buildFallbackBox(fallbackColor),
-        );
-      },
+      fallback: _buildFallbackBox(fallbackColor),
     );
   }
 
