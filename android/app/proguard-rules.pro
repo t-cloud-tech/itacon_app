@@ -22,7 +22,7 @@
 -dontwarn com.google.android.play.core.integrity.**
 
 # App Data Models & Firestore Reflection Protection
--keep class com.example.itacon_app.models.** { *; }
+-keep class com.itacongranito.app.models.** { *; }
 -keepclassmembers class * {
     @com.google.firebase.firestore.PropertyName <fields>;
     @com.google.firebase.firestore.PropertyName <methods>;

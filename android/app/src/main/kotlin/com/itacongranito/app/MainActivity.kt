@@ -1,4 +1,4 @@
-package com.example.itacon_app
+package com.itacongranito.app
 
 import io.flutter.embedding.android.FlutterActivity
 

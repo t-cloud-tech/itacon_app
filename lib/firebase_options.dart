@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyC7DbQq8iOO47Krl5m2BkYyv0vs4iybijo',
-    appId: '1:889001862943:android:94550525d95604b255f22a',
+    appId: '1:889001862943:android:d96276cae3b23e6d55f22a',
     messagingSenderId: '889001862943',
     projectId: 'itacon-app',
     storageBucket: 'itacon-app.firebasestorage.app',
@@ -66,6 +66,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '889001862943',
     projectId: 'itacon-app',
     storageBucket: 'itacon-app.firebasestorage.app',
+    androidClientId: '889001862943-33rl4h6aj69oq82c8tkrevklqn3vvvbb.apps.googleusercontent.com',
+    iosClientId: '889001862943-u53tmahl0vnqos8sgngrsn4ke8pltcks.apps.googleusercontent.com',
     iosBundleId: 'com.example.itaconApp',
   );
   static const FirebaseOptions macos = FirebaseOptions(
@@ -74,6 +76,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '889001862943',
     projectId: 'itacon-app',
     storageBucket: 'itacon-app.firebasestorage.app',
+    androidClientId: '889001862943-33rl4h6aj69oq82c8tkrevklqn3vvvbb.apps.googleusercontent.com',
+    iosClientId: '889001862943-u53tmahl0vnqos8sgngrsn4ke8pltcks.apps.googleusercontent.com',
     iosBundleId: 'com.example.itaconApp',
   );
 }
