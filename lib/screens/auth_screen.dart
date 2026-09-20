@@ -47,6 +47,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // Login Step & OTP state
   int _loginStep = 1;
   bool _loginOtpSent = false;
+  bool _isLoginSendingOtp = false;
 
   void _requestLoginOtp() async {
     final rawPhone = _loginPhoneController.text.trim();
@@ -64,7 +65,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ? _loginE164Phone
         : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
 
-    setState(() => _isLoading = true);
+    setState(() => _isLoginSendingOtp = true);
 
     await _authService.sendOtp(
       phoneNumber: formattedPhone,
@@ -81,7 +82,7 @@ class _AuthScreenState extends State<AuthScreen> {
           _verificationId = verId;
           _resendToken = resendToken;
           _loginOtpSent = true;
-          _isLoading = false;
+          _isLoginSendingOtp = false;
 
           // Remove the previous OTP from the input field.
           _loginOtpController.clear();
@@ -100,7 +101,7 @@ class _AuthScreenState extends State<AuthScreen> {
       onError: (err) {
         if (!mounted) return;
 
-        setState(() => _isLoading = false);
+        setState(() => _isLoginSendingOtp = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err)),
@@ -124,6 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _verificationId;
   int? _resendToken;
   bool _otpSent = false;
+  bool _isRegSendingOtp = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -168,7 +170,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ? _regE164Phone
         : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
 
-    setState(() => _isLoading = true);
+    setState(() => _isRegSendingOtp = true);
 
     await _authService.sendOtp(
       phoneNumber: formattedPhone,
@@ -185,7 +187,7 @@ class _AuthScreenState extends State<AuthScreen> {
           _verificationId = verId;
           _resendToken = resendToken;
           _otpSent = true;
-          _isLoading = false;
+          _isRegSendingOtp = false;
 
           // Clear the old OTP when a new OTP is requested.
           _regOtpController.clear();
@@ -204,7 +206,7 @@ class _AuthScreenState extends State<AuthScreen> {
       onError: (err) {
         if (!mounted) return;
 
-        setState(() => _isLoading = false);
+        setState(() => _isRegSendingOtp = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err)),
@@ -1010,22 +1012,36 @@ class _AuthScreenState extends State<AuthScreen> {
               SizedBox(
                 height: 48,
                 child: AppPressable(
-                  onTap: _isLoading ? null : _requestLoginOtp,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  onTap: (_isLoading || _isLoginSendingOtp)
+                      ? null
+                      : _requestLoginOtp,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1B365D),
+                      color: _isLoginSendingOtp
+                          ? const Color(0xFF1B365D).withValues(alpha: 0.5)
+                          : const Color(0xFF1B365D),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      _loginOtpSent ? 'Resend' : 'Send OTP',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
+                    child: _isLoginSendingOtp
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            _loginOtpSent ? 'Resend' : 'Send OTP',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -1689,22 +1705,34 @@ class _AuthScreenState extends State<AuthScreen> {
             SizedBox(
               height: 48,
               child: AppPressable(
-                onTap: _isLoading ? null : _requestOtp,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                onTap: (_isLoading || _isRegSendingOtp) ? null : _requestOtp,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B365D),
+                    color: _isRegSendingOtp
+                        ? const Color(0xFF1B365D).withValues(alpha: 0.5)
+                        : const Color(0xFF1B365D),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    _otpSent ? 'Resend' : 'Send OTP',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
+                  child: _isRegSendingOtp
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _otpSent ? 'Resend' : 'Send OTP',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
                 ),
               ),
             ),
