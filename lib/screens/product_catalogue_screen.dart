@@ -410,8 +410,10 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                 fit: StackFit.expand,
                 children: [
                   AppProductImage(
-                    imagePath: product.frontCardImage,
+                    imagePath: product.frontCardThumbnail,
+                    originalPath: product.frontCardImage,
                     fit: BoxFit.cover,
+                    imageRole: ImageRole.collectionThumbnail,
                   ),
                   Positioned(
                     top: 8,

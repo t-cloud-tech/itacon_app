@@ -19,6 +19,7 @@ import '../widgets/interactive_pressable.dart';
 import '../utils/app_notification_utils.dart';
 import '../services/user_demand_service.dart';
 import '../services/product_catalog_service.dart';
+import '../services/storage_image_service.dart';
 import '../widgets/revolving_border_search_bar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -634,10 +635,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Stack(
                             children: [
                               AppProductImage(
-                                imagePath: product.frontCardImage,
+                                imagePath: product.frontCardThumbnail,
+                                originalPath: product.frontCardImage,
                                 width: double.infinity,
                                 height: double.infinity,
                                 fit: BoxFit.cover,
+                                imageRole: ImageRole.collectionThumbnail,
                               ),
                               Positioned(
                                 top: 8,
@@ -898,35 +901,16 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Lifestyle Background Image
             Positioned.fill(
-              child: imageUrl.startsWith('assets/')
-                  ? Image.asset(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppTheme.primaryNavy,
-                        child: Center(
-                          child: Icon(
-                            Icons.terrain_rounded,
-                            color: Colors.white.withValues(alpha: 0.3),
-                            size: 32,
-                          ),
-                        ),
-                      ),
-                    )
-                  : Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppTheme.primaryNavy,
-                        child: Center(
-                          child: Icon(
-                            Icons.terrain_rounded,
-                            color: Colors.white.withValues(alpha: 0.3),
-                            size: 32,
-                          ),
-                        ),
-                      ),
-                    ),
+              child: AppProductImage(
+                imagePath: StorageImageService.thumbnailPathFromOriginal(imageUrl),
+                originalPath: imageUrl,
+                fit: BoxFit.cover,
+                imageRole: ImageRole.collectionThumbnail,
+                fallback: Image.asset(
+                  'assets/images/Home/Slab_tile.jpg',
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
 
             // Subtle Bottom Navy Gradient Scrim (Lightened so image stays clear)
@@ -1274,10 +1258,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Stack(
                                 children: [
                                   AppProductImage(
-                                    imagePath: product.frontCardImage,
+                                    imagePath: product.frontCardThumbnail,
+                                    originalPath: product.frontCardImage,
                                     width: double.infinity,
                                     height: double.infinity,
                                     fit: BoxFit.cover,
+                                    imageRole: ImageRole.collectionThumbnail,
                                   ),
                                   // Wishlist Heart Icon
                                   Positioned(
@@ -1970,8 +1956,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Positioned.fill(
                       child: AppProductImage(
-                        imagePath: product.frontCardImage,
+                        imagePath: product.frontCardThumbnail,
+                        originalPath: product.frontCardImage,
                         fit: BoxFit.cover,
+                        imageRole: ImageRole.collectionThumbnail,
                       ),
                     ),
 

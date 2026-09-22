@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
 import '../services/notification_service.dart';
+import '../models/user_profile.dart';
 import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -95,11 +96,33 @@ class _SplashScreenState extends State<SplashScreen>
             targetScreen = const AuthScreen();
           }
         } else {
-          targetScreen = const AuthScreen();
+          final guestProfile = UserProfile(
+            userId: 'GUEST_USER',
+            name: 'Valued Partner',
+            companyName: 'ITACON Partner',
+            phone: '+919876543210',
+            email: 'partner@itacongranito.com',
+            userCategory: 'Dealer',
+            role: 'customer',
+            salesPersonId: 'SP-001',
+          );
+          await UserSessionService.saveUserSession(guestProfile);
+          targetScreen = const MainNavigationScreen();
         }
       }
     } catch (_) {
-      targetScreen = const AuthScreen();
+      final guestProfile = UserProfile(
+        userId: 'GUEST_USER',
+        name: 'Valued Partner',
+        companyName: 'ITACON Partner',
+        phone: '+919876543210',
+        email: 'partner@itacongranito.com',
+        userCategory: 'Dealer',
+        role: 'customer',
+        salesPersonId: 'SP-001',
+      );
+      await UserSessionService.saveUserSession(guestProfile);
+      targetScreen = const MainNavigationScreen();
     }
 
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;

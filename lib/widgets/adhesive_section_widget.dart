@@ -6,6 +6,7 @@ import '../services/app_state_service.dart';
 import 'interactive_pressable.dart';
 import '../utils/app_notification_utils.dart';
 import '../screens/fixing_solutions_screen.dart';
+import '../services/storage_image_service.dart';
 import 'app_product_image.dart';
 
 /// Data model representing an ITACON High-Bond Tile Adhesive Bag Product
@@ -309,11 +310,12 @@ class AdhesiveSectionWidget extends StatefulWidget {
 
   static Widget buildAdhesiveImage(String path, Color fallbackColor) {
     return AppProductImage(
-      imagePath: path,
+      imagePath: StorageImageService.thumbnailPathFromOriginal(path),
+      originalPath: path,
       width: double.infinity,
       height: double.infinity,
       fit: BoxFit.contain,
-      cacheWidth: 400,
+      imageRole: ImageRole.adhesiveCard,
       fallback: _buildFallbackBox(fallbackColor),
     );
   }

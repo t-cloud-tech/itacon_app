@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/tile_dimension_helper.dart';
+import '../services/storage_image_service.dart';
 
 /// Represents a Product in the `products` and `tiles` collections per Master Product Schema
 class TileProduct {
@@ -162,6 +163,14 @@ class TileProduct {
     }
     return '';
   }
+
+  /// The optimized WebP thumbnail version of the front display image for Product Collection cards.
+  String get frontCardThumbnail =>
+      StorageImageService.thumbnailPathFromOriginal(frontCardImage);
+
+  /// Resolved WebP thumbnails for face selectors in Product Detail
+  List<String> get resolvedFaceThumbnails =>
+      resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal).toList();
 
   bool get isAdhesive =>
       productLine == 'adhesives' || unit == 'bag' || categoryId == 'CAT_ADHESIVES' || sku.startsWith('ITA-LX');

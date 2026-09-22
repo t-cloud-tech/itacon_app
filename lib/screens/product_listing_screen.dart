@@ -13,6 +13,7 @@ import '../widgets/interactive_pressable.dart';
 import '../widgets/adhesive_card.dart';
 import '../widgets/app_product_image.dart';
 import '../widgets/revolving_border_search_bar.dart';
+import '../services/storage_image_service.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
 
@@ -563,22 +564,28 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     physics: const BouncingScrollPhysics(
                         parent: AlwaysScrollableScrollPhysics()),
-                    cacheExtent: 450,
+                    cacheExtent: 800,
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                     itemCount: filtered.length,
                     itemBuilder: (context, index) {
-                      final product = filtered[index];
-                      final card = _buildLuxuryTileCard(context, product);
-                      if (index < 4) {
-                        return AppFadeSlideTransition(
-                          delay: Duration(milliseconds: index * 70),
-                          child: card,
-                        );
+                      // Lightweight nearby thumbnail URL pre-warming ahead of scroll
+                      if (index + 2 < filtered.length) {
+                        final nextUrls = filtered
+                            .skip(index + 1)
+                            .take(4)
+                            .map((p) => p.frontCardThumbnail)
+                            .where((path) => StorageImageService.getCachedUrl(path) == null)
+                            .toList();
+                        if (nextUrls.isNotEmpty) {
+                          StorageImageService.warmCache(nextUrls);
+                        }
                       }
-                      return card;
+
+                      final product = filtered[index];
+                      return _buildLuxuryTileCard(context, product);
                     },
                   ),
           ),
@@ -593,10 +600,14 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
   Widget _buildLuxuryTileCard(BuildContext context, TileProduct product) {
     if (product.isAdhesive) {
-      return AdhesiveCard(product: product);
+      return AdhesiveCard(
+        key: ValueKey('adh_${product.id}'),
+        product: product,
+      );
     }
 
     return RepaintBoundary(
+      key: ValueKey('tile_${product.id}'),
       child: AppPressable(
         onTap: () {
           Navigator.push(
@@ -626,8 +637,10 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                   children: [
                     Positioned.fill(
                       child: AppProductImage(
-                        imagePath: product.frontCardImage,
+                        imagePath: product.frontCardThumbnail,
+                        originalPath: product.frontCardImage,
                         fit: BoxFit.cover,
+                        imageRole: ImageRole.collectionThumbnail,
                       ),
                     ),
 

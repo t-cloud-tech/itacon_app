@@ -54,3 +54,6 @@ app.*.map.json
 
 # Temporary screenshots
 screen*.png
+
+# APK build outputs
+*.apk

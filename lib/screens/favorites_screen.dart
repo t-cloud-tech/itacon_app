@@ -122,12 +122,14 @@ class FavoritesScreen extends StatelessWidget {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                                child: AppProductImage(
-                                  imagePath: product.frontCardImage,
-                                  width: 76,
-                                  height: 76,
-                                  fit: BoxFit.cover,
-                                ),
+                                 child: AppProductImage(
+                                   imagePath: product.frontCardThumbnail,
+                                   originalPath: product.frontCardImage,
+                                   width: 76,
+                                   height: 76,
+                                   fit: BoxFit.cover,
+                                   imageRole: ImageRole.collectionThumbnail,
+                                 ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -291,12 +293,14 @@ class FavoritesScreen extends StatelessWidget {
                             Expanded(
                               child: Stack(
                                 children: [
-                                    AppProductImage(
-                                      imagePath: product.frontCardImage,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                      fit: BoxFit.cover,
-                                    ),
+                                     AppProductImage(
+                                       imagePath: product.frontCardThumbnail,
+                                       originalPath: product.frontCardImage,
+                                       width: double.infinity,
+                                       height: double.infinity,
+                                       fit: BoxFit.cover,
+                                       imageRole: ImageRole.collectionThumbnail,
+                                     ),
                                   Positioned(
                                     top: 8,
                                     right: 8,

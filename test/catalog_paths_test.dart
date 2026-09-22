@@ -38,4 +38,16 @@ void main() {
     expect(invalidEntries, isEmpty,
         reason: 'All images must use remote Firebase Storage paths (products/...)');
   });
+
+  test('All products map correctly to WebP thumbnail paths', () {
+    final products = ProductCatalogService.allCatalogProducts;
+
+    for (final product in products) {
+      final thumb = product.frontCardThumbnail;
+      expect(thumb.startsWith('products/thumbnails/'), isTrue,
+          reason: '${product.sku} frontCardThumbnail must use products/thumbnails/... but was $thumb');
+      expect(thumb.endsWith('.webp'), isTrue,
+          reason: '${product.sku} thumbnail must be .webp but was $thumb');
+    }
+  });
 }

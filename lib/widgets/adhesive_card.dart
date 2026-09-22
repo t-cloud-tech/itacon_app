@@ -4,6 +4,7 @@ import '../models/tile_product.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../screens/product_detail_screen.dart';
+import '../services/storage_image_service.dart';
 import 'app_product_image.dart';
 import 'interactive_pressable.dart';
 
@@ -290,9 +291,10 @@ class AdhesiveCard extends StatelessWidget {
 
   Widget _buildAdhesiveImage(String path) {
     return AppProductImage(
-      imagePath: path,
+      imagePath: StorageImageService.thumbnailPathFromOriginal(path),
+      originalPath: path,
       fit: BoxFit.contain,
-      cacheWidth: 400,
+      imageRole: ImageRole.adhesiveCard,
       fallback: _buildFallbackImage(),
     );
   }

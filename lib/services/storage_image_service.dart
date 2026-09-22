@@ -12,6 +12,9 @@ class StorageImageService {
 
   /// Checks if the given path is a Firebase Storage path.
   /// Recognizes:
+  /// Checks if the given path is a Firebase Storage path.
+  /// Recognizes:
+  /// - products/thumbnails/...
   /// - products/tiles/...
   /// - products/mockups/...
   /// - products/adhesives/...
@@ -22,6 +25,103 @@ class StorageImageService {
     return clean.startsWith('products/') ||
         clean.startsWith('gs://') ||
         clean.startsWith('/products/');
+  }
+
+  /// Checks if the path points to an optimized WebP thumbnail.
+  static bool isThumbnailPath(String path) {
+    if (path.isEmpty) return false;
+    final clean = normalizeStoragePath(path);
+    return clean.startsWith('products/thumbnails/');
+  }
+
+  /// Centralized mapping: converts an original Firebase Storage or local path
+  /// to its corresponding optimized WebP thumbnail path.
+  ///
+  /// Examples:
+  /// - 'products/mockups/XYZ.jpeg' -> 'products/thumbnails/mockups/XYZ.webp'
+  /// - 'products/tiles/XYZ.jpeg'   -> 'products/thumbnails/tiles/XYZ.webp'
+  /// - 'products/adhesives/XYZ.png'-> 'products/thumbnails/adhesives/XYZ.webp'
+  static String thumbnailPathFromOriginal(String originalPath) {
+    if (originalPath.isEmpty) return originalPath;
+    final clean = normalizeStoragePath(originalPath);
+
+    // If it's already a thumbnail path, return as-is
+    if (clean.startsWith('products/thumbnails/')) {
+      return clean;
+    }
+
+    if (clean.startsWith('products/mockups/')) {
+      final filename = clean.substring('products/mockups/'.length);
+      final lastDot = filename.lastIndexOf('.');
+      final base = lastDot != -1 ? filename.substring(0, lastDot) : filename;
+      return 'products/thumbnails/mockups/$base.webp';
+    }
+
+    if (clean.startsWith('products/tiles/')) {
+      final filename = clean.substring('products/tiles/'.length);
+      final lastDot = filename.lastIndexOf('.');
+      final base = lastDot != -1 ? filename.substring(0, lastDot) : filename;
+      return 'products/thumbnails/tiles/$base.webp';
+    }
+
+    if (clean.startsWith('products/adhesives/')) {
+      final filename = clean.substring('products/adhesives/'.length);
+      final lastDot = filename.lastIndexOf('.');
+      final base = lastDot != -1 ? filename.substring(0, lastDot) : filename;
+      return 'products/thumbnails/adhesives/$base.webp';
+    }
+
+    // Also support mapping from assets/images/... paths if encountered
+    if (clean.startsWith('assets/images/mockups/')) {
+      final filename = clean.substring('assets/images/mockups/'.length);
+      final lastDot = filename.lastIndexOf('.');
+      final base = lastDot != -1 ? filename.substring(0, lastDot) : filename;
+      return 'products/thumbnails/mockups/$base.webp';
+    }
+    if (clean.startsWith('assets/images/tiles/')) {
+      final filename = clean.substring('assets/images/tiles/'.length);
+      final lastDot = filename.lastIndexOf('.');
+      final base = lastDot != -1 ? filename.substring(0, lastDot) : filename;
+      return 'products/thumbnails/tiles/$base.webp';
+    }
+    if (clean.startsWith('assets/images/adhesives/') || clean.startsWith('assets/adhesives/')) {
+      final filename = clean.split('/').last;
+      final lastDot = filename.lastIndexOf('.');
+      final base = lastDot != -1 ? filename.substring(0, lastDot) : filename;
+      return 'products/thumbnails/adhesives/$base.webp';
+    }
+
+    return clean;
+  }
+
+  /// Inversely derives candidate original storage paths for thumbnail fallback.
+  /// Used if a thumbnail fails to resolve or download.
+  static String? originalPathFromThumbnail(String thumbnailPath) {
+    if (thumbnailPath.isEmpty) return null;
+    final clean = normalizeStoragePath(thumbnailPath);
+
+    if (clean.startsWith('products/thumbnails/mockups/')) {
+      final base = clean
+          .substring('products/thumbnails/mockups/'.length)
+          .replaceAll('.webp', '');
+      return 'products/mockups/$base.jpeg';
+    }
+
+    if (clean.startsWith('products/thumbnails/tiles/')) {
+      final base = clean
+          .substring('products/thumbnails/tiles/'.length)
+          .replaceAll('.webp', '');
+      return 'products/tiles/$base.jpeg';
+    }
+
+    if (clean.startsWith('products/thumbnails/adhesives/')) {
+      final base = clean
+          .substring('products/thumbnails/adhesives/'.length)
+          .replaceAll('.webp', '');
+      return 'products/adhesives/$base.png';
+    }
+
+    return null;
   }
 
   /// Normalizes a path to the standard Storage reference path (e.g. 'products/tiles/xxx.jpeg').
@@ -51,6 +151,18 @@ class StorageImageService {
     if (path.isEmpty) return null;
     final clean = normalizeStoragePath(path);
 
+    if (clean.startsWith('products/thumbnails/mockups/')) {
+      final base = clean.substring('products/thumbnails/mockups/'.length).replaceAll('.webp', '');
+      return 'assets/images/mockups/$base.jpeg';
+    }
+    if (clean.startsWith('products/thumbnails/tiles/')) {
+      final base = clean.substring('products/thumbnails/tiles/'.length).replaceAll('.webp', '');
+      return 'assets/images/tiles/$base.jpeg';
+    }
+    if (clean.startsWith('products/thumbnails/adhesives/')) {
+      final base = clean.substring('products/thumbnails/adhesives/'.length).replaceAll('.webp', '');
+      return 'assets/images/adhesives/$base.png';
+    }
     if (clean.startsWith('products/tiles/')) {
       return 'assets/images/tiles/${clean.substring('products/tiles/'.length)}';
     }

@@ -8,6 +8,7 @@ import '../utils/tile_dimension_helper.dart';
 import '../utils/app_notification_utils.dart';
 import '../widgets/interactive_pressable.dart';
 import '../widgets/app_product_image.dart';
+import '../services/storage_image_service.dart';
 import 'cart_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -425,6 +426,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   width: double.infinity,
                                   height: calculatedFrameHeight,
                                   fit: BoxFit.cover,
+                                  imageRole: ImageRole.detailHero,
                                 )
                               : Container(
                                   margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
@@ -440,6 +442,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     child: AppProductImage(
                                       imagePath: img,
                                       fit: BoxFit.contain,
+                                      imageRole: ImageRole.detailHero,
                                     ),
                                   ),
                                 ),
@@ -1244,8 +1247,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         fit: StackFit.expand,
                         children: [
                           AppProductImage(
-                            imagePath: images[index],
+                            imagePath: StorageImageService.thumbnailPathFromOriginal(images[index]),
+                            originalPath: images[index],
                             fit: BoxFit.cover,
+                            imageRole: ImageRole.faceThumbnail,
                           ),
                           Positioned(
                             bottom: 0,
