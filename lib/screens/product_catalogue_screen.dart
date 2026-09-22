@@ -12,6 +12,7 @@ import '../widgets/interactive_pressable.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../utils/app_notification_utils.dart';
+import '../services/storage_image_service.dart';
 import 'product_detail_screen.dart';
 
 class ProductCatalogueScreen extends StatefulWidget {
@@ -381,6 +382,14 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
     }
     return GestureDetector(
       onTap: () {
+        StorageImageService.warmCache([
+          product.frontCardImage,
+          product.frontCardThumbnail,
+          ...product.resolvedFaceImages,
+          ...product.resolvedMockupImages,
+          ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+          ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+        ]);
         Navigator.push(
           context,
           MaterialPageRoute(

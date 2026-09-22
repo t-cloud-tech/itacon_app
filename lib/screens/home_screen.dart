@@ -616,6 +616,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 return RepaintBoundary(
                   child: AppPressable(
                   onTap: () {
+                    StorageImageService.warmCache([
+                      product.frontCardImage,
+                      product.frontCardThumbnail,
+                      ...product.resolvedFaceImages,
+                      ...product.resolvedMockupImages,
+                      ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+                      ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+                    ]);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -1237,6 +1245,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   return RepaintBoundary(
                     child: AppPressable(
                       onTap: () {
+                        StorageImageService.warmCache([
+                          product.frontCardImage,
+                          product.frontCardThumbnail,
+                          ...product.resolvedFaceImages,
+                          ...product.resolvedMockupImages,
+                          ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+                          ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+                        ]);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -1928,6 +1944,14 @@ class _HomeScreenState extends State<HomeScreen> {
     return RepaintBoundary(
       child: AppPressable(
         onTap: () {
+          StorageImageService.warmCache([
+            product.frontCardImage,
+            product.frontCardThumbnail,
+            ...product.resolvedFaceImages,
+            ...product.resolvedMockupImages,
+            ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+            ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+          ]);
           Navigator.push(
             context,
             MaterialPageRoute(

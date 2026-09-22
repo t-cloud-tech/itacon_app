@@ -26,13 +26,15 @@ enum ImageRole {
 
 /// Universal Product Image Widget that seamlessly handles:
 /// 1. Remote Firebase Storage paths (`products/thumbnails/...`, `products/tiles/...`, `products/mockups/...`, `products/adhesives/...`)
-/// 2. Smooth skeleton/shimmer loading with matching geometry to eliminate layout jump
-/// 3. Automatic two-tier fallback (Thumbnail -> Original Storage -> Local Asset -> Fallback Placeholder)
-/// 4. HTTPS/HTTP network image URLs (`https://...`) with memory and disk caching
-/// 5. Adaptive decode dimension (`ImageRole` or `cacheWidth`) to optimize GPU VRAM
+/// 2. Instant progressive loading (Cached Thumbnail renders at 0ms while High-Res Hero loads in background)
+/// 3. Smooth skeleton/shimmer loading with matching geometry to eliminate layout jump
+/// 4. Automatic two-tier fallback (Thumbnail -> Original Storage -> Local Asset -> Fallback Placeholder)
+/// 5. HTTPS/HTTP network image URLs (`https://...`) with memory and disk caching
+/// 6. Adaptive decode dimension (`ImageRole` or `cacheWidth`) to optimize GPU VRAM
 class AppProductImage extends StatelessWidget {
   final String imagePath;
   final String? originalPath;
+  final String? thumbnailPath;
   final double? width;
   final double? height;
   final BoxFit fit;
@@ -45,6 +47,7 @@ class AppProductImage extends StatelessWidget {
     super.key,
     required this.imagePath,
     this.originalPath,
+    this.thumbnailPath,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
@@ -92,6 +95,13 @@ class AppProductImage extends StatelessWidget {
       }
     }
 
+    // Derive optimized WebP thumbnail path if rendering an original storage path
+    final String? effectiveThumbnailPath = thumbnailPath ??
+        (StorageImageService.isStoragePath(imagePath) &&
+                !StorageImageService.isThumbnailPath(imagePath)
+            ? StorageImageService.thumbnailPathFromOriginal(imagePath)
+            : null);
+
     Widget content;
 
     // 1. Firebase Storage Path (thumbnails, tiles, mockups, adhesives)
@@ -110,7 +120,8 @@ class AppProductImage extends StatelessWidget {
           fadeInDuration: const Duration(milliseconds: 140),
           fadeOutDuration: const Duration(milliseconds: 100),
           filterQuality: FilterQuality.low,
-          placeholder: (context, url) => _buildSkeleton(),
+          placeholder: (context, url) =>
+              _buildPlaceholder(effectiveThumbnailPath, effectiveCacheWidth),
           errorWidget: (context, url, error) =>
               _buildFallbackToOriginal(effectiveCacheWidth),
         );
@@ -130,14 +141,16 @@ class AppProductImage extends StatelessWidget {
                 fadeInDuration: const Duration(milliseconds: 140),
                 fadeOutDuration: const Duration(milliseconds: 100),
                 filterQuality: FilterQuality.low,
-                placeholder: (context, url) => _buildSkeleton(),
+                placeholder: (context, url) =>
+                    _buildPlaceholder(effectiveThumbnailPath, effectiveCacheWidth),
                 errorWidget: (context, url, error) =>
                     _buildFallbackToOriginal(effectiveCacheWidth),
               );
             }
-            // While resolving URL over network, display skeleton
+            // While resolving URL over network, display thumbnail placeholder or skeleton
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildSkeleton();
+              return _buildPlaceholder(
+                  effectiveThumbnailPath, effectiveCacheWidth);
             }
             // If download URL resolution failed, attempt original fallback
             return _buildFallbackToOriginal(effectiveCacheWidth);
@@ -264,6 +277,52 @@ class AppProductImage extends StatelessWidget {
     }
 
     return _buildLocalFallbackOrGeneric(imagePath, cacheWidth);
+  }
+
+  /// Displays an instant thumbnail preview if cached or available, seamlessly transitioning to high-res,
+  /// or falls back to the subtle skeleton shimmer if no preview is available.
+  Widget _buildPlaceholder(String? thumbPath, int? effectiveCacheWidth) {
+    if (thumbPath != null && thumbPath.isNotEmpty && thumbPath != imagePath) {
+      final cachedThumbUrl = StorageImageService.getCachedUrl(thumbPath);
+      if (cachedThumbUrl != null && cachedThumbUrl.isNotEmpty) {
+        return CachedNetworkImage(
+          imageUrl: cachedThumbUrl,
+          cacheKey: StorageImageService.normalizeStoragePath(thumbPath),
+          width: width,
+          height: height,
+          fit: fit,
+          memCacheWidth: effectiveCacheWidth != null
+              ? (effectiveCacheWidth > 440 ? 440 : effectiveCacheWidth)
+              : 440,
+          fadeInDuration: Duration.zero,
+          placeholder: (context, url) => _buildSkeleton(),
+          errorWidget: (context, url, error) => _buildSkeleton(),
+        );
+      }
+
+      // If thumbnail download URL is not yet in memory cache, resolve it concurrently
+      return FutureBuilder<String?>(
+        future: StorageImageService.getDownloadUrl(thumbPath),
+        builder: (context, snap) {
+          final url = snap.data;
+          if (url != null && url.isNotEmpty) {
+            return CachedNetworkImage(
+              imageUrl: url,
+              cacheKey: StorageImageService.normalizeStoragePath(thumbPath),
+              width: width,
+              height: height,
+              fit: fit,
+              memCacheWidth: 440,
+              fadeInDuration: const Duration(milliseconds: 100),
+              placeholder: (context, url) => _buildSkeleton(),
+              errorWidget: (context, url, error) => _buildSkeleton(),
+            );
+          }
+          return _buildSkeleton();
+        },
+      );
+    }
+    return _buildSkeleton();
   }
 
   /// Builds a calm, continuous skeleton shimmer matching exact card dimensions

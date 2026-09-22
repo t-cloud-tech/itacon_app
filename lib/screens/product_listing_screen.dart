@@ -610,6 +610,14 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       key: ValueKey('tile_${product.id}'),
       child: AppPressable(
         onTap: () {
+          StorageImageService.warmCache([
+            product.frontCardImage,
+            product.frontCardThumbnail,
+            ...product.resolvedFaceImages,
+            ...product.resolvedMockupImages,
+            ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+            ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+          ]);
           Navigator.push(
             context,
             MaterialPageRoute(

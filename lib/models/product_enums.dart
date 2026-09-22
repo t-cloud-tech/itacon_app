@@ -33,7 +33,7 @@ class ProductEnums {
       'id': 'quartz_surfaces',
       'label': 'Quartz Surfaces',
       'subtitle': 'Engineered durability with refined finish.',
-      'image': 'products/mockups/VIT-60120-8.50-GLO-MAR-WHIT-00-033_mockup.jpeg',
+      'image': 'assets/images/Home/Quartz_surface.jpg',
       'isComingSoon': false,
       'isDark': false,
       'icon': 'diamond',

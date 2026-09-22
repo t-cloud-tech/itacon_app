@@ -36,6 +36,12 @@ class AdhesiveCard extends StatelessWidget {
     return AppPressable(
       onTap: onTap ??
           () {
+            StorageImageService.warmCache([
+              product.frontCardImage,
+              product.frontCardThumbnail,
+              ...product.resolvedFaceImages,
+              ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+            ]);
             Navigator.push(
               context,
               MaterialPageRoute(

@@ -92,6 +92,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _selectedFinish = _product.surface;
     _quantity = 1;
     _isMockupMode = widget.initialMockupMode;
+
+    // Immediately pre-warm download URLs for this product's faces and mockups
+    StorageImageService.warmCache([
+      ..._product.resolvedFaceImages,
+      ..._product.resolvedMockupImages,
+      ..._product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+      ..._product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+    ]);
   }
 
   void _showManualQuantityDialog() {
@@ -423,6 +431,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           child: _isMockupMode
                               ? AppProductImage(
                                   imagePath: img,
+                                  thumbnailPath: StorageImageService.thumbnailPathFromOriginal(img),
                                   width: double.infinity,
                                   height: calculatedFrameHeight,
                                   fit: BoxFit.cover,
@@ -441,6 +450,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     borderRadius: BorderRadius.circular(3),
                                     child: AppProductImage(
                                       imagePath: img,
+                                      thumbnailPath: StorageImageService.thumbnailPathFromOriginal(img),
                                       fit: BoxFit.contain,
                                       imageRole: ImageRole.detailHero,
                                     ),
@@ -1122,7 +1132,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 itemBuilder: (context, index) {
                   return AppProductImage(
                     imagePath: tileImagePath,
+                    thumbnailPath: StorageImageService.thumbnailPathFromOriginal(tileImagePath),
                     fit: BoxFit.cover,
+                    imageRole: ImageRole.collectionThumbnail,
                   );
                 },
               ),

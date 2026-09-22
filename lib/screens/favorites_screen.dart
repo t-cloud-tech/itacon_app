@@ -7,6 +7,7 @@ import '../services/product_catalog_service.dart';
 import '../utils/app_notification_utils.dart';
 import '../widgets/app_product_image.dart';
 import '../widgets/interactive_pressable.dart';
+import '../services/storage_image_service.dart';
 import 'product_detail_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
@@ -274,6 +275,14 @@ class FavoritesScreen extends StatelessWidget {
                   return RepaintBoundary(
                     child: AppPressable(
                       onTap: () {
+                        StorageImageService.warmCache([
+                          product.frontCardImage,
+                          product.frontCardThumbnail,
+                          ...product.resolvedFaceImages,
+                          ...product.resolvedMockupImages,
+                          ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+                          ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+                        ]);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
