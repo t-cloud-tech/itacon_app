@@ -90,6 +90,14 @@
           }
         },
         {
+          "client_id": "889001862943-la0p7398sue3ve9alqesqmehhevta2lg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.itacongranito.app",
+            "certificate_hash": "97fd0cbfc3fdd3d49fc25ba003d2fb16b9bf48b6"
+          }
+        },
+        {
           "client_id": "889001862943-ut8ql01mblc0fo2kr6ssr6ompok8mjhc.apps.googleusercontent.com",
           "client_type": 3
         }
