@@ -1,0 +1,16 @@
+{
+  "name": "ITACON Sales & Admin Portal",
+  "short_name": "ITACON Portal",
+  "description": "Enterprise CRM & Quotation Workbench for ITACON Sales Executives and Administrators",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F8FB",
+  "theme_color": "#0E274D",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
