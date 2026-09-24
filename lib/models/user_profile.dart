@@ -13,6 +13,10 @@ class UserProfile {
   final String role; // customer / salesperson / manager / admin
   final String? salesPersonId; // Assigned salesperson
   final String? referralCode; // Referral code used during registration
+  final String? referredBy; // UID of referrer customer
+  final int loyaltyPoints; // Active spendable loyalty points
+  final int lifetimePoints; // Cumulative lifetime earned loyalty points
+  final bool welcomeBonusGranted; // Whether 500 welcome bonus was granted
   final bool phoneVerified; // Phone verification status
   final bool emailVerified; // Email verification status
   final bool whatsappVerified; // WhatsApp verification status
@@ -44,6 +48,10 @@ class UserProfile {
     required this.role,
     this.salesPersonId,
     this.referralCode,
+    this.referredBy,
+    this.loyaltyPoints = 0,
+    this.lifetimePoints = 0,
+    this.welcomeBonusGranted = false,
     this.phoneVerified = false,
     this.emailVerified = false,
     this.whatsappVerified = false,
@@ -87,6 +95,10 @@ class UserProfile {
     String? role,
     String? salesPersonId,
     String? referralCode,
+    String? referredBy,
+    int? loyaltyPoints,
+    int? lifetimePoints,
+    bool? welcomeBonusGranted,
     bool? phoneVerified,
     bool? emailVerified,
     bool? whatsappVerified,
@@ -118,6 +130,10 @@ class UserProfile {
       role: role ?? this.role,
       salesPersonId: salesPersonId ?? this.salesPersonId,
       referralCode: referralCode ?? this.referralCode,
+      referredBy: referredBy ?? this.referredBy,
+      loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
+      lifetimePoints: lifetimePoints ?? this.lifetimePoints,
+      welcomeBonusGranted: welcomeBonusGranted ?? this.welcomeBonusGranted,
       phoneVerified: phoneVerified ?? this.phoneVerified,
       emailVerified: emailVerified ?? this.emailVerified,
       whatsappVerified: whatsappVerified ?? this.whatsappVerified,
@@ -157,6 +173,10 @@ class UserProfile {
       'salesPersonId': salesPersonId,
       'assignedSalespersonId': salesPersonId,
       'referralCode': referralCode,
+      'referredBy': referredBy,
+      'loyaltyPoints': loyaltyPoints,
+      'lifetimePoints': lifetimePoints,
+      'welcomeBonusGranted': welcomeBonusGranted,
       'phoneVerified': phoneVerified,
       'emailVerified': emailVerified,
       'whatsappVerified': whatsappVerified,
@@ -197,6 +217,10 @@ class UserProfile {
       role: map['role'] ?? 'customer',
       salesPersonId: map['salesPersonId'] ?? map['assignedSalespersonId'],
       referralCode: map['referralCode'],
+      referredBy: map['referredBy'],
+      loyaltyPoints: (map['loyaltyPoints'] as num?)?.toInt() ?? 0,
+      lifetimePoints: (map['lifetimePoints'] as num?)?.toInt() ?? ((map['loyaltyPoints'] as num?)?.toInt() ?? 0),
+      welcomeBonusGranted: map['welcomeBonusGranted'] as bool? ?? false,
       phoneVerified: map['phoneVerified'] ?? map['isVerified'] ?? false,
       emailVerified: map['emailVerified'] ?? false,
       whatsappVerified: map['whatsappVerified'] ?? false,

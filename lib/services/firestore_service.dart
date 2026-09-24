@@ -104,6 +104,7 @@ class FirestoreService {
     String? companyName,
     String? assignedSalespersonId,
     String? userReferralCode,
+    String? referredByCode,
     bool isVerified = false,
     String? passwordHash,
     String? passwordSalt,
@@ -157,6 +158,10 @@ class FirestoreService {
         'salesPersonId': assignedSalespersonId,
         'assignedSalespersonId': assignedSalespersonId,
         'referralCode': userReferralCode,
+        if (referredByCode != null && referredByCode.trim().isNotEmpty) ...{
+          'referredByCode': referredByCode.trim().toUpperCase(),
+          'referralCodeEntered': referredByCode.trim().toUpperCase(),
+        },
         'status': 'active',
         'phoneVerified': isVerified,
         'emailVerified': isVerified,

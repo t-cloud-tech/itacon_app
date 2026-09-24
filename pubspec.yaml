@@ -47,6 +47,7 @@ dependencies:
   google_fonts: ^8.2.1
   crypto: ^3.0.7
   firebase_messaging: ^16.7.0
+  cloud_functions: ^6.5.0
 
 
 dev_dependencies:

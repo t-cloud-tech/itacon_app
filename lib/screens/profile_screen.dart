@@ -18,6 +18,8 @@ import 'favorites_screen.dart';
 import 'notifications_screen.dart';
 import 'contract_rates_screen.dart';
 import 'profile/edit_profile_screen.dart';
+import 'refer_and_earn_screen.dart';
+import 'loyalty_benefits_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final VoidCallback? onBackToHome;
@@ -778,6 +780,14 @@ class ProfileScreen extends StatelessWidget {
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.favorite_outline_rounded, 'Favorites', () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const FavoritesScreen()));
+                        }),
+                        const Divider(height: 1, color: AppTheme.borderSubtle),
+                        _buildTile(Icons.card_giftcard_rounded, 'Refer & Earn', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => ReferAndEarnScreen(user: profile)));
+                        }),
+                        const Divider(height: 1, color: AppTheme.borderSubtle),
+                        _buildTile(Icons.stars_rounded, 'Loyalty Benefits', () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => LoyaltyBenefitsScreen(user: profile)));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.notifications_none_rounded, 'Notifications', () {

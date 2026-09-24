@@ -520,6 +520,7 @@ class AuthService {
       companyName: companyName,
       assignedSalespersonId: assignedSpId,
       userReferralCode: userReferralCode,
+      referredByCode: referralCode,
       isVerified: true,
       passwordHash: passHash,
       passwordSalt: userSalt,

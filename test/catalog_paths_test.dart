@@ -2,13 +2,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:itacon_app/services/product_catalog_service.dart';
 
 void main() {
-  test('All 71 products use Firebase Storage paths', () {
+  test('All 209 products use Firebase Storage paths', () {
     final products = ProductCatalogService.allCatalogProducts;
-    expect(products.length, 71);
+    expect(products.length, 209);
 
     final invalidEntries = <String>[];
 
     for (final product in products) {
+      // TELER CREMA intentionally has no supplied images
+      if (product.sku == 'VIT-60120-8.50-GLO-MAR-WHIT-182') {
+        expect(product.images, isEmpty);
+        expect(product.frontCardImage, isEmpty);
+        continue;
+      }
+
       for (final img in product.images) {
         if (!img.startsWith('products/')) {
           invalidEntries.add('${product.sku} images: $img');
@@ -43,6 +50,12 @@ void main() {
     final products = ProductCatalogService.allCatalogProducts;
 
     for (final product in products) {
+      // TELER CREMA intentionally has no images
+      if (product.sku == 'VIT-60120-8.50-GLO-MAR-WHIT-182') {
+        expect(product.frontCardThumbnail, isEmpty);
+        continue;
+      }
+
       final thumb = product.frontCardThumbnail;
       expect(thumb.startsWith('products/thumbnails/'), isTrue,
           reason: '${product.sku} frontCardThumbnail must use products/thumbnails/... but was $thumb');

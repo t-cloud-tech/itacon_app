@@ -20,25 +20,64 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Helper function to check if request is modifying privileged fields (role or userCategory/pricing tier)
+    // Helper function to check if request payload attempts to supply trusted reward fields directly
+    function hasRewardFields(requestData) {
+      return ('loyaltyPoints' in requestData) ||
+             ('lifetimePoints' in requestData) ||
+             ('welcomeBonusGranted' in requestData) ||
+             ('referredBy' in requestData);
+    }
+
+    // Helper function to check if request is modifying privileged fields (role, userCategory, or reward balances)
     function isModifyingPrivilegedFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(['role', 'userCategory']);
+        .hasAny(['role', 'userCategory', 'loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
     }
 
     // Users Collection Security Rules:
     // - Enforce no password, pass, hash, or token fields allowed in payload.
-    // - Users can read their own profile.
-    // - Privileged roles (role, userCategory) can only be updated by admins or backend functions.
+    // - Disallow client control over trusted reward fields on creation (initialized exclusively by Cloud Functions).
+    // - Privileged fields (role, userCategory, loyaltyPoints, etc.) can only be updated by admins or backend functions.
     match /users/{userId} {
       allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.admin == true) || true;
 
-      allow create: if !hasSensitiveFields(request.resource.data);
+      allow create: if !hasSensitiveFields(request.resource.data) &&
+        !hasRewardFields(request.resource.data);
 
       allow update: if !hasSensitiveFields(request.resource.data) &&
         (!isModifyingPrivilegedFields() || (isAuthenticated() && request.auth.token.admin == true));
 
       allow delete: if isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    // Customer Rewards & Loyalty System Rules:
+    // Remote reward configuration is readable by all authenticated clients, writeable only by admin
+    match /loyaltyConfig/{configId} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    // Loyalty Transactions ledger: read-only for document owner, clients CANNOT create or modify directly
+    match /loyaltyTransactions/{txId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
+      allow write: if false; // Writes restricted to Admin SDK / Cloud Functions
+    }
+
+    // Customer Referrals: read-only for referrer or referred partner, clients cannot directly manipulate statuses
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.referrerUid == request.auth.uid ||
+        resource.data.referredUid == request.auth.uid ||
+        request.auth.token.admin == true
+      );
+      allow write: if false; // Controlled exclusively by backend Cloud Functions
+    }
+
+    // Loyalty Redemptions: read-only for document owner. Direct client creation/update is disallowed.
+    // Clients must invoke the authoritative submitLoyaltyRedemptionCallable to verify balances and reserve points.
+    match /loyaltyRedemptions/{redemptionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
+      allow write: if false; // Direct client writes disallowed; created and managed exclusively by Cloud Functions
     }
 
     // Category collections (dealers, architects, builders, wholesalers, retailers)
