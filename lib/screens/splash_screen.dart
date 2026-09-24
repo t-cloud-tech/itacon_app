@@ -86,16 +86,30 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       if (Firebase.apps.isNotEmpty) {
         currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser == null) {
+          // Allow up to 800ms for Firebase Auth to restore its persisted token on cold boot
+          try {
+            currentUser = await FirebaseAuth.instance
+                .authStateChanges()
+                .first
+                .timeout(const Duration(milliseconds: 800), onTimeout: () => null);
+          } catch (_) {}
+        }
       }
     } catch (_) {}
 
-    // -------------------------------------------------------------------------
-    // CASE B: No authenticated Firebase user
-    // -------------------------------------------------------------------------
-    if (currentUser == null) {
-      // Ensure local session is cleanly reset
-      await UserSessionService.clearUserSession();
+    // 3. Restore active session from SharedPreferences
+    final restoredProfile = await UserSessionService.restoreUserSession();
 
+    final activeUid = currentUser?.uid ?? restoredProfile?.userId;
+
+    // -------------------------------------------------------------------------
+    // CASE B: No authenticated or logged-in user
+    // -------------------------------------------------------------------------
+    if (activeUid == null ||
+        activeUid.isEmpty ||
+        activeUid == 'GUEST_USER' ||
+        activeUid == 'RESTORED_USER') {
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
       final remainingMs = 1800 - elapsedMs;
       if (remainingMs > 0) {
@@ -108,9 +122,9 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     // -------------------------------------------------------------------------
-    // CASE A: Authenticated Firebase user exists
+    // CASE A: Authenticated / Logged-in customer exists
     // -------------------------------------------------------------------------
-    final uid = currentUser.uid;
+    final uid = activeUid;
     UserProfile? realProfile;
     bool isNetworkError = false;
 
@@ -123,9 +137,32 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('[SplashScreen] Profile fetch error/timeout for $uid: $e');
     }
 
-    // Sub-case A.1: Real profile loaded successfully
+    // Sub-case A.1: Real profile loaded successfully from Firestore
     if (realProfile != null) {
-      await UserSessionService.saveUserSession(realProfile);
+      if (realProfile.userId != 'GUEST_USER' && realProfile.name != 'Valued Partner') {
+        await UserSessionService.saveUserSession(realProfile);
+        await NotificationService.saveCurrentUserToken();
+
+        final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
+        final remainingMs = 1800 - elapsedMs;
+        if (remainingMs > 0) {
+          await Future.delayed(Duration(milliseconds: remainingMs));
+        }
+
+        if (!mounted) return;
+        _navigateToScreen(const MainNavigationScreen());
+        NotificationService.onAppReady();
+        return;
+      }
+    }
+
+    // Sub-case A.2: Valid local cached profile exists -> Continue seamlessly to main app!
+    if (restoredProfile != null &&
+        restoredProfile.userId == uid &&
+        restoredProfile.userId != 'GUEST_USER' &&
+        restoredProfile.name != 'Valued Partner' &&
+        restoredProfile.name.isNotEmpty) {
+      debugPrint('[SplashScreen] Using valid local session for customer $uid.');
       await NotificationService.saveCurrentUserToken();
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
@@ -140,9 +177,9 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    // Sub-case A.2: Query completed without network error, but profile document genuinely missing
-    if (!isNetworkError && realProfile == null) {
-      debugPrint('[SplashScreen] Authenticated user $uid has no Firestore profile. Redirecting to signup.');
+    // Sub-case A.3: Query completed without network error, but profile document genuinely missing
+    if (!isNetworkError && realProfile == null && restoredProfile == null) {
+      debugPrint('[SplashScreen] User $uid has no Firestore profile. Redirecting to signup.');
       await UserSessionService.clearUserSession();
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
@@ -153,29 +190,6 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (!mounted) return;
       _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.signup));
-      return;
-    }
-
-    // Sub-case A.3: Network error or timeout
-    // Check if we have a valid, non-fallback cached profile for this exact UID
-    final cached = await UserSessionService.restoreUserSession();
-    if (cached != null &&
-        cached.userId == uid &&
-        cached.userId != 'GUEST_USER' &&
-        cached.name != 'Valued Partner' &&
-        cached.name.isNotEmpty) {
-      debugPrint('[SplashScreen] Using valid local cache for authenticated user $uid during network delay.');
-      await NotificationService.saveCurrentUserToken();
-
-      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-      final remainingMs = 1800 - elapsedMs;
-      if (remainingMs > 0) {
-        await Future.delayed(Duration(milliseconds: remainingMs));
-      }
-
-      if (!mounted) return;
-      _navigateToScreen(const MainNavigationScreen());
-      NotificationService.onAppReady();
       return;
     }
 

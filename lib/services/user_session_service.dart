@@ -95,30 +95,15 @@ class UserSessionService {
     }
 
     User? firebaseUser;
-    bool isFirebaseActive = false;
     try {
       if (Firebase.apps.isNotEmpty) {
-        isFirebaseActive = true;
         firebaseUser = FirebaseAuth.instance.currentUser;
       }
     } catch (_) {}
 
-    // In a live Firebase runtime, an active authenticated user is strictly required.
-    // If Firebase is active and there is no authenticated user, session is null.
-    if (isFirebaseActive && firebaseUser == null) {
-      if (isLoggedIn || cachedUserId != null) {
-        await clearUserSession();
-      }
-      return null;
-    }
-
-    if (!isLoggedIn && firebaseUser == null) {
-      return null;
-    }
-
-    // Ensure cached UID strictly matches the active authenticated Firebase UID
-    if (firebaseUser != null && cachedUserId != null && cachedUserId != firebaseUser.uid) {
-      await clearUserSession();
+    // If neither SharedPreferences has an active login session nor Firebase Auth has a user,
+    // the user is not logged in.
+    if (!isLoggedIn && firebaseUser == null && cachedUserId == null) {
       return null;
     }
 

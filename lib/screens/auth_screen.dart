@@ -6,6 +6,7 @@ import '../models/user_category.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
+import '../services/user_session_service.dart';
 import '../widgets/interactive_pressable.dart';
 import 'referral_gate_screen.dart';
 import 'main_navigation_screen.dart';
@@ -576,9 +577,12 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
 
-      final uid = _authService.currentUser?.uid;
+      final uid = _authService.currentUser?.uid ?? _authService.currentUid;
       if (uid != null && uid.isNotEmpty) {
         final profile = await _firestoreService.getUserProfile(uid);
+        if (profile != null) {
+          await UserSessionService.saveUserSession(profile);
+        }
         if (profile == null ||
             profile.salesPersonId == null ||
             profile.salesPersonId!.isEmpty) {
