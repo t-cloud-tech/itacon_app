@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
 import '../services/notification_service.dart';
@@ -20,13 +20,15 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
   late final AnimationController _animController;
   late final Animation<double> _fadeAnimation;
   late final Animation<Offset> _slideAnimation;
   bool _assetsPrecached = false;
+  bool _hasError = false;
+  String? _errorMessage;
+  bool _isRetrying = false;
 
   @override
   void initState() {
@@ -75,64 +77,125 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _startSplashTimerAndRoute() async {
     final startTime = DateTime.now();
-    Widget targetScreen = const AuthScreen();
 
+    // 1. Purge any legacy fallback/guest session data immediately
+    await UserSessionService.purgeLegacyFallbackData();
+
+    // 2. Check Firebase Authentication state
+    User? currentUser;
     try {
-      final restoredProfile = await UserSessionService.restoreUserSession();
-      if (restoredProfile != null) {
-        await NotificationService.saveCurrentUserToken();
-        targetScreen = const MainNavigationScreen();
-      } else {
-        final currentUser = FirebaseAuth.instance.currentUser;
-        final uid = _authService.currentUid ?? currentUser?.uid;
-
-        if (uid != null && uid.isNotEmpty) {
-          final profile = await _firestoreService.getUserProfile(uid);
-          if (profile != null) {
-            await UserSessionService.saveUserSession(profile);
-            await NotificationService.saveCurrentUserToken();
-            targetScreen = const MainNavigationScreen();
-          } else {
-            targetScreen = const AuthScreen();
-          }
-        } else {
-          final guestProfile = UserProfile(
-            userId: 'GUEST_USER',
-            name: 'Valued Partner',
-            companyName: 'ITACON Partner',
-            phone: '+919876543210',
-            email: 'partner@itacongranito.com',
-            userCategory: 'Dealer',
-            role: 'customer',
-            salesPersonId: 'SP-001',
-          );
-          await UserSessionService.saveUserSession(guestProfile);
-          targetScreen = const MainNavigationScreen();
-        }
+      if (Firebase.apps.isNotEmpty) {
+        currentUser = FirebaseAuth.instance.currentUser;
       }
-    } catch (_) {
-      final guestProfile = UserProfile(
-        userId: 'GUEST_USER',
-        name: 'Valued Partner',
-        companyName: 'ITACON Partner',
-        phone: '+919876543210',
-        email: 'partner@itacongranito.com',
-        userCategory: 'Dealer',
-        role: 'customer',
-        salesPersonId: 'SP-001',
-      );
-      await UserSessionService.saveUserSession(guestProfile);
-      targetScreen = const MainNavigationScreen();
+    } catch (_) {}
+
+    // -------------------------------------------------------------------------
+    // CASE B: No authenticated Firebase user
+    // -------------------------------------------------------------------------
+    if (currentUser == null) {
+      // Ensure local session is cleanly reset
+      await UserSessionService.clearUserSession();
+
+      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
+      final remainingMs = 1800 - elapsedMs;
+      if (remainingMs > 0) {
+        await Future.delayed(Duration(milliseconds: remainingMs));
+      }
+
+      if (!mounted) return;
+      _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.login));
+      return;
     }
 
+    // -------------------------------------------------------------------------
+    // CASE A: Authenticated Firebase user exists
+    // -------------------------------------------------------------------------
+    final uid = currentUser.uid;
+    UserProfile? realProfile;
+    bool isNetworkError = false;
+
+    try {
+      realProfile = await _firestoreService.getUserProfile(uid).timeout(
+        const Duration(seconds: 8),
+      );
+    } catch (e) {
+      isNetworkError = true;
+      debugPrint('[SplashScreen] Profile fetch error/timeout for $uid: $e');
+    }
+
+    // Sub-case A.1: Real profile loaded successfully
+    if (realProfile != null) {
+      await UserSessionService.saveUserSession(realProfile);
+      await NotificationService.saveCurrentUserToken();
+
+      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
+      final remainingMs = 1800 - elapsedMs;
+      if (remainingMs > 0) {
+        await Future.delayed(Duration(milliseconds: remainingMs));
+      }
+
+      if (!mounted) return;
+      _navigateToScreen(const MainNavigationScreen());
+      NotificationService.onAppReady();
+      return;
+    }
+
+    // Sub-case A.2: Query completed without network error, but profile document genuinely missing
+    if (!isNetworkError && realProfile == null) {
+      debugPrint('[SplashScreen] Authenticated user $uid has no Firestore profile. Redirecting to signup.');
+      await UserSessionService.clearUserSession();
+
+      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
+      final remainingMs = 1800 - elapsedMs;
+      if (remainingMs > 0) {
+        await Future.delayed(Duration(milliseconds: remainingMs));
+      }
+
+      if (!mounted) return;
+      _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.signup));
+      return;
+    }
+
+    // Sub-case A.3: Network error or timeout
+    // Check if we have a valid, non-fallback cached profile for this exact UID
+    final cached = await UserSessionService.restoreUserSession();
+    if (cached != null &&
+        cached.userId == uid &&
+        cached.userId != 'GUEST_USER' &&
+        cached.name != 'Valued Partner' &&
+        cached.name.isNotEmpty) {
+      debugPrint('[SplashScreen] Using valid local cache for authenticated user $uid during network delay.');
+      await NotificationService.saveCurrentUserToken();
+
+      final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
+      final remainingMs = 1800 - elapsedMs;
+      if (remainingMs > 0) {
+        await Future.delayed(Duration(milliseconds: remainingMs));
+      }
+
+      if (!mounted) return;
+      _navigateToScreen(const MainNavigationScreen());
+      NotificationService.onAppReady();
+      return;
+    }
+
+    // If no valid cache exists for this UID and network failed:
+    // Show error/retry state. DO NOT substitute "Valued Partner" and DO NOT enter main app.
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-    final remainingMs = 1800 - elapsedMs;
+    final remainingMs = 1200 - elapsedMs;
     if (remainingMs > 0) {
       await Future.delayed(Duration(milliseconds: remainingMs));
     }
 
     if (!mounted) return;
+    setState(() {
+      _hasError = true;
+      _isRetrying = false;
+      _errorMessage = 'Unable to connect to ITACON network.\nPlease check your connection and retry.';
+    });
+  }
 
+  void _navigateToScreen(Widget targetScreen) {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
@@ -150,10 +213,6 @@ class _SplashScreenState extends State<SplashScreen>
         transitionDuration: const Duration(milliseconds: 650),
       ),
     );
-
-    if (targetScreen is MainNavigationScreen) {
-      NotificationService.onAppReady();
-    }
   }
 
   @override
@@ -190,7 +249,7 @@ class _SplashScreenState extends State<SplashScreen>
             top: 0,
             left: 0,
             right: 0,
-            height: screenSize.height * 0.67,
+            height: screenSize.height * (_hasError ? 0.82 : 0.67),
             child: ClipPath(
               clipper: CurvedWaveClipper(),
               child: Container(
@@ -224,39 +283,43 @@ class _SplashScreenState extends State<SplashScreen>
                             _buildBrandingLogo(screenSize),
 
                             SizedBox(
-                              height: (screenSize.height * 0.038).clamp(14.0, 36.0),
+                              height: (screenSize.height * 0.032).clamp(12.0, 30.0),
                             ),
 
-                            // Tagline 1
-                            Text(
-                              'Right Choice. Right Time. Right Value.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize:
-                                    (screenSize.width * 0.046).clamp(16.0, 24.0),
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.6,
-                                height: 1.2,
+                            if (!_hasError) ...[
+                              // Tagline 1
+                              Text(
+                                'Right Choice. Right Time. Right Value.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize:
+                                      (screenSize.width * 0.046).clamp(16.0, 24.0),
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.6,
+                                  height: 1.2,
+                                ),
                               ),
-                            ),
 
-                            SizedBox(
-                              height: (screenSize.height * 0.012).clamp(6.0, 14.0),
-                            ),
-
-                            // Tagline 2
-                            Text(
-                              'Premium Surfaces for Every Space.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.85),
-                                fontSize:
-                                    (screenSize.width * 0.036).clamp(13.0, 18.0),
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: 0.4,
+                              SizedBox(
+                                height: (screenSize.height * 0.012).clamp(6.0, 14.0),
                               ),
-                            ),
+
+                              // Tagline 2
+                              Text(
+                                'Premium Surfaces for Every Space.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize:
+                                      (screenSize.width * 0.036).clamp(13.0, 18.0),
+                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.4,
+                                ),
+                              ),
+                            ] else ...[
+                              _buildErrorRetryCard(screenSize),
+                            ],
 
                             const Spacer(flex: 3),
                           ],
@@ -265,6 +328,115 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorRetryCard(Size screenSize) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF152642).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE5A93C).withValues(alpha: 0.45),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.wifi_off_rounded,
+            color: Color(0xFFE5A93C),
+            size: 34,
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Connection Delayed',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _errorMessage ?? 'Unable to connect to ITACON network.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton(
+              onPressed: _isRetrying
+                  ? null
+                  : () {
+                      setState(() {
+                        _hasError = false;
+                        _isRetrying = true;
+                      });
+                      _startSplashTimerAndRoute();
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE5A93C),
+                foregroundColor: const Color(0xFF091528),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: _isRetrying
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF091528)),
+                      ),
+                    )
+                  : const Text(
+                      'RETRY CONNECTION',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                        fontSize: 13,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () async {
+              await UserSessionService.clearUserSession();
+              if (!mounted) return;
+              _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.login));
+            },
+            child: Text(
+              'Sign In with Another Account',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 12,
+                decoration: TextDecoration.underline,
               ),
             ),
           ),

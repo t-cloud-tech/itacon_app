@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
 import 'app_state_service.dart';
@@ -28,6 +29,13 @@ class UserSessionService {
 
   /// Saves user profile & marks session as logged in
   static Future<void> saveUserSession(UserProfile profile) async {
+    // Never persist a fake fallback user profile
+    if (profile.userId.isEmpty ||
+        profile.userId == 'GUEST_USER' ||
+        profile.name == 'Valued Partner') {
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyIsLoggedIn, true);
     await prefs.setString(_keyUserId, profile.userId);
@@ -58,21 +66,72 @@ class UserSessionService {
     NotificationService.saveCurrentUserToken();
   }
 
-  /// Restores active user session from SharedPreferences or Firebase Auth
+  /// Safely sanitizes any obsolete fallback/guest profile data from SharedPreferences
+  static Future<void> purgeLegacyFallbackData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cachedUserId = prefs.getString(_keyUserId);
+    final cachedUserName = prefs.getString(_keyUserName);
+
+    if (cachedUserId == 'GUEST_USER' ||
+        cachedUserName == 'Valued Partner' ||
+        cachedUserId == 'RESTORED_USER') {
+      await clearUserSession();
+    }
+  }
+
+  /// Restores active user session from SharedPreferences for the authenticated Firebase user
   static Future<UserProfile?> restoreUserSession() async {
     final prefs = await SharedPreferences.getInstance();
     final bool isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
+    final cachedUserId = prefs.getString(_keyUserId);
+    final cachedUserName = prefs.getString(_keyUserName);
+
+    // Sanitize any legacy fallback / guest user cache immediately
+    if (cachedUserId == 'GUEST_USER' ||
+        cachedUserName == 'Valued Partner' ||
+        cachedUserId == 'RESTORED_USER') {
+      await clearUserSession();
+      return null;
+    }
+
     User? firebaseUser;
+    bool isFirebaseActive = false;
     try {
-      firebaseUser = FirebaseAuth.instance.currentUser;
+      if (Firebase.apps.isNotEmpty) {
+        isFirebaseActive = true;
+        firebaseUser = FirebaseAuth.instance.currentUser;
+      }
     } catch (_) {}
+
+    // In a live Firebase runtime, an active authenticated user is strictly required.
+    // If Firebase is active and there is no authenticated user, session is null.
+    if (isFirebaseActive && firebaseUser == null) {
+      if (isLoggedIn || cachedUserId != null) {
+        await clearUserSession();
+      }
+      return null;
+    }
 
     if (!isLoggedIn && firebaseUser == null) {
       return null;
     }
 
-    final userId = prefs.getString(_keyUserId) ?? firebaseUser?.uid ?? 'RESTORED_USER';
-    final name = prefs.getString(_keyUserName) ?? firebaseUser?.displayName ?? 'Valued Customer';
+    // Ensure cached UID strictly matches the active authenticated Firebase UID
+    if (firebaseUser != null && cachedUserId != null && cachedUserId != firebaseUser.uid) {
+      await clearUserSession();
+      return null;
+    }
+
+    final userId = firebaseUser?.uid ?? cachedUserId;
+    if (userId == null || userId.isEmpty || userId == 'GUEST_USER' || userId == 'RESTORED_USER') {
+      return null;
+    }
+
+    final name = prefs.getString(_keyUserName) ?? firebaseUser?.displayName ?? '';
+    if (name.isEmpty || name == 'Valued Partner') {
+      return null;
+    }
+
     final religion = prefs.getString(_keyUserReligion) ?? '';
     final dateOfBirth = prefs.getString(_keyUserDob) ?? '';
     final phone = prefs.getString(_keyUserPhone) ?? firebaseUser?.phoneNumber ?? '';
@@ -135,10 +194,29 @@ class UserSessionService {
   /// Clears user session and logs out completely
   static Future<void> clearUserSession() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await prefs.remove(_keyIsLoggedIn);
+    await prefs.remove(_keyUserId);
+    await prefs.remove(_keyUserName);
+    await prefs.remove(_keyUserReligion);
+    await prefs.remove(_keyUserDob);
+    await prefs.remove(_keyUserPhone);
+    await prefs.remove(_keyUserEmail);
+    await prefs.remove(_keyUserCompany);
+    await prefs.remove(_keyUserCategory);
+    await prefs.remove(_keyUserRole);
+    await prefs.remove(_keyUserCity);
+    await prefs.remove(_keyUserState);
+    await prefs.remove(_keyUserPincode);
+    await prefs.remove(_keyUserGst);
+    await prefs.remove(_keyUserAddressJson);
+    await prefs.remove(_keyProfilePhotoUrl);
+    await prefs.remove(_keyAvatarUrl);
+    await prefs.remove(_keyShowroomImagesJson);
 
     try {
-      await FirebaseAuth.instance.signOut();
+      if (Firebase.apps.isNotEmpty) {
+        await FirebaseAuth.instance.signOut();
+      }
     } catch (_) {}
 
     // Reset AppStateService user profile, cart, and favorites

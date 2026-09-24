@@ -27,7 +27,15 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
     if (code != null && code.trim().isNotEmpty) {
       return code.trim();
     }
-    return 'ITA-782910';
+    final uid = _currentUser.userId.trim();
+    if (uid.isNotEmpty && uid != 'GUEST_USER') {
+      final sanitized = uid.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+      if (sanitized.length >= 6) {
+        return 'ITA-${sanitized.substring(0, 6).toUpperCase()}';
+      }
+      return 'ITA-${sanitized.toUpperCase()}';
+    }
+    return 'ITA-CUSTOMER';
   }
 
   void _copyReferralCode() {

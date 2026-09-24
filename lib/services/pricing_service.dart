@@ -37,9 +37,7 @@ class PricingService extends ChangeNotifier {
 
   // In-memory cache for user custom prices: Map<"uid_productId", customPrice>
   final Map<String, double> _customPriceCache = {
-    // Mock sample custom partner overrides for quick demonstration
     'USER_LOGIN_PROD_6012_01': 98.0, // Statuario Marble @ 98 instead of 120
-    'GUEST_USER_PROD_6012_01': 102.0,
   };
 
   /// Category trade tier discount percentages matrix

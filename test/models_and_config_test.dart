@@ -641,6 +641,41 @@ void main() {
       final cleared = await UserSessionService.restoreUserSession();
       expect(cleared, isNull);
     });
+
+    test('Should purge and reject legacy Valued Partner / GUEST_USER session data', () async {
+      // Simulate obsolete cache written by old splash code
+      SharedPreferences.setMockInitialValues({
+        'is_logged_in': true,
+        'user_id': 'GUEST_USER',
+        'user_name': 'Valued Partner',
+        'user_phone': '+919876543210',
+        'user_company': 'ITACON Partner',
+      });
+
+      // restoreUserSession must reject it, purge it, and return null
+      final restored = await UserSessionService.restoreUserSession();
+      expect(restored, isNull);
+
+      // Verify keys were wiped from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('is_logged_in'), isNull);
+      expect(prefs.getString('user_id'), isNull);
+      expect(prefs.getString('user_name'), isNull);
+
+      // saveUserSession must refuse to write fake profiles
+      const fakeProfile = UserProfile(
+        userId: 'GUEST_USER',
+        name: 'Valued Partner',
+        companyName: 'ITACON Partner',
+        phone: '+919876543210',
+        email: 'partner@itacongranito.com',
+        userCategory: 'Dealer',
+        role: 'customer',
+      );
+      await UserSessionService.saveUserSession(fakeProfile);
+      final restoredFake = await UserSessionService.restoreUserSession();
+      expect(restoredFake, isNull);
+    });
   });
 
   group('PricingService Waterfall & Tier Resolution Tests', () {
