@@ -600,17 +600,15 @@ class FirestoreService {
 
       if (targetUid != null && targetUid.isNotEmpty) {
         final existingUser = await getUserProfile(targetUid);
-        final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(targetUid).get();
-        final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(targetUid).get();
+        final rawUserDoc = await _usersRef.doc(targetUid).get();
+        final rawData = rawUserDoc.data();
+        final existingSpId = existingUser?.salesPersonId ?? rawData?['salesPersonId'] ?? rawData?['assignedSalespersonId'];
 
-        if (existingUser != null &&
-            existingUser.salesPersonId != null &&
-            existingUser.salesPersonId!.isNotEmpty &&
-            (existingAutoSnap.exists || existingManualSnap.exists)) {
-          final existingSpDoc = await _salesPersonsRef.doc(existingUser.salesPersonId!).get();
+        if (existingSpId != null && existingSpId.toString().isNotEmpty) {
+          final existingSpDoc = await _salesPersonsRef.doc(existingSpId.toString()).get();
           final existingSpData = existingSpDoc.data();
           return {
-            'salespersonId': existingUser.salesPersonId!,
+            'salespersonId': existingSpId.toString(),
             'referralCode': existingSpData?['referralCode'] ?? 'SALES101',
             'name': existingSpData?['name'] ?? existingSpData?['fullName'] ?? 'ITA Sales Executive',
             'phone': existingSpData?['phone'] ?? existingSpData?['phoneNumber'] ?? '+919876543210',
@@ -710,10 +708,18 @@ class FirestoreService {
           .limit(1)
           .get();
 
+      final rawUserDoc = await _usersRef.doc(clientId).get();
+      final rawData = rawUserDoc.data();
+      final currentAssignedSp = clientDoc?.salesPersonId ??
+          rawData?['salesPersonId'] ??
+          rawData?['assignedSalespersonId'];
+
       if (existingManualSnap.exists ||
           existingAutoSnap.exists ||
-          existingAssignSnap.docs.isNotEmpty) {
-        // Client assignment document ALREADY exists in root assignment collections. Prevent duplicate document creation and double counter increments.
+          existingAssignSnap.docs.isNotEmpty ||
+          (currentAssignedSp != null && currentAssignedSp.toString().trim().isNotEmpty)) {
+        // Strict 1-to-many rule: One client can only connect to ONE salesperson.
+        // Client assignment already exists. Prevent duplicate document creation or reassignment.
         return;
       }
 

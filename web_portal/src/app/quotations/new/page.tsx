@@ -22,11 +22,12 @@ import {
   FileSpreadsheet
 } from "lucide-react";
 import { Customer, QuotationItem } from "@/types";
+import { fetchLiveCustomers } from "@/lib/customer-service";
 
 function QuotationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user } = useAuth();
+  const { user, salesperson, role } = useAuth();
 
   const prefillCustomerId = searchParams.get("customerId");
   const prefillCustomerName = searchParams.get("name");
@@ -103,30 +104,19 @@ function QuotationForm() {
   useEffect(() => {
     async function loadCustomers() {
       try {
-        const snap = await getDocs(collection(db, "customers"));
-        const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
-        if (list.length > 0) {
-          setCustomers(list);
-          if (!selectedCustomerId) {
-            setSelectedCustomerId(list[0].id);
-          }
-        } else {
-          const fallback: Customer[] = [
-            { id: "cust-1", customerNumber: "CUST-01", name: "Pravin Shah", companyName: "Gujarat Ceramics & Tiles", phone: "9825099881", email: "", city: "Ahmedabad", state: "Gujarat", category: "Dealer", priceTier: "A", creditLimit: 1500000, paymentTerms: "45 Days", assignedSalespersonId: "sp-1", status: "active", createdAt: "", updatedAt: "" },
-            { id: "cust-2", customerNumber: "CUST-02", name: "Nirav Sanghavi", companyName: "Apex Infra & Builders", phone: "9879144556", email: "", city: "Surat", state: "Gujarat", category: "Builder", priceTier: "B", creditLimit: 2500000, paymentTerms: "30 Days", assignedSalespersonId: "sp-1", status: "active", createdAt: "", updatedAt: "" }
-          ];
-          setCustomers(fallback);
-          if (!selectedCustomerId) {
-            setSelectedCustomerId(fallback[0].id);
-          }
+        const list = await fetchLiveCustomers(user, salesperson, role);
+        setCustomers(list);
+        if (list.length > 0 && !selectedCustomerId) {
+          setSelectedCustomerId(list[0].id);
         }
       } catch (err) {
         console.warn("Could not load customers:", err);
+        setCustomers([]);
       }
     }
 
     loadCustomers();
-  }, [selectedCustomerId]);
+  }, [user, salesperson, role, selectedCustomerId]);
 
   const handleAddItem = (templateIndex = 0) => {
     const t = tileTemplates[templateIndex % tileTemplates.length];

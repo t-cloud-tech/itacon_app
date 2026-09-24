@@ -72,10 +72,12 @@ export function Sidebar() {
               </p>
             </div>
           </div>
-          {salesperson?.region && (
+          {salesperson?.referralCode && (
             <div className="mt-2.5 pt-2.5 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
-              <span>Region:</span>
-              <span className="font-medium text-white">{salesperson.region}</span>
+              <span>Referral Code:</span>
+              <span className="font-mono font-bold text-orange-400 bg-orange-950/50 px-2 py-0.5 rounded border border-orange-500/30 tracking-wider">
+                {salesperson.referralCode}
+              </span>
             </div>
           )}
         </div>
