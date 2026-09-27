@@ -57,3 +57,6 @@ screen*.png
 
 # APK build outputs
 *.apk
+
+# Local product import staging assets
+assets/product_import/

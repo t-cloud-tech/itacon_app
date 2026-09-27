@@ -16,6 +16,7 @@ import '../widgets/revolving_border_search_bar.dart';
 import '../services/storage_image_service.dart';
 import 'product_detail_screen.dart';
 import 'cart_screen.dart';
+import '../services/firestore_service.dart';
 
 class ProductListingScreen extends StatefulWidget {
   final String subcategoryTitle;
@@ -41,6 +42,7 @@ class ProductListingScreen extends StatefulWidget {
 
 class _ProductListingScreenState extends State<ProductListingScreen> {
   final AppStateService _appState = AppStateService();
+  final FirestoreService _firestoreService = FirestoreService();
   late ProductFilterCriteria _activeFilter;
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
@@ -50,7 +52,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   String _searchQuery = '';
   String _sortOption = 'default'; // 'default', 'price_asc', 'price_desc', 'name_asc'
 
-  late final List<TileProduct> _allProducts;
+  List<TileProduct> _allProducts = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -91,7 +95,37 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       selectedSizes: initialSizes,
     );
 
-    _allProducts = List<TileProduct>.from(ProductCatalogService.allCatalogProducts);
+    _loadProducts();
+  }
+
+  Future<void> _loadProducts() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final firestoreTiles = await _firestoreService.getTilesCatalogueAdvanced();
+      final adhesives = ProductCatalogService.allCatalogProducts
+          .where((p) => p.isAdhesive)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _allProducts = [...firestoreTiles, ...adhesives];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          // Fallback to static catalog if offline or in tests where Firebase is not initialized
+          _allProducts = List<TileProduct>.from(ProductCatalogService.allCatalogProducts);
+          _isLoading = false;
+          _errorMessage = e.toString();
+        });
+      }
+    }
   }
 
   @override
@@ -403,7 +437,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     child: Row(
                       children: [
                         Text(
-                          '${filtered.length} Tiles Found',
+                          _isLoading ? 'Loading tiles...' : '${filtered.length} Tiles Found',
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -522,44 +556,88 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
           // 4. Staggered Masonry Grid View matching physical tile proportions
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.style_outlined,
-                              size: 64, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No tiles matching selected criteria',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Try resetting your multi-select surface or size filters.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSubtle),
-                          ),
-                          const SizedBox(height: 16),
-                          AppButton(
-                            text: 'Reset All Filters',
-                            icon: Icons.refresh_rounded,
-                            variant: AppButtonVariant.primary,
-                            height: 42,
-                            fontSize: 13,
-                            onPressed: _clearAllFilters,
-                          ),
-                        ],
-                      ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppTheme.primaryNavy,
                     ),
                   )
-                : MasonryGridView.count(
+                : _errorMessage != null && _allProducts.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.cloud_off_rounded,
+                                  size: 64, color: Colors.grey.shade400),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Failed to load products',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade700,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.inter(
+                                    fontSize: 13, color: AppTheme.textSubtle),
+                              ),
+                              const SizedBox(height: 16),
+                              AppButton(
+                                text: 'Retry',
+                                icon: Icons.refresh_rounded,
+                                variant: AppButtonVariant.primary,
+                                height: 42,
+                                fontSize: 13,
+                                onPressed: _loadProducts,
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : filtered.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.style_outlined,
+                                      size: 64, color: Colors.grey.shade300),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No tiles matching selected criteria',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try resetting your multi-select surface or size filters.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSubtle),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  AppButton(
+                                    text: 'Reset All Filters',
+                                    icon: Icons.refresh_rounded,
+                                    variant: AppButtonVariant.primary,
+                                    height: 42,
+                                    fontSize: 13,
+                                    onPressed: _clearAllFilters,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : MasonryGridView.count(
                     controller: _scrollController,
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     physics: const BouncingScrollPhysics(
