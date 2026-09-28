@@ -142,6 +142,7 @@ export interface QuotationItem {
 export type QuotationStatus = 
   | "draft" 
   | "pending_approval" 
+  | "pending_admin_approval"
   | "approved" 
   | "rejected" 
   | "sent_to_customer" 
@@ -177,20 +178,25 @@ export interface Quotation {
   approvedAt?: string;
   approvalRemarks?: string;
   remarks?: string;
+  pricePerSqft?: number;
+  rateThreshold?: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface ApprovalRequest {
   id: string;
-  referenceType: "quotation" | "price_exception" | "credit_limit";
+  referenceType: "quotation" | "price_exception" | "credit_limit" | "low_rate_po" | "order_confirmation";
   referenceId: string;
   referenceNumber: string;
+  orderId?: string;
   salespersonId: string;
   salespersonName: string;
   customerId: string;
   customerName: string;
   discountRequested: number;
+  pricePerSqft?: number;
+  rateThreshold?: number;
   totalValue: number;
   reason: string;
   status: "pending" | "approved" | "rejected";

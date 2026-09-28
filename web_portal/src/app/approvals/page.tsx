@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, updateDoc, doc } from "firebase/firestore";
 import { ApprovalRequest } from "@/types";
+import { adminConfirmOrder, adminRejectOrder } from "@/lib/order-service";
 import { 
   CheckSquare, 
   ShieldAlert, 
@@ -44,19 +45,22 @@ export default function ApprovalsPage() {
           setApprovals([
             {
               id: "app-1",
-              referenceType: "quotation",
+              referenceType: "low_rate_po",
               referenceId: "qt-103",
-              referenceNumber: "QT-2026-103",
+              referenceNumber: "ITC-PO-2026-9810",
+              orderId: "ORD_TEST_9810",
               salespersonId: "sp-1",
-              salespersonName: "Vikram Mehta",
+              salespersonName: "Vraj Shah",
               customerId: "cust-2",
-              customerName: "Apex Infra & Builders",
-              discountRequested: 18,
-              totalValue: 890000,
-              reason: "Bulk 1,200 box order for Skyline Residency commercial project. Competitor offered 16%.",
+              customerName: "Gujarat Ceramics & Tiles",
+              discountRequested: 10,
+              pricePerSqft: 24.50,
+              rateThreshold: 26.50,
+              totalValue: 50274,
+              reason: "PO effective rate is ₹24.50/sq.ft, which is below the mandatory ₹26.50/sq.ft threshold. Requires Admin confirmation before customer app release.",
               status: "pending",
               assignedToRole: "admin",
-              createdAt: "Today, 08:30 AM",
+              createdAt: "Today, 09:15 AM",
             },
             {
               id: "app-2",
@@ -68,6 +72,8 @@ export default function ApprovalsPage() {
               customerId: "cust-4",
               customerName: "Maruti Tile World",
               discountRequested: 20,
+              pricePerSqft: 29.80,
+              rateThreshold: 26.50,
               totalValue: 1450000,
               reason: "Yearly dealership renewal incentive. Full truckload booking.",
               status: "approved",
@@ -99,18 +105,32 @@ export default function ApprovalsPage() {
         decidedAt: new Date().toISOString(),
       });
 
-      // 2. If reference is quotation, update the quotation status too!
-      if (approval.referenceType === "quotation" && approval.referenceId) {
-        try {
-          await updateDoc(doc(db, "quotations", approval.referenceId), {
-            status: decision === "approved" ? "approved" : "rejected",
-            approvalStatus: decision,
-            approvedBy: user?.name || "Admin",
-            approvedAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        } catch (e) {
-          console.warn("Could not update related quotation:", e);
+      // 2. If this approval has an orderId or is a low_rate_po, update the order in orders collection!
+      if (decision === "approved") {
+        if (approval.orderId) {
+          await adminConfirmOrder(approval.orderId, approval.referenceId, user?.name || "Admin");
+        } else if (approval.referenceId) {
+          try {
+            await updateDoc(doc(db, "quotations", approval.referenceId), {
+              status: "approved",
+              approvalStatus: "approved",
+              approvedBy: user?.name || "Admin",
+              approvedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          } catch (_) {}
+        }
+      } else {
+        if (approval.orderId) {
+          await adminRejectOrder(approval.orderId, approval.referenceId, user?.name || "Admin", "Declined by Admin");
+        } else if (approval.referenceId) {
+          try {
+            await updateDoc(doc(db, "quotations", approval.referenceId), {
+              status: "rejected",
+              approvalStatus: "rejected",
+              updatedAt: new Date().toISOString(),
+            });
+          } catch (_) {}
         }
       }
 
@@ -170,13 +190,20 @@ export default function ApprovalsPage() {
                 className="card-luxury p-6 flex flex-col md:flex-row md:items-center justify-between gap-6"
               >
                 <div className="space-y-2">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-xs font-bold text-[#0E274D] bg-slate-100 px-2 py-0.5 rounded">
                       {item.referenceNumber}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                      {item.discountRequested}% Discount Requested
-                    </span>
+                    {item.referenceType === "low_rate_po" || (item.pricePerSqft && item.pricePerSqft < 26.50) ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-red-100 text-red-800 border border-red-300 flex items-center gap-1">
+                        <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                        Rate: ₹{item.pricePerSqft?.toFixed(2) || "24.50"}/sq.ft (&lt; ₹26.50 Threshold)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        {item.discountRequested}% Discount Requested
+                      </span>
+                    )}
                     <span className="text-xs text-slate-400">• Created: {item.createdAt}</span>
                   </div>
 
@@ -217,7 +244,7 @@ export default function ApprovalsPage() {
                           className="flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all cursor-pointer"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          <span>Approve & Sync App</span>
+                          <span>Confirm & Release to Customer App</span>
                         </button>
                       </div>
                     ) : (

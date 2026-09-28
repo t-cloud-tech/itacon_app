@@ -256,6 +256,9 @@ class _OrdersScreenState extends State<OrdersScreen>
           case 'pending_rate':
             displayStatus = 'Awaiting Quote';
             break;
+          case 'pending_admin_approval':
+            displayStatus = 'Awaiting Admin Confirmation';
+            break;
           case 'rate_quoted':
             displayStatus = 'Rates Quoted';
             break;
@@ -306,6 +309,8 @@ class _OrdersScreenState extends State<OrdersScreen>
           statusColor = AppTheme.statusSuccess;
         } else if (sLower == 'rate_quoted') {
           statusColor = AppTheme.accentOrange;
+        } else if (sLower == 'pending_admin_approval' || sLower == 'pending_manager_approval') {
+          statusColor = const Color(0xFFD97706); // Amber
         } else if (sLower == 'cancelled' || sLower == 'rejected') {
           statusColor = Colors.red;
         } else if (sLower == 'dispatched') {

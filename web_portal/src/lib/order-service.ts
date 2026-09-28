@@ -32,6 +32,8 @@ export interface ClientOrderItem {
   lineTotal?: number | null;
 }
 
+export const MIN_RATE_PER_SQFT = 26.50;
+
 export interface ClientOrderPO {
   id: string;
   orderReference: string;
@@ -41,7 +43,7 @@ export interface ClientOrderPO {
   companyName: string;
   customerPhone: string;
   salesPersonId: string;
-  status: "pending_rate" | "rate_quoted" | "confirmed" | "rejected" | "submitted" | "pending_quote";
+  status: "pending_rate" | "rate_quoted" | "confirmed" | "rejected" | "submitted" | "pending_quote" | "pending_admin_approval";
   orderType: string;
   deliveryAddress: string;
   transportRequired: boolean;
@@ -53,6 +55,11 @@ export interface ClientOrderPO {
   stateCode?: string;
   quotationId?: string;
   quotationNumber?: string;
+  pricePerSqft?: number;
+  adminApprovalRequired?: boolean;
+  adminApprovalStatus?: "pending" | "approved" | "rejected" | "none";
+  adminApprovedAt?: string;
+  adminApprovedBy?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -151,6 +158,11 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
     stateCode: data.stateCode || "GJ",
     quotationId: data.quotationId,
     quotationNumber: data.quotationNumber,
+    pricePerSqft: Number(data.pricePerSqft || 0),
+    adminApprovalRequired: data.adminApprovalRequired || false,
+    adminApprovalStatus: data.adminApprovalStatus || "none",
+    adminApprovedAt: data.adminApprovedAt,
+    adminApprovedBy: data.adminApprovedBy,
     createdAt: data.createdAt?.seconds 
       ? new Date(data.createdAt.seconds * 1000).toISOString()
       : (typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString()),
@@ -218,7 +230,11 @@ export function subscribeClientPORequests(
 
       snapshot.docs.forEach((d) => {
         const order = parseClientOrderDoc(d);
-        const isPending = order.status === "pending_rate" || order.status === "submitted" || order.status === "pending_quote";
+        const isPending = 
+          order.status === "pending_rate" || 
+          order.status === "submitted" || 
+          order.status === "pending_quote" || 
+          order.status === "pending_admin_approval";
         if (!isPending) return;
 
         if (shouldIncludeOrderForSalesperson(order, user, salesperson, role, allocatedIds)) {
@@ -297,7 +313,11 @@ export async function fetchClientPORequests(
 
     ordersSnap.docs.forEach((d) => {
       const order = parseClientOrderDoc(d);
-      const isPendingQuote = order.status === "pending_rate" || order.status === "submitted" || order.status === "pending_quote";
+      const isPendingQuote = 
+        order.status === "pending_rate" || 
+        order.status === "submitted" || 
+        order.status === "pending_quote" ||
+        order.status === "pending_admin_approval";
       if (!isPendingQuote) return;
 
       if (shouldIncludeOrderForSalesperson(order, user, salesperson, role, allocatedIds)) {
@@ -327,47 +347,7 @@ export async function fetchOrderById(orderId: string): Promise<ClientOrderPO | n
   try {
     const orderDoc = await getDoc(doc(db, "orders", orderId));
     if (orderDoc.exists()) {
-      const data = orderDoc.data();
-      const rawItems = Array.isArray(data.items) ? data.items : [];
-      const items: ClientOrderItem[] = rawItems.map((item: any) => ({
-        productId: item.productId || item.tileId || "prod-item",
-        sku: item.sku || "ITA-SKU-001",
-        productName: item.productName || item.tileName || "Tile Product",
-        size: item.size || "600x1200 mm",
-        surface: item.surface || "Polished",
-        color: item.color || "Standard",
-        quantityBoxes: Number(item.quantityBoxes || item.quantity || 1),
-        quantitySqFt: Number(item.quantitySqFt || 0),
-        sqftPerBox: Number(item.sqftPerBox || 15.5),
-        weightPerBoxKg: Number(item.weightPerBoxKg || 29.0),
-        unit: item.unit || "box",
-        basePrice: Number(item.basePrice || 540),
-        discountPercent: Number(item.discountPercent || 0),
-        unitPrice: item.unitPrice !== undefined ? item.unitPrice : null,
-        lineTotal: item.lineTotal !== undefined ? item.lineTotal : null,
-      }));
-
-      return {
-        id: orderDoc.id,
-        orderReference: data.orderReference || data.poNumber || orderId,
-        poNumber: data.poNumber || data.orderReference || orderId,
-        userId: data.userId || "",
-        customerName: data.customerName || data.name || "Client",
-        companyName: data.companyName || data.customerName || "Enterprise Firm",
-        customerPhone: data.customerPhone || data.phone || "",
-        salesPersonId: data.salesPersonId || "",
-        status: data.status || "pending_rate",
-        orderType: data.orderType || "ready_stock",
-        deliveryAddress: data.deliveryLocation?.address || data.deliveryAddress || "",
-        transportRequired: data.transportRequired !== false,
-        remarks: data.remarks || "",
-        totalBoxes: Number(data.totalBoxes) || items.reduce((s, i) => s + i.quantityBoxes, 0),
-        totalWeightKg: Number(data.totalWeightKg) || 0,
-        totalWeightTons: Number(data.totalWeightTons) || 0,
-        items,
-        stateCode: data.stateCode || "GJ",
-        createdAt: data.createdAt || new Date().toISOString(),
-      };
+      return parseClientOrderDoc(orderDoc);
     }
   } catch (err) {
     console.error("Error fetching order by ID:", err);
@@ -378,7 +358,8 @@ export async function fetchOrderById(orderId: string): Promise<ClientOrderPO | n
 
 /**
  * Updates a client order in Firestore when a quotation is generated by the salesperson.
- * Sets status to 'rate_quoted' and records the quoted unit rates and line totals.
+ * If the rate is below MIN_RATE_PER_SQFT (₹26.50/sq.ft), status is set to 'pending_admin_approval'.
+ * Otherwise, status is set to 'rate_quoted' (or confirmed) and made directly available to customer app.
  */
 export async function linkQuotationToOrder(
   orderId: string,
@@ -387,20 +368,35 @@ export async function linkQuotationToOrder(
   quotedItems: any[],
   subtotal: number,
   discountTotal: number,
-  grandTotal: number
+  grandTotal: number,
+  options?: {
+    requiresAdminConfirmation?: boolean;
+    pricePerSqft?: number;
+    salespersonName?: string;
+  }
 ): Promise<void> {
   try {
     const orderRef = doc(db, "orders", orderId);
+    const requiresAdmin = options?.requiresAdminConfirmation ?? false;
+    const pricePerSqft = options?.pricePerSqft ?? 0;
+
+    // If cost < ₹26.50/sq ft, order is locked in pending_admin_approval until Admin confirms
+    const status = requiresAdmin ? "pending_admin_approval" : "rate_quoted";
+
     await setDoc(
       orderRef,
       {
-        status: "rate_quoted",
+        status,
         quotationId,
         quotationNumber,
         quotedItems,
         subtotal,
         discount: discountTotal,
         totalAmount: grandTotal,
+        pricePerSqft,
+        minRateThreshold: MIN_RATE_PER_SQFT,
+        adminApprovalRequired: requiresAdmin,
+        adminApprovalStatus: requiresAdmin ? "pending" : "approved",
         rateQuotedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -408,5 +404,74 @@ export async function linkQuotationToOrder(
     );
   } catch (err) {
     console.warn("Could not sync quotation link to order document:", err);
+  }
+}
+
+/**
+ * Admin confirms the PO whose rate was below ₹26.50/sq.ft.
+ * Releases the confirmed PO directly to the customer mobile app!
+ */
+export async function adminConfirmOrder(
+  orderId: string,
+  quotationId?: string,
+  adminName: string = "Admin"
+): Promise<void> {
+  const orderRef = doc(db, "orders", orderId);
+  const now = new Date().toISOString();
+
+  // Status transitions to 'confirmed' (or 'rate_quoted' for customer visibility)
+  await updateDoc(orderRef, {
+    status: "confirmed",
+    adminApprovalStatus: "approved",
+    adminApprovedAt: now,
+    adminApprovedBy: adminName,
+    confirmedAt: now,
+    updatedAt: now,
+  });
+
+  if (quotationId) {
+    try {
+      const quoteRef = doc(db, "quotations", quotationId);
+      await updateDoc(quoteRef, {
+        status: "approved",
+        approvalStatus: "approved",
+        approvedBy: adminName,
+        approvedAt: now,
+        updatedAt: now,
+      });
+    } catch (_) {}
+  }
+}
+
+/**
+ * Admin rejects the low rate PO exception.
+ */
+export async function adminRejectOrder(
+  orderId: string,
+  quotationId?: string,
+  adminName: string = "Admin",
+  reason: string = "Quoted rate below ₹26.50/sq.ft threshold rejected by management"
+): Promise<void> {
+  const orderRef = doc(db, "orders", orderId);
+  const now = new Date().toISOString();
+
+  await updateDoc(orderRef, {
+    status: "rejected",
+    adminApprovalStatus: "rejected",
+    adminDecisionReason: reason,
+    adminApprovedBy: adminName,
+    updatedAt: now,
+  });
+
+  if (quotationId) {
+    try {
+      const quoteRef = doc(db, "quotations", quotationId);
+      await updateDoc(quoteRef, {
+        status: "rejected",
+        approvalStatus: "rejected",
+        adminDecisionReason: reason,
+        updatedAt: now,
+      });
+    } catch (_) {}
   }
 }

@@ -297,6 +297,7 @@ class TileOrder {
     return s == 'pending_rate' ||
            s == 'pending_salesperson_review' ||
            s == 'pending_manager_approval' ||
+           s == 'pending_admin_approval' ||
            s == 'awaiting_quote';
   }
 

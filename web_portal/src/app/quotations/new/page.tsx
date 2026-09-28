@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { Customer, QuotationItem } from "@/types";
 import { fetchLiveCustomers } from "@/lib/customer-service";
-import { fetchOrderById, linkQuotationToOrder, ClientOrderPO } from "@/lib/order-service";
+import { fetchOrderById, linkQuotationToOrder, ClientOrderPO, MIN_RATE_PER_SQFT } from "@/lib/order-service";
 
 function QuotationForm() {
   const router = useRouter();
@@ -254,7 +254,20 @@ function QuotationForm() {
 
   const subtotal = items.reduce((sum, i) => sum + (i.lineTotal || 0), 0);
   const maxDiscountGiven = items.reduce((max, i) => Math.max(max, i.discountPercent || 0), 0);
+
+  // Per Sq. Ft Rate Analysis (< ₹26.50/sq.ft threshold rule)
+  const avgRatePerSqft = totalSqft > 0 ? Number((subtotal / totalSqft).toFixed(2)) : 0;
+  const itemsBelowMinRate = items.filter(i => {
+    const rate = i.totalSqft > 0 ? (i.lineTotal / i.totalSqft) : (i.effectivePrice / (i.sqftPerBox || 15.5));
+    return rate < MIN_RATE_PER_SQFT;
+  });
+  const isRateBelowThreshold = avgRatePerSqft < MIN_RATE_PER_SQFT || itemsBelowMinRate.length > 0;
+
+  // Special discount approval rule (> 15% discount)
   const requiresSpecialApproval = maxDiscountGiven > 15;
+
+  // Mandatory Admin Confirmation applies if cost < ₹26.50/sq.ft OR discount > 15%
+  const requiresAdminConfirmation = isRateBelowThreshold || requiresSpecialApproval;
 
   const taxAmount = Number(((subtotal + freightCharges) * (taxPercent / 100)).toFixed(2));
   const grandTotal = Number((subtotal + freightCharges + taxAmount).toFixed(2));
@@ -296,7 +309,8 @@ function QuotationForm() {
 
     try {
       const quoteNumber = `QT-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const status = requiresSpecialApproval ? "pending_approval" : "approved";
+      // If cost < 26.50 / sq.ft, status is strictly pending_admin_approval
+      const quoteStatus = requiresAdminConfirmation ? "pending_admin_approval" : "approved";
       const discountTotal = items.reduce((sum, i) => sum + ((i.quantityBoxes * i.unitPrice) - i.lineTotal), 0);
 
       const docRef = await addDoc(collection(db, "quotations"), {
@@ -308,7 +322,7 @@ function QuotationForm() {
         customerPhone: selectedCust.phone,
         salespersonId: user?.userId || salesperson?.salesPersonId || "sp-1",
         salespersonName: user?.name || salesperson?.name || "Senior Sales Executive",
-        status,
+        status: quoteStatus,
         items,
         subtotal,
         discountTotal,
@@ -321,14 +335,18 @@ function QuotationForm() {
         paymentTerms,
         validityDays,
         expiryDate: new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        requiresSpecialApproval,
-        approvalStatus: requiresSpecialApproval ? "pending" : "approved",
+        pricePerSqft: avgRatePerSqft,
+        rateThreshold: MIN_RATE_PER_SQFT,
+        requiresSpecialApproval: requiresAdminConfirmation,
+        approvalStatus: requiresAdminConfirmation ? "pending" : "approved",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         timestamp: serverTimestamp(),
       });
 
-      // If linked to a client order, transition order to rate_quoted in Firestore
+      // If linked to a client order:
+      // If cost < 26.50/sq.ft -> order status = 'pending_admin_approval' (customer cannot see confirmed yet)
+      // If cost >= 26.50/sq.ft -> order status = 'rate_quoted' (customer can see immediately on app)
       if (linkedOrder) {
         await linkQuotationToOrder(
           linkedOrder.id,
@@ -337,23 +355,33 @@ function QuotationForm() {
           items,
           subtotal,
           discountTotal,
-          grandTotal
+          grandTotal,
+          {
+            requiresAdminConfirmation: isRateBelowThreshold,
+            pricePerSqft: avgRatePerSqft,
+            salespersonName: user?.name || salesperson?.name,
+          }
         );
       }
 
-      // If approval required, create approval request record for Admin
-      if (requiresSpecialApproval) {
+      // If admin confirmation required, create an approval request record for Admin
+      if (requiresAdminConfirmation) {
         await addDoc(collection(db, "approvalRequests"), {
-          referenceType: "quotation",
+          referenceType: isRateBelowThreshold ? "low_rate_po" : "quotation",
           referenceId: docRef.id,
-          referenceNumber: quoteNumber,
+          referenceNumber: linkedOrder ? (linkedOrder.poNumber || quoteNumber) : quoteNumber,
+          orderId: linkedOrder ? linkedOrder.id : null,
           salespersonId: user?.userId || "sp-1",
-          salespersonName: user?.name || "Sales Executive",
+          salespersonName: user?.name || salesperson?.name || "Sales Executive",
           customerId: selectedCust.id,
           customerName: selectedCust.companyName || selectedCust.name,
           discountRequested: maxDiscountGiven,
+          pricePerSqft: avgRatePerSqft,
+          rateThreshold: MIN_RATE_PER_SQFT,
           totalValue: grandTotal,
-          reason: `Special discount of ${maxDiscountGiven}% requested (exceeds default 15% threshold)`,
+          reason: isRateBelowThreshold
+            ? `PO effective rate is ₹${avgRatePerSqft.toFixed(2)}/sq.ft, which is below the mandatory ₹${MIN_RATE_PER_SQFT.toFixed(2)}/sq.ft threshold. Requires Admin confirmation before customer app release.`
+            : `Special discount of ${maxDiscountGiven}% requested (exceeds default 15% salesperson threshold)`,
           status: "pending",
           assignedToRole: "admin",
           createdAt: new Date().toISOString(),
@@ -659,11 +687,34 @@ function QuotationForm() {
                     </div>
 
                     {/* LINE TOTAL - Dynamically calculated */}
+                    {/* LINE TOTAL - Dynamically calculated */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Line Total</label>
                       <span className="text-xs font-bold text-[#0E274D] block py-1.5">
                         ₹{Number(item.lineTotal).toLocaleString("en-IN")}
                       </span>
+                    </div>
+
+                    {/* RATE PER SQ. FT INDICATOR */}
+                    <div className="col-span-2 sm:col-span-5 pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-slate-500">Effective Rate per Sq. Ft:</span>
+                        <strong className="text-[#0E274D] font-bold">
+                          ₹{((item.totalSqft > 0 ? (item.lineTotal / item.totalSqft) : (item.effectivePrice / (item.sqftPerBox || 15.5)))).toFixed(2)} / sq.ft
+                        </strong>
+                        <span className="text-slate-400 font-mono text-[10px]">(₹{item.effectivePrice}/box)</span>
+                      </div>
+                      {(item.totalSqft > 0 ? (item.lineTotal / item.totalSqft) : (item.effectivePrice / (item.sqftPerBox || 15.5))) < MIN_RATE_PER_SQFT ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                          <ShieldAlert className="w-3 h-3 text-amber-700" />
+                          Rate &lt; ₹26.50 / sq.ft (Admin Confirmation Required)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Rate &ge; ₹26.50 / sq.ft (Direct App Sync)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -682,6 +733,12 @@ function QuotationForm() {
               </div>
               <div>
                 <span>Total Area: <strong className="text-[#0E274D]">{totalSqft} Sqft</strong></span>
+              </div>
+              <div className="flex items-center space-x-1.5">
+                <span>Avg Rate:</span>
+                <strong className={`px-2 py-0.5 rounded text-xs ${avgRatePerSqft < MIN_RATE_PER_SQFT ? 'bg-amber-100 text-amber-900 font-extrabold border border-amber-300' : 'bg-emerald-100 text-emerald-800'}`}>
+                  ₹{avgRatePerSqft.toFixed(2)}/sq.ft
+                </strong>
               </div>
               <div className="text-right">
                 <span className="text-sm font-extrabold text-[#0E274D]">Subtotal: ₹{subtotal.toLocaleString("en-IN")}</span>
@@ -737,24 +794,38 @@ function QuotationForm() {
                   <p className="text-[11px] text-slate-500 mt-1">Based on ~{totalWeightTons} Tons shipment weight</p>
                 </div>
 
-                {requiresSpecialApproval ? (
+                {/* DYNAMIC APPROVAL RULES BANNER */}
+                {isRateBelowThreshold ? (
+                  <div className="p-4 rounded-xl bg-amber-50 border-2 border-amber-400 space-y-2.5">
+                    <div className="flex items-center space-x-2 font-bold text-xs text-amber-900">
+                      <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Admin Confirmation Required (Cost &lt; ₹26.50 / Sq. Ft)</span>
+                    </div>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      Effective price is <strong>₹{avgRatePerSqft.toFixed(2)} per sq. foot</strong>, which is below the minimum authorization threshold of <strong>₹{MIN_RATE_PER_SQFT.toFixed(2)}/sq.ft</strong>.
+                    </p>
+                    <div className="p-2.5 rounded-lg bg-amber-100/80 border border-amber-300 text-xs text-amber-950 font-medium">
+                      🔒 <strong>Customer App Safety Rule:</strong> Upon submission, this PO will be routed directly to the <strong>Admin Approvals</strong> queue. The customer will <strong>NOT</strong> see this PO as confirmed on their mobile app until Admin confirms it!
+                    </div>
+                  </div>
+                ) : requiresSpecialApproval ? (
                   <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 space-y-2">
                     <div className="flex items-center space-x-2 font-bold text-xs text-amber-800">
-                      <ShieldAlert className="w-4 h-4 text-amber-600" />
-                      <span>Admin Approval Required</span>
+                      <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Special Discount Approval Required</span>
                     </div>
                     <p className="text-xs text-amber-700 leading-relaxed">
-                      You have offered a discount of <strong>{maxDiscountGiven}%</strong> on at least one line item, which exceeds your standard 15% salesperson authorization limit. Upon submission, this quotation will be routed to Admin for signoff before customer app visibility.
+                      Discount of <strong>{maxDiscountGiven}%</strong> exceeds your standard 15% salesperson authorization limit. Routed to Admin for approval.
                     </p>
                   </div>
                 ) : (
-                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 space-y-1.5">
                     <div className="flex items-center space-x-2 font-bold text-xs text-emerald-800">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Instant Approval & Customer App Sync</span>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Direct Customer App Visibility (Price &gt; ₹26.50 / Sq. Ft)</span>
                     </div>
-                    <p className="text-xs text-emerald-700">
-                      Discount is within authorized thresholds (≤15%). Rates will immediately reflect in the client&apos;s mobile app order!
+                    <p className="text-xs text-emerald-700 leading-relaxed">
+                      Effective rate is <strong>₹{avgRatePerSqft.toFixed(2)}/sq.ft</strong> (&gt; ₹26.50). Once submitted, the confirmed PO and quoted rates will immediately be visible to the customer on the mobile app.
                     </p>
                   </div>
                 )}
@@ -762,11 +833,14 @@ function QuotationForm() {
                 {linkedOrder && (
                   <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 space-y-1">
                     <div className="font-bold flex items-center space-x-1.5">
-                      <Smartphone className="w-4 h-4 text-blue-600" />
+                      <Smartphone className="w-4 h-4 text-blue-600 shrink-0" />
                       <span>Live Mobile App Order Sync</span>
                     </div>
                     <p className="text-[11px] text-blue-700 leading-normal">
-                      Submitting will automatically transition client order <strong>{linkedOrder.poNumber || linkedOrder.orderReference}</strong> status to <span className="font-mono font-bold bg-blue-100 px-1 rounded">rate_quoted</span> in Firebase.
+                      Linked to Client PO <strong>{linkedOrder.poNumber || linkedOrder.orderReference}</strong>. 
+                      {isRateBelowThreshold 
+                        ? " Will transition to pending_admin_approval until approved by Admin."
+                        : " Will transition to rate_quoted for instant client review."}
                     </p>
                   </div>
                 )}

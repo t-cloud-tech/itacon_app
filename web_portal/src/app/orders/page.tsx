@@ -510,11 +510,17 @@ export default function SalesOrdersPage() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border ${
                           po.status === "pending_rate" 
                             ? "bg-amber-50 text-amber-800 border-amber-200" 
+                            : po.status === "pending_admin_approval"
+                            ? "bg-amber-100 text-amber-900 border-amber-300"
                             : po.status === "rate_quoted"
                             ? "bg-blue-50 text-blue-800 border-blue-200"
                             : "bg-emerald-50 text-emerald-800 border-emerald-200"
                         }`}>
-                          {po.status === "pending_rate" ? "Quote Needed" : po.status.replace("_", " ")}
+                          {po.status === "pending_rate" 
+                            ? "Quote Needed" 
+                            : po.status === "pending_admin_approval"
+                            ? "Awaiting Admin (< ₹26.50)"
+                            : po.status.replace("_", " ")}
                         </span>
                         <span className="text-xs text-slate-400">
                           {new Date(po.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -561,6 +567,14 @@ export default function SalesOrdersPage() {
                           <FileSpreadsheet className="w-4 h-4" />
                           <span>Quote Rates & Discount &rarr;</span>
                         </Link>
+                      ) : po.status === "pending_admin_approval" ? (
+                        <Link
+                          href={`/quotations/${po.quotationId || ""}`}
+                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>In Admin Review (&lt; ₹26.50)</span>
+                        </Link>
                       ) : (
                         <Link
                           href={`/quotations/${po.quotationId || ""}`}
@@ -571,7 +585,11 @@ export default function SalesOrdersPage() {
                         </Link>
                       )}
                       <span className="text-[11px] text-slate-400 text-center">
-                        {po.status === "pending_rate" ? "Quantities locked to PO" : "Rate estimate delivered"}
+                        {po.status === "pending_rate" 
+                          ? "Quantities locked to PO" 
+                          : po.status === "pending_admin_approval"
+                          ? "Awaiting Admin Confirmation"
+                          : "Rate estimate delivered"}
                       </span>
                     </div>
                   </div>

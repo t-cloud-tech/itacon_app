@@ -28,11 +28,11 @@ const db = getFirestore(app);
 // CONFIGURATION: Adjust as needed
 // ─────────────────────────────────────────────
 const CONFIG = {
-  name: "Vraj Shah",
-  email: "vraj@itacon.com",
+  name: "Vraj Patel",
+  email: "Vrajp9013@gmail.com",
   phone: "9876543210",
-  role: "salesperson", // "salesperson" or "admin"
-  password: "Sales@1234",
+  role: "admin", // "salesperson" or "admin"
+  password: "Admin@1234",
   salespersonCode: "SALES101",
   employeeId: "EMP-SP101",
   states: ["GJ", "MH", "DL", "KA"],
