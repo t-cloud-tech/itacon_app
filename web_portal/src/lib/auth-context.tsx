@@ -10,7 +10,7 @@ import {
   getDoc,
   limit
 } from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut as fbSignOut } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut as fbSignOut, signInAnonymously } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { hashPassword } from "./auth-utils";
 import { UserProfile, SalesPerson, UserRole } from "@/types";
@@ -43,6 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(parsed.user);
         setSalesperson(parsed.salesperson || null);
         setRole(parsed.role);
+        
+        // Ensure Firebase auth session exists if anonymous auth is supported
+        if (!auth.currentUser) {
+          signInAnonymously(auth).catch(() => {});
+        }
       }
     } catch (e) {
       console.error("Failed to restore session", e);
@@ -91,6 +96,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authUid = cred.user.uid;
       } catch (_) {
         // Firebase Auth sign-in might fail or phone accounts may not have email/pass
+      }
+
+      if (!auth.currentUser) {
+        try {
+          await signInAnonymously(auth);
+        } catch (_) {}
       }
 
       // If we didn't find by email/phone query earlier but got authUid, fetch user doc

@@ -1228,6 +1228,7 @@ class FirestoreService {
   Future<TileOrder> placeOrder({
     required String userId,
     String? customerName,
+    String? companyName,
     String? customerPhone,
     String? customerEmail,
     required String userCategory,
@@ -1246,12 +1247,14 @@ class FirestoreService {
     final docRef = _ordersRef.doc();
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
 
-    // Snapshot trusted customer identity from authenticated profile
-    String resolvedName = customerName ?? '';
-    String? resolvedPhone = customerPhone;
-    String? resolvedEmail = customerEmail;
+    // Resolve assigned salesperson and customer details if not provided
+    String spId = (salespersonId ?? '').trim();
+    String resolvedName = (customerName ?? '').trim();
+    String resolvedCompany = (companyName ?? '').trim();
+    String? resolvedPhone = customerPhone?.trim();
+    String? resolvedEmail = customerEmail?.trim();
 
-    if (resolvedName.isEmpty || resolvedPhone == null || resolvedEmail == null) {
+    if (spId.isEmpty || resolvedName.isEmpty || resolvedCompany.isEmpty || resolvedPhone == null || resolvedEmail == null) {
       try {
         final profile = await getUserProfile(userId);
         if (profile != null) {
@@ -1260,8 +1263,14 @@ class FirestoreService {
                 ? profile.name
                 : (profile.companyName.isNotEmpty ? profile.companyName : '');
           }
+          if (resolvedCompany.isEmpty) {
+            resolvedCompany = profile.companyName;
+          }
           resolvedPhone ??= profile.phone.isNotEmpty ? profile.phone : null;
           resolvedEmail ??= profile.email.isNotEmpty ? profile.email : null;
+          if (spId.isEmpty && (profile.salesPersonId?.isNotEmpty ?? false)) {
+            spId = profile.salesPersonId!;
+          }
         }
       } catch (_) {}
     }
@@ -1298,9 +1307,10 @@ class FirestoreService {
       orderReference: poRef,
       userId: userId,
       customerName: resolvedName,
+      companyName: resolvedCompany,
       customerPhone: resolvedPhone,
       customerEmail: resolvedEmail,
-      salesPersonId: salespersonId ?? '',
+      salesPersonId: spId,
       userCategory: userCategory,
       status: 'pending_rate',
       orderType: orderType,
@@ -1442,8 +1452,11 @@ class FirestoreService {
     return _ordersRef
         .where('userId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList())
-        .handleError((error) {
+        .map((snapshot) {
+      final list = snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList();
+      list.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+      return list;
+    }).handleError((error) {
       debugPrint('[FirestoreService] getUserOrdersStream non-fatal error for $userId: $error');
       return <TileOrder>[];
     });
