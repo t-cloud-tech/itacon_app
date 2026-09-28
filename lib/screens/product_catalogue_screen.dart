@@ -3,7 +3,6 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 import '../models/tile_product.dart';
-import 'auth_screen.dart';
 import '../services/user_session_service.dart';
 import '../widgets/adhesive_card.dart';
 import '../widgets/floating_bottom_bar.dart';
@@ -84,17 +83,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
   }
 
   void _handleSignOut() async {
-    await UserSessionService.clearUserSession();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const AuthScreen(
-          initialMode: AuthViewMode.login,
-        ),
-      ),
-      (route) => false,
-    );
+    await UserSessionService.logout(context);
   }
 
   List<TileProduct> get _filteredProducts {

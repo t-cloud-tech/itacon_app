@@ -921,7 +921,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       createdOrder = await OrderService.instance.submitOrder(
         userId: user.userId,
+        customerName: user.name.isNotEmpty
+            ? user.name
+            : (user.companyName.isNotEmpty ? user.companyName : 'Customer'),
+        customerPhone: user.phone.isNotEmpty ? user.phone : null,
+        customerEmail: user.email.isNotEmpty ? user.email : null,
         userCategory: user.userCategory,
+        salespersonId: user.salesPersonId,
         items: orderItems,
         orderType: 'ready_stock',
         deliveryAddress: deliveryAddress,

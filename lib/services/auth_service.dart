@@ -30,6 +30,11 @@ class AuthService {
 
   static String? _lastRegisteredUid;
 
+  /// Resets in-memory authentication state on logout
+  static void clearSessionState() {
+    _lastRegisteredUid = null;
+  }
+
   String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
 
   // ============================================================
@@ -304,21 +309,9 @@ class AuthService {
 
       await UserSessionService.saveUserSession(profile);
     } else {
-      // Phone is valid in Firebase but no ITACON profile exists.
-      // This fallback prevents the app from crashing.
-      final fallbackProfile = UserProfile(
-        userId: firebaseUser.uid,
-        name: 'User ${formattedPhone.substring(3)}',
-        phone: formattedPhone,
-        companyName: '',
-        email: firebaseUser.email ?? '',
-        userCategory: 'Dealer',
-        role: 'customer',
-        phoneVerified: true,
-      );
-
-      await UserSessionService.saveUserSession(
-        fallbackProfile,
+      // Reject missing profile and NEVER invent an unknown/fallback customer
+      throw Exception(
+        'No registered ITACON customer profile was found for this mobile number. Please register your account.',
       );
     }
   }
@@ -1127,6 +1120,6 @@ class AuthService {
   // ============================================================
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    await UserSessionService.logout();
   }
 }

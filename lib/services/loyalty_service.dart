@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/loyalty_config.dart';
 import '../models/loyalty_transaction.dart';
@@ -84,6 +86,14 @@ class LoyaltyService {
   /// Streams real-time loyalty points balance for the user
   Stream<int> streamUserLoyaltyPoints(String userId) {
     if (userId.isEmpty) return Stream.value(0);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value(0);
+        }
+      }
+    } catch (_) {}
     return _db.collection('users').doc(userId).snapshots().map((snap) {
       if (!snap.exists || snap.data() == null) return 0;
       final data = snap.data()!;
@@ -94,6 +104,14 @@ class LoyaltyService {
   /// Streams the user's loyalty transaction history ordered by latest first
   Stream<List<LoyaltyTransaction>> streamUserTransactions(String userId) {
     if (userId.isEmpty) return Stream.value([]);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value([]);
+        }
+      }
+    } catch (_) {}
     return _transactionsRef
         .where('userId', isEqualTo: userId)
         .snapshots()
@@ -115,6 +133,14 @@ class LoyaltyService {
   /// Streams the list of referrals made by this customer
   Stream<List<ReferralModel>> streamUserReferrals(String userId) {
     if (userId.isEmpty) return Stream.value([]);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value([]);
+        }
+      }
+    } catch (_) {}
     return _referralsRef
         .where('referrerUid', isEqualTo: userId)
         .snapshots()
@@ -135,6 +161,14 @@ class LoyaltyService {
   /// Streams user redemption requests
   Stream<List<LoyaltyRedemption>> streamUserRedemptions(String userId) {
     if (userId.isEmpty) return Stream.value([]);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value([]);
+        }
+      }
+    } catch (_) {}
     return _redemptionsRef
         .where('userId', isEqualTo: userId)
         .snapshots()

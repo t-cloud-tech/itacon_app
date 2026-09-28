@@ -183,6 +183,14 @@ class TileOrder {
   final String? shipmentId;
   final double? freightAmount;
   final String dispatchStatus; // unassigned, assigned, dispatched, delivered
+  final String customerName; // Customer display name snapshot at order creation
+  final String? customerPhone; // Customer contact phone
+  final String? customerEmail; // Customer email
+  final String? paymentStatus; // e.g. pending, paid, failed (future payment architecture)
+  final double? paidAmount; // Amount successfully paid
+  final String? paymentId; // Gateway payment transaction ID
+  final DateTime? paidAt; // Payment timestamp
+  final DateTime? deliveredAt; // Delivery/completion timestamp
   final DateTime? rateQuotedAt;
   final DateTime? confirmedAt;
   final DateTime? createdAt;
@@ -193,6 +201,9 @@ class TileOrder {
     String? orderId,
     required this.orderReference,
     required this.userId,
+    this.customerName = '',
+    this.customerPhone,
+    this.customerEmail,
     this.salesPersonId = '',
     required this.userCategory,
     required this.status,
@@ -216,6 +227,11 @@ class TileOrder {
     this.shipmentId,
     this.freightAmount,
     this.dispatchStatus = 'unassigned',
+    this.paymentStatus,
+    this.paidAmount,
+    this.paymentId,
+    this.paidAt,
+    this.deliveredAt,
     this.rateQuotedAt,
     this.confirmedAt,
     this.createdAt,
@@ -223,6 +239,49 @@ class TileOrder {
   })  : taxAmount = taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18),
         totalAmount = totalAmount ?? (subtotal - discount + (taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18))),
         orderId = orderId ?? id;
+
+  String get customerId => userId;
+  bool get isPaid => paymentStatus?.toLowerCase() == 'paid';
+
+  /// Whether this order has completed its delivery/payment business lifecycle (History tab)
+  bool get isHistoryStage {
+    final s = status.toLowerCase();
+    final ds = dispatchStatus.toLowerCase();
+    return s == 'completed' ||
+           s == 'delivered' ||
+           ds == 'delivered' ||
+           s == 'cancelled' ||
+           s == 'rejected' ||
+           (paymentStatus?.toLowerCase() == 'paid' && (s == 'completed' || s == 'delivered' || ds == 'delivered'));
+  }
+
+  /// Whether this order is in the initial pending quote phase (Pending Quote tab)
+  bool get isPendingQuoteStage {
+    if (isHistoryStage) return false;
+    final s = status.toLowerCase();
+    return s == 'pending_rate' ||
+           s == 'pending_salesperson_review' ||
+           s == 'pending_manager_approval' ||
+           s == 'awaiting_quote';
+  }
+
+  /// Whether rates have been quoted by salesperson and awaiting customer review (Rates Quoted tab)
+  bool get isRateQuotedStage {
+    if (isHistoryStage) return false;
+    final s = status.toLowerCase();
+    return s == 'rate_quoted';
+  }
+
+  /// Whether this order is confirmed and moving through active fulfillment (Confirmed tab)
+  bool get isConfirmedStage {
+    if (isHistoryStage) return false;
+    final s = status.toLowerCase();
+    return s == 'confirmed' ||
+           s == 'processing' ||
+           s == 'dispatched' ||
+           dispatchStatus.toLowerCase() == 'dispatched' ||
+           dispatchStatus.toLowerCase() == 'assigned';
+  }
 
   String get orderReferenceNumber => orderReference;
   String? get salespersonId => salesPersonId.isNotEmpty ? salesPersonId : null;
@@ -237,8 +296,13 @@ class TileOrder {
       'orderReference': orderReference,
       'orderReferenceNumber': orderReference,
       'userId': userId,
+      'customerId': userId,
+      'customerName': customerName,
+      if (customerPhone != null && customerPhone!.isNotEmpty) 'customerPhone': customerPhone,
+      if (customerEmail != null && customerEmail!.isNotEmpty) 'customerEmail': customerEmail,
       'salesPersonId': salesPersonId,
       'userCategory': userCategory,
+      'customerCategory': userCategory,
       'status': status,
       'orderType': orderType,
       'poNumber': poNumber,
@@ -280,6 +344,11 @@ class TileOrder {
       'shipmentId': shipmentId,
       'freightAmount': freightAmount,
       'dispatchStatus': dispatchStatus,
+      if (paymentStatus != null) 'paymentStatus': paymentStatus,
+      if (paidAmount != null) 'paidAmount': paidAmount,
+      if (paymentId != null) 'paymentId': paymentId,
+      if (paidAt != null) 'paidAt': Timestamp.fromDate(paidAt!),
+      if (deliveredAt != null) 'deliveredAt': Timestamp.fromDate(deliveredAt!),
       'rateQuotedAt': rateQuotedAt != null ? Timestamp.fromDate(rateQuotedAt!) : null,
       'confirmedAt': confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
       'createdAt': createdAt != null
@@ -306,13 +375,25 @@ class TileOrder {
 
     final rawItems = map['orderItems'] ?? map['items'];
 
+    final cName = map['customerName'] ?? map['clientName'] ?? map['userName'] ?? '';
+    final cPhone = map['customerPhone'] ?? map['phone'] as String?;
+    final cEmail = map['customerEmail'] ?? map['email'] as String?;
+    final pStatus = map['paymentStatus'] as String?;
+    final pAmount = (map['paidAmount'] as num?)?.toDouble();
+    final pIdVal = map['paymentId'] as String?;
+    final pAt = map['paidAt'] is Timestamp ? (map['paidAt'] as Timestamp).toDate() : null;
+    final dAt = map['deliveredAt'] is Timestamp ? (map['deliveredAt'] as Timestamp).toDate() : null;
+
     return TileOrder(
       id: docId,
       orderId: oId,
       orderReference: ref,
-      userId: map['userId'] ?? '',
+      userId: map['userId'] ?? map['customerId'] ?? '',
+      customerName: cName,
+      customerPhone: cPhone,
+      customerEmail: cEmail,
       salesPersonId: map['salesPersonId'] ?? map['salespersonId'] ?? '',
-      userCategory: map['userCategory'] ?? map['role'] ?? 'dealer',
+      userCategory: map['userCategory'] ?? map['customerCategory'] ?? map['role'] ?? 'dealer',
       status: map['status'] ?? 'pending_rate',
       orderType: map['orderType'] ?? 'ready_stock',
       poNumber: map['poNumber'] ?? '',
@@ -337,6 +418,11 @@ class TileOrder {
       shipmentId: map['shipmentId'] as String?,
       freightAmount: (map['freightAmount'] as num?)?.toDouble(),
       dispatchStatus: map['dispatchStatus'] as String? ?? 'unassigned',
+      paymentStatus: pStatus,
+      paidAmount: pAmount,
+      paymentId: pIdVal,
+      paidAt: pAt,
+      deliveredAt: dAt,
       rateQuotedAt: map['rateQuotedAt'] is Timestamp
           ? (map['rateQuotedAt'] as Timestamp).toDate()
           : null,
@@ -357,6 +443,9 @@ class TileOrder {
     String? orderId,
     String? orderReference,
     String? userId,
+    String? customerName,
+    String? customerPhone,
+    String? customerEmail,
     String? salesPersonId,
     String? userCategory,
     String? status,
@@ -380,6 +469,11 @@ class TileOrder {
     String? shipmentId,
     double? freightAmount,
     String? dispatchStatus,
+    String? paymentStatus,
+    double? paidAmount,
+    String? paymentId,
+    DateTime? paidAt,
+    DateTime? deliveredAt,
     DateTime? rateQuotedAt,
     DateTime? confirmedAt,
     DateTime? createdAt,
@@ -390,6 +484,9 @@ class TileOrder {
       orderId: orderId ?? this.orderId,
       orderReference: orderReference ?? this.orderReference,
       userId: userId ?? this.userId,
+      customerName: customerName ?? this.customerName,
+      customerPhone: customerPhone ?? this.customerPhone,
+      customerEmail: customerEmail ?? this.customerEmail,
       salesPersonId: salesPersonId ?? this.salesPersonId,
       userCategory: userCategory ?? this.userCategory,
       status: status ?? this.status,
@@ -413,6 +510,11 @@ class TileOrder {
       shipmentId: shipmentId ?? this.shipmentId,
       freightAmount: freightAmount ?? this.freightAmount,
       dispatchStatus: dispatchStatus ?? this.dispatchStatus,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paidAmount: paidAmount ?? this.paidAmount,
+      paymentId: paymentId ?? this.paymentId,
+      paidAt: paidAt ?? this.paidAt,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
       rateQuotedAt: rateQuotedAt ?? this.rateQuotedAt,
       confirmedAt: confirmedAt ?? this.confirmedAt,
       createdAt: createdAt ?? this.createdAt,

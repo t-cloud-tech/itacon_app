@@ -15,6 +15,9 @@ class OrderService {
   /// Submits a Purchase Order to Firestore with automatic tonnage & box count tracking
   Future<TileOrder> submitOrder({
     required String userId,
+    String? customerName,
+    String? customerPhone,
+    String? customerEmail,
     required String userCategory,
     required List<OrderItem> items,
     required String orderType,
@@ -34,6 +37,9 @@ class OrderService {
 
     return await _firestore.placeOrder(
       userId: userId,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      customerEmail: customerEmail,
       userCategory: userCategory,
       items: items,
       orderType: orderType,

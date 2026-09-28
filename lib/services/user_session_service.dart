@@ -1,10 +1,14 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
+import '../screens/auth_screen.dart';
 import 'app_state_service.dart';
+import 'auth_service.dart';
 import 'notification_service.dart';
+import 'user_demand_service.dart';
 
 /// Manages persistent user login session across app restarts
 class UserSessionService {
@@ -27,14 +31,68 @@ class UserSessionService {
   static const String _keyAvatarUrl = 'user_avatar_url';
   static const String _keyShowroomImagesJson = 'user_showroom_images_json';
 
+  static bool _isLoggingOut = false;
+  static bool get isLoggingOut => _isLoggingOut;
+
+  /// Centralized, atomic logout method for the entire application.
+  /// All Logout entry points (Drawer, ProfileScreen, Catalogue, etc.) must invoke this method.
+  static Future<void> logout([BuildContext? context]) async {
+    if (_isLoggingOut) {
+      debugPrint('[UserSessionService] Logout already in progress. Ignoring duplicate call.');
+      return;
+    }
+    _isLoggingOut = true;
+
+    try {
+      // 1. Close any open Drawer if context is provided
+      if (context != null && context.mounted) {
+        try {
+          Scaffold.of(context).closeDrawer();
+        } catch (_) {}
+      }
+
+      // 2. Perform complete session, auth, cache, and in-memory state teardown
+      await clearUserSession();
+
+      // 3. Navigate cleanly to AuthScreen on the root navigator, wiping the entire stack
+      final navState = NotificationService.navigatorKey.currentState ??
+          (context != null && context.mounted ? Navigator.of(context, rootNavigator: true) : null);
+
+      if (navState != null) {
+        navState.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const AuthScreen(initialMode: AuthViewMode.login),
+          ),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      debugPrint('[UserSessionService] Error during centralized logout: $e');
+    } finally {
+      _isLoggingOut = false;
+    }
+  }
+
   /// Saves user profile & marks session as logged in
   static Future<void> saveUserSession(UserProfile profile) async {
     // Never persist a fake fallback user profile
     if (profile.userId.isEmpty ||
         profile.userId == 'GUEST_USER' ||
-        profile.name == 'Valued Partner') {
+        profile.name == 'Valued Partner' ||
+        profile.name.startsWith('User ')) {
       return;
     }
+
+    // Security check: only accept profile if it matches current FirebaseAuth user
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final currentAuthUser = FirebaseAuth.instance.currentUser;
+        if (currentAuthUser == null || currentAuthUser.uid != profile.userId) {
+          debugPrint('[UserSessionService] Rejecting profile save: UID does not match active FirebaseAuth user');
+          return;
+        }
+      }
+    } catch (_) {}
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyIsLoggedIn, true);
@@ -74,13 +132,29 @@ class UserSessionService {
 
     if (cachedUserId == 'GUEST_USER' ||
         cachedUserName == 'Valued Partner' ||
-        cachedUserId == 'RESTORED_USER') {
-      await clearUserSession();
+        cachedUserId == 'RESTORED_USER' ||
+        (cachedUserName != null && cachedUserName.startsWith('User '))) {
+      await clearUserSession(signOutFirebase: false);
     }
   }
 
   /// Restores active user session from SharedPreferences for the authenticated Firebase user
   static Future<UserProfile?> restoreUserSession() async {
+    // CRITICAL: FirebaseAuth is the absolute source of truth.
+    // If Firebase is initialized and FirebaseAuth has no authenticated user, the customer is NOT logged in.
+    // Never restore a cached session when FirebaseAuth.currentUser == null.
+    User? firebaseUser;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        firebaseUser = FirebaseAuth.instance.currentUser;
+        if (firebaseUser == null) {
+          debugPrint('[UserSessionService] No active FirebaseAuth session. Clearing local cache.');
+          await clearUserSession(signOutFirebase: false);
+          return null;
+        }
+      }
+    } catch (_) {}
+
     final prefs = await SharedPreferences.getInstance();
     final bool isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
     final cachedUserId = prefs.getString(_keyUserId);
@@ -89,31 +163,22 @@ class UserSessionService {
     // Sanitize any legacy fallback / guest user cache immediately
     if (cachedUserId == 'GUEST_USER' ||
         cachedUserName == 'Valued Partner' ||
-        cachedUserId == 'RESTORED_USER') {
-      await clearUserSession();
+        cachedUserId == 'RESTORED_USER' ||
+        (cachedUserName != null && cachedUserName.startsWith('User '))) {
+      await clearUserSession(signOutFirebase: false);
       return null;
     }
 
-    User? firebaseUser;
-    try {
-      if (Firebase.apps.isNotEmpty) {
-        firebaseUser = FirebaseAuth.instance.currentUser;
-      }
-    } catch (_) {}
-
-    // If neither SharedPreferences has an active login session nor Firebase Auth has a user,
-    // the user is not logged in.
-    if (!isLoggedIn && firebaseUser == null && cachedUserId == null) {
+    // Cached UID must strictly match the authenticated Firebase user
+    if (!isLoggedIn || cachedUserId == null || (firebaseUser != null && cachedUserId != firebaseUser.uid)) {
+      debugPrint('[UserSessionService] Cached session does not match authenticated Firebase UID. Clearing local cache.');
+      await clearUserSession(signOutFirebase: false);
       return null;
     }
 
     final userId = firebaseUser?.uid ?? cachedUserId;
-    if (userId == null || userId.isEmpty || userId == 'GUEST_USER' || userId == 'RESTORED_USER') {
-      return null;
-    }
-
     final name = prefs.getString(_keyUserName) ?? firebaseUser?.displayName ?? '';
-    if (name.isEmpty || name == 'Valued Partner') {
+    if (name.isEmpty || name == 'Valued Partner' || name.startsWith('User ')) {
       return null;
     }
 
@@ -177,7 +242,7 @@ class UserSessionService {
   }
 
   /// Clears user session and logs out completely
-  static Future<void> clearUserSession() async {
+  static Future<void> clearUserSession({bool signOutFirebase = true}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyIsLoggedIn);
     await prefs.remove(_keyUserId);
@@ -198,14 +263,22 @@ class UserSessionService {
     await prefs.remove(_keyAvatarUrl);
     await prefs.remove(_keyShowroomImagesJson);
 
-    try {
-      if (Firebase.apps.isNotEmpty) {
-        await FirebaseAuth.instance.signOut();
+    if (signOutFirebase) {
+      try {
+        if (Firebase.apps.isNotEmpty) {
+          await FirebaseAuth.instance.signOut();
+        }
+      } catch (e) {
+        debugPrint('[UserSessionService] Firebase signOut error: $e');
       }
-    } catch (_) {}
+    }
 
-    // Reset AppStateService user profile, cart, and favorites
+    // Reset temporary auth service memory
+    AuthService.clearSessionState();
+
+    // Reset AppStateService user profile, cart, favorites, and demand models
     AppStateService.instance.clearUserProfile();
     AppStateService.instance.clearCartAndFavorites();
+    UserDemandService.instance.reset();
   }
 }

@@ -7,10 +7,12 @@ import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   final VoidCallback? onBackToHome;
+  final Stream<List<TileOrder>>? ordersStream;
 
   const OrdersScreen({
     super.key,
     this.onBackToHome,
+    this.ordersStream,
   });
 
   @override
@@ -20,6 +22,8 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -30,7 +34,29 @@ class _OrdersScreenState extends State<OrdersScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  List<TileOrder> _applySearch(List<TileOrder> orders) {
+    if (_searchQuery.isEmpty) return orders;
+    return orders.where((order) {
+      final refMatch = order.orderReference.toLowerCase().contains(_searchQuery);
+      final poMatch = order.poNumber.toLowerCase().contains(_searchQuery);
+      final customerMatch = order.customerName.toLowerCase().contains(_searchQuery);
+      final addressMatch = order.deliveryAddress.toLowerCase().contains(_searchQuery);
+      final itemMatch = order.items.any((item) =>
+          item.productName.toLowerCase().contains(_searchQuery) ||
+          item.sku.toLowerCase().contains(_searchQuery) ||
+          item.surface.toLowerCase().contains(_searchQuery));
+      return refMatch || poMatch || customerMatch || addressMatch || itemMatch;
+    }).toList();
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 
   @override
@@ -53,13 +79,16 @@ class _OrdersScreenState extends State<OrdersScreen>
         title: const Text('My Orders'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           labelColor: AppTheme.primaryNavy,
           unselectedLabelColor: AppTheme.textSubtle,
           indicatorColor: AppTheme.accentOrange,
           indicatorWeight: 3,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 16),
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(text: 'All'),
+            Tab(text: 'History'),
             Tab(text: 'Pending Quote'),
             Tab(text: 'Rates Quoted'),
             Tab(text: 'Confirmed'),
@@ -67,7 +96,7 @@ class _OrdersScreenState extends State<OrdersScreen>
         ),
       ),
       body: StreamBuilder<List<TileOrder>>(
-        stream: FirestoreService.instance.getUserOrdersStream(userId),
+        stream: widget.ordersStream ?? FirestoreService.instance.getUserOrdersStream(userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy));
@@ -75,14 +104,35 @@ class _OrdersScreenState extends State<OrdersScreen>
 
           final allOrders = snapshot.data ?? [];
 
+          // Deterministic stage separation: Each active order belongs to EXACTLY one tab
+          final historyOrders = allOrders.where((o) => o.isHistoryStage).toList();
+          final pendingQuoteOrders = allOrders.where((o) => o.isPendingQuoteStage).toList();
+          final ratesQuotedOrders = allOrders.where((o) => o.isRateQuotedStage).toList();
+          final confirmedOrders = allOrders.where((o) => o.isConfirmedStage).toList();
+
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: TextField(
+                  controller: _searchController,
+                  onChanged: (val) {
+                    setState(() {
+                      _searchQuery = val.trim().toLowerCase();
+                    });
+                  },
                   decoration: InputDecoration(
-                    hintText: 'Search PO reference or product...',
+                    hintText: 'Search PO reference, product or client...',
                     prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSubtle),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, color: AppTheme.textSubtle),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -91,10 +141,38 @@ class _OrdersScreenState extends State<OrdersScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildOrderList(allOrders),
-                    _buildOrderList(allOrders.where((o) => o.status == 'pending_rate').toList()),
-                    _buildOrderList(allOrders.where((o) => o.status == 'rate_quoted').toList()),
-                    _buildOrderList(allOrders.where((o) => o.status == 'confirmed').toList()),
+                    _buildOrderList(
+                      _applySearch(historyOrders),
+                      tabName: 'History',
+                      emptyTitle: 'No completed orders yet',
+                      emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
+                      emptyIcon: Icons.receipt_long_outlined,
+                      isHistoryTab: true,
+                    ),
+                    _buildOrderList(
+                      _applySearch(pendingQuoteOrders),
+                      tabName: 'Pending Quote',
+                      emptyTitle: 'No Pending Quotes',
+                      emptySubtitle: 'When you place an order, quotation requests awaiting factory rates appear here.',
+                      emptyIcon: Icons.hourglass_empty_rounded,
+                      isHistoryTab: false,
+                    ),
+                    _buildOrderList(
+                      _applySearch(ratesQuotedOrders),
+                      tabName: 'Rates Quoted',
+                      emptyTitle: 'No Rates Quoted',
+                      emptySubtitle: 'Orders with rates provided by your salesperson ready for review appear here.',
+                      emptyIcon: Icons.request_quote_outlined,
+                      isHistoryTab: false,
+                    ),
+                    _buildOrderList(
+                      _applySearch(confirmedOrders),
+                      tabName: 'Confirmed',
+                      emptyTitle: 'No Confirmed Orders',
+                      emptySubtitle: 'Accepted and active confirmed orders appear here.',
+                      emptyIcon: Icons.check_circle_outline_rounded,
+                      isHistoryTab: false,
+                    ),
                   ],
                 ),
               ),
@@ -105,23 +183,48 @@ class _OrdersScreenState extends State<OrdersScreen>
     );
   }
 
-  Widget _buildOrderList(List<TileOrder> orders) {
+  Widget _buildOrderList(
+    List<TileOrder> orders, {
+    required String tabName,
+    required String emptyTitle,
+    required String emptySubtitle,
+    required IconData emptyIcon,
+    required bool isHistoryTab,
+  }) {
     if (orders.isEmpty) {
+      final isSearching = _searchQuery.isNotEmpty;
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.assignment_outlined, size: 64, color: AppTheme.textLight.withValues(alpha: 0.5)),
-            const SizedBox(height: 12),
-            const Text(
-              'No Orders Found',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDark,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isSearching ? Icons.search_off_rounded : emptyIcon,
+                size: 64,
+                color: AppTheme.textLight.withValues(alpha: 0.5),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                isSearching ? 'No Matching Orders' : emptyTitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isSearching ? 'No orders match "$_searchQuery" under $tabName.' : emptySubtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSubtle,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -144,7 +247,11 @@ class _OrdersScreenState extends State<OrdersScreen>
             displayStatus = 'PO Confirmed';
             break;
           case 'pending_salesperson_review':
+          case 'pending_manager_approval':
             displayStatus = 'Under Review';
+            break;
+          case 'processing':
+            displayStatus = 'In Production';
             break;
           case 'dispatched':
             displayStatus = 'Dispatched';
@@ -152,26 +259,49 @@ class _OrdersScreenState extends State<OrdersScreen>
           case 'delivered':
             displayStatus = 'Delivered';
             break;
+          case 'completed':
+            displayStatus = 'Completed';
+            break;
+          case 'rejected':
+            displayStatus = 'Declined';
+            break;
           case 'cancelled':
             displayStatus = 'Cancelled';
             break;
           default:
-            displayStatus = order.status
-                .replaceAll('_', ' ')
-                .split(' ')
-                .map((s) => s.isNotEmpty
-                    ? '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}'
-                    : '')
-                .join(' ');
+            if (order.dispatchStatus.toLowerCase() == 'delivered') {
+              displayStatus = 'Delivered';
+            } else if (order.dispatchStatus.toLowerCase() == 'dispatched') {
+              displayStatus = 'Dispatched';
+            } else {
+              displayStatus = order.status
+                  .replaceAll('_', ' ')
+                  .split(' ')
+                  .map((s) => s.isNotEmpty
+                      ? '${s[0].toUpperCase()}${s.substring(1).toLowerCase()}'
+                      : '')
+                  .join(' ');
+            }
         }
 
-        final Color statusColor = order.status == 'confirmed'
-            ? AppTheme.statusSuccess
-            : (order.status == 'rate_quoted'
-                ? AppTheme.accentOrange
-                : (order.status == 'cancelled'
-                    ? Colors.red
-                    : AppTheme.primaryNavy));
+        final Color statusColor;
+        final sLower = order.status.toLowerCase();
+        if (sLower == 'confirmed' || sLower == 'delivered' || sLower == 'completed' || order.dispatchStatus == 'delivered') {
+          statusColor = AppTheme.statusSuccess;
+        } else if (sLower == 'rate_quoted') {
+          statusColor = AppTheme.accentOrange;
+        } else if (sLower == 'cancelled' || sLower == 'rejected') {
+          statusColor = Colors.red;
+        } else if (sLower == 'dispatched') {
+          statusColor = Colors.teal;
+        } else {
+          statusColor = AppTheme.primaryNavy;
+        }
+
+        final orderDateStr = _formatDate(order.createdAt);
+        final completionDateStr = order.deliveredAt != null
+            ? _formatDate(order.deliveredAt)
+            : (order.updatedAt != null && isHistoryTab ? _formatDate(order.updatedAt) : '');
 
         return GestureDetector(
           onTap: () {
@@ -193,15 +323,33 @@ class _OrdersScreenState extends State<OrdersScreen>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
-                      child: Text(
-                        order.orderReference,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryNavy,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order.orderReference,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primaryNavy,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (order.customerName.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Customer: ${order.customerName}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textSubtle,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -254,11 +402,39 @@ class _OrdersScreenState extends State<OrdersScreen>
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                          if (orderDateStr.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              completionDateStr.isNotEmpty && isHistoryTab
+                                  ? 'Ordered: $orderDateStr • Completed: $completionDateStr'
+                                  : 'Order Date: $orderDateStr',
+                              style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                            ),
+                          ],
                         ],
                       ),
                     ),
                   ],
                 ),
+                // Future payment status badge if present
+                if (order.paymentStatus != null && order.paymentStatus!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: (order.isPaid ? AppTheme.statusSuccess : AppTheme.accentOrange).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Payment: ${order.paymentStatus!.toUpperCase()}${order.paidAmount != null ? ' (₹${order.paidAmount!.toStringAsFixed(2)})' : ''}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: order.isPaid ? AppTheme.statusSuccess : AppTheme.accentOrange,
+                      ),
+                    ),
+                  ),
+                ],
                 const Divider(height: 20, color: AppTheme.borderSubtle),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -307,5 +483,3 @@ class _OrdersScreenState extends State<OrdersScreen>
     );
   }
 }
-
-

@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_category.dart';
 import '../models/user_profile.dart';
 import '../models/sales_person.dart';
@@ -1203,6 +1205,9 @@ class FirestoreService {
 
   Future<TileOrder> placeOrder({
     required String userId,
+    String? customerName,
+    String? customerPhone,
+    String? customerEmail,
     required String userCategory,
     required List<OrderItem> items,
     required String orderType,
@@ -1217,6 +1222,26 @@ class FirestoreService {
   }) async {
     final docRef = _ordersRef.doc();
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
+
+    // Snapshot trusted customer identity from authenticated profile
+    String resolvedName = customerName ?? '';
+    String? resolvedPhone = customerPhone;
+    String? resolvedEmail = customerEmail;
+
+    if (resolvedName.isEmpty || resolvedPhone == null || resolvedEmail == null) {
+      try {
+        final profile = await getUserProfile(userId);
+        if (profile != null) {
+          if (resolvedName.isEmpty) {
+            resolvedName = profile.name.isNotEmpty
+                ? profile.name
+                : (profile.companyName.isNotEmpty ? profile.companyName : '');
+          }
+          resolvedPhone ??= profile.phone.isNotEmpty ? profile.phone : null;
+          resolvedEmail ??= profile.email.isNotEmpty ? profile.email : null;
+        }
+      } catch (_) {}
+    }
 
     int computedBoxes = 0;
     final pendingItems = items.map((i) {
@@ -1249,6 +1274,9 @@ class FirestoreService {
       id: docRef.id,
       orderReference: poRef,
       userId: userId,
+      customerName: resolvedName,
+      customerPhone: resolvedPhone,
+      customerEmail: resolvedEmail,
       salesPersonId: salespersonId ?? '',
       userCategory: userCategory,
       status: 'pending_rate',
@@ -1374,10 +1402,16 @@ class FirestoreService {
   /// Stream real-time orders for a specific user ID
   Stream<List<TileOrder>> getUserOrdersStream(String userId) {
     if (userId.isEmpty) {
-      return _ordersRef.snapshots().map(
-            (snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList(),
-          );
+      return Stream.value(<TileOrder>[]);
     }
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value(<TileOrder>[]);
+        }
+      }
+    } catch (_) {}
     return _ordersRef
         .where('userId', isEqualTo: userId)
         .snapshots()
@@ -1696,6 +1730,15 @@ class FirestoreService {
   // ===========================================================================
 
   Stream<List<TileOrder>> streamUserOrders(String userId) {
+    if (userId.isEmpty) return Stream.value(<TileOrder>[]);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value(<TileOrder>[]);
+        }
+      }
+    } catch (_) {}
     return _ordersRef.where('userId', isEqualTo: userId).snapshots().map(
         (snap) => snap.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList());
   }
@@ -2162,6 +2205,14 @@ class FirestoreService {
   /// Streams notifications for a specific recipient user from `users/{userId}/notifications`
   Stream<List<NotificationQueueItem>> getUserNotificationsStream(String userId) {
     if (userId.isEmpty) return Stream.value([]);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value([]);
+        }
+      }
+    } catch (_) {}
     return _db
         .collection('users')
         .doc(userId)
@@ -2196,6 +2247,14 @@ class FirestoreService {
   /// Streams unread notification count for a user
   Stream<int> streamUnreadNotificationCount(String userId) {
     if (userId.isEmpty) return Stream.value(0);
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid == null || authUid != userId) {
+          return Stream.value(0);
+        }
+      }
+    } catch (_) {}
     return _db
         .collection('users')
         .doc(userId)

@@ -81,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen>
     // 1. Purge any legacy fallback/guest session data immediately
     await UserSessionService.purgeLegacyFallbackData();
 
-    // 2. Check Firebase Authentication state
+    // 2. Check Firebase Authentication state (source of truth)
     User? currentUser;
     try {
       if (Firebase.apps.isNotEmpty) {
@@ -98,18 +98,13 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (_) {}
 
-    // 3. Restore active session from SharedPreferences
-    final restoredProfile = await UserSessionService.restoreUserSession();
-
-    final activeUid = currentUser?.uid ?? restoredProfile?.userId;
-
     // -------------------------------------------------------------------------
-    // CASE B: No authenticated or logged-in user
+    // CASE B: No authenticated user in FirebaseAuth -> Root Login / Welcome
     // -------------------------------------------------------------------------
-    if (activeUid == null ||
-        activeUid.isEmpty ||
-        activeUid == 'GUEST_USER' ||
-        activeUid == 'RESTORED_USER') {
+    if (currentUser == null || currentUser.uid.isEmpty) {
+      debugPrint('[SplashScreen] No active FirebaseAuth user session. Routing to Login.');
+      await UserSessionService.clearUserSession(signOutFirebase: false);
+
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
       final remainingMs = 1800 - elapsedMs;
       if (remainingMs > 0) {
@@ -122,9 +117,12 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     // -------------------------------------------------------------------------
-    // CASE A: Authenticated / Logged-in customer exists
+    // CASE A: Authenticated customer exists in FirebaseAuth
     // -------------------------------------------------------------------------
-    final uid = activeUid;
+    final uid = currentUser.uid;
+
+    // 3. Restore active session from SharedPreferences for this specific authenticated user
+    final restoredProfile = await UserSessionService.restoreUserSession();
     UserProfile? realProfile;
     bool isNetworkError = false;
 

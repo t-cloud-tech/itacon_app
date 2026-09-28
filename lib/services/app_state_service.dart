@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/tile_product.dart';
 import '../models/user_profile.dart';
 import 'firestore_service.dart';
@@ -74,14 +76,39 @@ class AppStateService extends ChangeNotifier {
           companyName: '',
           phone: '',
           email: '',
-          userCategory: 'Dealer',
-          role: 'customer',
+          userCategory: '',
+          role: '',
         );
   }
 
-  bool get hasSessionProfile => _currentUserProfile != null;
+  bool get hasSessionProfile =>
+      _currentUserProfile != null &&
+      _currentUserProfile!.userId.isNotEmpty &&
+      _currentUserProfile!.userId != 'GUEST_USER' &&
+      _currentUserProfile!.name != 'Valued Partner' &&
+      (Firebase.apps.isEmpty ||
+          FirebaseAuth.instance.currentUser == null ||
+          FirebaseAuth.instance.currentUser?.uid == _currentUserProfile!.userId);
 
   void setCurrentUserProfile(UserProfile profile) {
+    if (profile.userId.isEmpty ||
+        profile.userId == 'GUEST_USER' ||
+        profile.name == 'Valued Partner' ||
+        profile.name.startsWith('User ')) {
+      return;
+    }
+
+    // Security check: only accept profile if UID matches active FirebaseAuth user
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final currentAuthUser = FirebaseAuth.instance.currentUser;
+        if (currentAuthUser == null || currentAuthUser.uid != profile.userId) {
+          debugPrint('[AppStateService] Rejecting profile: UID does not match active FirebaseAuth user');
+          return;
+        }
+      }
+    } catch (_) {}
+
     _currentUserProfile = profile;
     notifyListeners();
   }

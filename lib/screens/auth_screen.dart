@@ -136,6 +136,15 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
     _viewMode = widget.initialMode;
+    _loginStep = 1;
+    _signupStep = 1;
+    _loginOtpSent = false;
+    _isLoginSendingOtp = false;
+    _otpSent = false;
+    _isRegSendingOtp = false;
+    _isLoading = false;
+    _verificationId = null;
+    _resendToken = null;
   }
 
   @override

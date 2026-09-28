@@ -16,7 +16,6 @@ import '../screens/favorites_screen.dart';
 import '../screens/orders_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
-import '../screens/auth_screen.dart';
 import '../screens/refer_and_earn_screen.dart';
 import '../screens/loyalty_benefits_screen.dart';
 import 'app_avatar_image.dart';
@@ -194,25 +193,27 @@ class AppNavigationDrawer extends StatelessWidget {
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 6),
-                                // Category Badge Pill
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.accentOrange,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    user.userCategory.toUpperCase(),
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
+                                if (user.userCategory.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  // Category Badge Pill
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.accentOrange,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      user.userCategory.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -931,21 +932,7 @@ class AppNavigationDrawer extends StatelessWidget {
   }
 
   Future<void> _performDirectLogout(BuildContext context) async {
-    try {
-      Scaffold.of(context).closeDrawer();
-    } catch (_) {}
-    await UserSessionService.clearUserSession();
-    if (context.mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const AuthScreen(
-            initialMode: AuthViewMode.login,
-          ),
-        ),
-        (route) => false,
-      );
-    }
+    await UserSessionService.logout(context);
   }
 
   void _showSupportDialog(BuildContext context) {

@@ -12,7 +12,6 @@ import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
 import '../models/user_profile.dart';
 import '../widgets/profile_tier_card.dart';
-import 'auth_screen.dart';
 import 'orders_screen.dart';
 import 'favorites_screen.dart';
 import 'notifications_screen.dart';
@@ -500,33 +499,36 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
 
-                      // User Category Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.5)),
-                        ),
-                        child: Text(
-                          profile.userCategory.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.accentOrange,
-                            letterSpacing: 0.5,
+                      if (profile.userCategory.isNotEmpty) ...[
+                        // User Category Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentOrange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.5)),
+                          ),
+                          child: Text(
+                            profile.userCategory.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.accentOrange,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
+                      ],
 
-                      Text(
-                        '${profile.email.isNotEmpty ? profile.email : "No Email"} • ${profile.phone}',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.white70,
+                      if (profile.email.isNotEmpty || profile.phone.isNotEmpty)
+                        Text(
+                          '${profile.email.isNotEmpty ? profile.email : "No Email"} • ${profile.phone}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.white70,
+                          ),
                         ),
-                      ),
                       if (profile.dateOfBirth.isNotEmpty || profile.religion.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Wrap(
@@ -868,18 +870,7 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _performDirectLogout(BuildContext context) async {
-    await UserSessionService.clearUserSession();
-    if (context.mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const AuthScreen(
-            initialMode: AuthViewMode.login,
-          ),
-        ),
-        (route) => false,
-      );
-    }
+    await UserSessionService.logout(context);
   }
 }
 
