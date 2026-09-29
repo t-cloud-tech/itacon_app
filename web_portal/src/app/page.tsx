@@ -6,7 +6,9 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
-import { subscribeClientPORequests, ClientOrderPO } from "@/lib/order-service";
+import { subscribeClientPORequests, subscribeAllOrders, ClientOrderPO } from "@/lib/order-service";
+import { RevenueOverviewCard } from "@/components/dashboard/revenue-overview-card";
+import { OrdersStatusDonutCard } from "@/components/dashboard/orders-status-donut-card";
 import { 
   TrendingUp, 
   Users, 
@@ -42,6 +44,7 @@ export default function DashboardPage() {
   const [recentQuotes, setRecentQuotes] = useState<any[]>([]);
   const [needsAttention, setNeedsAttention] = useState<any[]>([]);
   const [poRequests, setPoRequests] = useState<ClientOrderPO[]>([]);
+  const [allOrders, setAllOrders] = useState<ClientOrderPO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +52,11 @@ export default function DashboardPage() {
     const unsubPOs = subscribeClientPORequests(user, salesperson, role, (livePOs) => {
       setPoRequests(livePOs);
       setStats((prev) => ({ ...prev, pendingPOs: livePOs.length }));
+    });
+
+    // 2. Subscribe to all live orders for executive funnel, revenue & status metrics
+    const unsubOrders = subscribeAllOrders(user, salesperson, role, (liveOrders) => {
+      setAllOrders(liveOrders);
     });
 
     async function fetchDashboardData() {
@@ -172,13 +180,22 @@ export default function DashboardPage() {
 
     return () => {
       unsubPOs();
+      unsubOrders();
     };
   }, [user, salesperson, role]);
 
   return (
     <DashboardShell
-      title={`Welcome back, ${user?.name || "Executive"}`}
-      subtitle={`Sales Territory: ${salesperson?.region || "Western Region"} • Real-time Sync Active`}
+      title={
+        role === "admin"
+          ? "Admin Executive Dashboard"
+          : `Welcome back, ${user?.name || "Executive"}`
+      }
+      subtitle={
+        role === "admin"
+          ? "Morbi Manufacturing Hub • Order pipeline funnel & revenue intelligence"
+          : `Sales Territory: ${salesperson?.region || "Western Region"} • Real-time Sync Active`
+      }
     >
       <div className="space-y-8 max-w-7xl mx-auto">
         {/* Real-time Client PO Alert Banner */}
@@ -264,7 +281,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* KPI Metric Cards */}
+        {/* ========================================================================= */}
+        {/* EXECUTIVE ANALYTICS SECTION: REVENUE OVERVIEW & STATUS DONUT              */}
+        {/* ========================================================================= */}
+        <div className="space-y-6">
+          {/* Card 1: Revenue Overview (today / this week / this month / this quarter / this year) with trend charts */}
+          <RevenueOverviewCard orders={allOrders} quotations={recentQuotes} />
+
+          {/* Card 2: Orders by Status: Donut chart: pending_rate, rate_quoted, confirmed, rejected counts */}
+          <OrdersStatusDonutCard orders={allOrders} />
+        </div>
+
+        {/* Operational KPI Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1: Active Leads */}
           <div className="card-luxury p-5 flex flex-col justify-between">
