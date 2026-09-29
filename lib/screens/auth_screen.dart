@@ -540,18 +540,20 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
-      // Verify username and password credentials directly on Step 1
+      // Verify OTP + username/password credentials directly on Step 1
       setState(() => _isLoading = true);
       try {
-        final identifier = _loginUsernameController.text.trim().isNotEmpty
-            ? _loginUsernameController.text.trim()
-            : '+91${_loginPhoneController.text.trim()}';
+        final rawPhone = _loginPhoneController.text.trim();
+        final formattedPhone = _loginE164Phone.isNotEmpty
+            ? _loginE164Phone
+            : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
 
-        await _authService.loginUser(
-          loginIdentifier: identifier,
-          password: _loginPasswordController.text.trim(),
-          verificationId: _verificationId,
+        await _authService.loginWithPhoneOtpAndCredentials(
+          phoneNumber: formattedPhone,
+          verificationId: _verificationId ?? '',
           smsCode: _loginOtpController.text.trim(),
+          password: _loginPasswordController.text.trim(),
+          username: _loginUsernameController.text.trim(),
         );
 
         // Only transition to Step 2 (Customer Referral Code) if credentials are valid!

@@ -93,8 +93,7 @@ class AppStateService extends ChangeNotifier {
   void setCurrentUserProfile(UserProfile profile) {
     if (profile.userId.isEmpty ||
         profile.userId == 'GUEST_USER' ||
-        profile.name == 'Valued Partner' ||
-        profile.name.startsWith('User ')) {
+        profile.name == 'Valued Partner') {
       return;
     }
 
@@ -102,7 +101,7 @@ class AppStateService extends ChangeNotifier {
     try {
       if (Firebase.apps.isNotEmpty) {
         final currentAuthUser = FirebaseAuth.instance.currentUser;
-        if (currentAuthUser == null || currentAuthUser.uid != profile.userId) {
+        if (currentAuthUser != null && currentAuthUser.uid != profile.userId) {
           debugPrint('[AppStateService] Rejecting profile: UID does not match active FirebaseAuth user');
           return;
         }

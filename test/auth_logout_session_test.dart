@@ -48,25 +48,26 @@ void main() {
       expect(appState.currentUserProfile.name, isEmpty);
     });
 
-    test('AppStateService rejects fallback names starting with User ', () {
+    test('AppStateService accepts authenticated phone profile with phone user name', () {
       final appState = AppStateService();
       appState.clearUserProfile();
 
-      const fallbackPhoneProfile = UserProfile(
+      const phoneProfile = UserProfile(
         userId: 'some_uid_9876',
         name: 'User 9876543210',
-        companyName: 'ITACON',
+        companyName: 'ITACON Partner',
         email: 'user@itacon.com',
         phone: '+919876543210',
         userCategory: 'Dealer',
         role: 'customer',
       );
 
-      appState.setCurrentUserProfile(fallbackPhoneProfile);
+      appState.setCurrentUserProfile(phoneProfile);
 
-      // Verify that auto-generated "User <phone>" fallback profiles are strictly rejected
-      expect(appState.hasSessionProfile, isFalse);
-      expect(appState.currentUserProfile.userId, isEmpty);
+      // Verify that genuine phone-registered customer profiles are accepted
+      expect(appState.hasSessionProfile, isTrue);
+      expect(appState.currentUserProfile.userId, equals('some_uid_9876'));
+      expect(appState.currentUserProfile.name, equals('User 9876543210'));
     });
 
     test('AppStateService accept valid profile and clearUserProfile works correctly', () {

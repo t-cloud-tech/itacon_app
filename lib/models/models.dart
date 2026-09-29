@@ -30,6 +30,8 @@ export 'category_model.dart';
 export 'product_model.dart';
 export 'system_config_model.dart';
 export 'product_enums.dart';
+export 'payment_config.dart';
+export 'payment_submission.dart';
 
 import 'transporter_model.dart';
 import 'shipment_model.dart';

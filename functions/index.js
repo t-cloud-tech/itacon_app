@@ -26,3 +26,18 @@ exports.submitLoyaltyRedemptionCallable = submitLoyaltyRedemptionCallable;
 exports.submitReferralCodeCallable = submitReferralCodeCallable;
 exports.approveReferralOrderRewardCallable = approveReferralOrderRewardCallable;
 
+// Secure Manual Bank Transfer Payment Functions
+const {
+  initiatePaymentSubmissionCallable,
+  finalizePaymentSubmissionCallable,
+  submitPaymentProofCallable,
+  verifyPaymentCallable,
+  rejectPaymentCallable,
+} = require('./paymentEngine');
+
+exports.initiatePaymentSubmissionCallable = initiatePaymentSubmissionCallable;
+exports.finalizePaymentSubmissionCallable = finalizePaymentSubmissionCallable;
+exports.submitPaymentProofCallable = submitPaymentProofCallable;
+exports.verifyPaymentCallable = verifyPaymentCallable;
+exports.rejectPaymentCallable = rejectPaymentCallable;
+

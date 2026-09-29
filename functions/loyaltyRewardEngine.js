@@ -219,9 +219,9 @@ exports.onUserCreatedReward = functions.firestore
  * Triggered when an Order in `orders/{orderId}` is created or updated.
  *
  * Rules:
- * 1. Purchase Loyalty Points: When order first becomes `status === 'confirmed'` with `totalBoxes > 0`,
+ * 1. Purchase Loyalty Points: When order transitions to `paymentStatus === 'paid'` with `totalBoxes > 0`,
  *    awards `totalBoxes * pointsPerBox` points to customer. Idempotent key `purchase_order_${orderId}`.
- * 2. Referral Step 2 Qualification: When referred customer places first qualifying order (`status === 'confirmed'`,
+ * 2. Referral Step 2 Qualification: When referred customer places first legitimate paid order (`paymentStatus === 'paid'`,
  *    `totalBoxes > 0`, valid totals), referral status becomes `reward_pending` (eligible for ₹5,555).
  *    Does NOT automatically approve/pay ₹5,555; keeps it pending for admin/business approval.
  */
@@ -234,8 +234,19 @@ exports.onOrderStatusChangedRewards = functions.firestore
 
     if (!afterData) return null; // Order deleted
 
-    // Only process if status is 'confirmed'
-    if (afterData.status !== 'confirmed') {
+    // Trigger strictly when payment becomes 'paid':
+    // Specifically detect: before.paymentStatus !== 'paid' AND after.paymentStatus === 'paid'
+    const beforePaymentStatus = (beforeData && beforeData.paymentStatus) ? String(beforeData.paymentStatus).toLowerCase() : '';
+    const afterPaymentStatus = afterData.paymentStatus ? String(afterData.paymentStatus).toLowerCase() : '';
+
+    if (beforePaymentStatus === 'paid' || afterPaymentStatus !== 'paid') {
+      return null;
+    }
+
+    // Do not award rewards if order has been cancelled or rejected
+    const orderStatus = (afterData.status || '').toLowerCase();
+    if (orderStatus === 'cancelled' || orderStatus === 'rejected') {
+      console.log(`[RewardEngine] Order ${orderId} has payment status paid but order is ${orderStatus}. Skipping.`);
       return null;
     }
 

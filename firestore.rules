@@ -2,132 +2,715 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if request payload contains sensitive password/credential fields
-    function hasSensitiveFields(requestData) {
-      return ('password' in requestData) ||
-             ('pass' in requestData) ||
-             ('hash' in requestData) ||
-             ('token' in requestData);
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
+
+    // Deny writes that include plaintext credential fields
+    function hasSensitiveFields(data) {
+      return ('password' in data) ||
+             ('pass' in data) ||
+             ('hash' in data) ||
+             ('token' in data);
     }
 
-    // Helper function to check if user is authenticated
+    // Authenticated request
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper function to check if requesting user is accessing their own document
+    // Request is from the owner of a given userId
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Helper function to check if request payload attempts to supply trusted reward fields directly
-    function hasRewardFields(requestData) {
-      return ('loyaltyPoints' in requestData) ||
-             ('lifetimePoints' in requestData) ||
-             ('welcomeBonusGranted' in requestData) ||
-             ('referredBy' in requestData);
+    // Staff = admin, manager, salesperson (via custom claim OR Firestore role/category).
+    // NOTE: salesPersons document existence check = cost-effective proxy for salesperson auth.
+    function isStaff() {
+      return isAuthenticated() && (
+        (('admin' in request.auth.token) && request.auth.token.admin == true) ||
+        (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager', 'salesperson', 'staff']) ||
+        exists(/databases/$(database)/documents/salesPersons/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'salesperson', 'staff'] ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager', 'salesperson', 'staff']
+        ))
+      );
     }
 
-    // Helper function to check if request is modifying privileged fields (role, userCategory, or reward balances)
-    function isModifyingPrivilegedFields() {
+    // Admin or manager only (for payment config, reward config writes)
+    function isAdminOrManager() {
+      return isAuthenticated() && (
+        (('admin' in request.auth.token) && request.auth.token.admin == true) ||
+        (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager']
+        ))
+      );
+    }
+
+    // Check if authenticated user is the assigned salesperson for this order
+    // Uses direct order fields (salesPersonId, salespersonId) or client assignment collections
+    function isAssignedSalespersonForOrder(orderData) {
+      return isStaff() && (
+        (('salesPersonId' in orderData) && orderData.salesPersonId == request.auth.uid) ||
+        (('salespersonId' in orderData) && orderData.salespersonId == request.auth.uid) ||
+        (('userId' in orderData) && orderData.userId != '' && (
+          (exists(/databases/$(database)/documents/Auto_Assign_User/$(orderData.userId)) &&
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.userId)).data.assignedSalesPersonId == request.auth.uid)) ||
+          (exists(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)) && (
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data.assignedSalesPersonId == request.auth.uid) ||
+           (('salesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data.salesPersonId == request.auth.uid)
+          )) ||
+          (exists(/databases/$(database)/documents/users/$(orderData.userId)) && (
+           (('salesPersonId' in get(/databases/$(database)/documents/users/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.userId)).data.salesPersonId == request.auth.uid) ||
+           (('assignedSalespersonId' in get(/databases/$(database)/documents/users/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.userId)).data.assignedSalespersonId == request.auth.uid)
+          ))
+        )) ||
+        (('customerId' in orderData) && orderData.customerId != '' && (
+          (exists(/databases/$(database)/documents/Auto_Assign_User/$(orderData.customerId)) &&
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.customerId)).data.assignedSalesPersonId == request.auth.uid)) ||
+          (exists(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)) && (
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data.assignedSalesPersonId == request.auth.uid) ||
+           (('salesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data.salesPersonId == request.auth.uid)
+          )) ||
+          (exists(/databases/$(database)/documents/users/$(orderData.customerId)) && (
+           (('salesPersonId' in get(/databases/$(database)/documents/users/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.customerId)).data.salesPersonId == request.auth.uid) ||
+           (('assignedSalespersonId' in get(/databases/$(database)/documents/users/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.customerId)).data.assignedSalespersonId == request.auth.uid)
+          ))
+        ))
+      );
+    }
+
+    // Deny writes that forge privileged user fields
+    function isModifyingPrivilegedUserFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
         .hasAny(['role', 'userCategory', 'loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
     }
 
-    // Users Collection Security Rules:
-    // - Enforce no password, pass, hash, or token fields allowed in payload.
-    // - Disallow client control over trusted reward fields on creation (initialized exclusively by Cloud Functions).
-    // - Privileged fields (role, userCategory, loyaltyPoints, etc.) can only be updated by admins or backend functions.
-    match /users/{userId} {
-      allow read: if isOwner(userId) || (isAuthenticated() && request.auth.token.admin == true) || true;
-
-      allow create: if !hasSensitiveFields(request.resource.data) &&
-        !hasRewardFields(request.resource.data);
-
-      allow update: if !hasSensitiveFields(request.resource.data) &&
-        (!isModifyingPrivilegedFields() || (isAuthenticated() && request.auth.token.admin == true));
-
-      allow delete: if isAuthenticated() && request.auth.token.admin == true;
+    // Deny creates that smuggle reward fields
+    function hasRewardFields(data) {
+      return ('loyaltyPoints' in data) ||
+             ('lifetimePoints' in data) ||
+             ('welcomeBonusGranted' in data) ||
+             ('referredBy' in data);
     }
 
-    // Customer Rewards & Loyalty System Rules:
-    // Remote reward configuration is readable by all authenticated clients, writeable only by admin
+    // =========================================================================
+    // USERS COLLECTION
+    // =========================================================================
+    // users/{userId} — stores customer and staff profile documents
+    match /users/{userId} {
+      // Any authenticated user can read their own profile; staff can read any profile.
+      // Public read of basic profile fields (read: if true) intentionally removed —
+      // profile data is personal. Staff/admin reads via isStaff().
+      allow read: if isOwner(userId) || isStaff();
+
+      // Customer self-registration: authenticated user creating their own document.
+      // Admin/manager can create user profiles (e.g. staff provisioning).
+      allow create: if (isOwner(userId) || isAdminOrManager()) &&
+        !hasSensitiveFields(request.resource.data) &&
+        !hasRewardFields(request.resource.data) &&
+        // Self-registered customers cannot grant themselves staff/admin roles
+        (!isOwner(userId) || !('role' in request.resource.data) || !(request.resource.data.role in ['admin', 'manager', 'salesperson', 'staff']));
+
+      // Customer may update ONLY their own legitimate non-privileged profile fields.
+      // Admin/manager can update full user profile including privileged fields.
+      // Staff can update assigned customer operational fields (e.g. assignment link) without modifying privileged fields.
+      allow update: if isAuthenticated() &&
+        !hasSensitiveFields(request.resource.data) &&
+        ((isOwner(userId) && !isModifyingPrivilegedUserFields()) ||
+         isAdminOrManager() ||
+         (isStaff() && !isModifyingPrivilegedUserFields()));
+
+      allow delete: if isAdminOrManager();
+
+      // -----------------------------------------------------------------------
+      // users/{userId}/notifications — per-user notification subcollection
+      // -----------------------------------------------------------------------
+      match /notifications/{notifId} {
+        allow read, update: if isOwner(userId) || isStaff();
+        // User themselves (owner) or staff/backend can create notifications
+        allow create: if isAuthenticated() && (
+          isOwner(userId) ||
+          isStaff()
+        ) && !hasSensitiveFields(request.resource.data);
+        allow delete: if isOwner(userId) || isStaff();
+      }
+
+      // -----------------------------------------------------------------------
+      // users/{userId}/cart — embedded cart subcollection (alternative to /carts)
+      // -----------------------------------------------------------------------
+      match /cart/{itemId} {
+        allow read, write: if isOwner(userId) || isStaff();
+      }
+
+      // -----------------------------------------------------------------------
+      // users/{userId}/demand_profile — aggregated browsing/wishlist demand data
+      // Written by: customer (own) via logUserDemand / getUserDemandProfile
+      // Path: users/{userId}/demand_profile/{document}  (document = 'summary')
+      // -----------------------------------------------------------------------
+      match /demand_profile/{docId} {
+        allow read: if isOwner(userId) || isStaff();
+        // Customer can write their own demand summary (wishlist tracking, search history)
+        allow write: if isOwner(userId) || isStaff();
+      }
+
+      // -----------------------------------------------------------------------
+      // users/{userId}/assigned_clients — salesperson's assigned client list
+      // -----------------------------------------------------------------------
+      match /assigned_clients/{clientId} {
+        allow read: if isAuthenticated();
+        allow write: if isStaff();
+      }
+    }
+
+    // =========================================================================
+    // ORDERS COLLECTION
+    // Production-hardened PO quotation & payment lifecycle:
+    // 1. PO Creation: Customers create initial POs in 'pending_rate' status.
+    // 2. Salesperson Quotation: Assigned salesperson or staff submits rates/pricing.
+    // 3. Customer Decision: Confirm ('rate_quoted' -> 'confirmed') or reject.
+    //    Customer CANNOT modify quoted financial amounts or salesPersonId.
+    // 4. Payment Security: Customers CANNOT directly set paymentStatus = 'paid',
+    //    or forge paidAmount, paymentId, paidAt. Payment via Cloud Functions only.
+    // =========================================================================
+    match /orders/{orderId} {
+      // Read: order owner (userId or customerId), assigned salesperson, or staff
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.salesPersonId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+
+      // CREATE: Authenticated customer creating their own initial PO.
+      //
+      // The Flutter toMap() always writes these fields on initial PO create:
+      //   id, orderId, orderReference, orderReferenceNumber
+      //   userId, customerId (both = request.auth.uid)
+      //   customerName, customerPhone?, customerEmail?
+      //   salesPersonId (may be '' empty string — awaiting assignment)
+      //   userCategory, customerCategory
+      //   status = 'pending_rate'
+      //   orderType, poNumber, poDocumentUrl
+      //   deliveryLocation, deliveryAddress, transportRequired, remarks
+      //   subtotal=0, discount=0, taxAmount=0, totalAmount=0, tax=0, total=0
+      //   totalBoxes, totalWeightKg, totalWeightTons
+      //   orderItems, items (List of item maps)
+      //   stateCode, priceApprovalStatus
+      //   estimateDetails (Map)
+      //   shipmentId=null, freightAmount=null, dispatchStatus='unassigned'
+      //   paymentMethod='bank_transfer'
+      //   paymentStatus='not_required'   (conditionally included)
+      //   rateQuotedAt=null              (always written, even if null)
+      //   confirmedAt=null               (always written, even if null)
+      //   createdAt=Timestamp or serverTimestamp
+      //   updatedAt=serverTimestamp
+      //
+      // Security constraints enforced:
+      //   - Ownership: userId or customerId must equal request.auth.uid
+      //   - Status locked to initial states only
+      //   - Customer CANNOT forge payment fields at create
+      //   - Customer CANNOT forge privileged salesperson quotation fields
+      allow create: if isAuthenticated() && (
+        // 1. Authenticated customer creating their own initial PO
+        ((request.resource.data.userId == request.auth.uid ||
+          request.resource.data.customerId == request.auth.uid) &&
+         // STATUS: only legitimate initial states permitted
+         request.resource.data.status in [
+           'pending_rate',
+           'pending_salesperson_review',
+           'awaiting_quote'
+         ] &&
+         // PAYMENT INTEGRITY: customer cannot forge payment status
+         (!('paymentStatus' in request.resource.data) ||
+           request.resource.data.paymentStatus in ['not_required', 'unpaid', 'payment_due']) &&
+         // PAYMENT INTEGRITY: customer cannot set a non-zero paid amount
+         (!('paidAmount' in request.resource.data) ||
+           request.resource.data.paidAmount == 0 ||
+           request.resource.data.paidAmount == null) &&
+         // PAYMENT INTEGRITY: customer cannot forge paidAt
+         (!('paidAt' in request.resource.data) ||
+           request.resource.data.paidAt == null) &&
+         // PAYMENT INTEGRITY: customer cannot forge paymentId
+         (!('paymentId' in request.resource.data) ||
+           request.resource.data.paymentId == null) &&
+         // QUOTATION INTEGRITY: customer cannot pre-fill authoritative quoted amounts
+         (!('rateQuotedAt' in request.resource.data) ||
+           request.resource.data.rateQuotedAt == null) &&
+         (!('confirmedAt' in request.resource.data) ||
+           request.resource.data.confirmedAt == null) &&
+         !hasSensitiveFields(request.resource.data)) ||
+
+        // 2. Admin/Manager can create orders
+        isAdminOrManager() ||
+
+        // 3. Staff (assigned salesperson) creating order on behalf of customer
+        (isStaff() && (
+          request.resource.data.salesPersonId == request.auth.uid ||
+          request.resource.data.salespersonId == request.auth.uid
+        ) && !hasSensitiveFields(request.resource.data))
+      );
+
+      // UPDATE:
+      // 1. Admin/Manager: operational order management across all orders
+      //    (Direct Firebase client writes cannot forge paymentStatus='paid' or alter payment verification fields)
+      // 2. Assigned Salesperson: quotation, approval, operational actions on assigned orders ONLY
+      //    (Unassigned salesperson modification is strictly DENIED; payment fields are Cloud Function authoritative)
+      // 3. Customer: ONLY confirm (rate_quoted -> confirmed) or reject (rate_quoted -> rejected)
+      //    Strict allowlist: customer can ONLY change status, paymentStatus, confirmedAt, updatedAt
+      allow update: if isAuthenticated() && (
+        // Admin / Manager: operational order management across all orders
+        (isAdminOrManager() &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+           'paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy'
+         ]) &&
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus']) ||
+          request.resource.data.paymentStatus != 'paid')) ||
+
+        // Assigned Salesperson: operational order actions on assigned orders ONLY
+        (isAssignedSalespersonForOrder(resource.data) &&
+         // Salesperson cannot introduce or modify payment verification fields (Cloud Function authoritative)
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+           'paymentStatus', 'paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy'
+         ])) ||
+
+        // Customer: Accept quotation (rate_quoted -> confirmed)
+        // Strict allowlist: customer can ONLY alter status, paymentStatus, confirmedAt, updatedAt
+        ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
+         resource.data.status == 'rate_quoted' &&
+         request.resource.data.status == 'confirmed' &&
+         request.resource.data.paymentStatus == 'payment_due' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'status', 'paymentStatus', 'confirmedAt', 'updatedAt'
+         ])) ||
+
+        // Customer: Reject quotation (rate_quoted -> rejected)
+        // Strict allowlist: customer can ONLY alter status, updatedAt
+        ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
+         resource.data.status == 'rate_quoted' &&
+         request.resource.data.status == 'rejected' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'status', 'updatedAt', 'rejectionReason'
+         ]))
+      );
+
+      // Orders cannot be deleted by any client
+      allow delete: if false;
+
+      // -----------------------------------------------------------------------
+      // orders/{orderId}/orderItems — flat subcollection of order items
+      // -----------------------------------------------------------------------
+      match /orderItems/{itemId} {
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid ||
+          isStaff()
+        );
+        allow create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          isAdminOrManager() ||
+          isAssignedSalespersonForOrder(get(/databases/$(database)/documents/orders/$(orderId)).data)
+        );
+        allow update: if isAdminOrManager() ||
+          isAssignedSalespersonForOrder(get(/databases/$(database)/documents/orders/$(orderId)).data);
+        allow delete: if false;
+      }
+
+      // -----------------------------------------------------------------------
+      // orders/{orderId}/orderStatusHistory — immutable audit log
+      // -----------------------------------------------------------------------
+      match /orderStatusHistory/{historyId} {
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid ||
+          isStaff()
+        );
+        allow create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          isAdminOrManager() ||
+          isAssignedSalespersonForOrder(get(/databases/$(database)/documents/orders/$(orderId)).data)
+        ) && !hasSensitiveFields(request.resource.data);
+        allow update, delete: if false; // History is immutable
+      }
+    }
+
+    // =========================================================================
+    // QUOTATIONS COLLECTION (Web Portal & Salesperson System)
+    // =========================================================================
+    match /quotations/{quoteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // SALES ORDERS COLLECTION (Web Portal Order Fulfillment)
+    // =========================================================================
+    match /salesOrders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // PRICE & DISCOUNT APPROVAL COLLECTIONS
+    // =========================================================================
+    match /approvalRequests/{requestId} {
+      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /priceApprovals/{approvalId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // ESTIMATES COLLECTION
+    // =========================================================================
+    match /estimates/{estimateId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.salesPersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+
+      match /estimateItems/{itemId} {
+        allow read: if isAuthenticated();
+        allow write: if isStaff();
+      }
+    }
+
+    // =========================================================================
+    // CART & WISHLIST COLLECTIONS (Flutter App)
+    // Path: carts/{userId}/cartItems/{itemId}
+    // Path: wishlists/{userId}/wishlistItems/{itemId}
+    // =========================================================================
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId) || isStaff();
+      match /cartItems/{itemId} {
+        allow read, write: if isOwner(userId) || isStaff();
+      }
+    }
+
+    match /wishlists/{userId} {
+      allow read, write: if isOwner(userId) || isStaff();
+      match /wishlistItems/{itemId} {
+        allow read, write: if isOwner(userId) || isStaff();
+      }
+    }
+
+    // =========================================================================
+    // NOTIFICATIONS COLLECTION (root-level, distinct from users/{uid}/notifications)
+    // =========================================================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.targetUser == request.auth.uid ||
+        isStaff()
+      );
+      // Only staff/admin may create broadcast notifications (backend functions use Admin SDK)
+      allow create: if isStaff() && !hasSensitiveFields(request.resource.data);
+      // Recipient or staff may mark notifications as read
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.targetUser == request.auth.uid ||
+        isStaff()
+      ) && !hasSensitiveFields(request.resource.data);
+      allow delete: if isStaff();
+    }
+
+    // =========================================================================
+    // CUSTOMER DIRECTORY & CRM (Web Portal)
+    // =========================================================================
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /leads/{leadId} {
+      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /opportunities/{oppId} {
+      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /followUps/{followUpId} {
+      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+
+    // =========================================================================
+    // CUSTOMER PRICING & TIERS
+    // =========================================================================
+    match /customerPricing/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+
+    // =========================================================================
+    // MARKETING: FESTIVAL GREETINGS, OFFERS, PROMOTIONS
+    // Public read; staff-only write.
+    // =========================================================================
+    match /festivalGreetings/{greetingId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /offers/{offerId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /promotions/{promoId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // =========================================================================
+    // LOGISTICS, DESIGN REQUESTS, DEMANDS
+    // =========================================================================
+    match /handoffs/{handoffId} {
+      allow read, write: if isStaff();
+    }
+    match /customerSummary/{docId} {
+      allow read: if isAuthenticated() && (isOwner(docId) || isStaff());
+      allow write: if isStaff();
+    }
+    match /design_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isAuthenticated();
+      allow update, delete: if isStaff();
+    }
+    match /transporters/{transporterId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+    match /shipments/{shipmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        isStaff()
+      );
+      allow write: if isStaff();
+    }
+    match /user_demands/{demandId} {
+      // Customer logs their own demand interactions (product views, search repeats)
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isAuthenticated();
+      allow update, delete: if isStaff();
+    }
+
+    // =========================================================================
+    // PAYMENT SECURITY (Phase 2) — MUST NOT BE WEAKENED
+    // =========================================================================
+
+    // paymentConfig: company bank details — customer reads only; admin/manager writes
+    match /paymentConfig/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
+
+    // paymentSubmissions: direct client write DENIED — Cloud Function only
+    match /paymentSubmissions/{submissionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.salesPersonId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow write: if false; // Strictly Cloud Function only
+    }
+
+    // payment_utrs: UTR dedup registry — client has NO access
+    match /payment_utrs/{utrNormalized} {
+      allow read: if isAdminOrManager();
+      allow write: if false; // Strictly Cloud Function only
+    }
+
+    // =========================================================================
+    // REWARDS & LOYALTY SYSTEM — MUST NOT BE WEAKENED
+    // =========================================================================
+
+    // loyaltyConfig: public read (customers can see earn rates); admin/manager write
     match /loyaltyConfig/{configId} {
       allow read: if true;
-      allow write: if isAuthenticated() && request.auth.token.admin == true;
+      allow write: if isAdminOrManager();
     }
 
-    // Loyalty Transactions ledger: read-only for document owner, clients CANNOT create or modify directly
+    // loyaltyTransactions: backend-only writes; customer reads own records
     match /loyaltyTransactions/{txId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
-      allow write: if false; // Writes restricted to Admin SDK / Cloud Functions
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdminOrManager()
+      );
+      allow write: if false; // Backend / Cloud Function only
     }
 
-    // Customer Referrals: read-only for referrer or referred partner, clients cannot directly manipulate statuses
+    // referrals: backend-only writes; read by referrer or referee
     match /referrals/{referralId} {
       allow read: if isAuthenticated() && (
         resource.data.referrerUid == request.auth.uid ||
         resource.data.referredUid == request.auth.uid ||
-        request.auth.token.admin == true
+        isAdminOrManager()
       );
-      allow write: if false; // Controlled exclusively by backend Cloud Functions
+      allow write: if false; // Backend / Cloud Function only
     }
 
-    // Loyalty Redemptions: read-only for document owner. Direct client creation/update is disallowed.
-    // Clients must invoke the authoritative submitLoyaltyRedemptionCallable to verify balances and reserve points.
+    // loyaltyRedemptions: backend-only writes; customer reads own
     match /loyaltyRedemptions/{redemptionId} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || request.auth.token.admin == true);
-      allow write: if false; // Direct client writes disallowed; created and managed exclusively by Cloud Functions
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isAdminOrManager()
+      );
+      allow write: if false; // Backend / Cloud Function only
     }
 
-    // Category collections (dealers, architects, builders, wholesalers, retailers)
+    // customer_referrals: written by the app on new customer registration/referral
+    // (firestore_service.dart line ~2090: _db.collection('customer_referrals').add(...))
+    match /customer_referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.clientId == request.auth.uid ||
+        resource.data.referrerUid == request.auth.uid ||
+        resource.data.newUserUid == request.auth.uid ||
+        isAdminOrManager()
+      );
+      // Authenticated customer can ONLY record their OWN referral entry on signup
+      allow create: if isAuthenticated() &&
+        (request.resource.data.userId == request.auth.uid ||
+         request.resource.data.clientId == request.auth.uid) &&
+        !hasSensitiveFields(request.resource.data);
+      allow update, delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // CATEGORY COLLECTIONS — customer/dealer self-registration
+    // These hold profile mirrors for each customer category.
+    // =========================================================================
     match /dealers/{userId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
     }
     match /architects/{userId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
     }
     match /builders/{userId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
     }
     match /wholesalers/{userId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
     }
     match /retailers/{userId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
     }
 
-    // Salespersons and client assignment collections
+    // =========================================================================
+    // SALESPERSON & ASSIGNMENT COLLECTIONS
+    //
+    // Auto_Assign_User/{uid}: Written by staff/backend when assigning a customer
+    //   to a salesperson automatically. Customer may need to READ their own
+    //   assignment document to know which salesperson is assigned.
+    //
+    // Manual_salesperson_assign/{docId}: Manual overrides by manager.
+    //
+    // client_assignments/{assignmentId}: Master assignment registry.
+    // =========================================================================
     match /salesPersons/{spId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
-    }
-    match /client_assignments/{assignmentId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
-    }
-    match /Auto_Assign_User/{docId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
-    }
-    match /Manual_salesperson_assign/{docId} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
+      // Salesperson profiles — readable by authenticated users (customers need
+      // to fetch their assigned salesperson's display name/contact)
+      allow read: if isAuthenticated();
+      // Only staff/admin can create or update salesperson profiles
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+
+      match /assigned_clients/{clientId} {
+        allow read: if isAuthenticated();
+        allow write: if isStaff();
+      }
     }
 
-    // Products catalog and feature flags
+    match /client_assignments/{assignmentId} {
+      // Customers can read their own assignment; staff can read all
+      allow read: if isAuthenticated() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        isStaff()
+      );
+      // Authoritative assignment writes restricted to admin/manager and backend
+      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+    }
+
+    match /Auto_Assign_User/{docId} {
+      // Customer can READ their own auto-assignment (to discover assigned salesperson).
+      // Staff reads all assignments.
+      allow read: if isAuthenticated() && (docId == request.auth.uid || isStaff());
+      // Authoritative assignment writes restricted to admin/manager and backend
+      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+    }
+
+    match /Manual_salesperson_assign/{docId} {
+      // Manager/admin and assigned salesperson can read manual assignments
+      allow read: if isStaff();
+      // Only admin/manager can manually override assignments
+      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+    }
+
+    // =========================================================================
+    // PRODUCTS, TILES, CATEGORIES, SYSTEM CONFIG
+    // Public product catalog; admin-only write.
+    // =========================================================================
     match /products/{productId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdminOrManager();
     }
     match /tiles/{tileId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdminOrManager();
     }
     match /categories/{catId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdminOrManager();
     }
     match /systemConfigs/{configId} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdminOrManager();
     }
 
-    // Default rule for all remaining collections (orders, shipments, carts, etc.)
-    match /{document=**} {
-      allow read, write: if !hasSensitiveFields(request.resource.data);
-    }
+    // =========================================================================
+    // SECURITY NOTE:
+    // No broad wildcard match /{document=**} exists.
+    // Every collection accessed by the app has an explicit rule above.
+    // All collections not listed here are DENIED by default (Firestore default).
+    // =========================================================================
   }
 }

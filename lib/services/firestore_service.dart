@@ -27,6 +27,8 @@ import '../models/promotion_model.dart';
 import '../models/system_config_model.dart';
 import '../models/festival_greeting.dart';
 import '../models/offer_model.dart';
+import '../models/payment_config.dart';
+import '../models/payment_submission.dart';
 import 'product_catalog_service.dart';
 import 'app_state_service.dart' show AppStateService;
 
@@ -66,6 +68,9 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _shipmentsRef => _db.collection('shipments');
   CollectionReference<Map<String, dynamic>> get _systemConfigsRef => _db.collection('systemConfigs');
   CollectionReference<Map<String, dynamic>> get _userDemandsRef => _db.collection('user_demands');
+  CollectionReference<Map<String, dynamic>> get _paymentConfigRef => _db.collection('paymentConfig');
+  CollectionReference<Map<String, dynamic>> get _paymentSubmissionsRef => _db.collection('paymentSubmissions');
+  CollectionReference<Map<String, dynamic>> get _paymentUtrsRef => _db.collection('payment_utrs');
 
   String _getCategoryCollectionName(String categoryId) {
     switch (categoryId.toLowerCase()) {
@@ -395,6 +400,17 @@ class FirestoreService {
     final doc = await _usersRef.doc(uid).get();
     if (doc.exists && doc.data() != null) {
       return UserProfile.fromMap(doc.data()!, doc.id);
+    }
+    return null;
+  }
+
+  /// Retrieves raw user profile document data map by UID directly from `users/{uid}`.
+  /// Never performs collection queries.
+  Future<Map<String, dynamic>?> getUserDocument(String uid) async {
+    if (uid.trim().isEmpty) return null;
+    final doc = await _usersRef.doc(uid.trim()).get();
+    if (doc.exists && doc.data() != null) {
+      return {'id': doc.id, ...doc.data()!};
     }
     return null;
   }
@@ -1219,6 +1235,7 @@ class FirestoreService {
     int? totalBoxes,
     double? totalWeightKg,
     double? totalWeightTons,
+    String paymentMethod = 'bank_transfer',
   }) async {
     final docRef = _ordersRef.doc();
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
@@ -1294,6 +1311,8 @@ class FirestoreService {
       totalWeightTons: weightTons,
       items: pendingItems,
       stateCode: stateCode.toUpperCase(),
+      paymentMethod: paymentMethod,
+      paymentStatus: 'not_required',
       createdAt: DateTime.now(),
     );
 
@@ -1365,6 +1384,7 @@ class FirestoreService {
     final docRef = _ordersRef.doc(orderId);
     await docRef.update({
       'status': 'confirmed',
+      'paymentStatus': 'payment_due',
       'confirmedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -1404,27 +1424,223 @@ class FirestoreService {
     if (userId.isEmpty) {
       return Stream.value(<TileOrder>[]);
     }
+    if (Firebase.apps.isEmpty) {
+      return const Stream.empty();
+    }
     try {
-      if (Firebase.apps.isNotEmpty) {
-        final authUid = FirebaseAuth.instance.currentUser?.uid;
-        if (authUid == null || authUid != userId) {
-          return Stream.value(<TileOrder>[]);
-        }
+      final authUid = FirebaseAuth.instance.currentUser?.uid;
+      if (authUid == null || authUid != userId) {
+        return Stream.value(<TileOrder>[]);
       }
     } catch (_) {}
     return _ordersRef
         .where('userId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList());
+        .map((snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList())
+        .handleError((error) {
+      debugPrint('[FirestoreService] getUserOrdersStream non-fatal error for $userId: $error');
+      return <TileOrder>[];
+    });
   }
 
   /// Stream a single real-time TileOrder document by orderId
   Stream<TileOrder?> getOrderStream(String orderId) {
+    if (Firebase.apps.isEmpty) {
+      return const Stream.empty();
+    }
     return _ordersRef.doc(orderId).snapshots().map((snapshot) {
       if (!snapshot.exists || snapshot.data() == null) return null;
       return TileOrder.fromMap(snapshot.data()!, snapshot.id);
+    }).handleError((error) {
+      debugPrint('[FirestoreService] getOrderStream non-fatal error for $orderId: $error');
+      return null;
     });
   }
+
+  // ===========================================================================
+  // PHASE 2: MANUAL BANK TRANSFER PAYMENT CONFIG & SUBMISSIONS
+  // ===========================================================================
+
+  /// Stream active company receiving bank account details (paymentConfig/bankTransfer)
+  Stream<PaymentConfig> getPaymentConfigStream() {
+    if (Firebase.apps.isEmpty) {
+      return Stream.value(PaymentConfig.unavailable());
+    }
+    return _paymentConfigRef.doc('bankTransfer').snapshots().map((snap) {
+      if (!snap.exists || snap.data() == null) {
+        return PaymentConfig.unavailable();
+      }
+      return PaymentConfig.fromMap(snap.data());
+    }).handleError((error) {
+      debugPrint('[FirestoreService] getPaymentConfigStream non-fatal error: $error');
+      return PaymentConfig.unavailable();
+    });
+  }
+
+  /// Single fetch of active company receiving bank details
+  Future<PaymentConfig> getPaymentConfig() async {
+    try {
+      final doc = await _paymentConfigRef.doc('bankTransfer').get();
+      if (!doc.exists || doc.data() == null) {
+        return PaymentConfig.unavailable();
+      }
+      return PaymentConfig.fromMap(doc.data());
+    } catch (_) {
+      return PaymentConfig.unavailable();
+    }
+  }
+
+  /// Stream a specific payment submission by ID
+  Stream<PaymentSubmission?> getPaymentSubmissionStream(String submissionId) {
+    if (submissionId.isEmpty) return Stream.value(null);
+    return _paymentSubmissionsRef.doc(submissionId).snapshots().map((snap) {
+      if (!snap.exists || snap.data() == null) return null;
+      return PaymentSubmission.fromMap(snap.data()!, snap.id);
+    });
+  }
+
+  /// Stream the latest payment submission for an order
+  Stream<PaymentSubmission?> getLatestOrderPaymentSubmissionStream(String orderId) {
+    if (orderId.isEmpty) return Stream.value(null);
+    return _paymentSubmissionsRef
+        .where('orderId', isEqualTo: orderId)
+        .snapshots()
+        .map((snap) {
+      if (snap.docs.isEmpty) return null;
+      final list = snap.docs.map((d) => PaymentSubmission.fromMap(d.data(), d.id)).toList();
+      list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      return list.first;
+    });
+  }
+
+  /// Submits payment proof and UTR for verification
+  /// Normalizes UTR, registers in payment_utrs, creates paymentSubmissions doc,
+  /// and updates order to pending_verification atomically.
+  Future<PaymentSubmission> submitPaymentProof({
+    required String orderId,
+    required double submittedAmount,
+    required String utrNumber,
+    required DateTime paymentDate,
+    required String proofStoragePath,
+  }) async {
+    final orderDoc = await _ordersRef.doc(orderId).get();
+    if (!orderDoc.exists || orderDoc.data() == null) {
+      throw Exception('Order document $orderId does not exist.');
+    }
+
+    final order = TileOrder.fromMap(orderDoc.data()!, orderDoc.id);
+    if (order.status != 'confirmed') {
+      throw Exception('Payment is only accepted for confirmed purchase orders.');
+    }
+
+    final expectedAmount = order.totalAmount;
+    if (expectedAmount <= 0) {
+      throw Exception('Order total amount is not valid.');
+    }
+
+    if ((submittedAmount - expectedAmount).abs() > 0.01) {
+      throw Exception('Submitted amount must match the confirmed order total (₹${expectedAmount.toStringAsFixed(2)}).');
+    }
+
+    final normalizedUtr = PaymentSubmission.normalizeUtr(utrNumber);
+    if (normalizedUtr.length < 6) {
+      throw Exception('Please enter a valid Transaction/UTR reference (minimum 6 characters).');
+    }
+
+    final submissionDocRef = _paymentSubmissionsRef.doc();
+    final utrDocRef = _paymentUtrsRef.doc(normalizedUtr);
+
+    final submission = PaymentSubmission(
+      submissionId: submissionDocRef.id,
+      orderId: orderId,
+      orderReference: order.orderReference,
+      customerId: order.userId,
+      customerName: order.customerName,
+      salesPersonId: order.salesPersonId,
+      paymentMethod: 'bank_transfer',
+      expectedAmount: expectedAmount,
+      submittedAmount: submittedAmount,
+      utrNumber: utrNumber.trim(),
+      utrNormalized: normalizedUtr,
+      paymentDate: paymentDate,
+      proofStoragePath: proofStoragePath,
+      status: 'pending_verification',
+      submittedAt: DateTime.now(),
+    );
+
+    await _db.runTransaction((transaction) async {
+      final existingUtrDoc = await transaction.get(utrDocRef);
+      if (existingUtrDoc.exists) {
+        final data = existingUtrDoc.data() ?? {};
+        final existingStatus = data['status'] as String? ?? '';
+        final existingOrderId = data['orderId'] as String? ?? '';
+        if (existingStatus == 'verified') {
+          throw Exception('This transaction reference (UTR) has already been verified for another order.');
+        }
+        if (existingStatus == 'pending_verification' && existingOrderId != orderId) {
+          throw Exception('This UTR is currently pending verification for another order.');
+        }
+      }
+
+      transaction.set(utrDocRef, {
+        'utr': utrNumber.trim(),
+        'utrNormalized': normalizedUtr,
+        'orderId': orderId,
+        'submissionId': submission.submissionId,
+        'customerId': order.userId,
+        'status': 'pending_verification',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      transaction.set(submissionDocRef, submission.toMap());
+
+      transaction.update(_ordersRef.doc(orderId), {
+        'paymentStatus': 'pending_verification',
+        'paymentSubmissionId': submission.submissionId,
+        'proofStoragePath': proofStoragePath,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final historyDocRef = _ordersRef.doc(orderId).collection('orderStatusHistory').doc();
+      transaction.set(historyDocRef, {
+        'fromStatus': 'payment_due',
+        'toStatus': 'pending_verification',
+        'changedBy': order.userId,
+        'changedByRole': 'customer',
+        'remarks': 'Customer submitted Bank Transfer payment. UTR: $normalizedUtr, Amount: ₹${submittedAmount.toStringAsFixed(2)}',
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    });
+
+    // In-app notifications
+    try {
+      await _usersRef.doc(order.userId).collection('notifications').add({
+        'title': 'Payment Submitted',
+        'message': 'Your payment details for PO #${order.orderReference} were submitted for verification.',
+        'type': 'payment_submitted',
+        'orderId': orderId,
+        'submissionId': submission.submissionId,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (order.salesPersonId.isNotEmpty) {
+        await _usersRef.doc(order.salesPersonId).collection('notifications').add({
+          'title': 'Payment Verification Required',
+          'message': '${order.customerName.isNotEmpty ? order.customerName : 'Customer'} submitted payment details for PO #${order.orderReference} (UTR: $normalizedUtr).',
+          'type': 'payment_verification_required',
+          'orderId': orderId,
+          'submissionId': submission.submissionId,
+          'read': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (_) {}
+
+    return submission;
+  }
+
 
   Future<void> saveCustomerPricing(CustomerPricing pricing) async {
     await _customerPricingRef.doc(pricing.id).set(pricing.toMap(), SetOptions(merge: true));

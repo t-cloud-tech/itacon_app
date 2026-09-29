@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import '../widgets/interactive_pressable.dart';
 import '../models/user_profile.dart';
@@ -33,35 +35,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _gstController = TextEditingController();
   final _deliveryNotesController = TextEditingController();
 
-  String _selectedPaymentMethod = 'B2B Bank Transfer / RTGS';
-
-  final List<Map<String, String>> _paymentOptions = const [
-    {
-      'title': 'B2B Bank Transfer / RTGS',
-      'subtitle': 'Direct bank wire transfer to ITACON Granito corporate account',
-      'icon': 'account_balance_rounded',
-    },
-    {
-      'title': 'Trade Credit Terms (30-Day)',
-      'subtitle': 'Bill to account for verified trade partners & dealers',
-      'icon': 'credit_score_rounded',
-    },
-    {
-      'title': 'UPI / QR Code Instant Pay',
-      'subtitle': 'Fast payment via Google Pay, PhonePe, Paytm or BHIM',
-      'icon': 'qr_code_scanner_rounded',
-    },
-    {
-      'title': 'Credit / Debit Card',
-      'subtitle': 'Visa, MasterCard, RuPay, Amex accepted',
-      'icon': 'credit_card_rounded',
-    },
-    {
-      'title': 'Cash on Delivery (Advance Freight)',
-      'subtitle': 'Pay balance upon delivery at project site',
-      'icon': 'local_shipping_rounded',
-    },
-  ];
+  static const String _selectedPaymentMethod = 'Bank Transfer (NEFT / RTGS / IMPS)';
 
   @override
   void initState() {
@@ -646,51 +620,81 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Select Payment Terms / Mode',
+          'Select Payment Method',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
         ),
         const SizedBox(height: 4),
         const Text(
-          'Select your preferred B2B payment terms or instant payment gateway.',
+          'Choose your preferred payment method for this Purchase Order.',
           style: TextStyle(fontSize: 12, color: AppTheme.textSubtle),
         ),
         const SizedBox(height: 16),
 
-        Column(
-          children: _paymentOptions.map((option) {
-            final title = option['title']!;
-            final subtitle = option['subtitle']!;
-            final isSelected = _selectedPaymentMethod == title;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: AppTheme.luxuryCardDecorationWithBorder(
-                borderColor: isSelected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
-              ),
-              child: RadioListTile<String>(
-                value: title,
-                // ignore: deprecated_member_use
-                groupValue: _selectedPaymentMethod,
-                // ignore: deprecated_member_use
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedPaymentMethod = val);
-                },
-                activeColor: AppTheme.primaryNavy,
-                title: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    color: AppTheme.textDark,
-                    fontSize: 14,
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: AppTheme.luxuryCardDecorationWithBorder(
+            borderColor: AppTheme.primaryNavy,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryNavy.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.account_balance_rounded, color: AppTheme.primaryNavy, size: 24),
                   ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Bank Transfer',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textDark),
+                        ),
+                        Text(
+                          'NEFT / RTGS / IMPS',
+                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: AppTheme.accentOrange),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.check_circle_rounded, color: AppTheme.primaryNavy, size: 22),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                "Pay securely to ITACON's company bank account after your final quotation is confirmed.",
+                style: TextStyle(fontSize: 12, color: AppTheme.textSubtle, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.primaryNavy.withValues(alpha: 0.2)),
                 ),
-                subtitle: Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 18, color: AppTheme.primaryNavy),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No payment is required right now. Company receiving bank details will be displayed once the factory quotes today\'s rates and you confirm the order.',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          }).toList(),
+            ],
+          ),
         ),
       ],
     );
@@ -916,11 +920,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);
     final deliveryAddress = '${_addressLineController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}, ${_stateController.text.trim()}';
 
-    String orderRef = 'ITC-PO-2026-9810';
+    final effectiveUserId = user.userId.isNotEmpty
+        ? user.userId
+        : (FirebaseAuth.instance.currentUser?.uid ?? '');
+
+    final rawState = user.state.trim().isNotEmpty
+        ? user.state.trim()
+        : _stateController.text.trim();
+    final safeStateCode = rawState.length >= 2 ? rawState.substring(0, 2).toUpperCase() : 'GJ';
+
     TileOrder? createdOrder;
     try {
       createdOrder = await OrderService.instance.submitOrder(
-        userId: user.userId,
+        userId: effectiveUserId,
         customerName: user.name.isNotEmpty
             ? user.name
             : (user.companyName.isNotEmpty ? user.companyName : 'Customer'),
@@ -936,18 +948,47 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         totalBoxes: appState.totalBoxes,
         totalWeightKg: appState.totalWeightKg,
         totalWeightTons: appState.totalWeightTons,
-        stateCode: user.state.isNotEmpty ? user.state.substring(0, 2).toUpperCase() : 'GJ',
+        stateCode: safeStateCode,
+        paymentMethod: 'bank_transfer',
       );
-      orderRef = createdOrder.orderReference;
-    } catch (_) {
-      // Fallback/offline mode continues gracefully
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[PO NAV] Order submission error: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit purchase order: $e'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+      return;
     }
 
+    // -----------------------------------------------------------------------
+    // CRITICAL: Capture orderId and order object BEFORE clearing the cart.
+    // These values must survive the cart clear so OrderDetailsScreen can load.
+    // -----------------------------------------------------------------------
+    final targetOrder = createdOrder;
+    final targetOrderId = createdOrder.id;
+    final orderRef = createdOrder.orderReference;
 
+    if (kDebugMode) {
+      debugPrint('[PO NAV] Submission success');
+      debugPrint('[PO NAV] Order ID present=${targetOrderId.isNotEmpty}');
+    }
+
+    // Clear cart AFTER preserving order reference — cart contents are no longer needed
     appState.clearCart();
 
     if (!mounted) return;
-    showDialog(
+
+    if (kDebugMode) {
+      debugPrint('[PO NAV] Success dialog shown');
+    }
+
+    final action = await showDialog<String>(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) => AlertDialog(
@@ -982,7 +1023,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Thank you, ${user.name}! Your Purchase Order #$orderRef has been sent to your assigned salesperson for rate quotation.',
+              'Thank you, ${user.name.isNotEmpty ? user.name : 'Customer'}! Your Purchase Order #$orderRef has been sent to your assigned salesperson for rate quotation.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle),
             ),
@@ -994,8 +1035,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               AppPressable(
                 onTap: () {
-                  Navigator.pop(dialogCtx);
-                  Navigator.pop(context);
+                  // Dismiss the dialog only — navigation happens below based on returned action
+                  Navigator.of(dialogCtx).pop('home');
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1015,17 +1056,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               AppPressable(
                 onTap: () {
-                  Navigator.pop(dialogCtx);
-                  Navigator.pop(context);
-                  final targetOrder = createdOrder;
-                  if (targetOrder != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OrderDetailsScreen(orderId: targetOrder.id, initialOrder: targetOrder),
-                      ),
-                    );
+                  if (kDebugMode) {
+                    debugPrint('[PO NAV] View Order Details tapped');
                   }
+                  // Dismiss the dialog only — navigation happens below based on returned action
+                  Navigator.of(dialogCtx).pop('details');
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1048,6 +1083,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ],
       ),
     );
+
+    if (kDebugMode) {
+      debugPrint('[PO NAV] Dialog dismissed');
+    }
+
+    // IMPORTANT: Do NOT use dialogCtx here — it is invalid after dialog dismissal.
+    // Use the outer widget context (CheckoutScreen context) for post-dialog navigation.
+    if (!mounted) return;
+
+    if (action == 'details') {
+      if (kDebugMode) {
+        debugPrint('[PO NAV] Navigating OrderDetails');
+      }
+      // Use pushAndRemoveUntil so that navigating back from OrderDetailsScreen
+      // returns to MainNavigationScreen (Home), NOT the empty CartScreen.
+      // Route stack BEFORE: [MainNavigationScreen] → [CartScreen] → [CheckoutScreen]
+      // Route stack AFTER:  [MainNavigationScreen] → [OrderDetailsScreen]
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) {
+            if (kDebugMode) {
+              debugPrint('[PO NAV] OrderDetails opened');
+            }
+            return OrderDetailsScreen(
+              orderId: targetOrderId,
+              initialOrder: targetOrder,
+            );
+          },
+        ),
+        // Keep exactly one route beneath (MainNavigationScreen) — pop everything else
+        (route) => route.isFirst,
+      );
+    } else {
+      // 'home' action: pop back to MainNavigationScreen (pop CheckoutScreen AND CartScreen)
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
   }
 }
 

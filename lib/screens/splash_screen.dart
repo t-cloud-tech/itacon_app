@@ -12,7 +12,12 @@ import 'main_navigation_screen.dart';
 /// smooth curved wave division, pre-cached high-resolution visual assets,
 /// hardware-accelerated entrance animation, and seamless authentication routing.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final bool isStaticSplash;
+
+  const SplashScreen({
+    super.key,
+    this.isStaticSplash = false,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -50,7 +55,9 @@ class _SplashScreenState extends State<SplashScreen>
     ).animate(curvedAnimation);
 
     _animController.forward();
-    _startSplashTimerAndRoute();
+    if (!widget.isStaticSplash) {
+      _startSplashTimerAndRoute();
+    }
   }
 
   @override
@@ -82,28 +89,38 @@ class _SplashScreenState extends State<SplashScreen>
     await UserSessionService.purgeLegacyFallbackData();
 
     // 2. Check Firebase Authentication state (source of truth)
+    // Firebase Auth persists tokens in the Android Keystore / iOS Keychain.
+    // currentUser is typically available synchronously after Firebase.initializeApp().
+    // We do NOT use an arbitrary timeout to decide authentication status:
+    // a slow device must NOT be treated as unauthenticated.
     User? currentUser;
     try {
       if (Firebase.apps.isNotEmpty) {
         currentUser = FirebaseAuth.instance.currentUser;
         if (currentUser == null) {
-          // Allow up to 800ms for Firebase Auth to restore its persisted token on cold boot
+          // Firebase Auth token may need one event loop tick to restore from keystore.
+          // Wait for the first emission of authStateChanges (no timeout fallback to logout).
+          // If it remains null after the stream emits, the user is genuinely unauthenticated.
           try {
             currentUser = await FirebaseAuth.instance
                 .authStateChanges()
                 .first
-                .timeout(const Duration(milliseconds: 800), onTimeout: () => null);
-          } catch (_) {}
+                .timeout(
+                  const Duration(seconds: 5),
+                  onTimeout: () => FirebaseAuth.instance.currentUser,
+                );
+          } catch (_) {
+            currentUser = FirebaseAuth.instance.currentUser;
+          }
         }
       }
     } catch (_) {}
 
     // -------------------------------------------------------------------------
-    // CASE B: No authenticated user in FirebaseAuth -> Root Login / Welcome
+    // CASE B: Confirmed unauthenticated user in FirebaseAuth -> Root Login
     // -------------------------------------------------------------------------
     if (currentUser == null || currentUser.uid.isEmpty) {
-      debugPrint('[SplashScreen] No active FirebaseAuth user session. Routing to Login.');
-      await UserSessionService.clearUserSession(signOutFirebase: false);
+      debugPrint('[SplashScreen] Confirmed unauthenticated state. Routing to Login.');
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
       final remainingMs = 1800 - elapsedMs;
@@ -117,11 +134,11 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     // -------------------------------------------------------------------------
-    // CASE A: Authenticated customer exists in FirebaseAuth
+    // CASE A: Authenticated customer exists in FirebaseAuth (Session Persisted)
     // -------------------------------------------------------------------------
     final uid = currentUser.uid;
 
-    // 3. Restore active session from SharedPreferences for this specific authenticated user
+    // 3. Restore active session from local cache for this authenticated user
     final restoredProfile = await UserSessionService.restoreUserSession();
     UserProfile? realProfile;
     bool isNetworkError = false;
@@ -158,8 +175,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (restoredProfile != null &&
         restoredProfile.userId == uid &&
         restoredProfile.userId != 'GUEST_USER' &&
-        restoredProfile.name != 'Valued Partner' &&
-        restoredProfile.name.isNotEmpty) {
+        restoredProfile.name != 'Valued Partner') {
       debugPrint('[SplashScreen] Using valid local session for customer $uid.');
       await NotificationService.saveCurrentUserToken();
 
@@ -175,10 +191,11 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    // Sub-case A.3: Query completed without network error, but profile document genuinely missing
+    // Sub-case A.3: Query completed without network error, but profile document genuinely missing.
+    // User is authenticated in FirebaseAuth but needs to complete profile details.
+    // NEVER call clearUserSession() or signOut()!
     if (!isNetworkError && realProfile == null && restoredProfile == null) {
-      debugPrint('[SplashScreen] User $uid has no Firestore profile. Redirecting to signup.');
-      await UserSessionService.clearUserSession();
+      debugPrint('[SplashScreen] User $uid is authenticated but has no Firestore profile. Routing to complete profile/signup.');
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
       final remainingMs = 1800 - elapsedMs;
@@ -191,8 +208,8 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    // If no valid cache exists for this UID and network failed:
-    // Show error/retry state. DO NOT substitute "Valued Partner" and DO NOT enter main app.
+    // Sub-case A.4: Network failure while attempting to fetch profile, and no cache exists yet.
+    // Show retry state. Customer remains authenticated in FirebaseAuth.
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
     final remainingMs = 1200 - elapsedMs;
     if (remainingMs > 0) {

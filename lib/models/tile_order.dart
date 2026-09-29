@@ -1,6 +1,20 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+double _asDouble(dynamic val, [double defaultVal = 0.0]) {
+  if (val == null) return defaultVal;
+  if (val is num) return val.toDouble();
+  if (val is String) return double.tryParse(val) ?? defaultVal;
+  return defaultVal;
+}
+
+int _asInt(dynamic val, [int defaultVal = 0]) {
+  if (val == null) return defaultVal;
+  if (val is num) return val.toInt();
+  if (val is String) return int.tryParse(val) ?? (double.tryParse(val)?.toInt() ?? defaultVal);
+  return defaultVal;
+}
+
 /// Single item snapshot within `orders/{orderId}/orderItems/{productId}` per PO quotation schema
 class OrderItem {
   final String productId;
@@ -69,21 +83,29 @@ class OrderItem {
   }
 
   factory OrderItem.fromMap(Map<String, dynamic> map) {
-    final pId = map['productId'] ?? map['tileId'] ?? '';
-    final qBoxes = (map['quantityBoxes'] ?? map['quantity'] ?? 1).toInt();
-    final qSqFt = (map['quantitySqFt'] ?? (qBoxes * 15.5)).toDouble();
-    final bPrice = (map['basePrice'] ?? 0.0).toDouble();
-    final fPrice = (map['finalPrice'] ?? bPrice).toDouble();
+    final pId = (map['productId'] ?? map['tileId'] ?? '').toString();
+    final qBoxes = _asInt(map['quantityBoxes'] ?? map['quantity'] ?? map['boxes'] ?? map['qty'], 1);
+    final qSqFt = _asDouble(map['quantitySqFt'] ?? map['sqft'], qBoxes * 15.5);
+    final bPrice = _asDouble(map['basePrice'] ?? map['price']);
+    final fPrice = _asDouble(map['finalPrice'] ?? map['rate'] ?? bPrice);
 
     double? uPrice;
     if (map['unitPrice'] != null) {
-      uPrice = (map['unitPrice'] as num).toDouble();
+      uPrice = _asDouble(map['unitPrice']);
+    } else if (map['quotedUnitPrice'] != null) {
+      uPrice = _asDouble(map['quotedUnitPrice']);
+    } else if (map['pricePerSqft'] != null) {
+      uPrice = _asDouble(map['pricePerSqft']);
+    } else if (map['quotedRate'] != null) {
+      uPrice = _asDouble(map['quotedRate']);
+    } else if (map['rate'] != null) {
+      uPrice = _asDouble(map['rate']);
     }
     double? lTotal;
     if (map['lineTotal'] != null) {
-      lTotal = (map['lineTotal'] as num).toDouble();
+      lTotal = _asDouble(map['lineTotal']);
     } else if (map['totalPrice'] != null) {
-      lTotal = (map['totalPrice'] as num).toDouble();
+      lTotal = _asDouble(map['totalPrice']);
     } else if (uPrice != null && uPrice > 0) {
       lTotal = qSqFt * uPrice;
     }
@@ -99,7 +121,7 @@ class OrderItem {
       quantityBoxes: qBoxes,
       quantitySqFt: qSqFt,
       unit: map['unit'] ?? 'box',
-      moq: (map['moq'] ?? 10).toInt(),
+      moq: _asInt(map['moq'], 10),
       basePrice: bPrice,
       finalPrice: fPrice,
       unitPrice: uPrice,
@@ -186,9 +208,13 @@ class TileOrder {
   final String customerName; // Customer display name snapshot at order creation
   final String? customerPhone; // Customer contact phone
   final String? customerEmail; // Customer email
-  final String? paymentStatus; // e.g. pending, paid, failed (future payment architecture)
+  final String paymentMethod; // bank_transfer
+  final String? paymentStatus; // not_required, payment_due, pending_verification, paid, rejected
+  final String? paymentSubmissionId; // Active submission reference
+  final String? proofStoragePath; // Storage path to payment receipt
   final double? paidAmount; // Amount successfully paid
-  final String? paymentId; // Gateway payment transaction ID
+  final String? paymentId; // Gateway payment transaction ID / Verified UTR
+  final String? rejectionReason; // Explanation if payment verification or quote is rejected
   final DateTime? paidAt; // Payment timestamp
   final DateTime? deliveredAt; // Delivery/completion timestamp
   final DateTime? rateQuotedAt;
@@ -227,9 +253,13 @@ class TileOrder {
     this.shipmentId,
     this.freightAmount,
     this.dispatchStatus = 'unassigned',
+    this.paymentMethod = 'bank_transfer',
     this.paymentStatus,
+    this.paymentSubmissionId,
+    this.proofStoragePath,
     this.paidAmount,
     this.paymentId,
+    this.rejectionReason,
     this.paidAt,
     this.deliveredAt,
     this.rateQuotedAt,
@@ -242,6 +272,9 @@ class TileOrder {
 
   String get customerId => userId;
   bool get isPaid => paymentStatus?.toLowerCase() == 'paid';
+  bool get isPaymentDue => isConfirmedStage && (paymentStatus == 'payment_due' || (status == 'confirmed' && (paymentStatus == null || paymentStatus == 'payment_due')));
+  bool get isPaymentPendingVerification => paymentStatus == 'pending_verification';
+  bool get isPaymentRejected => paymentStatus == 'rejected';
 
   /// Whether this order has completed its delivery/payment business lifecycle (History tab)
   bool get isHistoryStage {
@@ -269,7 +302,7 @@ class TileOrder {
   bool get isRateQuotedStage {
     if (isHistoryStage) return false;
     final s = status.toLowerCase();
-    return s == 'rate_quoted';
+    return s == 'rate_quoted' || s == 'quoted' || s == 'rates_quoted';
   }
 
   /// Whether this order is confirmed and moving through active fulfillment (Confirmed tab)
@@ -277,8 +310,11 @@ class TileOrder {
     if (isHistoryStage) return false;
     final s = status.toLowerCase();
     return s == 'confirmed' ||
+           s == 'order_confirmed' ||
            s == 'processing' ||
            s == 'dispatched' ||
+           s == 'payment_pending' ||
+           s == 'advance_paid' ||
            dispatchStatus.toLowerCase() == 'dispatched' ||
            dispatchStatus.toLowerCase() == 'assigned';
   }
@@ -344,9 +380,13 @@ class TileOrder {
       'shipmentId': shipmentId,
       'freightAmount': freightAmount,
       'dispatchStatus': dispatchStatus,
+      'paymentMethod': paymentMethod,
       if (paymentStatus != null) 'paymentStatus': paymentStatus,
+      if (paymentSubmissionId != null) 'paymentSubmissionId': paymentSubmissionId,
+      if (proofStoragePath != null) 'proofStoragePath': proofStoragePath,
       if (paidAmount != null) 'paidAmount': paidAmount,
       if (paymentId != null) 'paymentId': paymentId,
+      if (rejectionReason != null) 'rejectionReason': rejectionReason,
       if (paidAt != null) 'paidAt': Timestamp.fromDate(paidAt!),
       if (deliveredAt != null) 'deliveredAt': Timestamp.fromDate(deliveredAt!),
       'rateQuotedAt': rateQuotedAt != null ? Timestamp.fromDate(rateQuotedAt!) : null,
@@ -359,48 +399,58 @@ class TileOrder {
   }
 
   factory TileOrder.fromMap(Map<String, dynamic> map, String docId) {
-    final oId = map['orderId'] ?? docId;
-    final ref = map['orderReference'] ?? map['orderReferenceNumber'] ?? 'ITC-PO-2026-${docId.substring(0, min(5, docId.length)).toUpperCase()}';
-    final sub = (map['subtotal'] ?? 0.0).toDouble();
-    final disc = (map['discount'] ?? 0.0).toDouble();
-    final tx = (map['taxAmount'] ?? map['tax'] ?? ((sub - disc > 0 ? sub - disc : 0.0) * 0.18)).toDouble();
-    final tot = (map['totalAmount'] ?? map['total'] ?? (sub - disc + tx)).toDouble();
-    final tBoxes = (map['totalBoxes'] ?? 0).toInt();
-    final tKg = (map['totalWeightKg'] ?? 0.0).toDouble();
-    final tTons = (map['totalWeightTons'] ?? (tKg / 1000.0)).toDouble();
+    final oId = (map['orderId'] ?? docId).toString();
+    final ref = (map['orderReference'] ?? map['orderReferenceNumber'] ?? 'ITC-PO-2026-${docId.substring(0, min(5, docId.length)).toUpperCase()}').toString();
+    final sub = _asDouble(map['subtotal'] ?? map['subTotal']);
+    final disc = _asDouble(map['discount'] ?? map['discountAmount']);
+    final tx = _asDouble(map['taxAmount'] ?? map['tax'] ?? map['gstAmount'] ?? ((sub - disc > 0 ? sub - disc : 0.0) * 0.18));
+    final tot = _asDouble(map['totalAmount'] ?? map['total'] ?? map['grandTotal'] ?? (sub - disc + tx));
+    final tBoxes = _asInt(map['totalBoxes'] ?? map['boxes']);
+    final tKg = _asDouble(map['totalWeightKg'] ?? map['weightKg']);
+    final tTons = _asDouble(map['totalWeightTons'] ?? map['weightTons'] ?? (tKg / 1000.0));
 
     final delLoc = map['deliveryLocation'] is Map
         ? Map<String, dynamic>.from(map['deliveryLocation'])
-        : {'address': map['deliveryAddress'] ?? ''};
+        : {'address': (map['deliveryAddress'] ?? '').toString()};
 
-    final rawItems = map['orderItems'] ?? map['items'];
+    final rawItems = map['orderItems'] ?? map['items'] ?? map['quotedItems'];
 
-    final cName = map['customerName'] ?? map['clientName'] ?? map['userName'] ?? '';
-    final cPhone = map['customerPhone'] ?? map['phone'] as String?;
-    final cEmail = map['customerEmail'] ?? map['email'] as String?;
-    final pStatus = map['paymentStatus'] as String?;
-    final pAmount = (map['paidAmount'] as num?)?.toDouble();
-    final pIdVal = map['paymentId'] as String?;
+    final cName = (map['customerName'] ?? map['clientName'] ?? map['userName'] ?? '').toString();
+    final cPhone = map['customerPhone']?.toString() ?? map['phone']?.toString();
+    final cEmail = map['customerEmail']?.toString() ?? map['email']?.toString();
+    final pStatus = map['paymentStatus']?.toString();
+    final pAmount = map['paidAmount'] != null ? _asDouble(map['paidAmount']) : null;
+    final pIdVal = map['paymentId']?.toString();
+    final pRejReason = map['rejectionReason']?.toString();
     final pAt = map['paidAt'] is Timestamp ? (map['paidAt'] as Timestamp).toDate() : null;
     final dAt = map['deliveredAt'] is Timestamp ? (map['deliveredAt'] as Timestamp).toDate() : null;
+
+    final parsedItems = <OrderItem>[];
+    if (rawItems is List) {
+      for (final item in rawItems) {
+        if (item is Map) {
+          parsedItems.add(OrderItem.fromMap(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
 
     return TileOrder(
       id: docId,
       orderId: oId,
       orderReference: ref,
-      userId: map['userId'] ?? map['customerId'] ?? '',
+      userId: (map['userId'] ?? map['customerId'] ?? '').toString(),
       customerName: cName,
       customerPhone: cPhone,
       customerEmail: cEmail,
-      salesPersonId: map['salesPersonId'] ?? map['salespersonId'] ?? '',
-      userCategory: map['userCategory'] ?? map['customerCategory'] ?? map['role'] ?? 'dealer',
-      status: map['status'] ?? 'pending_rate',
-      orderType: map['orderType'] ?? 'ready_stock',
-      poNumber: map['poNumber'] ?? '',
-      poDocumentUrl: map['poDocumentUrl'] ?? '',
+      salesPersonId: (map['salesPersonId'] ?? map['salespersonId'] ?? '').toString(),
+      userCategory: (map['userCategory'] ?? map['customerCategory'] ?? map['role'] ?? 'dealer').toString(),
+      status: (map['status'] ?? 'pending_rate').toString(),
+      orderType: (map['orderType'] ?? 'ready_stock').toString(),
+      poNumber: (map['poNumber'] ?? '').toString(),
+      poDocumentUrl: (map['poDocumentUrl'] ?? '').toString(),
       deliveryLocation: delLoc,
       transportRequired: map['transportRequired'] ?? false,
-      remarks: map['remarks'] ?? map['notes'] ?? '',
+      remarks: (map['remarks'] ?? map['notes'] ?? '').toString(),
       subtotal: sub,
       discount: disc,
       taxAmount: tx,
@@ -408,19 +458,20 @@ class TileOrder {
       totalBoxes: tBoxes,
       totalWeightKg: tKg,
       totalWeightTons: tTons,
-      items: (rawItems as List<dynamic>?)
-              ?.map((item) => OrderItem.fromMap(Map<String, dynamic>.from(item)))
-              .toList() ??
-          [],
-      stateCode: map['stateCode'] ?? 'GJ',
-      priceApprovalStatus: map['priceApprovalStatus'] ?? 'none',
+      items: parsedItems,
+      stateCode: (map['stateCode'] ?? 'GJ').toString(),
+      priceApprovalStatus: (map['priceApprovalStatus'] ?? 'none').toString(),
       estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {}),
       shipmentId: map['shipmentId'] as String?,
-      freightAmount: (map['freightAmount'] as num?)?.toDouble(),
+      freightAmount: map['freightAmount'] != null ? _asDouble(map['freightAmount']) : null,
       dispatchStatus: map['dispatchStatus'] as String? ?? 'unassigned',
+      paymentMethod: (map['paymentMethod'] ?? 'bank_transfer').toString(),
       paymentStatus: pStatus,
+      paymentSubmissionId: map['paymentSubmissionId'] as String?,
+      proofStoragePath: map['proofStoragePath'] as String?,
       paidAmount: pAmount,
       paymentId: pIdVal,
+      rejectionReason: pRejReason,
       paidAt: pAt,
       deliveredAt: dAt,
       rateQuotedAt: map['rateQuotedAt'] is Timestamp
@@ -469,9 +520,13 @@ class TileOrder {
     String? shipmentId,
     double? freightAmount,
     String? dispatchStatus,
+    String? paymentMethod,
     String? paymentStatus,
+    String? paymentSubmissionId,
+    String? proofStoragePath,
     double? paidAmount,
     String? paymentId,
+    String? rejectionReason,
     DateTime? paidAt,
     DateTime? deliveredAt,
     DateTime? rateQuotedAt,
@@ -510,9 +565,13 @@ class TileOrder {
       shipmentId: shipmentId ?? this.shipmentId,
       freightAmount: freightAmount ?? this.freightAmount,
       dispatchStatus: dispatchStatus ?? this.dispatchStatus,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentSubmissionId: paymentSubmissionId ?? this.paymentSubmissionId,
+      proofStoragePath: proofStoragePath ?? this.proofStoragePath,
       paidAmount: paidAmount ?? this.paidAmount,
       paymentId: paymentId ?? this.paymentId,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
       paidAt: paidAt ?? this.paidAt,
       deliveredAt: deliveredAt ?? this.deliveredAt,
       rateQuotedAt: rateQuotedAt ?? this.rateQuotedAt,

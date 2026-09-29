@@ -29,6 +29,7 @@ class OrderService {
     double? totalWeightTons,
     String stateCode = 'GJ',
     String? salespersonId,
+    String paymentMethod = 'bank_transfer',
   }) async {
     // Calculate total boxes and weight from items if not directly provided
     int boxes = totalBoxes ?? items.fold(0, (sum, i) => sum + i.quantity);
@@ -51,6 +52,7 @@ class OrderService {
       totalBoxes: boxes,
       totalWeightKg: weightKg,
       totalWeightTons: weightTons,
+      paymentMethod: paymentMethod,
     );
   }
 

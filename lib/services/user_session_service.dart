@@ -78,8 +78,7 @@ class UserSessionService {
     // Never persist a fake fallback user profile
     if (profile.userId.isEmpty ||
         profile.userId == 'GUEST_USER' ||
-        profile.name == 'Valued Partner' ||
-        profile.name.startsWith('User ')) {
+        profile.name == 'Valued Partner') {
       return;
     }
 
@@ -87,7 +86,7 @@ class UserSessionService {
     try {
       if (Firebase.apps.isNotEmpty) {
         final currentAuthUser = FirebaseAuth.instance.currentUser;
-        if (currentAuthUser == null || currentAuthUser.uid != profile.userId) {
+        if (currentAuthUser != null && currentAuthUser.uid != profile.userId) {
           debugPrint('[UserSessionService] Rejecting profile save: UID does not match active FirebaseAuth user');
           return;
         }
@@ -132,8 +131,7 @@ class UserSessionService {
 
     if (cachedUserId == 'GUEST_USER' ||
         cachedUserName == 'Valued Partner' ||
-        cachedUserId == 'RESTORED_USER' ||
-        (cachedUserName != null && cachedUserName.startsWith('User '))) {
+        cachedUserId == 'RESTORED_USER') {
       await clearUserSession(signOutFirebase: false);
     }
   }
@@ -142,14 +140,12 @@ class UserSessionService {
   static Future<UserProfile?> restoreUserSession() async {
     // CRITICAL: FirebaseAuth is the absolute source of truth.
     // If Firebase is initialized and FirebaseAuth has no authenticated user, the customer is NOT logged in.
-    // Never restore a cached session when FirebaseAuth.currentUser == null.
     User? firebaseUser;
     try {
       if (Firebase.apps.isNotEmpty) {
         firebaseUser = FirebaseAuth.instance.currentUser;
         if (firebaseUser == null) {
-          debugPrint('[UserSessionService] No active FirebaseAuth session. Clearing local cache.');
-          await clearUserSession(signOutFirebase: false);
+          // If FirebaseAuth has no authenticated user, return null without clearing local cache.
           return null;
         }
       }
@@ -163,22 +159,23 @@ class UserSessionService {
     // Sanitize any legacy fallback / guest user cache immediately
     if (cachedUserId == 'GUEST_USER' ||
         cachedUserName == 'Valued Partner' ||
-        cachedUserId == 'RESTORED_USER' ||
-        (cachedUserName != null && cachedUserName.startsWith('User '))) {
+        cachedUserId == 'RESTORED_USER') {
       await clearUserSession(signOutFirebase: false);
       return null;
     }
 
-    // Cached UID must strictly match the authenticated Firebase user
-    if (!isLoggedIn || cachedUserId == null || (firebaseUser != null && cachedUserId != firebaseUser.uid)) {
-      debugPrint('[UserSessionService] Cached session does not match authenticated Firebase UID. Clearing local cache.');
-      await clearUserSession(signOutFirebase: false);
+    // Cached UID must match the authenticated Firebase user
+    if (!isLoggedIn || cachedUserId == null) {
+      return null;
+    }
+    if (firebaseUser != null && cachedUserId != firebaseUser.uid) {
+      debugPrint('[UserSessionService] Cached session UID ($cachedUserId) does not match authenticated Firebase UID (${firebaseUser.uid}).');
       return null;
     }
 
     final userId = firebaseUser?.uid ?? cachedUserId;
-    final name = prefs.getString(_keyUserName) ?? firebaseUser?.displayName ?? '';
-    if (name.isEmpty || name == 'Valued Partner' || name.startsWith('User ')) {
+    final name = prefs.getString(_keyUserName) ?? firebaseUser?.displayName ?? (firebaseUser?.phoneNumber ?? 'Customer');
+    if (name == 'Valued Partner') {
       return null;
     }
 

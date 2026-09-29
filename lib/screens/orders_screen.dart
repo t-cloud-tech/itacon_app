@@ -24,6 +24,22 @@ class _OrdersScreenState extends State<OrdersScreen>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isNavigating = false;
+
+  void _navigateToOrderDetails(TileOrder order) {
+    if (_isNavigating || !mounted) return;
+    _isNavigating = true;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderDetailsScreen(orderId: order.id, initialOrder: order),
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() => _isNavigating = false);
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -304,14 +320,7 @@ class _OrdersScreenState extends State<OrdersScreen>
             : (order.updatedAt != null && isHistoryTab ? _formatDate(order.updatedAt) : '');
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => OrderDetailsScreen(orderId: order.id, initialOrder: order),
-              ),
-            );
-          },
+          onTap: () => _navigateToOrderDetails(order),
           child: Container(
             decoration: AppTheme.luxuryCardDecoration,
             padding: const EdgeInsets.all(14),
@@ -460,14 +469,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                         backgroundColor: order.status == 'rate_quoted' ? AppTheme.accentOrange : AppTheme.primaryNavy,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => OrderDetailsScreen(orderId: order.id, initialOrder: order),
-                          ),
-                        );
-                      },
+                      onPressed: () => _navigateToOrderDetails(order),
                       child: Text(
                         order.status == 'rate_quoted' ? 'REVIEW RATES →' : 'VIEW PO DETAILS',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),

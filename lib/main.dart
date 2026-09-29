@@ -10,7 +10,7 @@ import 'models/tile_order.dart';
 import 'models/estimate.dart';
 import 'models/design_request.dart';
 import 'firebase_options.dart';
-import 'screens/splash_screen.dart';
+import 'screens/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
           child: child ?? const SizedBox.shrink(),
         );
       },
-      home: const SplashScreen(),
+      home: const AuthGate(),
     );
   }
 }

@@ -241,3 +241,26 @@ export interface TileProduct {
   images: string[];
   status: "active" | "discontinued";
 }
+
+export interface PaymentSubmissionRecord {
+  id: string;
+  submissionId: string;
+  orderId: string;
+  orderReference: string;
+  customerId: string;
+  customerName: string;
+  salesPersonId?: string;
+  paymentMethod: string;
+  expectedAmount: number;
+  submittedAmount: number;
+  utrNumber: string;
+  utrNormalized: string;
+  paymentDate: string | any;
+  proofStoragePath: string;
+  status: "pending_verification" | "verified" | "rejected";
+  submittedAt: string | any;
+  verifiedAt?: string | any;
+  verifiedBy?: string;
+  rejectionReason?: string;
+}
+

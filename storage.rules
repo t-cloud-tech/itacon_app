@@ -2,9 +2,37 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isStaff() {
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.role == 'admin' ||
+        request.auth.token.role == 'manager'
+      );
+    }
+
+    function isValidReceiptMimeType() {
+      return request.resource.contentType.matches('image/jpeg') ||
+             request.resource.contentType.matches('image/jpg') ||
+             request.resource.contentType.matches('image/png') ||
+             request.resource.contentType.matches('image/webp') ||
+             request.resource.contentType.matches('application/pdf');
+    }
+
+    function isValidReceiptSize() {
+      return request.resource.size <= 10 * 1024 * 1024; // 10 MB maximum
+    }
+
+    function isDeterministicReceiptName(fileName) {
+      return fileName.matches('receipt\\.(jpg|jpeg|png|webp|pdf)');
+    }
+
     // ITACON Product catalog images (tiles, mockups, adhesives)
-    // Read-only access for catalog images so all ITACON app users (including phone/custom session users) can view products
-    // Client writes are strictly forbidden
+    // Read-only access for catalog images so all ITACON app users can view products
     match /products/{allPaths=**} {
       allow read: if true;
       allow write: if false;
@@ -13,7 +41,37 @@ service firebase.storage {
     // User profile photos uploaded from ITACON app
     match /user_profiles/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow write: if isAuthenticated();
+    }
+
+    // SECURE PRIVATE PAYMENT PROOFS
+    // Stored privately under payment_proofs/{orderId}/{submissionId}/{fileName}
+    // Only the order owner, assigned salesperson, or admin/manager can access the file.
+    // Public download is strictly prohibited.
+    match /payment_proofs/{orderId}/{submissionId}/{fileName} {
+      // Read access: owner of the order, assigned salesperson, or admin/manager
+      allow read: if isAuthenticated() && (
+        isStaff() ||
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid
+      );
+
+      // Create access:
+      // 1. Authenticated customer who owns the order
+      // 2. Strict deterministic filename: receipt.(jpg|jpeg|png|webp|pdf)
+      // 3. File size must be <= 10 MB
+      // 4. Approved MIME types only (JPEG, PNG, WEBP, PDF)
+      allow create: if isAuthenticated() &&
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid &&
+        isDeterministicReceiptName(fileName) &&
+        isValidReceiptSize() &&
+        isValidReceiptMimeType();
+
+      // Overwrite protection: customer can NEVER replace proof once uploaded
+      allow update: if false;
+
+      // Audit trail protection: customer can NEVER delete proof once uploaded
+      allow delete: if false;
     }
 
     // Deny all other access by default

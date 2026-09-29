@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import 'firestore_service.dart';
 import '../models/user_profile.dart';
@@ -271,9 +272,6 @@ class AuthService {
     required String verificationId,
     required String smsCode,
   }) async {
-    final formattedPhone =
-        _normalizeIndianPhone(phoneNumber);
-
     // REAL Firebase OTP verification
     final userCredential = await verifyPhoneOtp(
       verificationId: verificationId,
@@ -290,23 +288,13 @@ class AuthService {
 
     _lastRegisteredUid = firebaseUser.uid;
 
-    // Find application profile in Firestore.
-    final userMap =
-        await _firestoreService.findUserByIdentifier(
-      formattedPhone,
-    );
+    // Load application profile directly by authenticated UID from Firestore.
+    // Never perform collection queries.
+    final userMap = await _firestoreService.getUserDocument(firebaseUser.uid);
 
     if (userMap != null) {
-      final docId =
-          (userMap['id'] ??
-                  userMap['userId'] ??
-                  userMap['uid'] ??
-                  firebaseUser.uid)
-              .toString();
-
-      final profile =
-          UserProfile.fromMap(userMap, docId);
-
+      final docId = firebaseUser.uid;
+      final profile = UserProfile.fromMap(userMap, docId);
       await UserSessionService.saveUserSession(profile);
     } else {
       // Reject missing profile and NEVER invent an unknown/fallback customer
@@ -581,12 +569,166 @@ class AuthService {
   }
 
   // ============================================================
+  // LOGIN WITH PHONE OTP + CREDENTIALS (OTP FIRST + UID PROFILE)
+  // ============================================================
+
+  Future<void> loginWithPhoneOtpAndCredentials({
+    required String phoneNumber,
+    required String verificationId,
+    required String smsCode,
+    required String password,
+    String? username,
+    String? referralCode,
+  }) async {
+    if (password.trim().isEmpty) {
+      throw Exception(
+        'Invalid username or password. Please check your credentials and try again.',
+      );
+    }
+
+    debugPrint('AUTH_DEBUG: OTP verification started');
+
+    final UserCredential userCredential;
+    try {
+      userCredential = await verifyPhoneOtp(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      debugPrint('AUTH_DEBUG: OTP authentication success');
+    } on FirebaseAuthException catch (e) {
+      debugPrint('AUTH_DEBUG: OTP authentication failure');
+      debugPrint('AUTH_DEBUG: FirebaseAuth exception code: ${e.code}');
+      rethrow;
+    } catch (e) {
+      debugPrint('AUTH_DEBUG: OTP authentication failure');
+      rethrow;
+    }
+
+    final firebaseUser = userCredential.user ?? currentUser;
+    final isPresent = firebaseUser != null;
+    debugPrint('AUTH_DEBUG: currentUser present = $isPresent');
+
+    if (firebaseUser == null) {
+      throw Exception('Firebase could not create a user session.');
+    }
+
+    final uid = firebaseUser.uid;
+    _lastRegisteredUid = uid;
+
+    debugPrint('AUTH_DEBUG: UID profile lookup started');
+    Map<String, dynamic>? userMap;
+    try {
+      userMap = await _firestoreService.getUserDocument(uid);
+    } on FirebaseException catch (e) {
+      debugPrint('AUTH_DEBUG: UID profile lookup failure');
+      debugPrint('AUTH_DEBUG: Firestore exception code: ${e.code}');
+      // Technical / database / network / permission error:
+      // DO NOT automatically sign out firebaseUser.
+      // Surface technical error clearly without mislabeling as invalid credentials.
+      if (e.code == 'permission-denied') {
+        throw Exception(
+          'Access denied while reading user profile. Please check account permissions.',
+        );
+      } else if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        throw Exception(
+          'Network unavailable. Please check your internet connection.',
+        );
+      }
+      throw Exception(
+        'Failed to load user profile: ${e.message ?? e.code}',
+      );
+    } catch (e) {
+      debugPrint('AUTH_DEBUG: UID profile lookup failure');
+      throw Exception('Failed to load user profile. Please try again.');
+    }
+
+    if (userMap == null) {
+      debugPrint('AUTH_DEBUG: UID profile lookup failure');
+      // OTP passed, but this user has no profile document in users/{uid}
+      await signOutFirebaseUser();
+      throw Exception(
+        'No registered ITACON customer profile was found for this mobile number. Please register your account.',
+      );
+    }
+
+    debugPrint('AUTH_DEBUG: UID profile lookup success');
+
+    // ----------------------------------------------------------
+    // USERNAME VALIDATION (if entered)
+    // ----------------------------------------------------------
+    if (username != null && username.trim().isNotEmpty) {
+      final storedUsername = (userMap['username'] ??
+              userMap['userName'] ??
+              userMap['name'] ??
+              userMap['fullName'] ??
+              '')
+          .toString()
+          .trim();
+
+      if (storedUsername.isEmpty ||
+          storedUsername.toLowerCase() != username.trim().toLowerCase()) {
+        debugPrint('AUTH_DEBUG: username validation failure');
+        await signOutFirebaseUser();
+        throw Exception(
+          'Invalid username or password. Please check your credentials and try again.',
+        );
+      }
+      debugPrint('AUTH_DEBUG: username validation success');
+    }
+
+    // ----------------------------------------------------------
+    // PASSWORD VALIDATION
+    // ----------------------------------------------------------
+    final storedHash = userMap['passwordHash'] as String?;
+    final storedSalt = userMap['passwordSalt'] as String?;
+
+    if (storedHash != null && storedSalt != null) {
+      final computedHash = hashPassword(password.trim(), storedSalt);
+      if (computedHash != storedHash) {
+        debugPrint('AUTH_DEBUG: password validation failure');
+        await signOutFirebaseUser();
+        throw Exception(
+          'Invalid username or password. Please check your credentials and try again.',
+        );
+      }
+      debugPrint('AUTH_DEBUG: password validation success');
+    } else {
+      // Missing password credentials in profile
+      debugPrint('AUTH_DEBUG: password validation failure');
+      await signOutFirebaseUser();
+      throw Exception(
+        'Invalid username or password. Please check your credentials and try again.',
+      );
+    }
+
+    // ----------------------------------------------------------
+    // SAVE SESSION
+    // ----------------------------------------------------------
+    final profile = UserProfile.fromMap(userMap, uid);
+    await UserSessionService.saveUserSession(profile);
+    debugPrint('AUTH_DEBUG: session saved');
+
+    // ----------------------------------------------------------
+    // REFERRAL (OPTIONAL)
+    // ----------------------------------------------------------
+    if (referralCode != null && referralCode.trim().isNotEmpty) {
+      await verifyAndLinkReferralCode(
+        referralCode.trim(),
+        clientName: profile.name,
+        clientPhone: profile.phone,
+      );
+    }
+  }
+
+  // ============================================================
   // EXISTING PASSWORD LOGIN
   // ============================================================
 
   Future<void> loginUser({
-    required String loginIdentifier,
     required String password,
+    String? loginIdentifier,
+    String? phoneNumber,
+    String? username,
     String? referralCode,
     String? verificationId,
     String? smsCode,
@@ -597,54 +739,50 @@ class AuthService {
       );
     }
 
-    final cleanPhone =
-        loginIdentifier.replaceAll(
-      RegExp(r'\D'),
-      '',
-    );
-
-    final isPhone =
-        !loginIdentifier.contains('@') &&
-            cleanPhone.length >= 10;
-
-    // ----------------------------------------------------------
-    // PHONE LOGIN
-    // ----------------------------------------------------------
-
-    if (isPhone &&
-        verificationId != null &&
+    // If OTP parameters are provided, perform OTP login FIRST
+    if (verificationId != null &&
         verificationId.trim().isNotEmpty &&
         smsCode != null &&
         smsCode.trim().isNotEmpty) {
-      await loginWithPhoneOtp(
-        phoneNumber: loginIdentifier,
+      final phone = (phoneNumber != null && phoneNumber.trim().isNotEmpty)
+          ? phoneNumber.trim()
+          : (loginIdentifier != null ? loginIdentifier.trim() : '');
+
+      final user = (username != null && username.trim().isNotEmpty)
+          ? username.trim()
+          : ((loginIdentifier != null &&
+                  !loginIdentifier.startsWith('+') &&
+                  !loginIdentifier.contains('@') &&
+                  loginIdentifier.replaceAll(RegExp(r'\D'), '').length < 10)
+              ? loginIdentifier.trim()
+              : null);
+
+      await loginWithPhoneOtpAndCredentials(
+        phoneNumber: phone,
         verificationId: verificationId,
         smsCode: smsCode,
+        password: password,
+        username: user,
+        referralCode: referralCode,
       );
-
-      // Referral handling
-      if (referralCode != null &&
-          referralCode.trim().isNotEmpty) {
-        await verifyAndLinkReferralCode(
-          referralCode.trim(),
-        );
-      }
-
       return;
     }
 
     // ----------------------------------------------------------
-    // EMAIL / PASSWORD LOGIN
+    // EMAIL / PASSWORD LOGIN (LEGACY / EXPLICIT EMAIL ONLY)
     // ----------------------------------------------------------
+    final identifier = (loginIdentifier ?? '').trim();
+    if (!identifier.contains('@')) {
+      throw Exception(
+        'Invalid username or password. Please check your credentials and try again.',
+      );
+    }
 
-    final authEmail =
-        loginIdentifier.contains('@')
-            ? loginIdentifier.trim()
-            : 'user_$cleanPhone@itacon.com';
+    final authEmail = identifier;
 
     final userMap =
         await _firestoreService.findUserByIdentifier(
-      loginIdentifier,
+      identifier,
     );
 
     final storedHash =
@@ -1121,5 +1259,12 @@ class AuthService {
 
   Future<void> signOut() async {
     await UserSessionService.logout();
+  }
+
+  @visibleForTesting
+  Future<void> signOutFirebaseUser() async {
+    try {
+      await _auth.signOut();
+    } catch (_) {}
   }
 }
