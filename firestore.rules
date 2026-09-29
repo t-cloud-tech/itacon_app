@@ -8,12 +8,10 @@ service cloud.firestore {
 
     // Deny writes that include plaintext credential fields
     function hasSensitiveFields(data) {
-      return data != null && (
         ('password' in data) ||
         ('pass' in data) ||
         ('hash' in data) ||
         ('token' in data)
-      );
     }
 
     // Authenticated request
