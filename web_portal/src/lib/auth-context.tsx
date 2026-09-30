@@ -36,24 +36,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Restore session from localStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SESSION_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setUser(parsed.user);
-        setSalesperson(parsed.salesperson || null);
-        setRole(parsed.role);
-        
-        // Ensure Firebase auth session exists if anonymous auth is supported
-        if (!auth.currentUser) {
-          signInAnonymously(auth).catch(() => {});
+    let isMounted = true;
+    const restoreSession = async () => {
+      try {
+        // Wait for Firebase Auth persistence to restore any existing session
+        if (typeof auth.authStateReady === "function") {
+          await auth.authStateReady();
+        }
+
+        const stored = localStorage.getItem(SESSION_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (isMounted) {
+            setUser(parsed.user);
+            setSalesperson(parsed.salesperson || null);
+            setRole(parsed.role);
+          }
+
+          // Ensure Firebase auth session exists if anonymous auth is supported
+          if (!auth.currentUser) {
+            try {
+              await signInAnonymously(auth);
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore session", e);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
         }
       }
-    } catch (e) {
-      console.error("Failed to restore session", e);
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    restoreSession();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (identifier: string, password: string) => {
@@ -66,26 +85,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let userDocData: any = null;
       let userId: string = "";
 
-      // Query by email
-      const emailQuery = query(usersRef, where("email", "==", cleanIdent), limit(1));
-      let querySnap = await getDocs(emailQuery);
+      try {
+        // Query by email
+        const emailQuery = query(usersRef, where("email", "==", cleanIdent), limit(1));
+        let querySnap = await getDocs(emailQuery);
 
-      if (querySnap.empty) {
-        // Query by phone
-        const phoneQuery = query(usersRef, where("phone", "==", identifier.trim()), limit(1));
-        querySnap = await getDocs(phoneQuery);
-      }
+        if (querySnap.empty) {
+          // Query by phone
+          const phoneQuery = query(usersRef, where("phone", "==", identifier.trim()), limit(1));
+          querySnap = await getDocs(phoneQuery);
+        }
 
-      if (querySnap.empty) {
-        // Query by phoneNumber field if phone field is not used
-        const altPhoneQuery = query(usersRef, where("phoneNumber", "==", identifier.trim()), limit(1));
-        querySnap = await getDocs(altPhoneQuery);
-      }
+        if (querySnap.empty) {
+          // Query by phoneNumber field if phone field is not used
+          const altPhoneQuery = query(usersRef, where("phoneNumber", "==", identifier.trim()), limit(1));
+          querySnap = await getDocs(altPhoneQuery);
+        }
 
-      if (!querySnap.empty) {
-        const snapDoc = querySnap.docs[0];
-        userId = snapDoc.id;
-        userDocData = snapDoc.data();
+        if (!querySnap.empty) {
+          const snapDoc = querySnap.docs[0];
+          userId = snapDoc.id;
+          userDocData = snapDoc.data();
+        }
+      } catch (_) {
+        // Reading users collection prior to authentication may be blocked by security rules
       }
 
       // If user doc not found via Firestore query, try direct Firebase Auth sign-in first
