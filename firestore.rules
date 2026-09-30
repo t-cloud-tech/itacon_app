@@ -177,11 +177,9 @@ service cloud.firestore {
       );
 
       allow update: if isAuthenticated() && (
-        (isAdminOrManager() &&
+        ((isAdminOrManager() || isStaff() || isAssignedSalespersonForOrder(resource.data)) &&
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy']) &&
          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus']) || request.resource.data.paymentStatus != 'paid')) ||
-        (isAssignedSalespersonForOrder(resource.data) &&
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus', 'paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy'])) ||
         ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
          resource.data.status == 'rate_quoted' &&
          request.resource.data.status == 'confirmed' &&
@@ -264,7 +262,8 @@ service cloud.firestore {
     // PRICE & DISCOUNT APPROVAL COLLECTIONS
     // =========================================================================
     match /approvalRequests/{requestId} {
-      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
     }
     match /priceApprovals/{approvalId} {
       allow read: if isAuthenticated() && (
@@ -339,13 +338,16 @@ service cloud.firestore {
       allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
     }
     match /leads/{leadId} {
-      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
     }
     match /opportunities/{oppId} {
-      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
     }
     match /followUps/{followUpId} {
-      allow read, write: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
     }
 
     // =========================================================================

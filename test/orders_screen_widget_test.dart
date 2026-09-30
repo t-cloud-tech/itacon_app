@@ -5,7 +5,7 @@ import 'package:itacon_app/models/tile_order.dart';
 import 'package:itacon_app/screens/orders_screen.dart';
 
 void main() {
-  testWidgets('OrdersScreen displays correct tabs: History, Pending Quote, Rates Quoted, Confirmed',
+  testWidgets('OrdersScreen displays correct tabs: All, Pending Quote, Rates Quoted, Confirmed, History',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
@@ -21,20 +21,19 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify tabs
-    expect(find.text('History'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
     expect(find.text('Pending Quote'), findsOneWidget);
     expect(find.text('Rates Quoted'), findsOneWidget);
     expect(find.text('Confirmed'), findsOneWidget);
-    // Ensure 'All' tab no longer exists
-    expect(find.text('All'), findsNothing);
+    expect(find.text('History'), findsOneWidget);
 
-    // Verify empty state for initial tab (History)
-    expect(find.text('No completed orders yet'), findsOneWidget);
+    // Verify empty state for initial tab (All)
+    expect(find.text('No Orders Found'), findsOneWidget);
 
     await streamController.close();
   });
 
-  testWidgets('ITC-PO-2026-1228 with pending_rate appears in Pending Quote ONLY, not in History',
+  testWidgets('ITC-PO-2026-1228 with pending_rate appears in All and Pending Quote',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
@@ -74,9 +73,9 @@ void main() {
     streamController.add([testOrder]);
     await tester.pumpAndSettle();
 
-    // Tab 0 is History: ITC-PO-2026-1228 MUST NOT BE PRESENT
-    expect(find.text('ITC-PO-2026-1228'), findsNothing);
-    expect(find.text('No completed orders yet'), findsOneWidget);
+    // Tab 0 is All: ITC-PO-2026-1228 MUST BE PRESENT
+    expect(find.text('ITC-PO-2026-1228'), findsOneWidget);
+    expect(find.text('Awaiting Quote'), findsOneWidget);
 
     // Switch to Tab 1: Pending Quote
     await tester.tap(find.text('Pending Quote'));
@@ -103,10 +102,90 @@ void main() {
     expect(find.text('ITC-PO-2026-1228'), findsNothing);
     expect(find.text('No Confirmed Orders'), findsOneWidget);
 
+    // Switch to Tab 4: History
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+
+    // In History: MUST NOT BE PRESENT
+    expect(find.text('ITC-PO-2026-1228'), findsNothing);
+    expect(find.text('No completed orders yet'), findsOneWidget);
+
     await streamController.close();
   });
 
-  testWidgets('Delivered/completed orders appear in History ONLY',
+  testWidgets('Order with pending_admin_approval (< 26.50) stays in Pending Quote and All with Rate Quote Pending',
+      (WidgetTester tester) async {
+    final streamController = StreamController<List<TileOrder>>.broadcast();
+
+    final lowRateOrder = TileOrder(
+      id: 'ORDER_8594',
+      orderReference: 'ITC-PO-2026-8594',
+      userId: 'USER_CUST_1',
+      customerName: 'Perciano Tiles',
+      userCategory: 'Dealer',
+      status: 'pending_admin_approval',
+      priceApprovalStatus: 'pending_admin_approval',
+      orderType: 'ready_stock',
+      deliveryLocation: {'address': 'Morbi, Gujarat'},
+      transportRequired: true,
+      remarks: 'Special rate PO under approval',
+      items: [
+        const OrderItem(
+          productId: 'PROD_002',
+          productName: 'ITA 002-PERCIANO',
+          size: '600x1200',
+          surface: 'Glossy',
+          quantity: 1,
+          moq: 1,
+        ),
+      ],
+      totalAmount: 395.30,
+      totalBoxes: 1,
+      totalWeightTons: 0.03,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OrdersScreen(
+          ordersStream: streamController.stream,
+        ),
+      ),
+    );
+
+    streamController.add([lowRateOrder]);
+    await tester.pumpAndSettle();
+
+    // Tab 0 is All: Order MUST BE PRESENT with 'Awaiting Quote' & 'Total: Rate Quote Pending'
+    expect(find.text('ITC-PO-2026-8594'), findsOneWidget);
+    expect(find.text('Awaiting Quote'), findsOneWidget);
+    expect(find.text('Total: Rate Quote Pending'), findsOneWidget);
+
+    // Switch to Tab 1: Pending Quote
+    await tester.tap(find.text('Pending Quote'));
+    await tester.pumpAndSettle();
+
+    // In Pending Quote: MUST BE PRESENT! (stays in pending quote during admin approval)
+    expect(find.text('ITC-PO-2026-8594'), findsOneWidget);
+    expect(find.text('Awaiting Quote'), findsOneWidget);
+    expect(find.text('Total: Rate Quote Pending'), findsOneWidget);
+
+    // Switch to Tab 2: Rates Quoted
+    await tester.tap(find.text('Rates Quoted'));
+    await tester.pumpAndSettle();
+
+    // In Rates Quoted: MUST NOT BE PRESENT (not released to customer until admin confirms)
+    expect(find.text('ITC-PO-2026-8594'), findsNothing);
+
+    // Switch to Tab 3: Confirmed
+    await tester.tap(find.text('Confirmed'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ITC-PO-2026-8594'), findsNothing);
+
+    await streamController.close();
+  });
+
+  testWidgets('Delivered/completed orders appear in All and History',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
@@ -147,7 +226,7 @@ void main() {
     streamController.add([completedOrder]);
     await tester.pumpAndSettle();
 
-    // Tab 0 is History: Completed order MUST BE PRESENT
+    // Tab 0 is All: Completed order MUST BE PRESENT
     expect(find.text('ITC-PO-2026-8800'), findsOneWidget);
     expect(find.text('Delivered'), findsOneWidget);
 
@@ -165,6 +244,11 @@ void main() {
     await tester.tap(find.text('Confirmed'));
     await tester.pumpAndSettle();
     expect(find.text('ITC-PO-2026-8800'), findsNothing);
+
+    // Switch to Tab 4: History: MUST BE PRESENT
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    expect(find.text('ITC-PO-2026-8800'), findsOneWidget);
 
     await streamController.close();
   });

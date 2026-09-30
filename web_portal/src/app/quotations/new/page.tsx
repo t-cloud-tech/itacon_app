@@ -357,8 +357,9 @@ function QuotationForm() {
           discountTotal,
           grandTotal,
           {
-            requiresAdminConfirmation: isRateBelowThreshold,
+            requiresAdminConfirmation: requiresAdminConfirmation,
             pricePerSqft: avgRatePerSqft,
+            salespersonId: user?.userId || salesperson?.salesPersonId,
             salespersonName: user?.name || salesperson?.name,
           }
         );
@@ -371,7 +372,7 @@ function QuotationForm() {
           referenceId: docRef.id,
           referenceNumber: linkedOrder ? (linkedOrder.poNumber || quoteNumber) : quoteNumber,
           orderId: linkedOrder ? linkedOrder.id : null,
-          salespersonId: user?.userId || "sp-1",
+          salespersonId: user?.userId || salesperson?.salesPersonId || "sp-1",
           salespersonName: user?.name || salesperson?.name || "Sales Executive",
           customerId: selectedCust.id,
           customerName: selectedCust.companyName || selectedCust.name,

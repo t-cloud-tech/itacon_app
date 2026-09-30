@@ -819,38 +819,46 @@ export async function linkQuotationToOrder(
   options?: {
     requiresAdminConfirmation?: boolean;
     pricePerSqft?: number;
+    salespersonId?: string;
     salespersonName?: string;
   }
 ): Promise<void> {
+  const orderRef = doc(db, "orders", orderId);
+  const requiresAdmin = options?.requiresAdminConfirmation ?? false;
+  const pricePerSqft = options?.pricePerSqft ?? 0;
+
+  // If cost < ₹26.50/sq ft, order is locked in pending_admin_approval until Admin confirms
+  const status = requiresAdmin ? "pending_admin_approval" : "rate_quoted";
+
+  const updatePayload: Record<string, any> = {
+    status,
+    quotationId,
+    quotationNumber,
+    quotedItems,
+    subtotal,
+    discount: discountTotal,
+    totalAmount: grandTotal,
+    pricePerSqft,
+    minRateThreshold: MIN_RATE_PER_SQFT,
+    adminApprovalRequired: requiresAdmin,
+    adminApprovalStatus: requiresAdmin ? "pending" : "approved",
+    rateQuotedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (options?.salespersonId) {
+    updatePayload.salesPersonId = options.salespersonId;
+    updatePayload.salespersonId = options.salespersonId;
+  }
+  if (options?.salespersonName) {
+    updatePayload.salespersonName = options.salespersonName;
+  }
+
   try {
-    const orderRef = doc(db, "orders", orderId);
-    const requiresAdmin = options?.requiresAdminConfirmation ?? false;
-    const pricePerSqft = options?.pricePerSqft ?? 0;
-
-    // If cost < ₹26.50/sq ft, order is locked in pending_admin_approval until Admin confirms
-    const status = requiresAdmin ? "pending_admin_approval" : "rate_quoted";
-
-    await setDoc(
-      orderRef,
-      {
-        status,
-        quotationId,
-        quotationNumber,
-        quotedItems,
-        subtotal,
-        discount: discountTotal,
-        totalAmount: grandTotal,
-        pricePerSqft,
-        minRateThreshold: MIN_RATE_PER_SQFT,
-        adminApprovalRequired: requiresAdmin,
-        adminApprovalStatus: requiresAdmin ? "pending" : "approved",
-        rateQuotedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    await setDoc(orderRef, updatePayload, { merge: true });
   } catch (err) {
-    console.warn("Could not sync quotation link to order document:", err);
+    console.error("Could not sync quotation link to order document:", err);
+    throw err;
   }
 }
 
