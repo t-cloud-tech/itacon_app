@@ -5,7 +5,7 @@ import 'package:itacon_app/models/tile_order.dart';
 import 'package:itacon_app/screens/orders_screen.dart';
 
 void main() {
-  testWidgets('OrdersScreen displays correct tabs: All, Pending Quote, Rates Quoted, Confirmed, History',
+  testWidgets('OrdersScreen displays correct tabs: History, Pending Quote, Rates Quoted, Confirmed',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
@@ -21,19 +21,20 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify tabs
-    expect(find.text('All'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
     expect(find.text('Pending Quote'), findsOneWidget);
     expect(find.text('Rates Quoted'), findsOneWidget);
     expect(find.text('Confirmed'), findsOneWidget);
-    expect(find.text('History'), findsOneWidget);
+    // Ensure 'All' tab no longer exists
+    expect(find.text('All'), findsNothing);
 
-    // Verify empty state for initial tab (All)
-    expect(find.text('No Orders Found'), findsOneWidget);
+    // Verify empty state for initial tab (History)
+    expect(find.text('No completed orders yet'), findsOneWidget);
 
     await streamController.close();
   });
 
-  testWidgets('ITC-PO-2026-1228 with pending_rate appears in All and Pending Quote',
+  testWidgets('ITC-PO-2026-1228 with pending_rate appears in Pending Quote ONLY, not in History',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
@@ -73,9 +74,9 @@ void main() {
     streamController.add([testOrder]);
     await tester.pumpAndSettle();
 
-    // Tab 0 is All: ITC-PO-2026-1228 MUST BE PRESENT
-    expect(find.text('ITC-PO-2026-1228'), findsOneWidget);
-    expect(find.text('Awaiting Quote'), findsOneWidget);
+    // Tab 0 is History: ITC-PO-2026-1228 MUST NOT BE PRESENT
+    expect(find.text('ITC-PO-2026-1228'), findsNothing);
+    expect(find.text('No completed orders yet'), findsOneWidget);
 
     // Switch to Tab 1: Pending Quote
     await tester.tap(find.text('Pending Quote'));
@@ -102,18 +103,10 @@ void main() {
     expect(find.text('ITC-PO-2026-1228'), findsNothing);
     expect(find.text('No Confirmed Orders'), findsOneWidget);
 
-    // Switch to Tab 4: History
-    await tester.tap(find.text('History'));
-    await tester.pumpAndSettle();
-
-    // In History: MUST NOT BE PRESENT
-    expect(find.text('ITC-PO-2026-1228'), findsNothing);
-    expect(find.text('No completed orders yet'), findsOneWidget);
-
     await streamController.close();
   });
 
-  testWidgets('Order with pending_admin_approval (< 26.50) stays in Pending Quote and All with Rate Quote Pending',
+  testWidgets('Order with pending_admin_approval (< 26.50) stays in Pending Quote and not in History',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
@@ -155,10 +148,9 @@ void main() {
     streamController.add([lowRateOrder]);
     await tester.pumpAndSettle();
 
-    // Tab 0 is All: Order MUST BE PRESENT with 'Awaiting Quote' & 'Total: Rate Quote Pending'
-    expect(find.text('ITC-PO-2026-8594'), findsOneWidget);
-    expect(find.text('Awaiting Quote'), findsOneWidget);
-    expect(find.text('Total: Rate Quote Pending'), findsOneWidget);
+    // Tab 0 is History: MUST NOT BE PRESENT
+    expect(find.text('ITC-PO-2026-8594'), findsNothing);
+    expect(find.text('No completed orders yet'), findsOneWidget);
 
     // Switch to Tab 1: Pending Quote
     await tester.tap(find.text('Pending Quote'));
@@ -185,11 +177,11 @@ void main() {
     await streamController.close();
   });
 
-  testWidgets('Delivered/completed orders appear in All and History',
+  testWidgets('Delivered, declined, and paid orders appear in History ONLY',
       (WidgetTester tester) async {
     final streamController = StreamController<List<TileOrder>>.broadcast();
 
-    final completedOrder = TileOrder(
+    final deliveredOrder = TileOrder(
       id: 'ORDER_HIST_01',
       orderReference: 'ITC-PO-2026-8800',
       userId: 'USER_CUST_1',
@@ -215,6 +207,60 @@ void main() {
       totalWeightTons: 1.12,
     );
 
+    final declinedOrder = TileOrder(
+      id: 'ORDER_DECLINED_01',
+      orderReference: 'ITC-PO-2026-4922',
+      userId: 'USER_CUST_1',
+      customerName: 'Tirth Kalpesh Patel',
+      userCategory: 'Dealer',
+      status: 'rejected',
+      orderType: 'ready_stock',
+      deliveryLocation: {'address': 'Ahmedabad, Gujarat'},
+      transportRequired: false,
+      remarks: '',
+      items: [
+        const OrderItem(
+          productId: 'PROD_3',
+          productName: 'ARS BIANCO',
+          size: '600x1200',
+          surface: 'Glossy',
+          quantity: 1,
+          moq: 1,
+        ),
+      ],
+      totalAmount: 2991.30,
+      totalBoxes: 1,
+      totalWeightTons: 0.03,
+    );
+
+    final paidOrder = TileOrder(
+      id: 'ORDER_PAID_01',
+      orderReference: 'ITC-PO-2026-5555',
+      userId: 'USER_CUST_1',
+      customerName: 'Tirth Kalpesh Patel',
+      userCategory: 'Dealer',
+      status: 'confirmed',
+      paymentStatus: 'paid',
+      paidAmount: 50000.0,
+      orderType: 'ready_stock',
+      deliveryLocation: {'address': 'Surat, Gujarat'},
+      transportRequired: true,
+      remarks: '',
+      items: [
+        const OrderItem(
+          productId: 'PROD_4',
+          productName: 'Royal Slate',
+          size: '600x1200',
+          surface: 'Matt',
+          quantity: 10,
+          moq: 1,
+        ),
+      ],
+      totalAmount: 50000.0,
+      totalBoxes: 10,
+      totalWeightTons: 0.3,
+    );
+
     await tester.pumpWidget(
       MaterialApp(
         home: OrdersScreen(
@@ -223,32 +269,36 @@ void main() {
       ),
     );
 
-    streamController.add([completedOrder]);
+    streamController.add([deliveredOrder, declinedOrder, paidOrder]);
     await tester.pumpAndSettle();
 
-    // Tab 0 is All: Completed order MUST BE PRESENT
+    // Tab 0 is History: ALL THREE orders MUST BE PRESENT
     expect(find.text('ITC-PO-2026-8800'), findsOneWidget);
     expect(find.text('Delivered'), findsOneWidget);
+    expect(find.text('ITC-PO-2026-4922'), findsOneWidget);
+    expect(find.text('Declined'), findsOneWidget);
+    expect(find.text('ITC-PO-2026-5555'), findsOneWidget);
 
-    // Switch to Tab 1: Pending Quote: MUST NOT BE PRESENT
+    // Switch to Tab 1: Pending Quote: NONE MUST BE PRESENT
     await tester.tap(find.text('Pending Quote'));
     await tester.pumpAndSettle();
     expect(find.text('ITC-PO-2026-8800'), findsNothing);
+    expect(find.text('ITC-PO-2026-4922'), findsNothing);
+    expect(find.text('ITC-PO-2026-5555'), findsNothing);
 
-    // Switch to Tab 2: Rates Quoted: MUST NOT BE PRESENT
+    // Switch to Tab 2: Rates Quoted: NONE MUST BE PRESENT
     await tester.tap(find.text('Rates Quoted'));
     await tester.pumpAndSettle();
     expect(find.text('ITC-PO-2026-8800'), findsNothing);
+    expect(find.text('ITC-PO-2026-4922'), findsNothing);
+    expect(find.text('ITC-PO-2026-5555'), findsNothing);
 
-    // Switch to Tab 3: Confirmed: MUST NOT BE PRESENT
+    // Switch to Tab 3: Confirmed: NONE MUST BE PRESENT (paid order moved to History!)
     await tester.tap(find.text('Confirmed'));
     await tester.pumpAndSettle();
     expect(find.text('ITC-PO-2026-8800'), findsNothing);
-
-    // Switch to Tab 4: History: MUST BE PRESENT
-    await tester.tap(find.text('History'));
-    await tester.pumpAndSettle();
-    expect(find.text('ITC-PO-2026-8800'), findsOneWidget);
+    expect(find.text('ITC-PO-2026-4922'), findsNothing);
+    expect(find.text('ITC-PO-2026-5555'), findsNothing);
 
     await streamController.close();
   });

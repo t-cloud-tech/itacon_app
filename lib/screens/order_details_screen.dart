@@ -359,7 +359,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         final bool isPendingRate = order.isPendingQuoteStage;
         final bool isRateQuoted = order.isRateQuotedStage;
         final bool isConfirmed = order.isConfirmedStage;
-        final bool isRejected = order.status == 'rejected';
+        final bool isRejected = order.status == 'rejected' ||
+            order.status == 'declined' ||
+            order.status == 'cancelled';
 
         return Scaffold(
           backgroundColor: AppTheme.backgroundColor,

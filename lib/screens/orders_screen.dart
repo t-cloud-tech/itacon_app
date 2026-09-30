@@ -44,7 +44,7 @@ class _OrdersScreenState extends State<OrdersScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -104,11 +104,10 @@ class _OrdersScreenState extends State<OrdersScreen>
           labelPadding: const EdgeInsets.symmetric(horizontal: 16),
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(text: 'All'),
+            Tab(text: 'History'),
             Tab(text: 'Pending Quote'),
             Tab(text: 'Rates Quoted'),
             Tab(text: 'Confirmed'),
-            Tab(text: 'History'),
           ],
         ),
       ),
@@ -159,12 +158,12 @@ class _OrdersScreenState extends State<OrdersScreen>
                   controller: _tabController,
                   children: [
                     _buildOrderList(
-                      _applySearch(allOrders),
-                      tabName: 'All',
-                      emptyTitle: 'No Orders Found',
-                      emptySubtitle: 'Your placed orders and quotation requests will appear here.',
-                      emptyIcon: Icons.assignment_outlined,
-                      isHistoryTab: false,
+                      _applySearch(historyOrders),
+                      tabName: 'History',
+                      emptyTitle: 'No completed orders yet',
+                      emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
+                      emptyIcon: Icons.receipt_long_outlined,
+                      isHistoryTab: true,
                     ),
                     _buildOrderList(
                       _applySearch(pendingQuoteOrders),
@@ -189,14 +188,6 @@ class _OrdersScreenState extends State<OrdersScreen>
                       emptySubtitle: 'Accepted and active confirmed orders appear here.',
                       emptyIcon: Icons.check_circle_outline_rounded,
                       isHistoryTab: false,
-                    ),
-                    _buildOrderList(
-                      _applySearch(historyOrders),
-                      tabName: 'History',
-                      emptyTitle: 'No completed orders yet',
-                      emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
-                      emptyIcon: Icons.receipt_long_outlined,
-                      isHistoryTab: true,
                     ),
                   ],
                 ),
@@ -291,6 +282,7 @@ class _OrdersScreenState extends State<OrdersScreen>
             displayStatus = 'Completed';
             break;
           case 'rejected':
+          case 'declined':
             displayStatus = 'Declined';
             break;
           case 'cancelled':
@@ -320,7 +312,7 @@ class _OrdersScreenState extends State<OrdersScreen>
           statusColor = AppTheme.accentOrange;
         } else if (sLower == 'pending_manager_approval' || sLower == 'pending_salesperson_review') {
           statusColor = const Color(0xFFD97706); // Amber
-        } else if (sLower == 'cancelled' || sLower == 'rejected') {
+        } else if (sLower == 'cancelled' || sLower == 'rejected' || sLower == 'declined') {
           statusColor = Colors.red;
         } else if (sLower == 'dispatched') {
           statusColor = Colors.teal;

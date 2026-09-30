@@ -278,16 +278,18 @@ class TileOrder {
   bool get isPaymentPendingVerification => paymentStatus == 'pending_verification';
   bool get isPaymentRejected => paymentStatus == 'rejected';
 
-  /// Whether this order has completed its delivery/payment business lifecycle (History tab)
+  /// Whether this order has completed its business lifecycle or was declined/cancelled (History tab)
   bool get isHistoryStage {
     final s = status.toLowerCase();
     final ds = dispatchStatus.toLowerCase();
+    final ps = paymentStatus?.toLowerCase();
     return s == 'completed' ||
            s == 'delivered' ||
            ds == 'delivered' ||
            s == 'cancelled' ||
            s == 'rejected' ||
-           (paymentStatus?.toLowerCase() == 'paid' && (s == 'completed' || s == 'delivered' || ds == 'delivered'));
+           s == 'declined' ||
+           ps == 'paid';
   }
 
   /// Whether this order is in the initial pending quote phase (Pending Quote tab)
