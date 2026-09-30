@@ -33,7 +33,7 @@ export default function ApprovalsPage() {
       setIsLoading(true);
       try {
         const appRef = collection(db, "approvalRequests");
-        let q = query(appRef, orderBy("createdAt", "desc"));
+        const q = query(appRef, orderBy("createdAt", "desc"));
 
         const snap = await getDocs(q);
         const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ApprovalRequest));

@@ -136,20 +136,22 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercent = 0;
-  const donutSegments = items.map((item) => {
-    const percent = total > 0 ? (item.count / total) * 100 : 0;
-    const strokeDasharray = `${(percent / 100) * circumference} ${circumference}`;
-    const strokeDashoffset = -((accumulatedPercent / 100) * circumference);
-    accumulatedPercent += percent;
+  const donutSegments = useMemo(() => {
+    let acc = 0;
+    return items.map((item) => {
+      const percent = total > 0 ? (item.count / total) * 100 : 0;
+      const strokeDasharray = `${(percent / 100) * circumference} ${circumference}`;
+      const strokeDashoffset = -((acc / 100) * circumference);
+      acc += percent;
 
-    return {
-      ...item,
-      percent: percent.toFixed(1),
-      strokeDasharray,
-      strokeDashoffset,
-    };
-  });
+      return {
+        ...item,
+        percent: percent.toFixed(1),
+        strokeDasharray,
+        strokeDashoffset,
+      };
+    });
+  }, [items, total, circumference]);
 
   const activeHoverItem = hoveredKey ? donutSegments.find((s) => s.key === hoveredKey) : null;
 

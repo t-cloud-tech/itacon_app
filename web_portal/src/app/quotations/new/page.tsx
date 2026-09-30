@@ -289,8 +289,8 @@ function QuotationForm() {
     paymentTerms: "30 Days Net",
     assignedSalespersonId: linkedOrder.salesPersonId || user?.userId || "",
     status: "active",
-    createdAt: linkedOrder.createdAt || new Date().toISOString(),
-    updatedAt: linkedOrder.createdAt || new Date().toISOString(),
+    createdAt: linkedOrder.createdAt || "2026-01-01T00:00:00.000Z",
+    updatedAt: linkedOrder.createdAt || "2026-01-01T00:00:00.000Z",
   } : customers[0]);
 
   const handleSubmitQuotation = async () => {

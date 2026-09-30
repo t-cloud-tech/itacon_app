@@ -70,15 +70,17 @@ function QuotationsContent() {
   const [copiedPoId, setCopiedPoId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync tab and status if search parameters change
-  useEffect(() => {
+  // Sync tab and status if search parameters change (React 19 pattern)
+  const [prevParams, setPrevParams] = useState({ tab: paramTab, status: paramStatus });
+  if (prevParams.tab !== paramTab || prevParams.status !== paramStatus) {
+    setPrevParams({ tab: paramTab, status: paramStatus });
     if (paramTab === "status_orders") {
       setActiveTab("status_orders");
     }
     if (paramStatus && ["pending_rate", "rate_quoted", "confirmed", "rejected"].includes(paramStatus)) {
       setActiveStatusCard(paramStatus);
     }
-  }, [paramTab, paramStatus]);
+  }
 
   // Load salespersons directory
   useEffect(() => {
@@ -94,8 +96,6 @@ function QuotationsContent() {
   }, []);
 
   useEffect(() => {
-    setIsLoading(true);
-
     // 1. Real-time live quotations listener
     const quotesRef = collection(db, "quotations");
     let q = query(quotesRef, orderBy("createdAt", "desc"));
