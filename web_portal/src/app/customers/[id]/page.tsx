@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { fetchLiveCustomerById } from "@/lib/customer-service";
 import { Customer } from "@/types";
 import { 
   ArrowLeft, 
@@ -44,96 +45,83 @@ export default function CustomerDetailPage() {
       setIsLoading(true);
       try {
         if (!customerId) return;
-        const snap = await getDoc(doc(db, "customers", customerId));
-        if (snap.exists()) {
-          setCustomer({ id: snap.id, ...snap.data() } as Customer);
-        } else {
-          // Fallback baseline customer
-          setCustomer({
-            id: customerId,
-            customerNumber: "CUST-2026-081",
-            name: "Pravin Bhai Shah",
-            companyName: "Gujarat Ceramics & Tiles",
-            phone: "98250 99881",
-            email: "gujaratceramics@gmail.com",
-            city: "Ahmedabad",
-            state: "Gujarat",
-            address: "Plot 14, GIDC Vatva Industrial Estate, Phase 2",
-            pincode: "382445",
-            gstNumber: "24AAACG1234F1Z5",
-            category: "Dealer",
-            priceTier: "A",
-            creditLimit: 1500000,
-            paymentTerms: "45 Days",
-            assignedSalespersonId: user?.userId || "sp-1",
-            status: "active",
-            createdAt: "2026-01-10",
-            updatedAt: "2026-09-20",
-          });
+        const liveCustomer = await fetchLiveCustomerById(customerId);
+        setCustomer(liveCustomer);
+
+        // Fetch live quotations for this customer
+        try {
+          const qSnap = await getDocs(
+            query(collection(db, "quotations"), where("customerId", "==", customerId))
+          );
+          const qList = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setQuotations(qList);
+        } catch (_) {
+          setQuotations([]);
         }
 
-        // Demo quotations for customer
-        setQuotations([
-          {
-            id: "qt-104",
-            quotationNumber: "QT-2026-104",
-            grandTotal: 345000,
-            status: "approved",
-            totalBoxes: 450,
-            createdAt: "Sep 22, 2026",
-            appSynced: true,
-          },
-          {
-            id: "qt-091",
-            quotationNumber: "QT-2026-091",
-            grandTotal: 520000,
-            status: "accepted",
-            totalBoxes: 680,
-            createdAt: "Aug 15, 2026",
-            appSynced: true,
-          },
-        ]);
+        // Fetch live opportunities for this customer
+        try {
+          const oppSnap = await getDocs(
+            query(collection(db, "opportunities"), where("customerId", "==", customerId))
+          );
+          const oppList = oppSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setOpportunities(oppList);
+        } catch (_) {
+          setOpportunities([]);
+        }
 
-        // Demo opportunities
-        setOpportunities([
-          {
-            id: "opp-1",
-            oppNumber: "OPP-2026-022",
-            title: "Commercial Complex Floor Tiles (GVT 800x1600)",
-            stage: "quotation",
-            estimatedValue: 1200000,
-            probability: 70,
-            expectedCloseDate: "Oct 15, 2026",
-          }
-        ]);
-
-        // Demo orders
-        setOrders([
-          {
-            id: "ord-1",
-            orderNumber: "ORD-2026-055",
-            status: "dispatched",
-            grandTotal: 520000,
-            dispatchDate: "Sep 01, 2026",
-            trackingNumber: "TRK-GT-9921",
-          }
-        ]);
-
+        // Fetch live orders for this customer
+        try {
+          const ordSnap = await getDocs(
+            query(collection(db, "orders"), where("customerId", "==", customerId))
+          );
+          const ordList = ordSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          setOrders(ordList);
+        } catch (_) {
+          setOrders([]);
+        }
       } catch (err) {
-        console.warn("Could not fetch customer details:", err);
+        console.error("Could not fetch customer details:", err);
       } finally {
         setIsLoading(false);
       }
     }
 
     fetchCustomerData();
-  }, [customerId, user]);
+  }, [customerId]);
 
-  if (isLoading || !customer) {
+  if (isLoading) {
     return (
       <DashboardShell title="Customer Profile">
-        <div className="flex items-center justify-center p-12">
-          <div className="w-8 h-8 border-2 border-slate-300 border-t-[#0E274D] rounded-full animate-spin" />
+        <div className="flex flex-col items-center justify-center p-16">
+          <div className="w-10 h-10 border-3 border-[#0E274D]/20 border-t-[#0E274D] rounded-full animate-spin mb-4" />
+          <p className="text-sm font-semibold text-slate-700">Loading Customer Profile...</p>
+          <p className="text-xs text-slate-400 mt-1">Retrieving live records from Firestore</p>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <DashboardShell title="Customer Not Found">
+        <div className="card-luxury p-12 text-center bg-white rounded-xl border border-slate-200/80 max-w-lg mx-auto mt-8">
+          <div className="w-12 h-12 rounded-xl bg-orange-50 text-[#E66A23] flex items-center justify-center mx-auto mb-4">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">Customer Not Found in Database</h3>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            No live customer record found with ID <span className="font-mono font-semibold text-slate-700">{customerId}</span>.
+          </p>
+          <div className="mt-6">
+            <Link
+              href="/customers"
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-[#0E274D] hover:bg-[#1A3A6D] text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Customer Directory</span>
+            </Link>
+          </div>
         </div>
       </DashboardShell>
     );

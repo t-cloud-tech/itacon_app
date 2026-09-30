@@ -352,6 +352,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           );
         }
 
+        final bool isPendingAdminApproval = order.status == 'pending_admin_approval' ||
+            order.status == 'pending_manager_approval' ||
+            order.priceApprovalStatus == 'pending_manager_approval' ||
+            order.priceApprovalStatus == 'pending_admin_approval';
         final bool isPendingRate = order.isPendingQuoteStage;
         final bool isRateQuoted = order.isRateQuotedStage;
         final bool isConfirmed = order.isConfirmedStage;
@@ -399,7 +403,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ],
 
                 // Top Status Alert Banner
-                _buildStatusBanner(order, isPendingRate, isRateQuoted, isConfirmed, isRejected),
+                _buildStatusBanner(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
                 const SizedBox(height: 16),
 
                 // Order Summary Header Card
@@ -416,17 +420,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                _buildItemsTable(order, isPendingRate),
+                _buildItemsTable(order, isPendingRate || isPendingAdminApproval),
                 const SizedBox(height: 16),
 
                 // Financial Summary Card (Excluding Freight)
-                if (!isPendingRate) ...[
+                if (!isPendingRate && !isPendingAdminApproval) ...[
                   _buildFinancialSummaryCard(order),
                   const SizedBox(height: 20),
                 ],
 
                 // Dynamic Action Block at Bottom
-                _buildDynamicActionBlock(order, isPendingRate, isRateQuoted, isConfirmed, isRejected),
+                _buildDynamicActionBlock(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
               ],
             ),
           ),
@@ -438,6 +442,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget _buildStatusBanner(
     TileOrder order,
     bool isPendingRate,
+    bool isPendingAdminApproval,
     bool isRateQuoted,
     bool isConfirmed,
     bool isRejected,
@@ -448,12 +453,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     String bannerTitle = 'Rate Approval in Progress';
     String bannerDesc = 'Your assigned salesperson is currently quoting today\'s factory rates.';
 
-    if (order.status == 'pending_manager_approval' || order.priceApprovalStatus == 'pending_manager_approval') {
-      bannerBg = AppTheme.primaryNavy.withValues(alpha: 0.1);
-      bannerBorder = AppTheme.primaryNavy;
-      bannerIcon = Icons.hourglass_top_rounded;
-      bannerTitle = 'Price Approval in Progress';
-      bannerDesc = 'Special discount rate request is currently awaiting factory manager review and approval.';
+    if (isPendingAdminApproval) {
+      bannerBg = const Color(0xFFFEF3C7);
+      bannerBorder = const Color(0xFFD97706);
+      bannerIcon = Icons.hourglass_bottom_rounded;
+      bannerTitle = 'Awaiting Admin Confirmation';
+      bannerDesc = 'Your salesperson has quoted special rates (< ₹26.50/sq.ft). This Purchase Order is awaiting head-office Admin confirmation before it can be confirmed.';
     } else if (isRateQuoted) {
       bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
       bannerBorder = AppTheme.accentOrange;
@@ -760,6 +765,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget _buildDynamicActionBlock(
     TileOrder order,
     bool isPendingRate,
+    bool isPendingAdminApproval,
     bool isRateQuoted,
     bool isConfirmed,
     bool isRejected,
@@ -780,6 +786,34 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               : 'Your assigned salesperson is currently quoting today\'s factory rates. You will be notified once ready.',
           textAlign: TextAlign.center,
           style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle, fontWeight: FontWeight.w500),
+        ),
+      );
+    }
+
+    if (isPendingAdminApproval) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          children: const [
+            Icon(Icons.lock_clock_rounded, color: Color(0xFFD97706), size: 32),
+            SizedBox(height: 8),
+            Text(
+              'Awaiting Management Confirmation',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'This Purchase Order includes special rates (< ₹26.50/sq.ft) and is undergoing head-office administrative confirmation. Once confirmed by Admin, your final order will immediately be available here for confirmation.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppTheme.textSubtle, height: 1.4),
+            ),
+          ],
         ),
       );
     }

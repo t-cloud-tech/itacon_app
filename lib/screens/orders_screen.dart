@@ -44,7 +44,7 @@ class _OrdersScreenState extends State<OrdersScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -104,10 +104,11 @@ class _OrdersScreenState extends State<OrdersScreen>
           labelPadding: const EdgeInsets.symmetric(horizontal: 16),
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(text: 'History'),
+            Tab(text: 'All'),
             Tab(text: 'Pending Quote'),
             Tab(text: 'Rates Quoted'),
             Tab(text: 'Confirmed'),
+            Tab(text: 'History'),
           ],
         ),
       ),
@@ -158,12 +159,12 @@ class _OrdersScreenState extends State<OrdersScreen>
                   controller: _tabController,
                   children: [
                     _buildOrderList(
-                      _applySearch(historyOrders),
-                      tabName: 'History',
-                      emptyTitle: 'No completed orders yet',
-                      emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
-                      emptyIcon: Icons.receipt_long_outlined,
-                      isHistoryTab: true,
+                      _applySearch(allOrders),
+                      tabName: 'All',
+                      emptyTitle: 'No Orders Found',
+                      emptySubtitle: 'Your placed orders and quotation requests will appear here.',
+                      emptyIcon: Icons.assignment_outlined,
+                      isHistoryTab: false,
                     ),
                     _buildOrderList(
                       _applySearch(pendingQuoteOrders),
@@ -188,6 +189,14 @@ class _OrdersScreenState extends State<OrdersScreen>
                       emptySubtitle: 'Accepted and active confirmed orders appear here.',
                       emptyIcon: Icons.check_circle_outline_rounded,
                       isHistoryTab: false,
+                    ),
+                    _buildOrderList(
+                      _applySearch(historyOrders),
+                      tabName: 'History',
+                      emptyTitle: 'No completed orders yet',
+                      emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
+                      emptyIcon: Icons.receipt_long_outlined,
+                      isHistoryTab: true,
                     ),
                   ],
                 ),
@@ -254,6 +263,9 @@ class _OrdersScreenState extends State<OrdersScreen>
         final String displayStatus;
         switch (order.status.toLowerCase()) {
           case 'pending_rate':
+          case 'pending_quote':
+          case 'awaiting_quote':
+          case 'pending_admin_approval':
             displayStatus = 'Awaiting Quote';
             break;
           case 'rate_quoted':
@@ -306,6 +318,8 @@ class _OrdersScreenState extends State<OrdersScreen>
           statusColor = AppTheme.statusSuccess;
         } else if (sLower == 'rate_quoted') {
           statusColor = AppTheme.accentOrange;
+        } else if (sLower == 'pending_manager_approval' || sLower == 'pending_salesperson_review') {
+          statusColor = const Color(0xFFD97706); // Amber
         } else if (sLower == 'cancelled' || sLower == 'rejected') {
           statusColor = Colors.red;
         } else if (sLower == 'dispatched') {
@@ -451,7 +465,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                   children: [
                     Expanded(
                       child: Text(
-                        order.status == 'pending_rate'
+                        order.isPendingQuoteStage
                             ? 'Total: Rate Quote Pending'
                             : 'Total: ₹${order.totalAmount.toStringAsFixed(2)}',
                         style: const TextStyle(
@@ -466,12 +480,12 @@ class _OrdersScreenState extends State<OrdersScreen>
                     const SizedBox(width: 8),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: order.status == 'rate_quoted' ? AppTheme.accentOrange : AppTheme.primaryNavy,
+                        backgroundColor: order.isRateQuotedStage ? AppTheme.accentOrange : AppTheme.primaryNavy,
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       ),
                       onPressed: () => _navigateToOrderDetails(order),
                       child: Text(
-                        order.status == 'rate_quoted' ? 'REVIEW RATES →' : 'VIEW PO DETAILS',
+                        order.isRateQuotedStage ? 'REVIEW RATES →' : 'VIEW PO DETAILS',
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ),

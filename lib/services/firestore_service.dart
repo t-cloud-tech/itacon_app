@@ -786,17 +786,15 @@ class FirestoreService {
 
       if (targetUid != null && targetUid.isNotEmpty) {
         final existingUser = await getUserProfile(targetUid);
-        final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(targetUid).get();
-        final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(targetUid).get();
+        final rawUserDoc = await _usersRef.doc(targetUid).get();
+        final rawData = rawUserDoc.data();
+        final existingSpId = existingUser?.salesPersonId ?? rawData?['salesPersonId'] ?? rawData?['assignedSalespersonId'];
 
-        if (existingUser != null &&
-            existingUser.salesPersonId != null &&
-            existingUser.salesPersonId!.isNotEmpty &&
-            (existingAutoSnap.exists || existingManualSnap.exists)) {
-          final existingSpDoc = await _salesPersonsRef.doc(existingUser.salesPersonId!).get();
+        if (existingSpId != null && existingSpId.toString().isNotEmpty) {
+          final existingSpDoc = await _salesPersonsRef.doc(existingSpId.toString()).get();
           final existingSpData = existingSpDoc.data();
           return {
-            'salespersonId': existingUser.salesPersonId!,
+            'salespersonId': existingSpId.toString(),
             'referralCode': existingSpData?['referralCode'] ?? 'SALES101',
             'name': existingSpData?['name'] ?? existingSpData?['fullName'] ?? 'ITA Sales Executive',
             'phone': existingSpData?['phone'] ?? existingSpData?['phoneNumber'] ?? '+919876543210',
@@ -902,15 +900,26 @@ class FirestoreService {
           .limit(1)
           .get();
 
+      final rawUserDoc = await _usersRef.doc(clientId).get();
+      final rawData = rawUserDoc.data();
+      final currentAssignedSp = clientDoc?.salesPersonId ??
+          rawData?['salesPersonId'] ??
+          rawData?['assignedSalespersonId'];
+
       if (existingManualSnap.exists ||
           existingAutoSnap.exists ||
-          existingAssignSnap.docs.isNotEmpty) {
-        // Client assignment document ALREADY exists in root assignment collections. Prevent duplicate document creation and double counter increments.
+          existingAssignSnap.docs.isNotEmpty ||
+          (currentAssignedSp != null && currentAssignedSp.toString().trim().isNotEmpty)) {
+        // Strict 1-to-many rule: One client can only connect to ONE salesperson.
+        // Client assignment already exists. Prevent duplicate document creation or reassignment.
         // Heal users/{clientId} if assignment fields are missing or null
         if (clientDoc == null || clientDoc.salesPersonId == null || clientDoc.salesPersonId!.isEmpty) {
+          final effectiveSp = (currentAssignedSp != null && currentAssignedSp.toString().trim().isNotEmpty)
+              ? currentAssignedSp.toString().trim()
+              : salespersonId;
           await _usersRef.doc(clientId).set({
-            'assignedSalespersonId': salespersonId,
-            'salesPersonId': salespersonId,
+            'assignedSalespersonId': effectiveSp,
+            'salesPersonId': effectiveSp,
             'salespersonName': spName,
             'salespersonPhone': spPhone,
             'salespersonReferralCode': spReferralCode,
@@ -1415,6 +1424,7 @@ class FirestoreService {
   Future<TileOrder> placeOrder({
     required String userId,
     String? customerName,
+    String? companyName,
     String? customerPhone,
     String? customerEmail,
     required String userCategory,
@@ -1433,12 +1443,14 @@ class FirestoreService {
     final docRef = _ordersRef.doc();
     final poRef = generateStateWiseOrderReferenceNumber(stateCode);
 
-    // Snapshot trusted customer identity from authenticated profile
-    String resolvedName = customerName ?? '';
-    String? resolvedPhone = customerPhone;
-    String? resolvedEmail = customerEmail;
+    // Resolve assigned salesperson and customer details if not provided
+    String spId = (salespersonId ?? '').trim();
+    String resolvedName = (customerName ?? '').trim();
+    String resolvedCompany = (companyName ?? '').trim();
+    String? resolvedPhone = customerPhone?.trim();
+    String? resolvedEmail = customerEmail?.trim();
 
-    if (resolvedName.isEmpty || resolvedPhone == null || resolvedEmail == null) {
+    if (spId.isEmpty || resolvedName.isEmpty || resolvedCompany.isEmpty || resolvedPhone == null || resolvedEmail == null) {
       try {
         final profile = await getUserProfile(userId);
         if (profile != null) {
@@ -1447,8 +1459,14 @@ class FirestoreService {
                 ? profile.name
                 : (profile.companyName.isNotEmpty ? profile.companyName : '');
           }
+          if (resolvedCompany.isEmpty) {
+            resolvedCompany = profile.companyName;
+          }
           resolvedPhone ??= profile.phone.isNotEmpty ? profile.phone : null;
           resolvedEmail ??= profile.email.isNotEmpty ? profile.email : null;
+          if (spId.isEmpty && (profile.salesPersonId?.isNotEmpty ?? false)) {
+            spId = profile.salesPersonId!;
+          }
         }
       } catch (_) {}
     }
@@ -1485,9 +1503,10 @@ class FirestoreService {
       orderReference: poRef,
       userId: userId,
       customerName: resolvedName,
+      companyName: resolvedCompany,
       customerPhone: resolvedPhone,
       customerEmail: resolvedEmail,
-      salesPersonId: salespersonId ?? '',
+      salesPersonId: spId,
       userCategory: userCategory,
       status: 'pending_rate',
       orderType: orderType,
@@ -1629,8 +1648,11 @@ class FirestoreService {
     return _ordersRef
         .where('userId', isEqualTo: userId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList())
-        .handleError((error) {
+        .map((snapshot) {
+      final list = snapshot.docs.map((doc) => TileOrder.fromMap(doc.data(), doc.id)).toList();
+      list.sort((a, b) => (b.createdAt ?? DateTime(2000)).compareTo(a.createdAt ?? DateTime(2000)));
+      return list;
+    }).handleError((error) {
       debugPrint('[FirestoreService] getUserOrdersStream non-fatal error for $userId: $error');
       return <TileOrder>[];
     });

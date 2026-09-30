@@ -929,6 +929,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         : _stateController.text.trim();
     final safeStateCode = rawState.length >= 2 ? rawState.substring(0, 2).toUpperCase() : 'GJ';
 
+    final spId = (user.salesPersonId != null && user.salesPersonId!.isNotEmpty)
+        ? user.salesPersonId
+        : AppStateService.instance.currentUserProfile.salesPersonId;
+
     TileOrder? createdOrder;
     try {
       createdOrder = await OrderService.instance.submitOrder(
@@ -936,10 +940,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         customerName: user.name.isNotEmpty
             ? user.name
             : (user.companyName.isNotEmpty ? user.companyName : 'Customer'),
+        companyName: user.companyName,
         customerPhone: user.phone.isNotEmpty ? user.phone : null,
         customerEmail: user.email.isNotEmpty ? user.email : null,
         userCategory: user.userCategory,
-        salespersonId: user.salesPersonId,
+        salespersonId: spId,
         items: orderItems,
         orderType: 'ready_stock',
         deliveryAddress: deliveryAddress,

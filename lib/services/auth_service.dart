@@ -943,29 +943,38 @@ class AuthService {
     String? clientCategory,
   }) async {
     final uid = currentUid;
-
     final code = referralCode.trim();
 
     if (code.isEmpty) {
       return false;
     }
 
-    final spProfile =
-        await _firestoreService
-            .verifySalespersonReferralCode(
-      code,
-    );
+    if (uid != null && uid.isNotEmpty) {
+      final existingUser = await _firestoreService.getUserProfile(uid);
+      final existingSpId = existingUser?.salesPersonId;
+
+      if (existingSpId != null && existingSpId.isNotEmpty) {
+        // One client must map with only one salesperson. Already mapped!
+        return true;
+      }
+    }
+
+    final spProfile = await _firestoreService.verifySalespersonReferralCode(code);
 
     if (spProfile == null) {
+      // Code is invalid or does not belong to any active salesperson
       return false;
     }
 
-    final spId =
-        (spProfile['id'] ??
-                spProfile['salesPersonId'] ??
-                spProfile['salespersonId'])
-            .toString();
-    final spCode = spProfile['referralCode'] ?? code.toUpperCase();
+    final spId = (spProfile['id'] ??
+            spProfile['salesPersonId'] ??
+            spProfile['salespersonId'])
+        ?.toString();
+    final spCode = spProfile['referralCode']?.toString() ?? code.toUpperCase();
+
+    if (spId == null || spId.isEmpty) {
+      return false;
+    }
 
     if (uid != null && uid.isNotEmpty) {
       await _firestoreService.saveCustomerReferralCode(
@@ -976,8 +985,7 @@ class AuthService {
         userCategory: clientCategory,
       );
 
-      await _firestoreService
-          .executeAtomicClientAssignment(
+      await _firestoreService.executeAtomicClientAssignment(
         clientId: uid,
         salespersonId: spId,
         assignmentType: 'manual_referral',

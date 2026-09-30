@@ -6,6 +6,9 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
+import { subscribeClientPORequests, subscribeAllOrders, ClientOrderPO } from "@/lib/order-service";
+import { RevenueOverviewCard } from "@/components/dashboard/revenue-overview-card";
+import { OrdersStatusDonutCard } from "@/components/dashboard/orders-status-donut-card";
 import { 
   TrendingUp, 
   Users, 
@@ -20,7 +23,9 @@ import {
   ArrowRight,
   ShieldAlert,
   Smartphone,
-  Truck
+  Truck,
+  ShoppingBag,
+  FileCheck2
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -30,6 +35,7 @@ export default function DashboardPage() {
     activeLeads: 0,
     openOpportunities: 0,
     pendingApprovals: 0,
+    pendingPOs: 0,
     followUpsDueToday: 0,
     monthQuotationsCount: 0,
     monthRevenue: 0,
@@ -37,9 +43,22 @@ export default function DashboardPage() {
 
   const [recentQuotes, setRecentQuotes] = useState<any[]>([]);
   const [needsAttention, setNeedsAttention] = useState<any[]>([]);
+  const [poRequests, setPoRequests] = useState<ClientOrderPO[]>([]);
+  const [allOrders, setAllOrders] = useState<ClientOrderPO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Subscribe to live Client PO requests
+    const unsubPOs = subscribeClientPORequests(user, salesperson, role, (livePOs) => {
+      setPoRequests(livePOs);
+      setStats((prev) => ({ ...prev, pendingPOs: livePOs.length }));
+    });
+
+    // 2. Subscribe to all live orders for executive funnel, revenue & status metrics
+    const unsubOrders = subscribeAllOrders(user, salesperson, role, (liveOrders) => {
+      setAllOrders(liveOrders);
+    });
+
     async function fetchDashboardData() {
       setIsLoading(true);
       try {
@@ -72,27 +91,29 @@ export default function DashboardPage() {
         });
 
         // Set live stats or sensible defaults
-        setStats({
+        setStats((prev) => ({
+          ...prev,
           activeLeads: 12,
           openOpportunities: 8,
           pendingApprovals: attentionItems.length,
           followUpsDueToday: 3,
           monthQuotationsCount: quotesList.length || 15,
           monthRevenue: 1845000,
-        });
+        }));
 
         setNeedsAttention(attentionItems);
       } catch (err) {
         console.warn("Using baseline dashboard data while Firestore collections populate:", err);
         // Fallback realistic metrics for preview
-        setStats({
+        setStats((prev) => ({
+          ...prev,
           activeLeads: 8,
           openOpportunities: 6,
           pendingApprovals: 2,
           followUpsDueToday: 3,
           monthQuotationsCount: 14,
           monthRevenue: 2450000,
-        });
+        }));
 
         setNeedsAttention([
           {
@@ -156,24 +177,78 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData();
-  }, [user, role]);
+
+    return () => {
+      unsubPOs();
+      unsubOrders();
+    };
+  }, [user, salesperson, role]);
 
   return (
     <DashboardShell
-      title={`Welcome back, ${user?.name || "Executive"}`}
-      subtitle={`Sales Territory: ${salesperson?.region || "Western Region"} • Real-time Sync Active`}
+      title={
+        role === "admin"
+          ? "Admin Executive Dashboard"
+          : `Welcome back, ${user?.name || "Executive"}`
+      }
+      subtitle={
+        role === "admin"
+          ? "Morbi Manufacturing Hub • Order pipeline funnel & revenue intelligence"
+          : `Sales Territory: ${salesperson?.region || "Western Region"} • Real-time Sync Active`
+      }
     >
       <div className="space-y-8 max-w-7xl mx-auto">
+        {/* Real-time Client PO Alert Banner */}
+        {poRequests.length > 0 && (
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-[#0E274D] via-[#163666] to-[#0E274D] text-white shadow-lg border border-orange-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start space-x-3.5">
+              <div className="w-11 h-11 rounded-xl bg-orange-500/20 border border-orange-500/40 text-orange-400 flex items-center justify-center shrink-0 mt-0.5">
+                <ShoppingBag className="w-5 h-5 text-orange-400" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm font-bold text-white tracking-wide">
+                    {poRequests.length} Client PO Request{poRequests.length > 1 ? "s" : ""} Awaiting Rate Quotation
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-orange-500 text-white animate-pulse">
+                    Live from App
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                  Your allocated clients placed orders in the ITACON mobile app. Click below to view specifications and quote custom box rates & discounts.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3 shrink-0">
+              <Link
+                href="/quotations"
+                className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+              >
+                <span>View PO Requests ({poRequests.length})</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-white border border-[#E2E8F0] shadow-xs">
           <div className="flex items-center space-x-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Quick Actions:</span>
             <div className="flex flex-wrap gap-2">
               <Link
-                href="/quotations/new"
+                href="/quotations"
                 className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold shadow-xs transition-colors"
               >
-                <PlusCircle className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Client POs ({poRequests.length})</span>
+              </Link>
+              <Link
+                href="/quotations/new"
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-slate-600" />
                 <span>New Quotation</span>
               </Link>
               <Link
@@ -206,7 +281,18 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* KPI Metric Cards */}
+        {/* ========================================================================= */}
+        {/* EXECUTIVE ANALYTICS SECTION: REVENUE OVERVIEW & STATUS DONUT              */}
+        {/* ========================================================================= */}
+        <div className="space-y-6">
+          {/* Card 1: Revenue Overview (today / this week / this month / this quarter / this year) with trend charts */}
+          <RevenueOverviewCard orders={allOrders} quotations={recentQuotes} />
+
+          {/* Card 2: Orders by Status: Donut chart: pending_rate, rate_quoted, confirmed, rejected counts */}
+          <OrdersStatusDonutCard orders={allOrders} />
+        </div>
+
+        {/* Operational KPI Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1: Active Leads */}
           <div className="card-luxury p-5 flex flex-col justify-between">

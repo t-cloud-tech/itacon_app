@@ -183,6 +183,10 @@ class TileOrder {
   final String orderReference; // Business order number (e.g. ITC-PO-2026-98104)
   final String userId; // Customer ID
   final String salesPersonId; // Assigned salesperson ID
+  final String customerName; // Customer display name snapshot at order creation
+  final String companyName; // Company / Dealership name
+  final String? customerPhone; // Customer contact phone
+  final String? customerEmail; // Customer email
   final String userCategory; // Customer category (Dealer / Wholesale / Retail / Contractor)
   final String status; // pending_rate, rate_quoted, confirmed, rejected
   final String orderType; // ready_stock / made_to_order
@@ -205,9 +209,6 @@ class TileOrder {
   final String? shipmentId;
   final double? freightAmount;
   final String dispatchStatus; // unassigned, assigned, dispatched, delivered
-  final String customerName; // Customer display name snapshot at order creation
-  final String? customerPhone; // Customer contact phone
-  final String? customerEmail; // Customer email
   final String paymentMethod; // bank_transfer
   final String? paymentStatus; // not_required, payment_due, pending_verification, paid, rejected
   final String? paymentSubmissionId; // Active submission reference
@@ -228,6 +229,7 @@ class TileOrder {
     required this.orderReference,
     required this.userId,
     this.customerName = '',
+    this.companyName = '',
     this.customerPhone,
     this.customerEmail,
     this.salesPersonId = '',
@@ -295,6 +297,7 @@ class TileOrder {
     return s == 'pending_rate' ||
            s == 'pending_salesperson_review' ||
            s == 'pending_manager_approval' ||
+           s == 'pending_admin_approval' ||
            s == 'awaiting_quote';
   }
 
@@ -334,6 +337,7 @@ class TileOrder {
       'userId': userId,
       'customerId': userId,
       'customerName': customerName,
+      'companyName': companyName,
       if (customerPhone != null && customerPhone!.isNotEmpty) 'customerPhone': customerPhone,
       if (customerEmail != null && customerEmail!.isNotEmpty) 'customerEmail': customerEmail,
       'salesPersonId': salesPersonId,
@@ -440,6 +444,7 @@ class TileOrder {
       orderReference: ref,
       userId: (map['userId'] ?? map['customerId'] ?? '').toString(),
       customerName: cName,
+      companyName: (map['companyName'] ?? map['businessName'] ?? '').toString(),
       customerPhone: cPhone,
       customerEmail: cEmail,
       salesPersonId: (map['salesPersonId'] ?? map['salespersonId'] ?? '').toString(),
@@ -495,6 +500,7 @@ class TileOrder {
     String? orderReference,
     String? userId,
     String? customerName,
+    String? companyName,
     String? customerPhone,
     String? customerEmail,
     String? salesPersonId,
@@ -540,6 +546,7 @@ class TileOrder {
       orderReference: orderReference ?? this.orderReference,
       userId: userId ?? this.userId,
       customerName: customerName ?? this.customerName,
+      companyName: companyName ?? this.companyName,
       customerPhone: customerPhone ?? this.customerPhone,
       customerEmail: customerEmail ?? this.customerEmail,
       salesPersonId: salesPersonId ?? this.salesPersonId,

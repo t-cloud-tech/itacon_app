@@ -16,6 +16,7 @@ class OrderService {
   Future<TileOrder> submitOrder({
     required String userId,
     String? customerName,
+    String? companyName,
     String? customerPhone,
     String? customerEmail,
     required String userCategory,
@@ -36,11 +37,16 @@ class OrderService {
     double weightKg = totalWeightKg ?? (boxes * 28.0);
     double weightTons = totalWeightTons ?? (weightKg / 1000.0);
 
+    final effectiveSpId = (salespersonId != null && salespersonId.isNotEmpty)
+        ? salespersonId
+        : AppStateService.instance.currentUserProfile.salesPersonId;
+
     return await _firestore.placeOrder(
       userId: userId,
-      customerName: customerName,
-      customerPhone: customerPhone,
-      customerEmail: customerEmail,
+      customerName: customerName ?? AppStateService.instance.currentUserProfile.name,
+      companyName: companyName ?? AppStateService.instance.currentUserProfile.companyName,
+      customerPhone: customerPhone ?? AppStateService.instance.currentUserProfile.phone,
+      customerEmail: customerEmail ?? AppStateService.instance.currentUserProfile.email,
       userCategory: userCategory,
       items: items,
       orderType: orderType,
@@ -48,7 +54,7 @@ class OrderService {
       transportRequired: transportRequired,
       remarks: remarks,
       stateCode: stateCode,
-      salespersonId: salespersonId,
+      salespersonId: effectiveSpId,
       totalBoxes: boxes,
       totalWeightKg: weightKg,
       totalWeightTons: weightTons,
