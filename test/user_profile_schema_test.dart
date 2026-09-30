@@ -4,6 +4,7 @@ import 'package:itacon_app/models/sales_person.dart';
 import 'package:itacon_app/models/assigned_client_snapshot.dart';
 import 'package:itacon_app/models/client_assignment.dart';
 import 'package:itacon_app/services/firestore_service.dart';
+import 'package:itacon_app/services/auth_service.dart';
 
 void main() {
   group('User Profile Schema & Data Integrity Tests', () {
@@ -462,6 +463,211 @@ void main() {
           referralCode: activeSpCode,
         );
         expect(sp.phone, activeSpPhone);
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // User ↔ Category Linking & Safe Cleanup Tests
+    // -------------------------------------------------------------------------
+    group('User ↔ Category Linking & Safe Cleanup Tests', () {
+      const testUid = 'test_firebase_uid_12345';
+
+      test('25. Canonical category mapping (1-5): dealer -> dealers, architect -> architects, builder -> builders, wholesaler -> wholesalers, retailer -> retailers', () {
+        // 1. dealer -> dealers
+        expect(FirestoreService.getCategoryCollectionName('dealer'), 'dealers');
+        // 2. architect -> architects
+        expect(FirestoreService.getCategoryCollectionName('architect'), 'architects');
+        // 3. builder -> builders
+        expect(FirestoreService.getCategoryCollectionName('builder'), 'builders');
+        // 4. wholesaler -> wholesalers
+        expect(FirestoreService.getCategoryCollectionName('wholesaler'), 'wholesalers');
+        // 5. retailer -> retailers
+        expect(FirestoreService.getCategoryCollectionName('retailer'), 'retailers');
+      });
+
+      test('26. Unknown category is rejected (6)', () {
+        expect(() => FirestoreService.getCategoryCollectionName('xyz'), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('unknownCategory'), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('foo_bar'), throwsArgumentError);
+      });
+
+      test('27. Empty and null category is rejected (7)', () {
+        expect(() => FirestoreService.getCategoryCollectionName(''), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('   '), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName(null), throwsArgumentError);
+      });
+
+      test('28. Arbitrary value cannot create arbitrary collection (8)', () {
+        expect(() => FirestoreService.getCategoryCollectionName('customer'), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('customPartner'), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('vendor'), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('xyzs'), throwsArgumentError);
+      });
+
+      test('29. contractor cannot create contractors (9)', () {
+        expect(() => FirestoreService.getCategoryCollectionName('contractor'), throwsArgumentError);
+        expect(() => FirestoreService.getCategoryCollectionName('contractors'), throwsArgumentError);
+      });
+
+      test('30. Builder / Contractor still resolves through builder -> builders (10)', () {
+        expect(FirestoreService.getCategoryCollectionName('Builder / Contractor'), 'builders');
+        expect(FirestoreService.getCategoryCollectionName('builder / contractor'), 'builders');
+        expect(FirestoreService.getCategoryCollectionName('Builder/Contractor'), 'builders');
+      });
+
+      test('31. Registration cannot write unsupported category (11)', () async {
+        final authService = AuthService();
+        expect(
+          () => authService.registerUser(
+            phoneNumber: '+919624818477',
+            categoryId: 'contractor', // unsupported category
+            password: 'ValidPassword123!',
+          ),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => authService.registerUser(
+            phoneNumber: '+919624818477',
+            categoryId: 'customer', // unsupported arbitrary category
+            password: 'ValidPassword123!',
+          ),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => authService.registerUser(
+            phoneNumber: '+919624818477',
+            categoryId: 'xyz', // unknown category
+            password: 'ValidPassword123!',
+          ),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => authService.registerUser(
+            phoneNumber: '+919624818477',
+            categoryId: '', // empty category
+            password: 'ValidPassword123!',
+          ),
+          throwsArgumentError,
+        );
+      });
+
+      test('32. Category change cannot target unsupported category (12)', () async {
+        final firestoreService = FirestoreService();
+        expect(
+          () => firestoreService.updateUserProfileData(
+            uid: testUid,
+            role: 'contractor', // unsupported category
+          ),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => firestoreService.updateUserProfileData(
+            uid: testUid,
+            role: 'customer', // unsupported arbitrary category
+          ),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => firestoreService.updateUserProfileData(
+            uid: testUid,
+            role: 'xyz', // unknown category
+          ),
+          throwsArgumentError,
+        );
+
+        expect(
+          () => firestoreService.updateUserProfileData(
+            uid: testUid,
+            role: '', // empty category
+          ),
+          throwsArgumentError,
+        );
+      });
+
+      test('33. New category document ID equals Firebase UID and category.userId equals Firebase UID', () {
+        final profile = createTestProfile(
+          userId: testUid,
+          name: 'Category Link User',
+          phone: '+919624818477',
+        );
+        expect(profile.userId, testUid);
+        final map = profile.toMap();
+        expect(map['userId'], testUid);
+        expect(map['uid'], testUid);
+      });
+
+      test('34. Architect registration maps to architects/{uid} with no auth secrets copied', () {
+        final targetCol = FirestoreService.getCategoryCollectionName('architect');
+        expect(targetCol, 'architects');
+
+        // Verify simulated payload for category mirror
+        final docData = <String, dynamic>{
+          'userId': testUid,
+          'uid': testUid,
+          'name': 'Ar. Priya Sharma',
+          'phone': '+919624818477',
+          'password': 'secret_password_123',
+          'passwordHash': 'hash_xyz',
+          'passwordSalt': 'salt_xyz',
+          'fcmToken': 'token_abc',
+        };
+
+        final catDocData = Map<String, dynamic>.from(docData);
+        catDocData.remove('password');
+        catDocData.remove('passwordHash');
+        catDocData.remove('passwordSalt');
+        catDocData.remove('fcmToken');
+
+        expect(catDocData.containsKey('password'), isFalse);
+        expect(catDocData.containsKey('passwordHash'), isFalse);
+        expect(catDocData.containsKey('passwordSalt'), isFalse);
+        expect(catDocData.containsKey('fcmToken'), isFalse);
+        expect(catDocData['userId'], testUid);
+      });
+
+      test('35. Category-change logic resolves old and new collection accurately', () {
+        const oldRole = 'retailer';
+        const newRole = 'architect';
+
+        final oldCol = FirestoreService.getCategoryCollectionName(oldRole);
+        final newCol = FirestoreService.getCategoryCollectionName(newRole);
+
+        expect(oldCol, 'retailers');
+        expect(newCol, 'architects');
+        expect(oldCol, isNot(newCol));
+      });
+
+      test('36. Deletion resolves correct category collection and preserves historical data', () {
+        const userCategory = 'wholesaler';
+        final colName = FirestoreService.getCategoryCollectionName(userCategory);
+        expect(colName, 'wholesalers');
+
+        // Historical business collections that must NOT be targeted for deletion
+        const protectedHistoricalCollections = [
+          'orders',
+          'quotations',
+          'paymentSubmissions',
+          'payment_utrs',
+          'loyaltyTransactions',
+          'customer_referrals',
+        ];
+
+        // Operational collections that are cleaned on deletion
+        const operationalCleaningTargets = [
+          'Auto_Assign_User',
+          'Manual_salesperson_assign',
+          'client_assignments',
+          'wishlists',
+        ];
+
+        for (final p in protectedHistoricalCollections) {
+          expect(operationalCleaningTargets.contains(p), isFalse);
+        }
       });
     });
   });

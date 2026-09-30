@@ -324,6 +324,18 @@ class AuthService {
     String? smsCode,
   }) async {
     // ----------------------------------------------------------
+    // 0. Validate userCategory upfront
+    // ----------------------------------------------------------
+
+    final cleanCategory = categoryId.trim();
+    if (cleanCategory.isEmpty) {
+      throw ArgumentError('Please select a valid user category.');
+    }
+    // Strictly validate that category resolves to one of the canonical collections.
+    // Throws ArgumentError for unsupported categories (contractor, customer, xyz, etc.)
+    FirestoreService.getCategoryCollectionName(cleanCategory);
+
+    // ----------------------------------------------------------
     // 1. Validate password
     // ----------------------------------------------------------
 

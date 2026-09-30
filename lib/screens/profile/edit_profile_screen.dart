@@ -43,8 +43,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final List<String> _categories = [
     'Dealer',
     'Architect',
-    'Builder',
-    'Contractor',
+    'Builder / Contractor',
     'Wholesaler',
     'Retailer',
   ];
@@ -78,7 +77,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       text: (profile.address['line1'] ?? profile.address['addressLine'] ?? '') as String,
     );
 
-    _selectedCategory = profile.userCategory.isNotEmpty ? profile.userCategory : 'Dealer';
+    final initialCat = profile.userCategory.isNotEmpty ? profile.userCategory : 'Dealer';
+    if (initialCat.toLowerCase() == 'builder' ||
+        initialCat.toLowerCase() == 'builder / contractor' ||
+        initialCat.toLowerCase() == 'contractor') {
+      _selectedCategory = 'Builder / Contractor';
+    } else {
+      _selectedCategory = _categories.firstWhere(
+        (c) => c.toLowerCase() == initialCat.toLowerCase(),
+        orElse: () => 'Dealer',
+      );
+    }
     _selectedRegion = profile.region.isNotEmpty ? profile.region : 'West India (Gujarat/Maharashtra)';
     _profilePhotoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     _showroomImages = List<String>.from(profile.showroomImages);

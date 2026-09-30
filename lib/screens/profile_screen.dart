@@ -902,8 +902,7 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
   final List<String> _categories = [
     'Dealer',
     'Architect',
-    'Builder',
-    'Contractor',
+    'Builder / Contractor',
     'Wholesaler',
     'Retailer',
   ];
@@ -930,7 +929,17 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
       text: (p.address['line1'] ?? p.address['addressLine'] ?? '') as String,
     );
 
-    _selectedCategory = p.userCategory.isNotEmpty ? p.userCategory : 'Dealer';
+    final initialCat = p.userCategory.isNotEmpty ? p.userCategory : 'Dealer';
+    if (initialCat.toLowerCase() == 'builder' ||
+        initialCat.toLowerCase() == 'builder / contractor' ||
+        initialCat.toLowerCase() == 'contractor') {
+      _selectedCategory = 'Builder / Contractor';
+    } else {
+      _selectedCategory = _categories.firstWhere(
+        (c) => c.toLowerCase() == initialCat.toLowerCase(),
+        orElse: () => 'Dealer',
+      );
+    }
     _selectedRegion = p.region.isNotEmpty ? p.region : 'West India (Gujarat/Maharashtra)';
   }
 

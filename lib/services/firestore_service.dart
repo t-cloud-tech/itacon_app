@@ -72,22 +72,39 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _paymentSubmissionsRef => _db.collection('paymentSubmissions');
   CollectionReference<Map<String, dynamic>> get _paymentUtrsRef => _db.collection('payment_utrs');
 
-  String _getCategoryCollectionName(String categoryId) {
-    switch (categoryId.toLowerCase()) {
-      case 'dealer':
-        return 'dealers';
-      case 'architect':
-        return 'architects';
-      case 'builder':
-        return 'builders';
-      case 'wholesaler':
-        return 'wholesalers';
-      case 'retailer':
-        return 'retailers';
-      default:
-        return '${categoryId.toLowerCase()}s';
+  /// Canonical category collection resolver.
+  /// Strictly maps allowed categories to their Firestore collections:
+  /// - dealer -> dealers
+  /// - architect -> architects
+  /// - builder -> builders (including 'Builder / Contractor')
+  /// - wholesaler -> wholesalers
+  /// - retailer -> retailers
+  ///
+  /// Any unknown, arbitrary, empty, or null category is strictly rejected
+  /// with an [ArgumentError] and will NOT guess or create collections.
+  static String getCategoryCollectionName(String? categoryId) {
+    if (categoryId == null || categoryId.trim().isEmpty) {
+      throw ArgumentError('Category ID cannot be null or empty.');
     }
+    final clean = categoryId.toLowerCase().trim();
+    if (clean == 'dealer' || clean == 'dealers') return 'dealers';
+    if (clean == 'architect' || clean == 'architects') return 'architects';
+    if (clean == 'builder' ||
+        clean == 'builders' ||
+        clean == 'builder / contractor' ||
+        clean == 'builder/contractor') {
+      return 'builders';
+    }
+    if (clean == 'wholesaler' || clean == 'wholesalers') return 'wholesalers';
+    if (clean == 'retailer' || clean == 'retailers') return 'retailers';
+
+    throw ArgumentError(
+      'Unsupported user category: "$categoryId". '
+      'Valid categories are strictly: dealer, architect, builder, wholesaler, retailer.',
+    );
   }
+
+  String _getCategoryCollectionName(String? categoryId) => getCategoryCollectionName(categoryId);
 
   // ===========================================================================
   // PHASE 1: USERS & SALESPERSONS
@@ -268,6 +285,7 @@ class FirestoreService {
     String? passwordSalt,
   }) async {
     try {
+      final catColName = _getCategoryCollectionName(role);
       final categoryLabel = UserCategory.getLabel(role);
 
       final resolvedName = (name != null && name.trim().isNotEmpty)
@@ -343,20 +361,28 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // 1. Store in primary `users` collection
+      // 1. Store in primary `users` collection (authoritative master profile)
       await _usersRef.doc(uid).set(docData, SetOptions(merge: true));
 
-      // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, etc.) WITHOUT salesperson fields
+      // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, builders/{uid}, etc.)
+      // Contains ONLY public business metadata. Strictly NO password hashes, salts, or auth tokens.
       final catDocData = Map<String, dynamic>.from(docData);
       catDocData.remove('salesPersonId');
       catDocData.remove('assignedSalespersonId');
       catDocData.remove('salespersonName');
       catDocData.remove('salespersonPhone');
       catDocData.remove('salespersonReferralCode');
+      catDocData.remove('password');
+      catDocData.remove('passwordHash');
+      catDocData.remove('passwordSalt');
+      catDocData.remove('fcmToken');
+      catDocData.remove('fcmTokenUpdatedAt');
 
-      final catColName = _getCategoryCollectionName(role);
       await _db.collection(catColName).doc(uid).set({
         ...catDocData,
+        'userId': uid,
+        'uid': uid,
+        'userCategory': role,
         'categoryLabel': categoryLabel,
       }, SetOptions(merge: true));
     } catch (e) {
@@ -364,7 +390,8 @@ class FirestoreService {
     }
   }
 
-  /// Updates user password hash and salt in `users` and category collections.
+  /// Updates user password hash and salt in `users` master profile.
+  /// NOTE: Password credentials MUST NOT be written to category collections.
   Future<void> updateUserPassword({
     required String uid,
     required String passwordHash,
@@ -380,11 +407,6 @@ class FirestoreService {
       };
 
       await _usersRef.doc(uid).set(updateData, SetOptions(merge: true));
-
-      if (role != null && role.isNotEmpty) {
-        final catColName = _getCategoryCollectionName(role);
-        await _db.collection(catColName).doc(uid).set(updateData, SetOptions(merge: true));
-      }
     } catch (e) {
       debugPrint('Error updating password in Firestore: $e');
       rethrow;
@@ -464,17 +486,172 @@ class FirestoreService {
       if (showroomImages != null) updateData['showroomImages'] = showroomImages;
       if (address != null) updateData['address'] = address;
 
-      // 1. Store/merge into primary `users` collection
-      await _usersRef.doc(uid).set(updateData, SetOptions(merge: true));
+      // 1. If role/category changed, atomically migrate category mirror:
+      //    a. Read old category from master users/{uid}
+      //    b. Delete old category mirror document (e.g. retailers/{uid})
+      //    c. Create new category mirror document (e.g. architects/{uid})
+      //    d. Update master profile users/{uid}.userCategory = newRole
+      if (role != null) {
+        final cleanRole = role.trim();
+        if (cleanRole.isEmpty) {
+          throw ArgumentError('Category cannot be empty.');
+        }
+        final newCatCol = _getCategoryCollectionName(cleanRole);
 
-      // 2. Also store/merge into category-wise collection (dealers/{uid}, wholesalers/{uid}, etc.)
-      if (role != null && role.isNotEmpty) {
-        final catColName = _getCategoryCollectionName(role);
-        await _db.collection(catColName).doc(uid).set(updateData, SetOptions(merge: true));
+        String? oldCatCol;
+        try {
+          final userSnap = await _usersRef.doc(uid).get();
+          final userData = userSnap.data();
+          final existingRole = userData?['userCategory'] ?? userData?['role'];
+          if (existingRole != null && existingRole.toString().isNotEmpty) {
+            final resolvedOldCol = _getCategoryCollectionName(existingRole.toString());
+            if (resolvedOldCol != newCatCol) {
+              oldCatCol = resolvedOldCol;
+            }
+          }
+        } catch (_) {}
+
+        final catUpdateData = Map<String, dynamic>.from(updateData);
+        catUpdateData.remove('password');
+        catUpdateData.remove('passwordHash');
+        catUpdateData.remove('passwordSalt');
+        catUpdateData.remove('fcmToken');
+        catUpdateData.remove('fcmTokenUpdatedAt');
+        catUpdateData['userId'] = uid;
+        catUpdateData['uid'] = uid;
+        catUpdateData['userCategory'] = role;
+        catUpdateData['categoryLabel'] = UserCategory.getLabel(role);
+
+        final batch = _db.batch();
+        // Delete old category mirror if category changed
+        if (oldCatCol != null) {
+          batch.delete(_db.collection(oldCatCol).doc(uid));
+        }
+        // Write new category mirror
+        batch.set(_db.collection(newCatCol).doc(uid), catUpdateData, SetOptions(merge: true));
+        // Update authoritative master users/{uid}
+        batch.set(_usersRef.doc(uid), updateData, SetOptions(merge: true));
+
+        await batch.commit();
+      } else {
+        await _usersRef.doc(uid).set(updateData, SetOptions(merge: true));
       }
+    } on ArgumentError {
+      rethrow;
     } catch (e) {
       // Graceful error handling in case offline/test mock
     }
+  }
+
+  /// Controlled safe user profile deletion service.
+  /// 
+  /// 1. Reads users/{uid} to resolve authoritative userCategory and salesperson assignment.
+  /// 2. Resolves category collection using centralized mapping.
+  /// 3. Removes current category mirror: `{categoryCollection}/{uid}`.
+  /// 4. Cleans active operational routing mirrors:
+  ///    - `Auto_Assign_User/{uid}`
+  ///    - `Manual_salesperson_assign/{uid}`
+  ///    - `client_assignments` (by clientId == uid)
+  ///    - `salesPersons/{salespersonId}/assigned_clients/{uid}`
+  ///    - `wishlists/{uid}` (subcollection items)
+  /// 5. Removes master profile `users/{uid}`.
+  /// 
+  /// PRESERVES historical business/audit collections:
+  /// - `orders`
+  /// - `quotations`
+  /// - `paymentSubmissions` / `payment_utrs` / payment records
+  /// - `loyaltyTransactions`
+  /// - `customer_referrals` (historical referral records)
+  Future<Map<String, dynamic>> deleteUserProfileSafely({required String uid}) async {
+    final cleanUid = uid.trim();
+    if (cleanUid.isEmpty) {
+      throw ArgumentError('Cannot delete user profile: empty uid provided.');
+    }
+
+    // 1. Read authoritative master user profile
+    final userSnap = await _usersRef.doc(cleanUid).get();
+    if (!userSnap.exists) {
+      return {
+        'success': false,
+        'message': 'User profile $cleanUid not found in users collection',
+      };
+    }
+
+    final userData = userSnap.data() ?? {};
+    final categoryId = (userData['userCategory'] ?? userData['role'] ?? '').toString();
+    final spId = (userData['salesPersonId'] ?? userData['assignedSalespersonId'] ?? '').toString();
+
+    final batch = _db.batch();
+    final List<String> removedPaths = [];
+
+    // 2. Remove category mirror if category is identified
+    String? resolvedCatCol;
+    try {
+      if (categoryId.isNotEmpty) {
+        resolvedCatCol = _getCategoryCollectionName(categoryId);
+        final catDocRef = _db.collection(resolvedCatCol).doc(cleanUid);
+        batch.delete(catDocRef);
+        removedPaths.add('$resolvedCatCol/$cleanUid');
+      }
+    } catch (_) {
+      // Legacy document with unknown category won't block safe profile deletion
+    }
+
+    // Defensive check: also delete across standard category collections to eliminate any cross-duplicates
+    for (final col in ['dealers', 'architects', 'builders', 'wholesalers', 'retailers']) {
+      if (resolvedCatCol == col) continue;
+      final altRef = _db.collection(col).doc(cleanUid);
+      batch.delete(altRef);
+    }
+
+    // 3. Clean operational routing mirrors
+    final autoAssignRef = _db.collection('Auto_Assign_User').doc(cleanUid);
+    batch.delete(autoAssignRef);
+    removedPaths.add('Auto_Assign_User/$cleanUid');
+
+    final manualAssignRef = _db.collection('Manual_salesperson_assign').doc(cleanUid);
+    batch.delete(manualAssignRef);
+    removedPaths.add('Manual_salesperson_assign/$cleanUid');
+
+    if (spId.isNotEmpty) {
+      final spClientRef = _salesPersonsRef.doc(spId).collection('assigned_clients').doc(cleanUid);
+      batch.delete(spClientRef);
+      removedPaths.add('salesPersons/$spId/assigned_clients/$cleanUid');
+    }
+
+    // 4. Remove master profile
+    batch.delete(_usersRef.doc(cleanUid));
+    removedPaths.add('users/$cleanUid');
+
+    await batch.commit();
+
+    // 5. Query and remove client_assignments documents for this clientId
+    try {
+      final assignSnaps = await _db.collection('client_assignments')
+          .where('clientId', isEqualTo: cleanUid)
+          .get();
+      for (final doc in assignSnaps.docs) {
+        await doc.reference.delete();
+        removedPaths.add('client_assignments/${doc.id}');
+      }
+    } catch (_) {}
+
+    // 6. Clean wishlist items
+    try {
+      final wishlistItems = await _wishlistsRef.doc(cleanUid).collection('wishlistItems').get();
+      for (final item in wishlistItems.docs) {
+        await item.reference.delete();
+      }
+      await _wishlistsRef.doc(cleanUid).delete();
+      removedPaths.add('wishlists/$cleanUid');
+    } catch (_) {}
+
+    return {
+      'success': true,
+      'uid': cleanUid,
+      'category': categoryId,
+      'removedPaths': removedPaths,
+    };
   }
 
   /// Searches for a user document by phone number, email, UID, or username
@@ -955,11 +1132,15 @@ class FirestoreService {
       batch.set(_usersRef.doc(clientId), userUpdateData, SetOptions(merge: true));
 
       // Category collections (dealers, architects, etc.) DO NOT store salesperson data
-      final catColName = _getCategoryCollectionName(resolvedCategory);
-      batch.set(_db.collection(catColName).doc(clientId), {
-        'isVerified': true,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      try {
+        final catColName = _getCategoryCollectionName(resolvedCategory);
+        batch.set(_db.collection(catColName).doc(clientId), {
+          'isVerified': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (_) {
+        // Legacy user with unsupported category will not block salesperson assignment
+      }
 
       // b. Insert record into root collections based on assignment type (deterministic document ID):
       // - Auto_Assign_User collection is ALWAYS written as the active assignment mirror
