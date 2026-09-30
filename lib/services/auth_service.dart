@@ -309,8 +309,10 @@ class AuthService {
   // ============================================================
 
   Future<void> registerUser({
-    required String fullName,
+    String? name,
+    String? fullName,
     required String phoneNumber,
+    String? countryCode,
     required String categoryId,
     required String password,
     String? religion,
@@ -350,8 +352,20 @@ class AuthService {
       );
     }
 
-    final formattedPhone =
-        _normalizeIndianPhone(phoneNumber);
+    final resolvedName = (name != null && name.trim().isNotEmpty)
+        ? name.trim()
+        : (fullName != null && fullName.trim().isNotEmpty ? fullName.trim() : '');
+
+    if (resolvedName.isEmpty) {
+      throw Exception('Please enter your full name.');
+    }
+
+    final phoneParts = FirestoreService.parsePhoneNumberComponents(
+      phoneNumber,
+      explicitCountryCode: countryCode,
+    );
+    final formattedPhone = phoneParts['e164Phone']!;
+    final resolvedCountryCode = phoneParts['countryCode']!;
 
     // ----------------------------------------------------------
     // 3. Verify real Firebase SMS OTP
@@ -375,10 +389,14 @@ class AuthService {
     _lastRegisteredUid = uid;
 
     // ----------------------------------------------------------
-    // 4. Check referral code
+    // 4. Check referral code & resolve active salesperson
     // ----------------------------------------------------------
 
     String? assignedSpId;
+    String? spName;
+    String? spPhone;
+    String? spReferralCode;
+    String assignmentType = 'auto_assigned';
 
     if (referralCode != null &&
         referralCode.trim().isNotEmpty) {
@@ -394,40 +412,44 @@ class AuthService {
                     spProfile['salesPersonId'] ??
                     spProfile['salespersonId'])
                 ?.toString();
+        spName = spProfile['name'] ?? spProfile['fullName'];
+        spPhone = spProfile['phone'] ?? spProfile['phoneNumber'];
+        spReferralCode = spProfile['referralCode'] ?? referralCode.trim().toUpperCase();
+        assignmentType = 'manual_referral';
       }
     }
 
-    // ----------------------------------------------------------
-    // 5. Optional email
-    // ----------------------------------------------------------
+    // If customer did NOT enter a valid referral code,
+    // preserve approved automatic-assignment behavior to the sole active salesperson.
+    if (assignedSpId == null || assignedSpId.isEmpty) {
+      final autoDetails = await _firestoreService.autoAssignSalespersonDetails(
+        userId: uid,
+        clientName: resolvedName,
+        clientPhone: formattedPhone,
+        companyName: companyName,
+        clientCategory: categoryId,
+      );
+      assignedSpId = autoDetails['salespersonId'] ?? FirestoreService.defaultSalespersonId;
+      spName = autoDetails['name'] ?? FirestoreService.defaultSalespersonName;
+      spPhone = autoDetails['phone'] ?? FirestoreService.defaultSalespersonPhone;
+      spReferralCode = autoDetails['referralCode'] ?? FirestoreService.defaultSalespersonReferralCode;
+      assignmentType = 'auto_assigned';
+    }
 
-    final cleanPhone =
-        formattedPhone.replaceAll(
-      RegExp(r'\D'),
-      '',
-    );
-
-    final registrationEmail =
-        (email != null &&
-                email.trim().isNotEmpty &&
-                email.contains('@'))
-            ? email.trim()
-            : 'user_$cleanPhone@itacon.com';
-
     // ----------------------------------------------------------
-    // 6. IMPORTANT:
-    //
-    // DO NOT create a second Firebase Email/Password account.
-    //
-    // The Firebase Phone Auth user above IS the Firebase user.
+    // 5. Optional email - never invent user_<phone>@itacon.com
     // ----------------------------------------------------------
 
-    // If the phone user does not already have an email,
-    // we can optionally link an email/password credential.
-    //
-    // However, this is only attempted when the generated/real
-    // email is suitable. If it is already linked, we simply
-    // continue with the phone-auth account.
+    final cleanEmail = (email != null && email.trim().isNotEmpty && email.contains('@'))
+        ? email.trim().toLowerCase()
+        : '';
+    final profileEmail = (cleanEmail.startsWith('user_') && cleanEmail.endsWith('@itacon.com'))
+        ? ''
+        : cleanEmail;
+
+    // ----------------------------------------------------------
+    // 6. Optional Email linking ONLY if real email entered
+    // ----------------------------------------------------------
 
     try {
       final existingProviders =
@@ -441,30 +463,24 @@ class AuthService {
       );
 
       if (!hasPasswordProvider &&
-          email != null &&
-          email.trim().isNotEmpty &&
-          email.contains('@')) {
+          profileEmail.isNotEmpty &&
+          profileEmail.contains('@')) {
         try {
           final emailCredential =
               EmailAuthProvider.credential(
-            email: registrationEmail,
+            email: profileEmail,
             password: password,
           );
 
           await firebaseUser.linkWithCredential(
             emailCredential,
           );
-        } on FirebaseAuthException catch (e) {
-          // Do not fail phone registration if the optional
-          // email linking cannot be completed.
-          if (e.code != 'provider-already-linked' &&
-              e.code != 'email-already-in-use') {
-            // Continue with phone authentication.
-          }
+        } on FirebaseAuthException catch (_) {
+          // Continue with phone authentication.
         }
       }
     } catch (_) {
-      // Phone account remains the primary authentication.
+      // Phone account remains primary.
     }
 
     // ----------------------------------------------------------
@@ -492,14 +508,18 @@ class AuthService {
 
     await _firestoreService.createUserProfile(
       uid: uid,
-      phoneNumber: formattedPhone,
-      fullName: fullName,
+      phone: formattedPhone,
+      countryCode: resolvedCountryCode,
+      name: resolvedName,
       role: categoryId,
       religion: religion,
       dateOfBirth: dateOfBirth,
-      email: registrationEmail,
+      email: profileEmail,
       companyName: companyName,
       assignedSalespersonId: assignedSpId,
+      salespersonName: spName,
+      salespersonPhone: spPhone,
+      salespersonReferralCode: spReferralCode,
       userReferralCode: userReferralCode,
       referredByCode: referralCode,
       isVerified: true,
@@ -514,15 +534,20 @@ class AuthService {
     final registeredProfile =
         UserProfile(
       userId: uid,
-      name: fullName,
+      name: resolvedName,
       religion: religion ?? '',
       dateOfBirth: dateOfBirth ?? '',
       companyName: companyName ?? '',
       phone: formattedPhone,
-      email: registrationEmail,
+      countryCode: resolvedCountryCode,
+      email: profileEmail,
       userCategory: categoryId,
       role: categoryId,
       salesPersonId: assignedSpId,
+      assignedSalespersonId: assignedSpId,
+      salespersonName: spName,
+      salespersonPhone: spPhone,
+      salespersonReferralCode: spReferralCode,
       referralCode: userReferralCode,
       phoneVerified: true,
       whatsappVerified: true,
@@ -543,24 +568,23 @@ class AuthService {
       await _firestoreService.saveCustomerReferralCode(
         userId: uid,
         referralCode: referralCode.trim(),
-        userName: fullName,
+        userName: resolvedName,
         userPhone: formattedPhone,
         userCategory: categoryId,
       );
     }
 
     // ----------------------------------------------------------
-    // 12. Assign salesperson
+    // 12. Assign salesperson across all required mirrors
     // ----------------------------------------------------------
 
-    if (assignedSpId != null &&
-        assignedSpId.isNotEmpty) {
+    if (assignedSpId.isNotEmpty) {
       await _firestoreService
           .executeAtomicClientAssignment(
         clientId: uid,
         salespersonId: assignedSpId,
-        assignmentType: 'manual_referral',
-        clientName: fullName,
+        assignmentType: assignmentType,
+        clientName: resolvedName,
         clientPhone: formattedPhone,
         companyName: companyName,
         clientCategory: categoryId,
@@ -923,30 +947,7 @@ class AuthService {
     final code = referralCode.trim();
 
     if (code.isEmpty) {
-      return true;
-    }
-
-    if (uid != null && uid.isNotEmpty) {
-      await _firestoreService.saveCustomerReferralCode(
-        userId: uid,
-        referralCode: code,
-        userName: clientName,
-        userPhone: clientPhone,
-        userCategory: clientCategory,
-      );
-
-      final existingUser =
-          await _firestoreService.getUserProfile(
-        uid,
-      );
-
-      final existingSpId =
-          existingUser?.salesPersonId;
-
-      if (existingSpId != null &&
-          existingSpId.isNotEmpty) {
-        return true;
-      }
+      return false;
     }
 
     final spProfile =
@@ -955,24 +956,40 @@ class AuthService {
       code,
     );
 
-    if (spProfile != null) {
-      final spId =
-          (spProfile['id'] ??
-                  spProfile['salesPersonId'] ??
-                  spProfile['salespersonId'])
-              .toString();
+    if (spProfile == null) {
+      return false;
+    }
 
-      if (uid != null && uid.isNotEmpty) {
-        await _firestoreService
-            .executeAtomicClientAssignment(
-          clientId: uid,
-          salespersonId: spId,
-          assignmentType: 'manual_referral',
-          clientName: clientName,
-          clientPhone: clientPhone,
-          companyName: companyName,
-          clientCategory: clientCategory,
-        );
+    final spId =
+        (spProfile['id'] ??
+                spProfile['salesPersonId'] ??
+                spProfile['salespersonId'])
+            .toString();
+    final spCode = spProfile['referralCode'] ?? code.toUpperCase();
+
+    if (uid != null && uid.isNotEmpty) {
+      await _firestoreService.saveCustomerReferralCode(
+        userId: uid,
+        referralCode: spCode,
+        userName: clientName,
+        userPhone: clientPhone,
+        userCategory: clientCategory,
+      );
+
+      await _firestoreService
+          .executeAtomicClientAssignment(
+        clientId: uid,
+        salespersonId: spId,
+        assignmentType: 'manual_referral',
+        clientName: clientName,
+        clientPhone: clientPhone,
+        companyName: companyName,
+        clientCategory: clientCategory,
+      );
+
+      final updatedProfile = await _firestoreService.getUserProfile(uid);
+      if (updatedProfile != null) {
+        await UserSessionService.saveUserSession(updatedProfile);
       }
     }
 

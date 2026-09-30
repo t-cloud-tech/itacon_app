@@ -39,7 +39,6 @@ class SalesPerson {
       'salesPersonId': salesPersonId,
       'employeeId': employeeId,
       'name': name,
-      'fullName': name,
       'phone': phone,
       'phoneNumber': phone,
       'email': email,

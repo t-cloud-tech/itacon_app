@@ -27,7 +27,6 @@ class AssignedClientSnapshot {
       'clientId': clientId,
       'id': clientId,
       'name': name,
-      'fullName': name,
       'companyName': companyName,
       'phone': phone,
       'phoneNumber': phone,

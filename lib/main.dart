@@ -148,8 +148,8 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
     try {
       await _firestoreService.createUserProfile(
         uid: 'TEST_DEALER_01',
-        phoneNumber: '+919876543201',
-        fullName: 'Apex Ceramics Dealer',
+        phone: '+919876543201',
+        name: 'Apex Ceramics Dealer',
         role: 'dealer',
         stateCode: 'GJ',
         companyName: 'Apex Tiles & Sanitary',
@@ -158,8 +158,8 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
 
       await _firestoreService.createUserProfile(
         uid: 'TEST_ARCHITECT_01',
-        phoneNumber: '+919876543202',
-        fullName: 'Ar. Priya Sharma',
+        phone: '+919876543202',
+        name: 'Ar. Priya Sharma',
         role: 'architect',
         stateCode: 'MH',
         companyName: 'Modern Space Designs',
@@ -168,8 +168,8 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
 
       await _firestoreService.createUserProfile(
         uid: 'TEST_BUILDER_01',
-        phoneNumber: '+919876543203',
-        fullName: 'BuildCorp Infra',
+        phone: '+919876543203',
+        name: 'BuildCorp Infra',
         role: 'builder',
         stateCode: 'DL',
         companyName: 'BuildCorp Infrastructure Ltd',
@@ -178,8 +178,8 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
 
       await _firestoreService.createUserProfile(
         uid: 'TEST_WHOLESALER_01',
-        phoneNumber: '+919876543204',
-        fullName: 'Gujarat Tile Distributors',
+        phone: '+919876543204',
+        name: 'Gujarat Tile Distributors',
         role: 'wholesaler',
         stateCode: 'GJ',
         companyName: 'Gujarat Wholesale Hub',
@@ -188,8 +188,8 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen>
 
       await _firestoreService.createUserProfile(
         uid: 'TEST_RETAILER_01',
-        phoneNumber: '+919876543205',
-        fullName: 'City Tiles Retail',
+        phone: '+919876543205',
+        name: 'City Tiles Retail',
         role: 'retailer',
         stateCode: 'KA',
         companyName: 'City Hardware & Tiles',

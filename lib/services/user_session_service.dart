@@ -30,6 +30,12 @@ class UserSessionService {
   static const String _keyProfilePhotoUrl = 'user_profile_photo_url';
   static const String _keyAvatarUrl = 'user_avatar_url';
   static const String _keyShowroomImagesJson = 'user_showroom_images_json';
+  static const String _keyCountryCode = 'user_country_code';
+  static const String _keyAssignedSalespersonId = 'user_assigned_salesperson_id';
+  static const String _keySalespersonId = 'user_salesperson_id';
+  static const String _keySalespersonName = 'user_salesperson_name';
+  static const String _keySalespersonPhone = 'user_salesperson_phone';
+  static const String _keySalespersonReferralCode = 'user_salesperson_referral_code';
 
   static bool _isLoggingOut = false;
   static bool get isLoggingOut => _isLoggingOut;
@@ -116,6 +122,22 @@ class UserSessionService {
     }
     await prefs.setString(_keyAvatarUrl, profile.avatarUrl);
     await prefs.setString(_keyShowroomImagesJson, jsonEncode(profile.showroomImages));
+    await prefs.setString(_keyCountryCode, profile.countryCode);
+    if (profile.assignedSalespersonId != null) {
+      await prefs.setString(_keyAssignedSalespersonId, profile.assignedSalespersonId!);
+    }
+    if (profile.salesPersonId != null) {
+      await prefs.setString(_keySalespersonId, profile.salesPersonId!);
+    }
+    if (profile.salespersonName != null) {
+      await prefs.setString(_keySalespersonName, profile.salespersonName!);
+    }
+    if (profile.salespersonPhone != null) {
+      await prefs.setString(_keySalespersonPhone, profile.salespersonPhone!);
+    }
+    if (profile.salespersonReferralCode != null) {
+      await prefs.setString(_keySalespersonReferralCode, profile.salespersonReferralCode!);
+    }
 
     // Also update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
@@ -182,7 +204,19 @@ class UserSessionService {
     final religion = prefs.getString(_keyUserReligion) ?? '';
     final dateOfBirth = prefs.getString(_keyUserDob) ?? '';
     final phone = prefs.getString(_keyUserPhone) ?? firebaseUser?.phoneNumber ?? '';
-    final email = prefs.getString(_keyUserEmail) ?? firebaseUser?.email ?? '';
+    final countryCode = prefs.getString(_keyCountryCode) ?? '+91';
+    final rawEmail = prefs.getString(_keyUserEmail) ?? firebaseUser?.email ?? '';
+    final email = (rawEmail.toLowerCase().startsWith('user_') &&
+            rawEmail.toLowerCase().endsWith('@itacon.com'))
+        ? ''
+        : rawEmail;
+    final assignedSalespersonId = prefs.getString(_keyAssignedSalespersonId);
+    final salesPersonId =
+        prefs.getString(_keySalespersonId) ?? assignedSalespersonId;
+    final salespersonName = prefs.getString(_keySalespersonName);
+    final salespersonPhone = prefs.getString(_keySalespersonPhone);
+    final salespersonReferralCode =
+        prefs.getString(_keySalespersonReferralCode);
     final companyName = prefs.getString(_keyUserCompany) ?? '';
     final userCategory = prefs.getString(_keyUserCategory) ?? 'Dealer';
     final role = prefs.getString(_keyUserRole) ?? 'customer';
@@ -215,9 +249,15 @@ class UserSessionService {
       dateOfBirth: dateOfBirth,
       companyName: companyName,
       phone: phone,
+      countryCode: countryCode,
       email: email,
       userCategory: userCategory,
       role: role,
+      salesPersonId: salesPersonId,
+      assignedSalespersonId: assignedSalespersonId,
+      salespersonName: salespersonName,
+      salespersonPhone: salespersonPhone,
+      salespersonReferralCode: salespersonReferralCode,
       phoneVerified: true,
       whatsappVerified: true,
       city: city,
@@ -259,6 +299,12 @@ class UserSessionService {
     await prefs.remove(_keyProfilePhotoUrl);
     await prefs.remove(_keyAvatarUrl);
     await prefs.remove(_keyShowroomImagesJson);
+    await prefs.remove(_keyCountryCode);
+    await prefs.remove(_keyAssignedSalespersonId);
+    await prefs.remove(_keySalespersonId);
+    await prefs.remove(_keySalespersonName);
+    await prefs.remove(_keySalespersonPhone);
+    await prefs.remove(_keySalespersonReferralCode);
 
     if (signOutFirebase) {
       try {

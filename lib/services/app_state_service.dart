@@ -130,6 +130,7 @@ class AppStateService extends ChangeNotifier {
     String? dateOfBirth,
     String? email,
     String? phone,
+    String? countryCode,
     String? companyName,
     String? userCategory,
     String? city,
@@ -141,6 +142,11 @@ class AppStateService extends ChangeNotifier {
     String? profilePhotoUrl,
     List<String>? showroomImages,
     Map<String, dynamic>? address,
+    String? salesPersonId,
+    String? assignedSalespersonId,
+    String? salespersonName,
+    String? salespersonPhone,
+    String? salespersonReferralCode,
   }) {
     final current = currentUserProfile;
     _currentUserProfile = current.copyWith(
@@ -149,6 +155,7 @@ class AppStateService extends ChangeNotifier {
       dateOfBirth: dateOfBirth ?? current.dateOfBirth,
       email: email ?? current.email,
       phone: phone ?? current.phone,
+      countryCode: countryCode ?? current.countryCode,
       companyName: companyName ?? current.companyName,
       userCategory: userCategory ?? current.userCategory,
       city: city ?? current.city,
@@ -165,6 +172,11 @@ class AppStateService extends ChangeNotifier {
           : (profilePhotoUrl != null && profilePhotoUrl.isNotEmpty ? profilePhotoUrl : current.avatarUrl),
       showroomImages: showroomImages ?? current.showroomImages,
       address: address ?? current.address,
+      salesPersonId: salesPersonId ?? current.salesPersonId,
+      assignedSalespersonId: assignedSalespersonId ?? current.assignedSalespersonId,
+      salespersonName: salespersonName ?? current.salespersonName,
+      salespersonPhone: salespersonPhone ?? current.salespersonPhone,
+      salespersonReferralCode: salespersonReferralCode ?? current.salespersonReferralCode,
     );
     notifyListeners();
   }

@@ -915,7 +915,11 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
     _nameController = TextEditingController(text: p.name);
     _religionController = TextEditingController(text: p.religion);
     _dobController = TextEditingController(text: p.dateOfBirth);
-    _emailController = TextEditingController(text: p.email);
+    final initialEmail = (p.email.toLowerCase().startsWith('user_') &&
+            p.email.toLowerCase().endsWith('@itacon.com'))
+        ? ''
+        : p.email;
+    _emailController = TextEditingController(text: initialEmail);
     _phoneController = TextEditingController(text: p.phone);
     _companyController = TextEditingController(text: p.companyName);
     _cityController = TextEditingController(text: p.city);
@@ -1283,7 +1287,22 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                         final newName = _nameController.text.trim();
                         final newReligion = _religionController.text.trim();
                         final newDob = _dobController.text.trim();
-                        final newEmail = _emailController.text.trim();
+                        final rawEmail = _emailController.text.trim();
+                        if (rawEmail.isNotEmpty) {
+                          final emailRegex = RegExp(
+                              r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+                          if (!emailRegex.hasMatch(rawEmail)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Please enter a valid email address or leave it empty.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+                        }
+                        final newEmail = rawEmail.toLowerCase();
                         final newPhone = _phoneController.text.trim();
                         final newCompany = _companyController.text.trim();
                         final newCity = _cityController.text.trim();
@@ -1325,10 +1344,10 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                         try {
                           await FirestoreService.instance.updateUserProfileData(
                             uid: widget.profile.userId,
-                            fullName: newName.isNotEmpty ? newName : widget.profile.name,
+                            name: newName.isNotEmpty ? newName : widget.profile.name,
                             religion: newReligion,
                             dateOfBirth: newDob,
-                            phoneNumber: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
+                            phone: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
                             role: _selectedCategory,
                             email: newEmail,
                             companyName: newCompany,
@@ -1340,8 +1359,8 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                           );
                           await FirestoreService().createUserProfile(
                             uid: widget.profile.userId,
-                            phoneNumber: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
-                            fullName: newName.isNotEmpty ? newName : widget.profile.name,
+                            phone: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
+                            name: newName.isNotEmpty ? newName : widget.profile.name,
                             religion: newReligion,
                             dateOfBirth: newDob,
                             role: _selectedCategory,

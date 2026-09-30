@@ -63,7 +63,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: profile.name);
     _dobController = TextEditingController(text: profile.dateOfBirth);
     _religionController = TextEditingController(text: profile.religion);
-    _emailController = TextEditingController(text: profile.email);
+    final initialEmail = (profile.email.toLowerCase().startsWith('user_') &&
+            profile.email.toLowerCase().endsWith('@itacon.com'))
+        ? ''
+        : profile.email;
+    _emailController = TextEditingController(text: initialEmail);
     _phoneController = TextEditingController(text: profile.phone);
     _companyController = TextEditingController(text: profile.companyName);
     _cityController = TextEditingController(text: profile.city);
@@ -544,6 +548,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
+    final rawEmail = _emailController.text.trim();
+    if (rawEmail.isNotEmpty) {
+      final emailRegex =
+          RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+      if (!emailRegex.hasMatch(rawEmail)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Please enter a valid email address or leave it empty.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+    final normalizedEmail = rawEmail.toLowerCase();
+
     setState(() => _isSaving = true);
     final profile = _appState.currentUserProfile;
 
@@ -559,7 +580,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       name: _nameController.text.trim(),
       dateOfBirth: _dobController.text.trim(),
       religion: _religionController.text.trim(),
-      email: _emailController.text.trim(),
+      email: normalizedEmail,
       phone: _phoneController.text.trim(),
       companyName: _companyController.text.trim(),
       userCategory: _selectedCategory,
@@ -580,11 +601,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       await _firestoreService.updateUserProfileData(
         uid: profile.userId,
-        fullName: _nameController.text.trim(),
+        name: _nameController.text.trim(),
         religion: _religionController.text.trim(),
         dateOfBirth: _dobController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
-        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        email: normalizedEmail,
         companyName: _companyController.text.trim(),
         role: _selectedCategory,
         city: _cityController.text.trim(),
@@ -599,12 +620,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       await _firestoreService.createUserProfile(
         uid: profile.userId,
-        phoneNumber: _phoneController.text.trim(),
-        fullName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        name: _nameController.text.trim(),
         religion: _religionController.text.trim(),
         dateOfBirth: _dobController.text.trim(),
         role: _selectedCategory,
-        email: _emailController.text.trim(),
+        email: normalizedEmail,
         companyName: _companyController.text.trim(),
         city: _cityController.text.trim(),
         state: _stateController.text.trim(),

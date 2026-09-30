@@ -42,6 +42,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   String _loginE164Phone = '';
   String _regE164Phone = '';
+  String _regCountryCode = '+91';
 
   final _loginFormKey = GlobalKey<FormState>();
 
@@ -258,7 +259,9 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.registerUser(
+        name: _regFullNameController.text.trim(),
         fullName: _regFullNameController.text.trim(),
+        countryCode: _regCountryCode,
         phoneNumber: formattedPhone,
         categoryId: _selectedCategory ?? UserCategory.allCategories.first.id,
         password: _regPasswordController.text.trim(),
@@ -581,11 +584,22 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       if (referralInput.isNotEmpty) {
-        await _authService.verifyAndLinkReferralCode(
+        final success = await _authService.verifyAndLinkReferralCode(
           referralInput,
           clientName: _loginUsernameController.text.trim(),
           clientPhone: _loginPhoneController.text.trim(),
         );
+        if (!success) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Invalid or inactive referral code. Please check and try again.'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+          return;
+        }
       }
 
       final uid = _authService.currentUser?.uid ?? _authService.currentUid;
@@ -1712,6 +1726,12 @@ class _AuthScreenState extends State<AuthScreen> {
                 onChanged: (phone) {
                   setState(() {
                     _regE164Phone = phone.completeNumber;
+                    _regCountryCode = phone.countryCode;
+                  });
+                },
+                onCountryChanged: (country) {
+                  setState(() {
+                    _regCountryCode = '+${country.dialCode}';
                   });
                 },
               ),

@@ -93,16 +93,164 @@ class FirestoreService {
   // PHASE 1: USERS & SALESPERSONS
   // ===========================================================================
 
+  /// Canonical parser for E.164 phone numbers and ITU country calling codes.
+  /// Never makes fixed 2-digit assumptions or greedy regex cuts.
+  static Map<String, String> parsePhoneNumberComponents(
+    String phoneInput, {
+    String? explicitCountryCode,
+  }) {
+    final rawInput = phoneInput.trim();
+    if (rawInput.isEmpty) {
+      return {
+        'countryCode': '+91',
+        'nationalNumber': '',
+        'e164Phone': '',
+      };
+    }
+
+    // 1. If explicitCountryCode is provided (e.g. from IntlPhoneField or UI selector)
+    if (explicitCountryCode != null && explicitCountryCode.trim().isNotEmpty) {
+      final codeDigits = explicitCountryCode.replaceAll(RegExp(r'\D'), '');
+      if (codeDigits.isNotEmpty) {
+        final cCode = '+$codeDigits';
+        final allDigits = rawInput.replaceAll(RegExp(r'\D'), '');
+        String national;
+        if (allDigits.startsWith(codeDigits)) {
+          national = allDigits.substring(codeDigits.length);
+        } else {
+          national = allDigits;
+        }
+        return {
+          'countryCode': cCode,
+          'nationalNumber': national,
+          'e164Phone': '$cCode$national',
+          'phone': '$cCode$national',
+        };
+      }
+    }
+
+    // 2. Standard ITU calling codes table
+    // 3-digit calling codes (e.g. UAE +971, Saudi +966, Kuwait +965, Qatar +974, Oman +968, Bahrain +973, Jordan +962, Lebanon +961, etc.)
+    const threeDigitCodes = <String>{
+      '971', '966', '965', '974', '968', '973', '962', '961', '970', '972',
+      '975', '976', '977', '992', '993', '994', '995', '996', '998',
+      '852', '853', '855', '856', '880', '886',
+      '350', '351', '352', '353', '354', '355', '356', '357', '358', '359',
+      '370', '371', '372', '373', '374', '375', '376', '377', '378', '379',
+      '380', '381', '382', '383', '385', '386', '387', '389',
+      '420', '421', '423',
+      '211', '212', '213', '216', '218', '220', '221', '222', '223', '224',
+      '225', '226', '227', '228', '229', '230', '231', '232', '233', '234',
+      '235', '236', '237', '238', '239', '240', '241', '242', '243', '244',
+      '245', '246', '248', '249', '250', '251', '252', '253', '254', '255',
+      '256', '257', '258', '260', '261', '262', '263', '264', '265', '266',
+      '267', '268', '269', '290', '291', '297', '298', '299',
+      '500', '501', '502', '503', '504', '505', '506', '507', '508', '509',
+      '590', '591', '592', '593', '594', '595', '596', '597', '598', '599',
+      '670', '672', '673', '674', '675', '676', '677', '678', '679', '680',
+      '681', '682', '683', '685', '686', '687', '688', '689', '690', '691',
+      '692',
+    };
+
+    // 2-digit calling codes (e.g. India +91, UK +44, Australia +61, Germany +49, France +33, Italy +39, Spain +34, etc.)
+    const twoDigitCodes = <String>{
+      '20', '27', '30', '31', '32', '33', '34', '36', '39', '40', '41',
+      '43', '44', '45', '46', '47', '48', '49', '51', '52', '53', '54',
+      '55', '56', '57', '58', '60', '61', '62', '63', '64', '65', '66',
+      '81', '82', '84', '86', '90', '91', '92', '93', '94', '95', '98',
+    };
+
+    final allDigits = rawInput.replaceAll(RegExp(r'\D'), '');
+
+    // If input starts with '+' or has a country code prefix
+    if (rawInput.startsWith('+')) {
+      // Check 3 digits first
+      if (allDigits.length > 3) {
+        final prefix3 = allDigits.substring(0, 3);
+        if (threeDigitCodes.contains(prefix3)) {
+          final national = allDigits.substring(3);
+          return {
+            'countryCode': '+$prefix3',
+            'nationalNumber': national,
+            'e164Phone': '+$allDigits',
+            'phone': '+$allDigits',
+          };
+        }
+      }
+
+      // Check 2 digits
+      if (allDigits.length > 2) {
+        final prefix2 = allDigits.substring(0, 2);
+        if (twoDigitCodes.contains(prefix2)) {
+          final national = allDigits.substring(2);
+          return {
+            'countryCode': '+$prefix2',
+            'nationalNumber': national,
+            'e164Phone': '+$allDigits',
+            'phone': '+$allDigits',
+          };
+        }
+      }
+
+      // Check 1 digit (+1 for US/Canada, +7 for Russia/Kazakhstan)
+      if (allDigits.length > 1) {
+        final prefix1 = allDigits.substring(0, 1);
+        if (prefix1 == '1' || prefix1 == '7') {
+          final national = allDigits.substring(1);
+          return {
+            'countryCode': '+$prefix1',
+            'nationalNumber': national,
+            'e164Phone': '+$allDigits',
+            'phone': '+$allDigits',
+          };
+        }
+      }
+    }
+
+    // Default fallback: If 10 digits without leading '+', it is Indian national number
+    if (allDigits.length == 10) {
+      return {
+        'countryCode': '+91',
+        'nationalNumber': allDigits,
+        'e164Phone': '+91$allDigits',
+        'phone': '+91$allDigits',
+      };
+    }
+
+    // If length == 12 and starts with 91 (e.g. "919624818477")
+    if (allDigits.length == 12 && allDigits.startsWith('91')) {
+      final national = allDigits.substring(2);
+      return {
+        'countryCode': '+91',
+        'nationalNumber': national,
+        'e164Phone': '+91$national',
+        'phone': '+91$national',
+      };
+    }
+
+    // Fallback: default to +91
+    final formatted = allDigits.startsWith('+') ? allDigits : '+91$allDigits';
+    return {
+      'countryCode': '+91',
+      'nationalNumber': allDigits,
+      'e164Phone': formatted,
+      'phone': formatted,
+    };
+  }
+
   /// Saves a UserProfile document in `users` and category-specific collection (`dealers`, `wholesalers`, etc.)
   /// containing ONLY public business metadata (NO password or credential fields).
   Future<void> createUserProfile({
     required String uid,
-    required String phoneNumber,
-    required String fullName,
+    String? phone,
+    String? phoneNumber,
+    String? name,
+    @Deprecated('Use name instead') String? fullName,
     required String role,
     String? religion,
     String? dateOfBirth,
     String? email,
+    String? countryCode,
     String? city,
     String? state,
     String? stateCode,
@@ -110,6 +258,9 @@ class FirestoreService {
     Map<String, dynamic>? address,
     String? companyName,
     String? assignedSalespersonId,
+    String? salespersonName,
+    String? salespersonPhone,
+    String? salespersonReferralCode,
     String? userReferralCode,
     String? referredByCode,
     bool isVerified = false,
@@ -119,51 +270,59 @@ class FirestoreService {
     try {
       final categoryLabel = UserCategory.getLabel(role);
 
-      // Ensure E.164 phone formatting
-      String formattedPhone = phoneNumber.trim();
-      if (!formattedPhone.startsWith('+')) {
-        final digits = formattedPhone.replaceAll(RegExp(r'\D'), '');
-        formattedPhone = digits.length == 10 ? '+91$digits' : '+$digits';
-      }
+      final resolvedName = (name != null && name.trim().isNotEmpty)
+          ? name.trim()
+          : (fullName != null && fullName.trim().isNotEmpty ? fullName.trim() : '');
 
-      String countryCode = '+91';
-      String rawPhone = formattedPhone.replaceAll(RegExp(r'\D'), '');
-      if (formattedPhone.startsWith('+')) {
-        final cleanPhone = formattedPhone.replaceAll(RegExp(r'\s+'), '');
-        final match = RegExp(r'^(\+\d{1,4})(\d{6,12})$').firstMatch(cleanPhone);
-        if (match != null) {
-          countryCode = match.group(1)!;
-          rawPhone = match.group(2)!;
-        } else {
-          final digits = cleanPhone.replaceAll(RegExp(r'\D'), '');
-          if (digits.length > 10) {
-            countryCode = '+${digits.substring(0, digits.length - 10)}';
-            rawPhone = digits.substring(digits.length - 10);
-          } else {
-            countryCode = '+91';
-            rawPhone = digits;
-          }
+      final inputPhone = (phone != null && phone.trim().isNotEmpty)
+          ? phone.trim()
+          : (phoneNumber != null ? phoneNumber.trim() : '');
+
+      final phoneParts = parsePhoneNumberComponents(inputPhone, explicitCountryCode: countryCode);
+      final formattedPhone = phoneParts['e164Phone']!;
+      final resolvedCountryCode = phoneParts['countryCode']!;
+      final rawPhone = phoneParts['nationalNumber']!;
+
+      final cleanEmail = (email != null && email.trim().isNotEmpty) ? email.trim().toLowerCase() : '';
+      final safeEmail = (cleanEmail.startsWith('user_') && cleanEmail.endsWith('@itacon.com')) ? '' : cleanEmail;
+
+      String? resolvedSpName = salespersonName;
+      String? resolvedSpPhone = salespersonPhone;
+      String? resolvedSpCode = salespersonReferralCode;
+
+      if (assignedSalespersonId != null && assignedSalespersonId.isNotEmpty) {
+        if (resolvedSpName == null || resolvedSpPhone == null || resolvedSpCode == null) {
+          try {
+            final spDoc = await _salesPersonsRef.doc(assignedSalespersonId).get();
+            if (spDoc.exists) {
+              final spData = spDoc.data();
+              resolvedSpName ??= spData?['name'] ?? spData?['fullName'];
+              resolvedSpPhone ??= spData?['phone'] ?? spData?['phoneNumber'];
+              resolvedSpCode ??= spData?['referralCode'];
+            }
+          } catch (_) {}
         }
       }
 
       final docData = {
         'userId': uid,
         'uid': uid,
-        'name': fullName,
-        'fullName': fullName,
+        'name': resolvedName,
         'religion': religion ?? '',
         'dateOfBirth': dateOfBirth ?? '',
         'dob': dateOfBirth ?? '',
         'companyName': companyName ?? '',
         'phone': formattedPhone,
-        'phoneNumber': formattedPhone,
-        'countryCode': countryCode,
+        'countryCode': resolvedCountryCode,
         'rawPhone': rawPhone,
-        'email': email ?? '',
+        'email': safeEmail,
         'userCategory': role,
         'role': role,
         'salesPersonId': assignedSalespersonId,
         'assignedSalespersonId': assignedSalespersonId,
+        if (resolvedSpName != null && resolvedSpName.isNotEmpty) 'salespersonName': resolvedSpName,
+        if (resolvedSpPhone != null && resolvedSpPhone.isNotEmpty) 'salespersonPhone': resolvedSpPhone,
+        if (resolvedSpCode != null && resolvedSpCode.isNotEmpty) 'salespersonReferralCode': resolvedSpCode,
         'referralCode': userReferralCode,
         if (referredByCode != null && referredByCode.trim().isNotEmpty) ...{
           'referredByCode': referredByCode.trim().toUpperCase(),
@@ -236,11 +395,14 @@ class FirestoreService {
   /// Guarantees that `dateOfBirth`, `dob`, and `religion` are stored cleanly in the user database.
   Future<void> updateUserProfileData({
     required String uid,
-    String? fullName,
+    String? name,
+    @Deprecated('Use name instead') String? fullName,
     String? religion,
     String? dateOfBirth,
     String? email,
+    String? phone,
     String? phoneNumber,
+    String? countryCode,
     String? companyName,
     String? role,
     String? city,
@@ -257,9 +419,11 @@ class FirestoreService {
       final Map<String, dynamic> updateData = {
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      if (fullName != null && fullName.isNotEmpty) {
-        updateData['name'] = fullName;
-        updateData['fullName'] = fullName;
+      final resolvedName = (name != null && name.trim().isNotEmpty)
+          ? name.trim()
+          : (fullName != null && fullName.trim().isNotEmpty ? fullName.trim() : null);
+      if (resolvedName != null && resolvedName.isNotEmpty) {
+        updateData['name'] = resolvedName;
       }
       if (religion != null) {
         updateData['religion'] = religion.trim();
@@ -268,10 +432,20 @@ class FirestoreService {
         updateData['dateOfBirth'] = dateOfBirth.trim();
         updateData['dob'] = dateOfBirth.trim();
       }
-      if (email != null && email.isNotEmpty) updateData['email'] = email.trim();
-      if (phoneNumber != null && phoneNumber.isNotEmpty) {
-        updateData['phone'] = phoneNumber.trim();
-        updateData['phoneNumber'] = phoneNumber.trim();
+      if (email != null) {
+        final cleanEmail = email.trim().toLowerCase();
+        updateData['email'] = (cleanEmail.startsWith('user_') && cleanEmail.endsWith('@itacon.com'))
+            ? ''
+            : cleanEmail;
+      }
+      final inputPhone = (phone != null && phone.trim().isNotEmpty)
+          ? phone.trim()
+          : (phoneNumber != null && phoneNumber.trim().isNotEmpty ? phoneNumber.trim() : null);
+      if (inputPhone != null && inputPhone.isNotEmpty) {
+        final phoneParts = parsePhoneNumberComponents(inputPhone, explicitCountryCode: countryCode);
+        updateData['phone'] = phoneParts['e164Phone']!;
+        updateData['countryCode'] = phoneParts['countryCode']!;
+        updateData['rawPhone'] = phoneParts['nationalNumber']!;
       }
       if (companyName != null) updateData['companyName'] = companyName.trim();
       if (role != null && role.isNotEmpty) {
@@ -714,6 +888,12 @@ class FirestoreService {
     try {
       final clientDoc = await getUserProfile(clientId);
 
+      final spDoc = await _salesPersonsRef.doc(salespersonId).get();
+      final spData = spDoc.data();
+      final spReferralCode = spData?['referralCode'] ?? 'SALES101';
+      final spName = spData?['name'] ?? spData?['fullName'] ?? 'ITA Sales Executive';
+      final spPhone = spData?['phone'] ?? spData?['phoneNumber'] ?? '+919876543210';
+
       final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(clientId).get();
       final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(clientId).get();
       final existingAssignSnap = await _db
@@ -726,6 +906,17 @@ class FirestoreService {
           existingAutoSnap.exists ||
           existingAssignSnap.docs.isNotEmpty) {
         // Client assignment document ALREADY exists in root assignment collections. Prevent duplicate document creation and double counter increments.
+        // Heal users/{clientId} if assignment fields are missing or null
+        if (clientDoc == null || clientDoc.salesPersonId == null || clientDoc.salesPersonId!.isEmpty) {
+          await _usersRef.doc(clientId).set({
+            'assignedSalespersonId': salespersonId,
+            'salesPersonId': salespersonId,
+            'salespersonName': spName,
+            'salespersonPhone': spPhone,
+            'salespersonReferralCode': spReferralCode,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
         return;
       }
 
@@ -741,12 +932,6 @@ class FirestoreService {
           ? clientCategory.trim()
           : (clientDoc?.userCategory ?? 'dealer');
       final resolvedCompany = companyName ?? clientDoc?.companyName ?? '';
-
-      final spDoc = await _salesPersonsRef.doc(salespersonId).get();
-      final spData = spDoc.data();
-      final spReferralCode = spData?['referralCode'] ?? 'SALES101';
-      final spName = spData?['name'] ?? spData?['fullName'] ?? 'ITA Sales Executive';
-      final spPhone = spData?['phone'] ?? spData?['phoneNumber'] ?? '+919876543210';
 
       // a. Set assignedSalespersonId, salespersonName, salespersonPhone, and isVerified: true on users/{clientId} ONLY
       final userUpdateData = {
@@ -768,8 +953,9 @@ class FirestoreService {
       }, SetOptions(merge: true));
 
       // b. Insert record into root collections based on assignment type (deterministic document ID):
-      // - If auto_assigned -> Auto_Assign_User collection
-      // - If manual_referral -> Manual_salesperson_assign collection
+      // - Auto_Assign_User collection is ALWAYS written as the active assignment mirror
+      // - client_assignments collection is ALWAYS written
+      // - If manual_referral -> also Manual_salesperson_assign collection
       final assignmentId = 'ASGN_$clientId';
       final clientAssignment = ClientAssignment(
         assignmentId: assignmentId,
@@ -791,20 +977,18 @@ class FirestoreService {
       };
 
       batch.set(_db.collection('client_assignments').doc(assignmentId), assignmentData);
+      batch.set(_db.collection('Auto_Assign_User').doc(clientId), assignmentData, SetOptions(merge: true));
 
-      if (assignmentType == 'auto_assigned') {
-        batch.set(_db.collection('Auto_Assign_User').doc(clientId), assignmentData, SetOptions(merge: true));
-      } else {
+      if (assignmentType != 'auto_assigned') {
         batch.set(_db.collection('Manual_salesperson_assign').doc(clientId), assignmentData, SetOptions(merge: true));
       }
 
-      // c. Store assigned client document in `assigned_clients` sub-collection under salesPersons/{salespersonId} and users/{salespersonId}
+      // c. Store assigned client document in `assigned_clients` sub-collection under salesPersons/{salespersonId}
       final assignedClientData = {
         'clientId': clientId,
         'userId': clientId,
         'name': resolvedName,
         'clientName': resolvedName,
-        'fullName': resolvedName,
         'phone': resolvedPhone,
         'clientPhone': resolvedPhone,
         'phoneNumber': resolvedPhone,

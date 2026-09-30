@@ -8,10 +8,15 @@ class UserProfile {
   final String dateOfBirth; // Date of birth (DD/MM/YYYY)
   final String companyName; // Business/company name
   final String phone; // Mobile number
+  final String countryCode; // E.164 country dial code, e.g. "+91"
   final String email; // Email
   final String userCategory; // Dealer / Wholesale / Retail / Contractor / Architect / Builder
   final String role; // customer / salesperson / manager / admin
   final String? salesPersonId; // Assigned salesperson
+  final String? assignedSalespersonId; // Authoritative assigned salesperson ID alias
+  final String? salespersonName; // Snapshot of assigned salesperson name
+  final String? salespersonPhone; // Snapshot of assigned salesperson phone
+  final String? salespersonReferralCode; // Snapshot of assigned salesperson referral code
   final String? referralCode; // Referral code used during registration
   final String? referredBy; // UID of referrer customer
   final int loyaltyPoints; // Active spendable loyalty points
@@ -43,10 +48,15 @@ class UserProfile {
     this.dateOfBirth = '',
     required this.companyName,
     required this.phone,
+    this.countryCode = '+91',
     required this.email,
     required this.userCategory,
     required this.role,
     this.salesPersonId,
+    this.assignedSalespersonId,
+    this.salespersonName,
+    this.salespersonPhone,
+    this.salespersonReferralCode,
     this.referralCode,
     this.referredBy,
     this.loyaltyPoints = 0,
@@ -90,10 +100,15 @@ class UserProfile {
     String? dateOfBirth,
     String? companyName,
     String? phone,
+    String? countryCode,
     String? email,
     String? userCategory,
     String? role,
     String? salesPersonId,
+    String? assignedSalespersonId,
+    String? salespersonName,
+    String? salespersonPhone,
+    String? salespersonReferralCode,
     String? referralCode,
     String? referredBy,
     int? loyaltyPoints,
@@ -125,10 +140,15 @@ class UserProfile {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       companyName: companyName ?? this.companyName,
       phone: phone ?? this.phone,
+      countryCode: countryCode ?? this.countryCode,
       email: email ?? this.email,
       userCategory: userCategory ?? this.userCategory,
       role: role ?? this.role,
       salesPersonId: salesPersonId ?? this.salesPersonId,
+      assignedSalespersonId: assignedSalespersonId ?? this.assignedSalespersonId,
+      salespersonName: salespersonName ?? this.salespersonName,
+      salespersonPhone: salespersonPhone ?? this.salespersonPhone,
+      salespersonReferralCode: salespersonReferralCode ?? this.salespersonReferralCode,
       referralCode: referralCode ?? this.referralCode,
       referredBy: referredBy ?? this.referredBy,
       loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
@@ -156,22 +176,29 @@ class UserProfile {
   }
 
   Map<String, dynamic> toMap() {
+    final cleanEmail = email.trim();
+    final isDummyEmail = cleanEmail.startsWith('user_') && cleanEmail.endsWith('@itacon.com');
+    final effectiveSpId = salesPersonId ?? assignedSalespersonId;
+
     return {
       'userId': userId,
       'uid': userId,
       'name': name,
-      'fullName': name,
       'religion': religion,
       'dateOfBirth': dateOfBirth,
       'dob': dateOfBirth,
       'companyName': companyName,
       'phone': phone,
-      'phoneNumber': phone,
-      'email': email,
+      'countryCode': countryCode,
+      'email': isDummyEmail ? '' : cleanEmail,
       'userCategory': userCategory,
       'role': role,
-      'salesPersonId': salesPersonId,
-      'assignedSalespersonId': salesPersonId,
+      'salesPersonId': effectiveSpId,
+      'assignedSalespersonId': effectiveSpId,
+      if (salespersonName != null && salespersonName!.isNotEmpty) 'salespersonName': salespersonName,
+      if (salespersonPhone != null && salespersonPhone!.isNotEmpty) 'salespersonPhone': salespersonPhone,
+      if (salespersonReferralCode != null && salespersonReferralCode!.isNotEmpty)
+        'salespersonReferralCode': salespersonReferralCode,
       'referralCode': referralCode,
       'referredBy': referredBy,
       'loyaltyPoints': loyaltyPoints,
@@ -205,17 +232,30 @@ class UserProfile {
   }
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String docId) {
+    final rawEmail = (map['email'] as String?)?.trim() ?? '';
+    final safeEmail = (rawEmail.startsWith('user_') && rawEmail.endsWith('@itacon.com')) ? '' : rawEmail;
+    final resolvedSpId = map['salesPersonId'] ?? map['assignedSalespersonId'];
+    final rawPhone = (map['phone'] != null && (map['phone'] as String).trim().isNotEmpty)
+        ? (map['phone'] as String).trim()
+        : (map['phoneNumber'] as String?)?.trim() ?? '';
+    final resolvedCountryCode = map['countryCode'] as String? ?? '+91';
+
     return UserProfile(
       userId: docId,
       name: map['name'] ?? map['fullName'] ?? '',
       religion: map['religion'] ?? '',
       dateOfBirth: map['dateOfBirth'] ?? map['dob'] ?? '',
       companyName: map['companyName'] ?? '',
-      phone: map['phone'] ?? map['phoneNumber'] ?? '',
-      email: map['email'] ?? '',
+      phone: rawPhone,
+      countryCode: resolvedCountryCode,
+      email: safeEmail,
       userCategory: map['userCategory'] ?? map['role'] ?? 'dealer',
       role: map['role'] ?? 'customer',
-      salesPersonId: map['salesPersonId'] ?? map['assignedSalespersonId'],
+      salesPersonId: resolvedSpId,
+      assignedSalespersonId: resolvedSpId,
+      salespersonName: map['salespersonName'] as String?,
+      salespersonPhone: map['salespersonPhone'] as String?,
+      salespersonReferralCode: map['salespersonReferralCode'] as String?,
       referralCode: map['referralCode'],
       referredBy: map['referredBy'],
       loyaltyPoints: (map['loyaltyPoints'] as num?)?.toInt() ?? 0,
