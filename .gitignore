@@ -61,3 +61,7 @@ emulator*.png
 
 # Local product import staging assets
 assets/product_import/
+
+# Database backups
+database_backups/
+
