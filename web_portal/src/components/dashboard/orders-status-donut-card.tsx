@@ -17,6 +17,7 @@ import {
   ClientOrderPO, 
   SAMPLE_CLIENT_ORDERS 
 } from "@/lib/order-service";
+import { useAuth } from "@/lib/auth-context";
 
 export type OrderStatusKey = "pending_rate" | "rate_quoted" | "confirmed" | "rejected";
 
@@ -38,6 +39,7 @@ interface OrdersStatusDonutCardProps {
 
 export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProps) {
   const router = useRouter();
+  const { role } = useAuth();
   const [hoveredKey, setHoveredKey] = useState<OrderStatusKey | null>(null);
 
   // Merge live orders with baseline sample orders so counts match across dashboard and quotations tab
@@ -165,8 +167,19 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
   ).toFixed(1);
 
   const handleStatusClick = (key: OrderStatusKey) => {
-    // Redirect directly to Quotations page under the new dedicated tab with status card open
-    router.push(`/quotations?tab=status_orders&status=${key}`);
+    if (role === "admin") {
+      if (key === "pending_rate") {
+        router.push("/quotations?tab=all&status=pending_approval");
+      } else if (key === "rate_quoted") {
+        router.push("/quotations?tab=all&status=sent_to_customer");
+      } else if (key === "confirmed") {
+        router.push("/quotations?tab=all&status=approved");
+      } else if (key === "rejected") {
+        router.push("/quotations?tab=all&status=rejected");
+      }
+    } else {
+      router.push(`/quotations?tab=status_orders&status=${key}`);
+    }
   };
 
   return (
@@ -365,10 +378,10 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
         </div>
 
         <Link
-          href="/quotations?tab=status_orders&status=pending_rate"
+          href={role === "admin" ? "/quotations?tab=all" : "/quotations?tab=status_orders&status=pending_rate"}
           className="font-bold text-[#E66A23] hover:text-[#D95D16] flex items-center space-x-1 transition-colors"
         >
-          <span>Open Salesperson Quotes Tab</span>
+          <span>{role === "admin" ? "Open Generated Quotations Tab" : "Open Salesperson Quotes Tab"}</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>

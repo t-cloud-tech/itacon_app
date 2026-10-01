@@ -153,6 +153,8 @@ export type QuotationStatus =
 export interface Quotation {
   id: string;
   quotationNumber: string;
+  orderId?: string;
+  poNumber?: string;
   customerId: string;
   customerName: string;
   customerPhone?: string;
