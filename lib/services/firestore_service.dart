@@ -245,6 +245,17 @@ class FirestoreService {
       };
     }
 
+    // Indian trunk-prefix: 11 digits starting with 0 (e.g. "09876543210" → "9876543210")
+    if (allDigits.length == 11 && allDigits.startsWith('0')) {
+      final national = allDigits.substring(1);
+      return {
+        'countryCode': '+91',
+        'nationalNumber': national,
+        'e164Phone': '+91$national',
+        'phone': '+91$national',
+      };
+    }
+
     // Fallback: default to +91
     final formatted = allDigits.startsWith('+') ? allDigits : '+91$allDigits';
     return {

@@ -31,9 +31,17 @@ class AuthService {
 
   static String? _lastRegisteredUid;
 
+  /// Reactive notifier indicating that a Firebase Phone Auth user has signed in
+  /// via OTP but secondary application credential validation (username/password/profile)
+  /// is still actively executing.
+  ///
+  /// AuthGate observes this: while true, AuthGate MUST NOT expose AuthenticatedSessionLoader / Home.
+  static final ValueNotifier<bool> isPendingSecondaryValidation = ValueNotifier<bool>(false);
+
   /// Resets in-memory authentication state on logout
   static void clearSessionState() {
     _lastRegisteredUid = null;
+    isPendingSecondaryValidation.value = false;
   }
 
   String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
@@ -383,14 +391,22 @@ class AuthService {
     // 3. Verify real Firebase SMS OTP
     // ----------------------------------------------------------
 
-    final userCredential = await verifyPhoneOtp(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
+    isPendingSecondaryValidation.value = true;
+    final UserCredential userCredential;
+    try {
+      userCredential = await verifyPhoneOtp(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+    } catch (_) {
+      isPendingSecondaryValidation.value = false;
+      rethrow;
+    }
 
     final firebaseUser = userCredential.user;
 
     if (firebaseUser == null) {
+      isPendingSecondaryValidation.value = false;
       throw Exception(
         'Phone verification failed. Please try again.',
       );
@@ -602,6 +618,8 @@ class AuthService {
         clientCategory: categoryId,
       );
     }
+
+    isPendingSecondaryValidation.value = false;
   }
 
   // ============================================================
@@ -622,6 +640,8 @@ class AuthService {
       );
     }
 
+    // Set pending validation state BEFORE OTP sign-in emits to authStateChanges
+    isPendingSecondaryValidation.value = true;
     debugPrint('AUTH_DEBUG: OTP verification started');
 
     final UserCredential userCredential;
@@ -632,10 +652,12 @@ class AuthService {
       );
       debugPrint('AUTH_DEBUG: OTP authentication success');
     } on FirebaseAuthException catch (e) {
+      isPendingSecondaryValidation.value = false;
       debugPrint('AUTH_DEBUG: OTP authentication failure');
       debugPrint('AUTH_DEBUG: FirebaseAuth exception code: ${e.code}');
       rethrow;
     } catch (e) {
+      isPendingSecondaryValidation.value = false;
       debugPrint('AUTH_DEBUG: OTP authentication failure');
       rethrow;
     }
@@ -645,6 +667,7 @@ class AuthService {
     debugPrint('AUTH_DEBUG: currentUser present = $isPresent');
 
     if (firebaseUser == null) {
+      isPendingSecondaryValidation.value = false;
       throw Exception('Firebase could not create a user session.');
     }
 
@@ -658,6 +681,7 @@ class AuthService {
     } on FirebaseException catch (e) {
       debugPrint('AUTH_DEBUG: UID profile lookup failure');
       debugPrint('AUTH_DEBUG: Firestore exception code: ${e.code}');
+      isPendingSecondaryValidation.value = false;
       // Technical / database / network / permission error:
       // DO NOT automatically sign out firebaseUser.
       // Surface technical error clearly without mislabeling as invalid credentials.
@@ -674,6 +698,7 @@ class AuthService {
         'Failed to load user profile: ${e.message ?? e.code}',
       );
     } catch (e) {
+      isPendingSecondaryValidation.value = false;
       debugPrint('AUTH_DEBUG: UID profile lookup failure');
       throw Exception('Failed to load user profile. Please try again.');
     }
@@ -682,6 +707,7 @@ class AuthService {
       debugPrint('AUTH_DEBUG: UID profile lookup failure');
       // OTP passed, but this user has no profile document in users/{uid}
       await signOutFirebaseUser();
+      isPendingSecondaryValidation.value = false;
       throw Exception(
         'No registered ITACON customer profile was found for this mobile number. Please register your account.',
       );
@@ -705,6 +731,7 @@ class AuthService {
           storedUsername.toLowerCase() != username.trim().toLowerCase()) {
         debugPrint('AUTH_DEBUG: username validation failure');
         await signOutFirebaseUser();
+        isPendingSecondaryValidation.value = false;
         throw Exception(
           'Invalid username or password. Please check your credentials and try again.',
         );
@@ -723,6 +750,7 @@ class AuthService {
       if (computedHash != storedHash) {
         debugPrint('AUTH_DEBUG: password validation failure');
         await signOutFirebaseUser();
+        isPendingSecondaryValidation.value = false;
         throw Exception(
           'Invalid username or password. Please check your credentials and try again.',
         );
@@ -732,6 +760,7 @@ class AuthService {
       // Missing password credentials in profile
       debugPrint('AUTH_DEBUG: password validation failure');
       await signOutFirebaseUser();
+      isPendingSecondaryValidation.value = false;
       throw Exception(
         'Invalid username or password. Please check your credentials and try again.',
       );
@@ -754,6 +783,11 @@ class AuthService {
         clientPhone: profile.phone,
       );
     }
+
+    // ----------------------------------------------------------
+    // VALIDATION COMPLETE: App is fully authenticated!
+    // ----------------------------------------------------------
+    isPendingSecondaryValidation.value = false;
   }
 
   // ============================================================
@@ -1295,6 +1329,7 @@ class AuthService {
   // ============================================================
 
   Future<void> signOut() async {
+    isPendingSecondaryValidation.value = false;
     await UserSessionService.logout();
   }
 

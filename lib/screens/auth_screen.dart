@@ -9,7 +9,6 @@ import '../services/notification_service.dart';
 import '../services/user_session_service.dart';
 import '../widgets/interactive_pressable.dart';
 import 'referral_gate_screen.dart';
-import 'main_navigation_screen.dart';
 import 'auth/forgot_password_screen.dart';
 
 enum AuthViewMode { choice, login, signup }
@@ -291,17 +290,14 @@ class _AuthScreenState extends State<AuthScreen> {
             content: Text('Registration Successful! Executive linked.')),
       );
 
-      if (hasSalesperson) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-        );
-      } else {
+      if (!hasSalesperson) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
         );
       }
+      // If hasSalesperson is true, AuthGate's reactive state machine handles
+      // rendering MainNavigationScreen cleanly as the single root authority.
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -559,11 +555,9 @@ class _AuthScreenState extends State<AuthScreen> {
           username: _loginUsernameController.text.trim(),
         );
 
-        // Only transition to Step 2 (Customer Referral Code) if credentials are valid!
-        setState(() {
-          _isLoading = false;
-          _loginStep = 2;
-        });
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        // AuthGate is the single root authority and naturally renders AuthenticatedSessionLoader -> MainNavigationScreen
       } catch (e) {
         if (!mounted) return;
         setState(() => _isLoading = false);
@@ -624,11 +618,7 @@ class _AuthScreenState extends State<AuthScreen> {
         const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
       );
 
-      // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-      );
+      // AuthGate is the single root authority and naturally renders MainNavigationScreen.
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);

@@ -51,6 +51,9 @@ app.*.map.json
 *.p12
 *.pem
 *.key
+# Android release signing properties (contains keystore password)
+android/key.properties
+key.properties
 
 # Temporary screenshots
 screen*.png
@@ -64,6 +67,7 @@ assets/product_import/
 
 # Database backups
 database_backups/
+backups/
 
 # Mockup cleanup previews and backups
 backup_mockups/

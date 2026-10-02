@@ -483,16 +483,16 @@ class TileOrder {
       deliveredAt: dAt,
       rateQuotedAt: map['rateQuotedAt'] is Timestamp
           ? (map['rateQuotedAt'] as Timestamp).toDate()
-          : null,
+          : map['rateQuotedAt'] is String ? DateTime.tryParse(map['rateQuotedAt']) : null,
       confirmedAt: map['confirmedAt'] is Timestamp
           ? (map['confirmedAt'] as Timestamp).toDate()
-          : null,
+          : map['confirmedAt'] is String ? DateTime.tryParse(map['confirmedAt']) : null,
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
-          : null,
+          : map['createdAt'] is String ? DateTime.tryParse(map['createdAt']) : null,
       updatedAt: map['updatedAt'] is Timestamp
           ? (map['updatedAt'] as Timestamp).toDate()
-          : null,
+          : map['updatedAt'] is String ? DateTime.tryParse(map['updatedAt']) : null,
     );
   }
 

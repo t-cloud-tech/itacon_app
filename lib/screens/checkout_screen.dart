@@ -24,6 +24,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   int _currentStep = 0; // 0: PO Estimate, 1: Address, 2: Payment, 3: Review
+  bool _isSubmitting = false;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -41,7 +42,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     final profile = AppStateService.instance.currentUserProfile;
-    _addressLineController.text = (profile.address['line1'] as String?) ?? 'Plot No. 42, Industrial Ceramic Zone';
+    _addressLineController.text = profile.address['line1']?.toString() ?? 'Plot No. 42, Industrial Ceramic Zone';
     _cityController.text = profile.city.isNotEmpty ? profile.city : 'Morbi';
     _stateController.text = profile.state.isNotEmpty ? profile.state : 'Gujarat';
     _pincodeController.text = profile.pincode.isNotEmpty ? profile.pincode : '363642';
@@ -168,29 +169,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               width: double.infinity,
               height: context.h(50).clamp(44.0, 56.0),
               child: AppPressable(
-                onTap: () {
-                  if (_currentStep == 0) {
-                    _changeStep(1);
-                  } else if (_currentStep == 1) {
-                    if (_addressLineController.text.trim().isEmpty || _cityController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter valid delivery address details.'),
-                          backgroundColor: AppTheme.statusWarning,
-                        ),
-                      );
-                      return;
-                    }
-                    _changeStep(2);
-                  } else if (_currentStep == 2) {
-                    _changeStep(3);
-                  } else {
-                    _handlePlaceOrder(appState, user);
-                  }
-                },
+                onTap: _isSubmitting
+                    ? null
+                    : () {
+                        if (_currentStep == 0) {
+                          _changeStep(1);
+                        } else if (_currentStep == 1) {
+                          if (_addressLineController.text.trim().isEmpty || _cityController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter valid delivery address details.'),
+                                backgroundColor: AppTheme.statusWarning,
+                              ),
+                            );
+                            return;
+                          }
+                          _changeStep(2);
+                        } else if (_currentStep == 2) {
+                          _changeStep(3);
+                        } else {
+                          _handlePlaceOrder(appState, user);
+                        }
+                      },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy,
+                    color: _isSubmitting ? AppTheme.primaryNavy.withValues(alpha: 0.7) : AppTheme.primaryNavy,
                     borderRadius: BorderRadius.circular(context.r(12)),
                     boxShadow: [
                       BoxShadow(
@@ -202,22 +205,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   alignment: Alignment.center,
                   padding: EdgeInsets.symmetric(horizontal: context.w(12)),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      _currentStep == 0
-                          ? 'CONTINUE TO ADDRESS →'
-                          : (_currentStep == 1
-                              ? 'CONFIRM ADDRESS & PROCEED →'
-                              : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: context.sp(13.5),
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _currentStep == 0
+                                ? 'CONTINUE TO ADDRESS →'
+                                : (_currentStep == 1
+                                    ? 'CONFIRM ADDRESS & PROCEED →'
+                                    : (_currentStep == 2 ? 'CONTINUE TO FINAL REVIEW →' : 'PLACE PURCHASE ORDER')),
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: context.sp(13.5),
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -917,6 +929,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   // Handle Order Placement
   void _handlePlaceOrder(AppStateService appState, UserProfile user) async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+
     final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);
     final deliveryAddress = '${_addressLineController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}, ${_stateController.text.trim()}';
 
@@ -961,6 +976,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         debugPrint('[PO NAV] Order submission error: $e');
       }
       if (mounted) {
+        setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to submit purchase order: $e'),

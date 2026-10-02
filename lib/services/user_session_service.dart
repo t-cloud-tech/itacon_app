@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_profile.dart';
-import '../screens/auth_screen.dart';
 import 'app_state_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
@@ -60,17 +59,13 @@ class UserSessionService {
       // 2. Perform complete session, auth, cache, and in-memory state teardown
       await clearUserSession();
 
-      // 3. Navigate cleanly to AuthScreen on the root navigator, wiping the entire stack
+      // 3. Pop any pushed routes back to the root AuthGate.
+      // AuthGate is the single root authority and reactively renders AuthScreen when user is null.
       final navState = NotificationService.navigatorKey.currentState ??
           (context != null && context.mounted ? Navigator.of(context, rootNavigator: true) : null);
 
-      if (navState != null) {
-        navState.pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => const AuthScreen(initialMode: AuthViewMode.login),
-          ),
-          (route) => false,
-        );
+      if (navState != null && navState.canPop()) {
+        navState.popUntil((route) => route.isFirst);
       }
     } catch (e) {
       debugPrint('[UserSessionService] Error during centralized logout: $e');

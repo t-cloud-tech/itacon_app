@@ -21,25 +21,35 @@ class NotificationService {
   static bool _isAppReady = false;
 
   static Future<void> initialize() async {
-    // Ask notification permission
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    try {
+      // Ask notification permission (Android 13+ and iOS)
+      await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] Permission request non-fatal error: $e');
+    }
 
-    // Get FCM token
-    final token = await _messaging.getToken();
+    try {
+      // Get FCM token
+      final token = await _messaging.getToken();
 
-    if (token != null && token.isNotEmpty) {
-      debugPrint('[NotificationService] FCM TOKEN: $token');
-      await _saveToken(token);
+      if (token != null && token.isNotEmpty) {
+        debugPrint('[NotificationService] FCM Token initialized successfully');
+        await _saveToken(token);
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] Initial token retrieval non-fatal error: $e');
     }
 
     // Token can change in the future
     _messaging.onTokenRefresh.listen((newToken) async {
-      debugPrint('[NotificationService] NEW FCM TOKEN: $newToken');
+      debugPrint('[NotificationService] FCM Token refreshed');
       await _saveToken(newToken);
+    }).onError((error) {
+      debugPrint('[NotificationService] onTokenRefresh non-fatal error: $error');
     });
 
     // App is open (foreground) and receives a notification

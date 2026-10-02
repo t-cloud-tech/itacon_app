@@ -11,19 +11,28 @@ import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
 import 'splash_screen.dart';
 
+import '../services/auth_service.dart';
+
 /// The authoritative, reactive Firebase Authentication Gate for ITACON GRANITO.
 ///
 /// Subscribes directly to [FirebaseAuth.instance.authStateChanges()].
 /// States:
 /// - ConnectionState.waiting: Splash / loading.
+/// - isPendingSecondaryValidation == true: Holds on AuthScreen during OTP-first validation.
 /// - user != null: Authenticated App Root via [AuthenticatedSessionLoader].
 /// - user == null: Root Login screen via [AuthScreen].
 class AuthGate extends StatelessWidget {
   final Stream<User?>? authStateStream;
+  final ValueListenable<bool>? isPendingValidationOverride;
+  final Future<UserProfile?> Function(String uid)? profileLoader;
+  final Widget? authenticatedChild;
 
   const AuthGate({
     super.key,
     this.authStateStream,
+    this.isPendingValidationOverride,
+    this.profileLoader,
+    this.authenticatedChild,
   });
 
   @override
@@ -42,36 +51,57 @@ class AuthGate extends StatelessWidget {
     }
 
     final stream = authStateStream ?? FirebaseAuth.instance.authStateChanges();
+    final pendingNotifier = isPendingValidationOverride ?? AuthService.isPendingSecondaryValidation;
 
-    return StreamBuilder<User?>(
-      stream: stream,
-      builder: (context, snapshot) {
-        // 1. Initial restoration from device storage / keystore
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          if (kDebugMode) {
-            debugPrint('[AUTH] Firebase initialized');
-            debugPrint('[AUTH] Auth state resolving from device storage...');
-          }
-          return const SplashScreen(isStaticSplash: true);
-        }
+    return ValueListenableBuilder<bool>(
+      valueListenable: pendingNotifier,
+      builder: (context, isPending, _) {
+        return StreamBuilder<User?>(
+          stream: stream,
+          builder: (context, snapshot) {
+            // 1. Initial restoration from device storage / keystore
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              if (kDebugMode) {
+                debugPrint('[AUTH] Firebase initialized');
+                debugPrint('[AUTH] Auth state resolving from device storage...');
+              }
+              return const SplashScreen(isStaticSplash: true);
+            }
 
-        final user = snapshot.data;
+            final user = snapshot.data;
 
-        // 2. Confirmed authenticated Firebase user
-        if (user != null && user.uid.isNotEmpty) {
-          if (kDebugMode) {
-            debugPrint('[AUTH] Auth state resolved: authenticated=true');
-            debugPrint('[AUTH] UID present=true');
-          }
-          return AuthenticatedSessionLoader(user: user);
-        }
+            // 2. Active login/OTP attempt pending secondary credential validation
+            // MUST hold on AuthScreen (Login) so that Home is NEVER flashed
+            // before secondary credential validation has succeeded.
+            if (isPending) {
+              if (kDebugMode) {
+                debugPrint('[AUTH] Secondary credential validation pending — holding on Login');
+              }
+              return const AuthScreen(initialMode: AuthViewMode.login);
+            }
 
-        // 3. Confirmed unauthenticated Firebase state
-        if (kDebugMode) {
-          debugPrint('[AUTH] Auth state resolved: authenticated=false');
-          debugPrint('[AUTH] UID present=false');
-        }
-        return const AuthScreen(initialMode: AuthViewMode.login);
+            // 3. Confirmed authenticated Firebase user and validated session
+            if (user != null && user.uid.isNotEmpty) {
+              if (kDebugMode) {
+                debugPrint('[AUTH] Auth state resolved: authenticated=true');
+                debugPrint('[AUTH] UID present=true');
+              }
+              return AuthenticatedSessionLoader(
+                key: ValueKey(user.uid),
+                user: user,
+                profileLoader: profileLoader,
+                authenticatedChild: authenticatedChild,
+              );
+            }
+
+            // 4. Confirmed unauthenticated Firebase state
+            if (kDebugMode) {
+              debugPrint('[AUTH] Auth state resolved: authenticated=false');
+              debugPrint('[AUTH] UID present=false');
+            }
+            return const AuthScreen(initialMode: AuthViewMode.login);
+          },
+        );
       },
     );
   }
@@ -85,11 +115,13 @@ class AuthGate extends StatelessWidget {
 class AuthenticatedSessionLoader extends StatefulWidget {
   final User user;
   final Future<UserProfile?> Function(String uid)? profileLoader;
+  final Widget? authenticatedChild;
 
   const AuthenticatedSessionLoader({
     super.key,
     required this.user,
     this.profileLoader,
+    this.authenticatedChild,
   });
 
   @override
@@ -162,27 +194,19 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
         return;
       }
 
-      // If no remote profile document exists yet (e.g. phone user pending profile completion),
-      // hydrate with basic Firebase Auth phone identity so session remains 100% active.
-      final fallbackPhoneUser = UserProfile(
-        userId: uid,
-        name: widget.user.displayName ?? (widget.user.phoneNumber ?? 'Customer'),
-        companyName: '',
-        phone: widget.user.phoneNumber ?? '',
-        email: widget.user.email ?? '',
-        userCategory: 'Dealer',
-        role: 'customer',
-      );
-      await UserSessionService.saveUserSession(fallbackPhoneUser);
-      if (kDebugMode) debugPrint('[AUTH] Profile load success');
+      // If remote profile document genuinely does not exist and no cached session exists:
+      // DO NOT fabricate a fake 'Dealer' or mock customer profile!
+      // Display deterministic profile error UX with Retry and Logout actions.
+      // Firebase authenticated state remains preserved — NEVER automatically sign out!
+      if (kDebugMode) debugPrint('[AUTH] Canonical profile not found for $uid');
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = null;
+          _errorMessage = "We couldn't load your customer profile. Please retry.";
         });
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[AUTH] Profile load failed - auth preserved');
+      if (kDebugMode) debugPrint('[AUTH] Profile load failed - auth preserved: $e');
       // CRITICAL: NEVER call signOut() on profile load failure!
       if (mounted) {
         setState(() {
@@ -214,6 +238,10 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
     }
 
     if (_errorMessage != null && !AppStateService.instance.hasSessionProfile) {
+      final isNetwork = _errorMessage!.toLowerCase().contains('connection') ||
+          _errorMessage!.toLowerCase().contains('network') ||
+          _errorMessage!.toLowerCase().contains('delay');
+
       return Scaffold(
         backgroundColor: AppTheme.backgroundColor,
         body: Center(
@@ -222,11 +250,15 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.wifi_off_rounded, size: 54, color: AppTheme.accentOrange),
+                Icon(
+                  isNetwork ? Icons.wifi_off_rounded : Icons.person_off_rounded,
+                  size: 54,
+                  color: AppTheme.accentOrange,
+                ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Connection Delay',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                Text(
+                  isNetwork ? 'Connection Delay' : 'Profile Unavailable',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -235,20 +267,35 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
                   style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle),
                 ),
                 const SizedBox(height: 24),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryNavy,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _isLoading = true;
-                      _errorMessage = null;
-                    });
-                    _loadProfile();
-                  },
-                  child: const Text('RETRY SYNC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.primaryNavy),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () => UserSessionService.logout(context),
+                      child: const Text('LOGOUT', style: TextStyle(color: AppTheme.primaryNavy, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 16),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryNavy,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isLoading = true;
+                          _errorMessage = null;
+                        });
+                        _loadProfile();
+                      },
+                      child: const Text('RETRY SYNC', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -257,6 +304,6 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
       );
     }
 
-    return const MainNavigationScreen();
+    return widget.authenticatedChild ?? const MainNavigationScreen();
   }
 }
