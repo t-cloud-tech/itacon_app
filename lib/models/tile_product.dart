@@ -239,32 +239,94 @@ class TileProduct {
     };
   }
 
+  /// Converts TileProduct to a standard JSON-encodable map for local persistence
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'productId': productId,
+      'sku': sku,
+      'name': name,
+      'categoryId': categoryId,
+      'tileCategory': tileCategory,
+      'productLine': productLine,
+      'classification': classification,
+      'bagWeightKg': bagWeightKg,
+      'usageTileSizes': usageTileSizes,
+      'applicationNotes': applicationNotes,
+      'size': size,
+      'surface': surface,
+      'color': color,
+      'baseColour': baseColour,
+      'pattern': pattern,
+      'basePrice': basePrice,
+      'moq': moq,
+      'unit': unit,
+      'stockStatus': stockStatus,
+      'availableQuantity': availableQuantity,
+      'currentStock': currentStock,
+      'reservedStock': reservedStock,
+      'availableStock': availableStock,
+      'images': images,
+      'isActive': isActive,
+      'isComingSoon': isComingSoon,
+      'collection': collection,
+      'spaces': spaces,
+      'finish': finish,
+      'productType': productType,
+      'bodyType': bodyType,
+      'thickness': thickness,
+      'thicknessMm': thicknessMm,
+      'boxWeightKg': boxWeightKg,
+      'pcsPerBox': pcsPerBox,
+      'sqFtPerBox': sqFtPerBox,
+      'thicknessCategory': thicknessCategory,
+      'shape': shape,
+      'aspectRatio': aspectRatio,
+      'aspectRatioValue': aspectRatioValue,
+      'randomPattern': randomPattern,
+      'priceCategory': priceCategory,
+      'shade': shade,
+      'lifestyleImages': lifestyleImages,
+      if (faceImages != null) 'faceImages': faceImages,
+      if (mockupImages != null) 'mockupImages': mockupImages,
+      'packingDetails': packingDetails,
+      if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
+      if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
+    };
+  }
+
+  /// Reconstructs TileProduct from a persisted JSON map
+  factory TileProduct.fromJson(Map<String, dynamic> json) {
+    final docId = json['id']?.toString() ?? json['productId']?.toString() ?? '';
+    return TileProduct.fromMap(json, docId);
+  }
+
   factory TileProduct.fromMap(Map<String, dynamic> map, String docId) {
-    final pId = map['productId'] ?? docId;
+    final pId = map['productId'] ?? (docId.isNotEmpty ? docId : (map['id'] ?? ''));
     final colorVal = map['baseColour'] ?? map['color'] ?? map['baseColor'] ?? 'Grey';
     final sz = map['size'] ?? '20 kg Bag';
     final stStatus = map['stockStatus'] ?? 'available';
-    final cStock = (map['currentStock'] ?? map['availableQuantity'] ?? 500).toInt();
-    final rStock = (map['reservedStock'] ?? 0).toInt();
-    final aStock = (map['availableStock'] ?? (cStock - rStock)).toInt();
+    final cStock = ((map['currentStock'] ?? map['availableQuantity'] ?? 500) as num).toInt();
+    final rStock = ((map['reservedStock'] ?? 0) as num).toInt();
+    final aStock = ((map['availableStock'] ?? (cStock - rStock)) as num).toInt();
     final aspVal = TileDimensionHelper.calculateTileAspectRatio(sz);
 
     final prodLine = map['productLine'] ?? (map['unit'] == 'bag' || docId.contains('ADH') || map['categoryId'] == 'CAT_ADHESIVES' ? 'adhesives' : 'tiles');
     final classVal = map['classification'] ?? map['surface'] ?? '';
-    final bagWt = (map['bagWeightKg'] ?? map['boxWeightKg'] ?? 20.0).toDouble();
+    final bagWt = ((map['bagWeightKg'] ?? map['boxWeightKg'] ?? 20.0) as num).toDouble();
     final usageVal = map['usageTileSizes'] ?? '';
     final appNotes = map['applicationNotes'] ?? '';
 
     return TileProduct(
-      id: docId,
-      productId: pId,
+      id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? pId.toString()),
+      productId: pId.toString(),
       sku: map['sku'] ?? 'ITA-PROD-$docId',
       name: map['name'] ?? 'Unnamed Product',
       categoryId: map['categoryId'] ?? 'CAT_GLAZED_01',
       tileCategory: map['tileCategory'] ?? (prodLine == 'adhesives' ? 'Tile Adhesives' : 'Floor Tiles'),
       productLine: prodLine,
       classification: classVal,
-      bagWeightKg: bagWt,
+      bagWeightKg: (map['bagWeightKg'] as num?)?.toDouble() ?? bagWt,
       usageTileSizes: usageVal,
       applicationNotes: appNotes,
       size: sz,
@@ -272,55 +334,65 @@ class TileProduct {
       color: colorVal,
       baseColour: colorVal,
       pattern: map['pattern'] ?? 'Polymer Modified',
-      basePrice: (map['basePrice'] ?? 0.0).toDouble(),
-      moq: (map['moq'] ?? 1).toInt(),
+      basePrice: (map['basePrice'] as num?)?.toDouble() ?? 0.0,
+      moq: (map['moq'] as num?)?.toInt() ?? 1,
       unit: map['unit'] ?? (prodLine == 'adhesives' ? 'bag' : 'box'),
       stockStatus: stStatus,
-      availableQuantity: aStock,
-      currentStock: cStock,
-      reservedStock: rStock,
-      availableStock: aStock,
+      availableQuantity: (map['availableQuantity'] as num?)?.toInt() ?? aStock,
+      currentStock: (map['currentStock'] as num?)?.toInt() ?? cStock,
+      reservedStock: (map['reservedStock'] as num?)?.toInt() ?? rStock,
+      availableStock: (map['availableStock'] as num?)?.toInt() ?? aStock,
       images: map['images'] is List
-          ? List<String>.from(map['images'])
+          ? List<String>.from((map['images'] as List).map((e) => e.toString()))
           : (map['imageUrl'] != null ? [map['imageUrl'].toString()] : <String>[]),
       faceImages: map['faceImages'] is List
-          ? List<String>.from(map['faceImages'])
+          ? List<String>.from((map['faceImages'] as List).map((e) => e.toString()))
           : null,
       mockupImages: map['mockupImages'] is List
-          ? List<String>.from(map['mockupImages'])
+          ? List<String>.from((map['mockupImages'] as List).map((e) => e.toString()))
           : null,
       isActive: map['isActive'] ?? true,
       isComingSoon: map['isComingSoon'] ?? false,
       collection: map['collection'] ?? (prodLine == 'adhesives' ? 'Fixing Solutions' : 'Endless'),
-      spaces: List<String>.from(map['spaces'] ?? ['Living Room', 'Bedroom']),
+      spaces: map['spaces'] is List
+          ? List<String>.from((map['spaces'] as List).map((e) => e.toString()))
+          : const ['Living Room', 'Bedroom'],
       finish: map['finish'] ?? (prodLine == 'adhesives' ? classVal : 'Polished'),
       productType: map['productType'] ?? (prodLine == 'adhesives' ? 'Adhesives' : 'Vitrified'),
       bodyType: map['bodyType'] ?? (prodLine == 'adhesives' ? 'Polymer Cementitious Matrix' : 'Porcelain'),
       thickness: map['thickness'] ?? '9 mm',
-      thicknessMm: (map['thicknessMm'] ?? 9.0).toDouble(),
-      boxWeightKg: (map['boxWeightKg'] ?? bagWt).toDouble(),
-      pcsPerBox: (map['pcsPerBox'] ?? TileDimensionHelper.getPcsPerBox(sz)).toInt(),
-      sqFtPerBox: (map['sqFtPerBox'] ?? 1.0).toDouble(),
+      thicknessMm: (map['thicknessMm'] as num?)?.toDouble() ?? 9.0,
+      boxWeightKg: (map['boxWeightKg'] as num?)?.toDouble() ?? bagWt,
+      pcsPerBox: (map['pcsPerBox'] as num?)?.toInt() ?? TileDimensionHelper.getPcsPerBox(sz),
+      sqFtPerBox: (map['sqFtPerBox'] as num?)?.toDouble() ?? 1.0,
       thicknessCategory: map['thicknessCategory'] ?? 'standard',
       shape: map['shape'] ?? 'rectangle',
       aspectRatio: map['aspectRatio']?.toString() ?? '$aspVal',
-      aspectRatioValue: aspVal,
+      aspectRatioValue: (map['aspectRatioValue'] as num?)?.toDouble() ?? aspVal,
       randomPattern: map['randomPattern'] ?? '4 Faces',
       priceCategory: map['priceCategory'] ?? 'Premium',
       shade: map['shade'] ?? 'Light',
-      lifestyleImages: List<String>.from(map['lifestyleImages'] ?? []),
-      packingDetails: Map<String, dynamic>.from(map['packingDetails'] ?? {
-        'boxWeight': '$bagWt kg',
-        'sqmPerBox': 1.0,
-        'boxesPerPallet': 50,
-        'piecesPerBox': 1,
-      }),
+      lifestyleImages: map['lifestyleImages'] is List
+          ? List<String>.from((map['lifestyleImages'] as List).map((e) => e.toString()))
+          : const [],
+      packingDetails: map['packingDetails'] is Map
+          ? Map<String, dynamic>.from(map['packingDetails'] as Map)
+          : {
+              'boxWeight': '$bagWt kg',
+              'sqmPerBox': 1.0,
+              'boxesPerPallet': 50,
+              'piecesPerBox': 1,
+            },
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
-          : null,
+          : (map['createdAt'] is String
+              ? DateTime.tryParse(map['createdAt'] as String)
+              : (map['createdAt'] is DateTime ? map['createdAt'] as DateTime : null)),
       updatedAt: map['updatedAt'] is Timestamp
           ? (map['updatedAt'] as Timestamp).toDate()
-          : null,
+          : (map['updatedAt'] is String
+              ? DateTime.tryParse(map['updatedAt'] as String)
+              : (map['updatedAt'] is DateTime ? map['updatedAt'] as DateTime : null)),
     );
   }
 }

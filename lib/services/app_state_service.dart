@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tile_product.dart';
 import '../models/user_profile.dart';
 import 'firestore_service.dart';
@@ -20,6 +22,43 @@ class CartItem {
     required this.selectedFinish,
     this.quantity = 1,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'product': product.toJson(),
+      'selectedSize': selectedSize,
+      'selectedFinish': selectedFinish,
+      'quantity': quantity,
+    };
+  }
+
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    final productRaw = json['product'];
+    final Map<String, dynamic> productMap;
+    if (productRaw is Map<String, dynamic>) {
+      productMap = productRaw;
+    } else if (productRaw is Map) {
+      productMap = Map<String, dynamic>.from(productRaw);
+    } else {
+      productMap = <String, dynamic>{};
+    }
+
+    final product = TileProduct.fromJson(productMap);
+    final size = json['selectedSize']?.toString() ??
+        (product.size.isNotEmpty ? product.size : 'Standard');
+    final finish = json['selectedFinish']?.toString() ??
+        (product.surface.isNotEmpty
+            ? product.surface
+            : (product.finish.isNotEmpty ? product.finish : 'Standard'));
+    final qty = (json['quantity'] as num?)?.toInt() ?? 1;
+
+    return CartItem(
+      product: product,
+      selectedSize: size,
+      selectedFinish: finish,
+      quantity: qty > 0 ? qty : 1,
+    );
+  }
 
   double get effectiveUnitPrice => PricingService.instance.resolvePrice(product).unitPrice;
   double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
@@ -90,6 +129,33 @@ class AppStateService extends ChangeNotifier {
           FirebaseAuth.instance.currentUser == null ||
           FirebaseAuth.instance.currentUser?.uid == _currentUserProfile!.userId);
 
+  String? _currentCartUserId;
+
+  /// Returns current active user ID for scoping local cart persistence
+  String? get currentCartUserId {
+    if (_currentCartUserId != null && _currentCartUserId!.isNotEmpty) {
+      return _currentCartUserId;
+    }
+    if (_currentUserProfile != null &&
+        _currentUserProfile!.userId.isNotEmpty &&
+        _currentUserProfile!.userId != 'GUEST_USER' &&
+        _currentUserProfile!.userId != 'guest_user') {
+      return _currentUserProfile!.userId;
+    }
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        final authUid = FirebaseAuth.instance.currentUser?.uid;
+        if (authUid != null && authUid.isNotEmpty) {
+          return authUid;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// SharedPreferences key for user-isolated cart persistence
+  static String cartStorageKey(String userId) => 'cart_$userId';
+
   void setCurrentUserProfile(UserProfile profile) {
     if (profile.userId.isEmpty ||
         profile.userId == 'GUEST_USER' ||
@@ -109,6 +175,9 @@ class AppStateService extends ChangeNotifier {
     } catch (_) {}
 
     _currentUserProfile = profile;
+    if (_currentCartUserId != profile.userId) {
+      loadUserCart(profile.userId);
+    }
     notifyListeners();
   }
 
@@ -117,9 +186,27 @@ class AppStateService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearCartAndFavorites() {
+  /// Clears in-memory cart without removing persisted storage (used on logout)
+  void clearInMemoryCart() {
     _cartItems.clear();
+    _currentCartUserId = null;
+    notifyListeners();
+  }
+
+  /// Clears in-memory favorites
+  void clearFavorites() {
     _favoriteProductsMap.clear();
+    notifyListeners();
+  }
+
+  /// Clears in-memory cart and favorites; optionally removes persisted cart
+  void clearCartAndFavorites({bool clearPersistedCart = false}) {
+    if (clearPersistedCart) {
+      clearCart();
+    } else {
+      clearInMemoryCart();
+    }
+    clearFavorites();
     UserDemandService.instance.reset();
     notifyListeners();
   }
@@ -316,12 +403,78 @@ class AppStateService extends ChangeNotifier {
     );
   }
 
-  void addToCart(
+  /// Loads and deserializes the user's persisted local cart from SharedPreferences
+  Future<void> loadUserCart(String userId) async {
+    if (userId.isEmpty || userId == 'GUEST_USER' || userId == 'guest_user') return;
+    _currentCartUserId = userId;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = cartStorageKey(userId);
+      final rawJson = prefs.getString(key);
+      if (rawJson == null || rawJson.trim().isEmpty) {
+        _cartItems.clear();
+        notifyListeners();
+        return;
+      }
+
+      final decoded = jsonDecode(rawJson);
+      if (decoded is! List) {
+        debugPrint('[AppStateService] Corrupted cart data (not a list) for $userId');
+        _cartItems.clear();
+        notifyListeners();
+        return;
+      }
+
+      final List<CartItem> restoredItems = [];
+      for (final itemRaw in decoded) {
+        try {
+          if (itemRaw is Map<String, dynamic>) {
+            restoredItems.add(CartItem.fromJson(itemRaw));
+          } else if (itemRaw is Map) {
+            restoredItems.add(CartItem.fromJson(Map<String, dynamic>.from(itemRaw)));
+          }
+        } catch (itemError) {
+          debugPrint('[AppStateService] Skipping corrupt cart item: $itemError');
+        }
+      }
+
+      _cartItems.clear();
+      _cartItems.addAll(restoredItems);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[AppStateService] Failed to load cart for $userId: $e');
+      _cartItems.clear();
+      notifyListeners();
+    }
+  }
+
+  /// Automatically persists the current cart to SharedPreferences under `cart_<uid>`
+  Future<void> _persistCart() async {
+    final uid = currentCartUserId;
+    if (uid == null || uid.isEmpty || uid == 'GUEST_USER' || uid == 'guest_user') {
+      return;
+    }
+    // Synchronously serialize current items so subsequent clears/mutations cannot corrupt this write
+    final listJson = _cartItems.map((item) => item.toJson()).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = cartStorageKey(uid);
+      if (listJson.isEmpty) {
+        await prefs.remove(key);
+      } else {
+        await prefs.setString(key, jsonEncode(listJson));
+      }
+    } catch (e) {
+      debugPrint('[AppStateService] Failed to persist cart for $uid: $e');
+    }
+  }
+
+  Future<void> addToCart(
     TileProduct product, {
     String? size,
     String? finish,
     int quantity = 1,
-  }) {
+  }) async {
     final effectiveSize = (size != null && size.isNotEmpty)
         ? size
         : (product.size.isNotEmpty ? product.size : 'Standard');
@@ -351,32 +504,45 @@ class AppStateService extends ChangeNotifier {
       );
     }
     notifyListeners();
+    await _persistCart();
   }
 
-  void updateQuantity(CartItem item, int delta) {
+  Future<void> updateQuantity(CartItem item, int delta) async {
     item.quantity += delta;
     if (item.quantity <= 0) {
       _cartItems.remove(item);
     }
     notifyListeners();
+    await _persistCart();
   }
 
-  void setQuantity(CartItem item, int newQuantity) {
+  Future<void> setQuantity(CartItem item, int newQuantity) async {
     if (newQuantity <= 0) {
       _cartItems.remove(item);
     } else {
       item.quantity = newQuantity;
     }
     notifyListeners();
+    await _persistCart();
   }
 
-  void removeFromCart(CartItem item) {
+  Future<void> removeFromCart(CartItem item) async {
     _cartItems.remove(item);
     notifyListeners();
+    await _persistCart();
   }
 
-  void clearCart() {
+  Future<void> clearCart() async {
     _cartItems.clear();
+    final uid = currentCartUserId;
     notifyListeners();
+    if (uid != null && uid.isNotEmpty && uid != 'GUEST_USER' && uid != 'guest_user') {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(cartStorageKey(uid));
+      } catch (e) {
+        debugPrint('[AppStateService] Failed to remove persisted cart for $uid: $e');
+      }
+    }
   }
 }

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "ITACON Purchase Order PDF Generator & Multi-Party WhatsApp Notifications",
   "main": "index.js",
+  "scripts": {
+    "test": "node test_payment_engine.js && node test_loyalty_engine.js && node test_staff_auth.js"
+  },
   "dependencies": {
     "firebase-admin": "^11.11.1",
     "firebase-functions": "^4.5.0",

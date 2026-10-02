@@ -106,7 +106,7 @@ class AppProductImage extends StatelessWidget {
 
     // 1. Firebase Storage Path (thumbnails, tiles, mockups, adhesives)
     if (StorageImageService.isStoragePath(imagePath)) {
-      final cacheKey = StorageImageService.normalizeStoragePath(imagePath);
+      final cacheKey = StorageImageService.getCacheKey(imagePath);
       final cachedUrl = StorageImageService.getCachedUrl(imagePath);
 
       if (cachedUrl != null && cachedUrl.isNotEmpty) {
@@ -287,7 +287,7 @@ class AppProductImage extends StatelessWidget {
       if (cachedThumbUrl != null && cachedThumbUrl.isNotEmpty) {
         return CachedNetworkImage(
           imageUrl: cachedThumbUrl,
-          cacheKey: StorageImageService.normalizeStoragePath(thumbPath),
+          cacheKey: StorageImageService.getCacheKey(thumbPath),
           width: width,
           height: height,
           fit: fit,
@@ -308,7 +308,7 @@ class AppProductImage extends StatelessWidget {
           if (url != null && url.isNotEmpty) {
             return CachedNetworkImage(
               imageUrl: url,
-              cacheKey: StorageImageService.normalizeStoragePath(thumbPath),
+              cacheKey: StorageImageService.getCacheKey(thumbPath),
               width: width,
               height: height,
               fit: fit,

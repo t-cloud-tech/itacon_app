@@ -47,7 +47,15 @@ class CartProvider extends ChangeNotifier {
     _appState.removeFromCart(item);
   }
 
-  void clearCart() {
-    _appState.clearCart();
+  Future<void> clearCart() async {
+    await _appState.clearCart();
+  }
+
+  void clearInMemoryCart() {
+    _appState.clearInMemoryCart();
+  }
+
+  Future<void> loadUserCart(String userId) async {
+    await _appState.loadUserCart(userId);
   }
 }

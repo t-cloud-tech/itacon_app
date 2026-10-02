@@ -1,19 +1,23 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  doc, 
-  getDoc,
-  limit
-} from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut as fbSignOut, signInAnonymously } from "firebase/auth";
-import { auth, db } from "./firebase";
-import { hashPassword } from "./auth-utils";
+  signInWithCustomToken, 
+  signOut as fbSignOut, 
+  onAuthStateChanged,
+  User as FirebaseUser
+} from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from "./firebase";
+import { 
+  buildUserProfileFromDoc,
+  AuthException, 
+  type AuthErrorCode 
+} from "./auth-utils";
 import { UserProfile, SalesPerson, UserRole } from "@/types";
+
+export { AuthException, type AuthErrorCode };
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -26,161 +30,181 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const SESSION_KEY = "itacon_portal_session";
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [salesperson, setSalesperson] = useState<SalesPerson | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage on mount
+  // Authoritative Firebase Auth persistence listener
   useEffect(() => {
     let isMounted = true;
-    const restoreSession = async () => {
+
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
+      if (!fbUser) {
+        if (isMounted) {
+          setUser(null);
+          setSalesperson(null);
+          setRole(null);
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
-        // Wait for Firebase Auth persistence to restore any existing session
-        if (typeof auth.authStateReady === "function") {
-          await auth.authStateReady();
-        }
-
-        const stored = localStorage.getItem(SESSION_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
+        // Authenticated users can read their own user profile under isOwner(userId) rule
+        const userDocSnap = await getDoc(doc(db, "users", fbUser.uid));
+        if (!userDocSnap.exists()) {
+          // If no user profile exists for authenticated user, sign out
+          await fbSignOut(auth);
           if (isMounted) {
-            setUser(parsed.user);
-            setSalesperson(parsed.salesperson || null);
-            setRole(parsed.role);
+            setUser(null);
+            setSalesperson(null);
+            setRole(null);
           }
+          return;
+        }
 
-          // Ensure Firebase auth session exists if anonymous auth is supported
-          if (!auth.currentUser) {
-            try {
-              await signInAnonymously(auth);
-            } catch (_) {}
+        const profile = buildUserProfileFromDoc(fbUser.uid, userDocSnap.data() as Record<string, unknown>);
+
+        // Load salesperson profile if applicable
+        let spProfile: SalesPerson | null = null;
+        if (
+          (profile.role === "salesperson" || profile.role === "manager") &&
+          profile.salesPersonId
+        ) {
+          try {
+            const spDoc = await getDoc(doc(db, "salesPersons", profile.salesPersonId));
+            if (spDoc.exists()) {
+              const data = spDoc.data();
+              spProfile = {
+                salesPersonId: spDoc.id,
+                employeeId: data.employeeId || "",
+                name: data.name || profile.name,
+                phone: data.phone || profile.phone,
+                email: data.email || profile.email,
+                referralCode: data.referralCode || "",
+                region: data.region || "Western Region",
+                states: data.states || ["GJ"],
+                status: data.status || "active",
+                assignedClientsCount: data.assignedClientsCount || 0,
+                activeClientsCount: data.activeClientsCount || 0,
+              };
+            }
+          } catch (e) {
+            console.warn("Could not fetch salesperson profile document:", e);
           }
         }
-      } catch (e) {
-        console.error("Failed to restore session", e);
+
+        if (isMounted) {
+          setUser(profile);
+          setSalesperson(spProfile);
+          setRole(profile.role);
+        }
+      } catch (err) {
+        console.warn("Session restore error:", err);
+        if (isMounted) {
+          setUser(null);
+          setSalesperson(null);
+          setRole(null);
+        }
       } finally {
         if (isMounted) {
           setLoading(false);
         }
       }
-    };
+    });
 
-    restoreSession();
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, []);
 
   const login = async (identifier: string, password: string) => {
     setLoading(true);
     try {
-      const cleanIdent = identifier.trim().toLowerCase();
-      const usersRef = collection(db, "users");
+      const trimmedIdent = identifier.trim();
+      if (!trimmedIdent) {
+        throw new AuthException("ACCOUNT_NOT_FOUND", "Please enter your email or registered phone number.");
+      }
+      if (!password) {
+        throw new AuthException("INVALID_PASSWORD", "Please enter your password.");
+      }
 
-      // 1. Try finding user by email or phone in Firestore
-      let userDocData: any = null;
-      let userId: string = "";
-
+      // 1. Invoke server-side verifyStaffCredentials callable
+      // Server performs lookup, constant-time password check, status validation & role gating.
+      let customToken = "";
       try {
-        // Query by email
-        const emailQuery = query(usersRef, where("email", "==", cleanIdent), limit(1));
-        let querySnap = await getDocs(emailQuery);
+        const verifyStaffCallable = httpsCallable<
+          { identifier: string; password: string },
+          { customToken: string }
+        >(functions, "verifyStaffCredentials");
 
-        if (querySnap.empty) {
-          // Query by phone
-          const phoneQuery = query(usersRef, where("phone", "==", identifier.trim()), limit(1));
-          querySnap = await getDocs(phoneQuery);
+        const response = await verifyStaffCallable({
+          identifier: trimmedIdent,
+          password,
+        });
+
+        customToken = response.data?.customToken;
+      } catch (err: unknown) {
+        const errorObj = err as { code?: string; message?: string };
+        const code = errorObj?.code || "";
+        const message = errorObj?.message || "";
+
+        if (code === "functions/permission-denied" || message.includes("Access Denied")) {
+          throw new AuthException(
+            "UNAUTHORIZED_ROLE",
+            "Access Denied: This web portal is restricted to Salespersons and Admins. Customer accounts must use the ITACON mobile app."
+          );
         }
-
-        if (querySnap.empty) {
-          // Query by phoneNumber field if phone field is not used
-          const altPhoneQuery = query(usersRef, where("phoneNumber", "==", identifier.trim()), limit(1));
-          querySnap = await getDocs(altPhoneQuery);
+        if (code === "functions/failed-precondition" || message.includes("deactivated or blocked")) {
+          throw new AuthException(
+            "INACTIVE_ACCOUNT",
+            "Your account has been deactivated or blocked. Please contact admin."
+          );
         }
-
-        if (!querySnap.empty) {
-          const snapDoc = querySnap.docs[0];
-          userId = snapDoc.id;
-          userDocData = snapDoc.data();
+        if (code === "functions/unauthenticated" || message.includes("Invalid login credentials")) {
+          throw new AuthException(
+            "INVALID_PASSWORD",
+            "Invalid login credentials."
+          );
         }
-      } catch (_) {
-        // Reading users collection prior to authentication may be blocked by security rules
-      }
-
-      // If user doc not found via Firestore query, try direct Firebase Auth sign-in first
-      let authUid: string | null = null;
-      try {
-        const authEmail = cleanIdent.includes("@") ? cleanIdent : `user_${cleanIdent.replace(/\D/g, "")}@itacon.com`;
-        const cred = await signInWithEmailAndPassword(auth, authEmail, password);
-        authUid = cred.user.uid;
-      } catch (_) {
-        // Firebase Auth sign-in might fail or phone accounts may not have email/pass
-      }
-
-      if (!auth.currentUser) {
-        try {
-          await signInAnonymously(auth);
-        } catch (_) {}
-      }
-
-      // If we didn't find by email/phone query earlier but got authUid, fetch user doc
-      if (!userDocData && authUid) {
-        const userDoc = await getDoc(doc(db, "users", authUid));
-        if (userDoc.exists()) {
-          userId = userDoc.id;
-          userDocData = userDoc.data();
+        if (code === "functions/invalid-argument") {
+          throw new AuthException(
+            "INVALID_PASSWORD",
+            message || "Invalid credentials."
+          );
         }
+        throw new AuthException(
+          "TECHNICAL_ERROR",
+          message || "Authentication service temporarily unavailable. Please try again."
+        );
       }
 
-      if (!userDocData) {
-        throw new Error("No account found matching this email or phone number.");
+      if (!customToken) {
+        throw new AuthException("TECHNICAL_ERROR", "Authentication failed: No token received from server.");
       }
 
-      // 2. Validate password using salt + SHA-256 hash if present
-      const storedHash = userDocData.passwordHash;
-      const storedSalt = userDocData.passwordSalt;
+      // 2. Sign in with Custom Token via Firebase Auth
+      const userCred = await signInWithCustomToken(auth, customToken);
+      const authedUid = userCred.user.uid;
 
-      if (storedHash && storedSalt) {
-        const computedHash = await hashPassword(password, storedSalt);
-        if (computedHash !== storedHash) {
-          throw new Error("Invalid password. Please check your credentials and try again.");
-        }
-      } else if (!authUid) {
-        // Neither custom hash nor Firebase auth succeeded
-        throw new Error("Password authentication failed. Please contact your administrator.");
+      // 3. Read users/{authedUid} master document under authorized isOwner(userId) rule
+      const userDocSnap = await getDoc(doc(db, "users", authedUid));
+      if (!userDocSnap.exists()) {
+        throw new AuthException("ACCOUNT_NOT_FOUND", "User profile document not found.");
       }
 
-      // 3. Verify Role: Salesperson or Admin allowed
-      const userRole = (userDocData.role as UserRole) || "salesperson";
-      if (userRole !== "salesperson" && userRole !== "admin") {
-        throw new Error("Access Denied: This web portal is restricted to Salespersons and Admins. Customer accounts must use the ITACON mobile app.");
-      }
+      // 4. Client-side role re-validation (defense-in-depth for UI routing)
+      const userProfile = buildUserProfileFromDoc(authedUid, userDocSnap.data() as Record<string, unknown>);
 
-      if (userDocData.status === "blocked" || userDocData.status === "inactive") {
-        throw new Error("Your account has been deactivated or blocked. Please contact admin.");
-      }
-
-      const userProfile: UserProfile = {
-        userId: userId || authUid || "",
-        name: userDocData.name || userDocData.fullName || "User",
-        email: userDocData.email || "",
-        phone: userDocData.phone || userDocData.phoneNumber || "",
-        role: userRole,
-        companyName: userDocData.companyName,
-        userCategory: userDocData.userCategory,
-        salesPersonId: userDocData.salesPersonId,
-        city: userDocData.city,
-        state: userDocData.state,
-        status: userDocData.status || "active",
-      };
-
-      // 4. Try fetching salesperson profile if salesperson
+      // 5. Fetch salesperson profile document if applicable
       let spProfile: SalesPerson | null = null;
-      if (userRole === "salesperson" && userProfile.salesPersonId) {
+      if (
+        (userProfile.role === "salesperson" || userProfile.role === "manager") &&
+        userProfile.salesPersonId
+      ) {
         try {
           const spDoc = await getDoc(doc(db, "salesPersons", userProfile.salesPersonId));
           if (spDoc.exists()) {
@@ -204,16 +228,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Update state and persist
+      // Update state
       setUser(userProfile);
       setSalesperson(spProfile);
-      setRole(userRole);
-
-      localStorage.setItem(SESSION_KEY, JSON.stringify({
-        user: userProfile,
-        salesperson: spProfile,
-        role: userRole,
-      }));
+      setRole(userProfile.role);
 
     } finally {
       setLoading(false);
@@ -227,7 +245,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSalesperson(null);
     setRole(null);
-    localStorage.removeItem(SESSION_KEY);
   };
 
   return (
@@ -244,3 +261,5 @@ export function useAuth() {
   }
   return context;
 }
+
+

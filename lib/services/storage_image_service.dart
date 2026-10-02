@@ -34,6 +34,28 @@ class StorageImageService {
     return clean.startsWith('products/thumbnails/');
   }
 
+  /// Centralized cache version for mock-up images to invalidate cached borders on devices
+  static const String mockupCacheVersion = '3';
+
+  /// Generates a cache key for an image path, applying the mockup cache version
+  /// ONLY to mock-up images and mock-up thumbnails.
+  static String getCacheKey(String path) {
+    final clean = normalizeStoragePath(path);
+    if (isMockupPath(clean)) {
+      return '$clean::mockup-v$mockupCacheVersion';
+    }
+    return clean;
+  }
+
+  /// Checks if the path refers to a mock-up image or mock-up thumbnail.
+  static bool isMockupPath(String path) {
+    if (path.isEmpty) return false;
+    final clean = normalizeStoragePath(path);
+    return clean.startsWith('products/mockups/') ||
+        clean.startsWith('products/thumbnails/mockups/') ||
+        clean.startsWith('assets/images/mockups/');
+  }
+
   /// Centralized mapping: converts an original Firebase Storage or local path
   /// to its corresponding optimized WebP thumbnail path.
   ///

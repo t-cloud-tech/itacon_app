@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, AuthException } from "@/lib/auth-context";
 import { 
   Building2, 
   Lock, 
@@ -12,10 +12,10 @@ import {
   ArrowRight, 
   AlertCircle, 
   CheckCircle2, 
-  ShieldCheck,
-  TrendingUp,
-  FileSpreadsheet,
-  Smartphone
+  ShieldCheck, 
+  TrendingUp, 
+  FileSpreadsheet, 
+  Smartphone 
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -53,9 +53,15 @@ export default function LoginPage() {
     try {
       await login(identifier, password);
       router.push("/");
-    } catch (err: any) {
-      console.error("Login failed:", err);
-      setErrorMsg(err?.message || "Failed to sign in. Please verify your credentials.");
+    } catch (err: unknown) {
+      const errorObj = err as { code?: string; message?: string };
+      // Normal expected login failures are logged as warnings to prevent triggering Next.js dev error overlay
+      if (err instanceof AuthException || errorObj?.code) {
+        console.warn(`[Login] ${errorObj?.code || "AUTH_FAILED"}: ${errorObj?.message}`);
+      } else {
+        console.error("Login technical failure:", errorObj?.message || "Unexpected failure");
+      }
+      setErrorMsg(errorObj?.message || "Failed to sign in. Please verify your credentials.");
     } finally {
       setIsSubmitting(false);
     }

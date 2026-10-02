@@ -120,6 +120,10 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
 
     final appState = AppStateService.instance;
 
+    // Immediately restore user-scoped local cart from SharedPreferences
+    // as soon as Firebase Auth UID is confirmed, even before profile fetch or if offline.
+    await appState.loadUserCart(uid);
+
     // 1. In-memory check
     if (appState.hasSessionProfile && appState.currentUserProfile.userId == uid) {
       if (kDebugMode) debugPrint('[AUTH] Profile load success');

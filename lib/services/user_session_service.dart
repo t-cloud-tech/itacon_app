@@ -142,6 +142,7 @@ class UserSessionService {
     // Also update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
     AppStateService.instance.loadUserWishlist(profile.userId);
+    await AppStateService.instance.loadUserCart(profile.userId);
     NotificationService.saveCurrentUserToken();
   }
 
@@ -274,6 +275,7 @@ class UserSessionService {
     // Update live AppStateService
     AppStateService.instance.setCurrentUserProfile(profile);
     AppStateService.instance.loadUserWishlist(profile.userId);
+    await AppStateService.instance.loadUserCart(profile.userId);
     NotificationService.saveCurrentUserToken();
     return profile;
   }
@@ -319,9 +321,11 @@ class UserSessionService {
     // Reset temporary auth service memory
     AuthService.clearSessionState();
 
-    // Reset AppStateService user profile, cart, favorites, and demand models
+    // Reset AppStateService user profile, in-memory cart, favorites, and demand models
+    // (persisted cart_<uid> remains preserved in storage for this user)
     AppStateService.instance.clearUserProfile();
-    AppStateService.instance.clearCartAndFavorites();
+    AppStateService.instance.clearInMemoryCart();
+    AppStateService.instance.clearFavorites();
     UserDemandService.instance.reset();
   }
 }

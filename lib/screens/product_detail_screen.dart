@@ -692,7 +692,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   children: [
                                     Text(
                                       isAdhesive ? 'Bag Rate' : 'Cost Per Box',
-                                      style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
                                     ),
                                     Text(
                                       isAdhesive
@@ -706,7 +710,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     ),
                                     Text(
                                       isAdhesive ? '(20 kg / Bag)' : '($pcsPerBox Pcs • $sqFtPerBox sq.ft / Box)',
-                                      style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF475569),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -716,7 +724,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   children: [
                                     Text(
                                       isAdhesive ? 'Total Order Weight ($_quantity Bags)' : 'Est. Coverage ($_quantity Boxes)',
-                                      style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
                                     ),
                                     Text(
                                       isAdhesive
@@ -730,7 +742,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     ),
                                     Text(
                                       'Total: ₹${totalCost.toStringAsFixed(0)}',
-                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.textDark),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
                                     ),
                                   ],
                                 ),

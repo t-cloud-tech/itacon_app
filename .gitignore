@@ -65,3 +65,13 @@ assets/product_import/
 # Database backups
 database_backups/
 
+# Mockup cleanup previews and backups
+backup_mockups/
+image_cleanup_preview/
+image_cleanup_final_303/
+
+# Temporary scripts output and artifacts
+scripts/*.json
+scripts/temp/
+scripts/last_user_prompt*.txt
+

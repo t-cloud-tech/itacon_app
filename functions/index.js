@@ -41,3 +41,8 @@ exports.submitPaymentProofCallable = submitPaymentProofCallable;
 exports.verifyPaymentCallable = verifyPaymentCallable;
 exports.rejectPaymentCallable = rejectPaymentCallable;
 
+// Secure Staff Authentication for Web Portal
+const { verifyStaffCredentials } = require('./staffAuthEngine');
+exports.verifyStaffCredentials = verifyStaffCredentials;
+
+
