@@ -43,7 +43,7 @@ export interface ClientOrderPO {
   companyName: string;
   customerPhone: string;
   salesPersonId: string;
-  status: "pending_rate" | "rate_quoted" | "confirmed" | "rejected" | "submitted" | "pending_quote" | "pending_admin_approval";
+  status: "pending_rate" | "rate_quoted" | "confirmed" | "rejected" | "submitted" | "pending_quote" | "pending_admin_approval" | "pending_salesperson_review";
   orderType: string;
   deliveryAddress: string;
   transportRequired: boolean;
@@ -58,6 +58,10 @@ export interface ClientOrderPO {
   pricePerSqft?: number;
   adminApprovalRequired?: boolean;
   adminApprovalStatus?: "pending" | "approved" | "rejected" | "none";
+  salespersonApprovalStatus?: "pending_release" | "action_required_revision" | "released" | "none";
+  salespersonReleasedAt?: string;
+  salespersonReleasedBy?: string;
+  adminDecisionReason?: string;
   adminApprovedAt?: string;
   adminApprovedBy?: string;
   createdAt: string;
@@ -866,21 +870,31 @@ export async function linkQuotationToOrder(
  * Admin confirms the PO whose rate was below ₹26.50/sq.ft.
  * Releases the confirmed PO directly to the customer mobile app!
  */
+/**
+ * Admin confirms the PO whose rate was below ₹26.50/sq.ft.
+ * 
+ * CRITICAL RULE: Admin CANNOT directly update the PO detail or confirm the order on the customer app side!
+ * Instead, Admin's acceptance updates the internal approval status and routes the order to the
+ * Salesperson's Approval Tab. The customer app remains in review/quote stage until the salesperson releases it.
+ */
 export async function adminConfirmOrder(
   orderId: string,
   quotationId?: string,
-  adminName: string = "Admin"
+  adminName: string = "Admin",
+  notes?: string
 ): Promise<void> {
   const orderRef = doc(db, "orders", orderId);
   const now = new Date().toISOString();
 
-  // Status transitions to 'confirmed' (or 'rate_quoted' for customer visibility)
+  // Status transitions to 'pending_salesperson_review'.
+  // DO NOT transition to 'confirmed' or 'rate_quoted' directly! Customer app remains protected.
   await updateDoc(orderRef, {
-    status: "confirmed",
+    status: "pending_salesperson_review",
     adminApprovalStatus: "approved",
     adminApprovedAt: now,
     adminApprovedBy: adminName,
-    confirmedAt: now,
+    adminDecisionReason: notes || "Quoted rate below ₹26.50/sq.ft approved by Admin. Awaiting salesperson release to customer app.",
+    salespersonApprovalStatus: "pending_release",
     updatedAt: now,
   });
 
@@ -888,10 +902,11 @@ export async function adminConfirmOrder(
     try {
       const quoteRef = doc(db, "quotations", quotationId);
       await updateDoc(quoteRef, {
-        status: "approved",
+        status: "pending_approval",
         approvalStatus: "approved",
         approvedBy: adminName,
         approvedAt: now,
+        approvalRemarks: notes || "Admin confirmed rate exception (< ₹26.50/sq.ft). Routed to salesperson approval tab.",
         updatedAt: now,
       });
     } catch (_) {}
@@ -899,7 +914,11 @@ export async function adminConfirmOrder(
 }
 
 /**
- * Admin rejects the low rate PO exception.
+ * Admin rejects the low rate PO exception (< ₹26.50/sq.ft).
+ * 
+ * CRITICAL RULE: Admin CANNOT directly reject or cancel the PO detail on the customer app side!
+ * Instead, Admin's rejection is routed to the Salesperson's Approval Tab with the reason,
+ * allowing the salesperson to revise the quoted rate or consult with the client.
  */
 export async function adminRejectOrder(
   orderId: string,
@@ -910,11 +929,14 @@ export async function adminRejectOrder(
   const orderRef = doc(db, "orders", orderId);
   const now = new Date().toISOString();
 
+  // Status transitions to 'pending_salesperson_review' (NOT 'rejected' on customer app!).
   await updateDoc(orderRef, {
-    status: "rejected",
+    status: "pending_salesperson_review",
     adminApprovalStatus: "rejected",
     adminDecisionReason: reason,
     adminApprovedBy: adminName,
+    adminApprovedAt: now,
+    salespersonApprovalStatus: "action_required_revision",
     updatedAt: now,
   });
 
@@ -926,6 +948,94 @@ export async function adminRejectOrder(
         approvalStatus: "rejected",
         adminDecisionReason: reason,
         updatedAt: now,
+      });
+    } catch (_) {}
+  }
+}
+
+/**
+ * Salesperson releases the Admin-confirmed PO to the customer mobile app.
+ * This is the ONLY trigger that makes the quoted rates and PO details visible/actionable on the customer app side!
+ */
+export async function salespersonReleaseOrderToApp(
+  orderId: string,
+  quotationId?: string,
+  salespersonName: string = "Salesperson",
+  approvalRequestId?: string
+): Promise<void> {
+  const orderRef = doc(db, "orders", orderId);
+  const now = new Date().toISOString();
+
+  // Transitions status to 'rate_quoted' so customer can now see and confirm the PO on the mobile app
+  await updateDoc(orderRef, {
+    status: "rate_quoted",
+    salespersonApprovalStatus: "released",
+    salespersonReleasedAt: now,
+    salespersonReleasedBy: salespersonName,
+    rateQuotedAt: now,
+    updatedAt: now,
+  });
+
+  if (quotationId) {
+    try {
+      const quoteRef = doc(db, "quotations", quotationId);
+      await updateDoc(quoteRef, {
+        status: "sent_to_customer",
+        updatedAt: now,
+      });
+    } catch (_) {}
+  }
+
+  if (approvalRequestId) {
+    try {
+      const appRef = doc(db, "approvalRequests", approvalRequestId);
+      await updateDoc(appRef, {
+        salespersonActionStatus: "released",
+        salespersonReleasedAt: now,
+        salespersonReleasedBy: salespersonName,
+      });
+    } catch (_) {}
+  }
+}
+
+/**
+ * Salesperson declines or cancels the PO (e.g. if Admin rejected < 26.50 and client won't accept higher rates).
+ */
+export async function salespersonDeclineOrder(
+  orderId: string,
+  quotationId?: string,
+  salespersonName: string = "Salesperson",
+  reason: string = "Declined after rate exception review",
+  approvalRequestId?: string
+): Promise<void> {
+  const orderRef = doc(db, "orders", orderId);
+  const now = new Date().toISOString();
+
+  await updateDoc(orderRef, {
+    status: "rejected",
+    salespersonApprovalStatus: "cancelled",
+    rejectionReason: reason,
+    rejectedBy: salespersonName,
+    updatedAt: now,
+  });
+
+  if (quotationId) {
+    try {
+      const quoteRef = doc(db, "quotations", quotationId);
+      await updateDoc(quoteRef, {
+        status: "declined",
+        remarks: reason,
+        updatedAt: now,
+      });
+    } catch (_) {}
+  }
+
+  if (approvalRequestId) {
+    try {
+      const appRef = doc(db, "approvalRequests", approvalRequestId);
+      await updateDoc(appRef, {
+        salespersonActionStatus: "cancelled",
+        decisionNotes: reason,
       });
     } catch (_) {}
   }

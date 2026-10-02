@@ -186,6 +186,13 @@ export interface Quotation {
   updatedAt: string;
 }
 
+export type SalespersonActionStatus =
+  | "pending_admin_review"
+  | "pending_release"
+  | "action_required_revision"
+  | "released"
+  | "cancelled";
+
 export interface ApprovalRequest {
   id: string;
   referenceType: "quotation" | "price_exception" | "credit_limit" | "low_rate_po" | "order_confirmation";
@@ -207,6 +214,12 @@ export interface ApprovalRequest {
   decisionNotes?: string;
   decidedAt?: string;
   createdAt: string;
+  // Salesperson approval workflow extensions
+  adminDecision?: "approved" | "rejected";
+  salespersonActionStatus?: SalespersonActionStatus;
+  salespersonReleasedAt?: string;
+  salespersonReleasedBy?: string;
+  salespersonRevisionNotes?: string;
 }
 
 export type OrderStatus = "draft" | "submitted" | "confirmed" | "in_production" | "dispatched" | "delivered" | "cancelled";

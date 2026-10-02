@@ -455,12 +455,20 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     String bannerTitle = 'Rate Approval in Progress';
     String bannerDesc = 'Your assigned salesperson is currently quoting today\'s factory rates.';
 
+    final bool isPendingSalesReview = order.status == 'pending_salesperson_review';
+
     if (isPendingAdminApproval) {
       bannerBg = const Color(0xFFFEF3C7);
       bannerBorder = const Color(0xFFD97706);
       bannerIcon = Icons.hourglass_bottom_rounded;
       bannerTitle = 'Awaiting Admin Confirmation';
       bannerDesc = 'Your salesperson has quoted special rates (< ₹26.50/sq.ft). This Purchase Order is awaiting head-office Admin confirmation before it can be confirmed.';
+    } else if (isPendingSalesReview) {
+      bannerBg = const Color(0xFFFEF3C7);
+      bannerBorder = const Color(0xFFD97706);
+      bannerIcon = Icons.rate_review_rounded;
+      bannerTitle = 'Under Salesperson Review';
+      bannerDesc = 'Admin confirmation has been processed. Your assigned salesperson is reviewing the rate details and will release the quote to your app shortly.';
     } else if (isRateQuoted) {
       bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
       bannerBorder = AppTheme.accentOrange;
@@ -792,7 +800,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       );
     }
 
-    if (isPendingAdminApproval) {
+    if (isPendingAdminApproval || order.status == 'pending_salesperson_review') {
+      final bool isReviewDone = order.status == 'pending_salesperson_review';
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -802,18 +811,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           border: Border.all(color: const Color(0xFFD97706).withValues(alpha: 0.4)),
         ),
         child: Column(
-          children: const [
-            Icon(Icons.lock_clock_rounded, color: Color(0xFFD97706), size: 32),
-            SizedBox(height: 8),
-            Text(
-              'Awaiting Management Confirmation',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+          children: [
+            Icon(
+              isReviewDone ? Icons.rate_review_rounded : Icons.lock_clock_rounded,
+              color: const Color(0xFFD97706),
+              size: 32,
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
-              'This Purchase Order includes special rates (< ₹26.50/sq.ft) and is undergoing head-office administrative confirmation. Once confirmed by Admin, your final order will immediately be available here for confirmation.',
+              isReviewDone ? 'Awaiting Salesperson Release' : 'Awaiting Management Confirmation',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isReviewDone
+                  ? 'Admin confirmation has been processed. Your assigned salesperson is reviewing the final rate details and will release the quote to your app shortly.'
+                  : 'This Purchase Order includes special rates (< ₹26.50/sq.ft) and is undergoing head-office administrative confirmation. Updates are routed to your assigned salesperson who will finalize and release the quote to your app.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppTheme.textSubtle, height: 1.4),
+              style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle, height: 1.4),
             ),
           ],
         ),

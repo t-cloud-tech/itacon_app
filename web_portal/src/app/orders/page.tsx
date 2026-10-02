@@ -28,7 +28,8 @@ import {
   Smartphone,
   Layers,
   ShoppingBag,
-  ArrowRight
+  ArrowRight,
+  Check
 } from "lucide-react";
 
 export default function SalesOrdersPage() {
@@ -512,6 +513,10 @@ export default function SalesOrdersPage() {
                             ? "bg-amber-50 text-amber-800 border-amber-200" 
                             : po.status === "pending_admin_approval"
                             ? "bg-amber-100 text-amber-900 border-amber-300"
+                            : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
+                            ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                            : po.adminApprovalStatus === "rejected"
+                            ? "bg-rose-100 text-rose-900 border-rose-300"
                             : po.status === "rate_quoted"
                             ? "bg-blue-50 text-blue-800 border-blue-200"
                             : "bg-emerald-50 text-emerald-800 border-emerald-200"
@@ -520,6 +525,10 @@ export default function SalesOrdersPage() {
                             ? "Quote Needed" 
                             : po.status === "pending_admin_approval"
                             ? "Awaiting Admin (< ₹26.50)"
+                            : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
+                            ? "Admin Approved • Awaiting Salesperson Release"
+                            : po.adminApprovalStatus === "rejected"
+                            ? "Admin Rejected • Revise Rate"
                             : po.status.replace("_", " ")}
                         </span>
                         <span className="text-xs text-slate-400">
@@ -569,11 +578,27 @@ export default function SalesOrdersPage() {
                         </Link>
                       ) : po.status === "pending_admin_approval" ? (
                         <Link
-                          href={`/quotations/${po.quotationId || ""}`}
+                          href="/approvals"
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
                         >
                           <Clock className="w-3.5 h-3.5" />
                           <span>In Admin Review (&lt; ₹26.50)</span>
+                        </Link>
+                      ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
+                        <Link
+                          href="/approvals"
+                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Review &amp; Release in Approvals &rarr;</span>
+                        </Link>
+                      ) : po.adminApprovalStatus === "rejected" ? (
+                        <Link
+                          href={`/quotations/new?orderId=${po.id}&poNumber=${po.poNumber}&customerId=${po.userId}&name=${encodeURIComponent(po.companyName || po.customerName)}&revise=true`}
+                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                        >
+                          <FileSpreadsheet className="w-3.5 h-3.5" />
+                          <span>Revise Quoted Rate &rarr;</span>
                         </Link>
                       ) : (
                         <Link
@@ -589,6 +614,10 @@ export default function SalesOrdersPage() {
                           ? "Quantities locked to PO" 
                           : po.status === "pending_admin_approval"
                           ? "Awaiting Admin Confirmation"
+                          : po.adminApprovalStatus === "approved"
+                          ? "Admin Approved • Ready for Release"
+                          : po.adminApprovalStatus === "rejected"
+                          ? "Rate revision required"
                           : "Rate estimate delivered"}
                       </span>
                     </div>

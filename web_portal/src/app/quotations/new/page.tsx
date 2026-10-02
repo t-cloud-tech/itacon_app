@@ -805,8 +805,8 @@ function QuotationForm() {
                     <p className="text-xs text-amber-800 leading-relaxed">
                       Effective price is <strong>₹{avgRatePerSqft.toFixed(2)} per sq. foot</strong>, which is below the minimum authorization threshold of <strong>₹{MIN_RATE_PER_SQFT.toFixed(2)}/sq.ft</strong>.
                     </p>
-                    <div className="p-2.5 rounded-lg bg-amber-100/80 border border-amber-300 text-xs text-amber-950 font-medium">
-                      🔒 <strong>Customer App Safety Rule:</strong> Upon submission, this PO will be routed directly to the <strong>Admin Approvals</strong> queue. The customer will <strong>NOT</strong> see this PO as confirmed on their mobile app until Admin confirms it!
+                    <div className="p-2.5 rounded-lg bg-amber-100/80 border border-amber-300 text-xs text-amber-950 font-medium leading-relaxed">
+                      🔒 <strong>Direct App Protection Policy:</strong> When quoting &lt; ₹26.50/sq.ft, this request goes to Admin for confirmation. When Admin accepts or rejects, the update returns to your <strong>Salesperson Approval Tab</strong>. <strong>Admin cannot directly update or alter the PO details on the customer app</strong>. You maintain full authority to review Admin notes and release the finalized quote to your client.
                     </div>
                   </div>
                 ) : requiresSpecialApproval ? (
@@ -840,7 +840,7 @@ function QuotationForm() {
                     <p className="text-[11px] text-blue-700 leading-normal">
                       Linked to Client PO <strong>{linkedOrder.poNumber || linkedOrder.orderReference}</strong>. 
                       {isRateBelowThreshold 
-                        ? " Will transition to pending_admin_approval until approved by Admin."
+                        ? " Will transition to pending_admin_approval. Once confirmed by Admin, returns to your Salesperson Approval Tab."
                         : " Will transition to rate_quoted for instant client review."}
                     </p>
                   </div>

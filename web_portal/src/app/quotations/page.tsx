@@ -429,7 +429,7 @@ function QuotationsContent() {
     // In admin role: ensure all orders where rates were quoted/confirmed/rejected across salespersons appear
     allMergedOrders.forEach((o) => {
       const s = (o.status || "").toLowerCase();
-      if (s === "rate_quoted" || s === "confirmed" || s === "approved" || s === "rejected" || s === "pending_admin_approval") {
+      if (s === "rate_quoted" || s === "confirmed" || s === "approved" || s === "rejected" || s === "pending_admin_approval" || s === "pending_salesperson_review") {
         const quoteNum = o.quotationNumber || `QT-${o.poNumber ? o.poNumber.replace(/^ITC-PO-/, "") : o.id.slice(-4)}`;
         if (!list.some((q) => q.orderId === o.id || q.quotationNumber === quoteNum || (q.poNumber && q.poNumber === o.poNumber))) {
           const sp = salesPersonsMap[o.salesPersonId] || DEFAULT_SALESPERSONS[o.salesPersonId];
@@ -440,7 +440,7 @@ function QuotationsContent() {
           if (s === "confirmed" || s === "approved") quoteStatus = "approved";
           else if (s === "rate_quoted") quoteStatus = "sent_to_customer";
           else if (s === "rejected") quoteStatus = "rejected";
-          else if (s === "pending_admin_approval") quoteStatus = "pending_approval";
+          else if (s === "pending_admin_approval" || s === "pending_salesperson_review") quoteStatus = "pending_approval";
 
           list.push({
             id: o.quotationId || `qt-order-${o.id}`,
@@ -529,7 +529,7 @@ function QuotationsContent() {
 
     allMergedOrders.forEach((o) => {
       const s = (o.status || "").toLowerCase();
-      if (s === "pending_rate" || s === "submitted" || s === "pending_quote" || s === "pending_admin_approval") {
+      if (s === "pending_rate" || s === "submitted" || s === "pending_quote" || s === "pending_admin_approval" || s === "pending_salesperson_review") {
         pendingRate++;
       } else if (s === "rate_quoted") {
         rateQuoted++;
@@ -553,7 +553,7 @@ function QuotationsContent() {
     let list = allMergedOrders.filter((o) => {
       const s = (o.status || "").toLowerCase();
       if (activeStatusCard === "pending_rate") {
-        return s === "pending_rate" || s === "submitted" || s === "pending_quote" || s === "pending_admin_approval";
+        return s === "pending_rate" || s === "submitted" || s === "pending_quote" || s === "pending_admin_approval" || s === "pending_salesperson_review";
       }
       if (activeStatusCard === "rate_quoted") {
         return s === "rate_quoted";
@@ -815,6 +815,16 @@ function QuotationsContent() {
                             <ShieldAlert className="w-3.5 h-3.5 text-amber-700" />
                             <span>Awaiting Admin Confirmation (&lt; ₹26.50/sq.ft)</span>
                           </span>
+                        ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Admin Approved • Awaiting Salesperson Release</span>
+                          </span>
+                        ) : po.adminApprovalStatus === "rejected" ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300 flex items-center space-x-1">
+                            <X className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Admin Rejected • Revise Quoted Rate</span>
+                          </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1">
                             <Clock className="w-3 h-3 text-amber-600" />
@@ -866,11 +876,27 @@ function QuotationsContent() {
                     <div className="flex flex-col sm:flex-row md:flex-col items-end justify-center gap-2.5 shrink-0 border-t md:border-t-0 pt-3 md:pt-0">
                       {po.status === "pending_admin_approval" ? (
                         <Link
-                          href={`/quotations/${po.quotationId || ""}`}
+                          href="/approvals"
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
                         >
                           <ShieldAlert className="w-4 h-4" />
                           <span>In Admin Review (&lt; ₹26.50) &rarr;</span>
+                        </Link>
+                      ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
+                        <Link
+                          href="/approvals"
+                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Review &amp; Release in Approvals &rarr;</span>
+                        </Link>
+                      ) : po.adminApprovalStatus === "rejected" ? (
+                        <Link
+                          href={`/quotations/new?orderId=${po.id}&poNumber=${po.poNumber}&customerId=${po.userId}&name=${encodeURIComponent(po.companyName || po.customerName)}&revise=true`}
+                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
+                        >
+                          <FileSpreadsheet className="w-4 h-4" />
+                          <span>Revise Quoted Rate (&ge; ₹26.50) &rarr;</span>
                         </Link>
                       ) : (
                         <Link
@@ -882,7 +908,13 @@ function QuotationsContent() {
                         </Link>
                       )}
                       <span className="text-[11px] text-slate-400 text-center">
-                        {po.status === "pending_admin_approval" ? "Pending Admin Approval" : "Quantities lock from client PO"}
+                        {po.status === "pending_admin_approval" 
+                          ? "Pending Admin Confirmation" 
+                          : po.adminApprovalStatus === "approved"
+                          ? "Admin Approved • Ready for Release"
+                          : po.adminApprovalStatus === "rejected"
+                          ? "Rate revision required"
+                          : "Quantities lock from client PO"}
                       </span>
                     </div>
                   </div>
@@ -1395,13 +1427,31 @@ function QuotationsContent() {
                         </div>
 
                         <div className="mt-4 pt-3 border-t border-slate-200/80">
-                          <Link
-                            href={`/quotations/new?orderId=${order.id}&poNumber=${order.poNumber || order.orderReference}&customerId=${order.userId}&name=${encodeURIComponent(order.companyName || order.customerName)}`}
-                            className="w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold shadow-xs hover:shadow transition-all text-center cursor-pointer"
-                          >
-                            <FileSpreadsheet className="w-4 h-4" />
-                            <span>Quote Rates &amp; Discount &rarr;</span>
-                          </Link>
+                          {order.status === "pending_salesperson_review" || (order.adminApprovalStatus === "approved" && order.salespersonApprovalStatus !== "released") ? (
+                            <Link
+                              href="/approvals"
+                              className="w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow transition-all text-center cursor-pointer"
+                            >
+                              <Check className="w-4 h-4" />
+                              <span>Admin Approved • Release in Approvals &rarr;</span>
+                            </Link>
+                          ) : order.adminApprovalStatus === "rejected" ? (
+                            <Link
+                              href={`/quotations/new?orderId=${order.id}&poNumber=${order.poNumber || order.orderReference}&customerId=${order.userId}&name=${encodeURIComponent(order.companyName || order.customerName)}&revise=true`}
+                              className="w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold shadow-xs hover:shadow transition-all text-center cursor-pointer"
+                            >
+                              <FileSpreadsheet className="w-4 h-4" />
+                              <span>Admin Rejected • Revise Quoted Rate &rarr;</span>
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/quotations/new?orderId=${order.id}&poNumber=${order.poNumber || order.orderReference}&customerId=${order.userId}&name=${encodeURIComponent(order.companyName || order.customerName)}`}
+                              className="w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold shadow-xs hover:shadow transition-all text-center cursor-pointer"
+                            >
+                              <FileSpreadsheet className="w-4 h-4" />
+                              <span>Quote Rates &amp; Discount &rarr;</span>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     </div>
