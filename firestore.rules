@@ -181,14 +181,14 @@ service cloud.firestore {
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy']) &&
          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus']) || request.resource.data.paymentStatus != 'paid')) ||
         ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
-         resource.data.status == 'rate_quoted' &&
+         (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&
          request.resource.data.status == 'confirmed' &&
          request.resource.data.paymentStatus == 'payment_due' &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paymentStatus', 'confirmedAt', 'updatedAt'])) ||
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paymentStatus', 'confirmedAt', 'updatedAt', 'changedByRole'])) ||
         ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
-         resource.data.status == 'rate_quoted' &&
+         (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&
          request.resource.data.status == 'rejected' &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'rejectionReason']))
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'rejectionReason', 'rejectedBy', 'changedByRole']))
       );
 
       allow delete: if false;

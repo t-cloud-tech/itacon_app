@@ -81,8 +81,8 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
     const items: StatusItem[] = [
       {
         key: "pending_rate",
-        label: "pending_rate",
-        sublabel: "Awaiting Rate Quote",
+        label: "Awaiting Quote",
+        sublabel: "Customer PO Placed & Awaiting Rate",
         count: prCount,
         color: "#F59E0B", // Warm Amber
         textColor: "text-amber-700",
@@ -92,8 +92,8 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
       },
       {
         key: "rate_quoted",
-        label: "rate_quoted",
-        sublabel: "Quote Sent to Client",
+        label: "Sent to Customer",
+        sublabel: "Finalized Quote Released to App",
         count: rqCount,
         color: "#3B82F6", // Blue
         textColor: "text-blue-700",
@@ -103,8 +103,8 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
       },
       {
         key: "confirmed",
-        label: "confirmed",
-        sublabel: "Accepted & Booked",
+        label: "Accepted by Customer",
+        sublabel: "Accepted in App & Ready for Order",
         count: cfCount,
         color: "#10B981", // Emerald
         textColor: "text-emerald-700",
@@ -114,8 +114,8 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
       },
       {
         key: "rejected",
-        label: "rejected",
-        sublabel: "Declined / Cancelled",
+        label: "Rejected",
+        sublabel: "Declined by Customer or Salesperson",
         count: rjCount,
         color: "#EF4444", // Crimson
         textColor: "text-rose-700",
@@ -199,7 +199,7 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Click <span className="font-semibold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 cursor-pointer" onClick={() => handleStatusClick("pending_rate")}>pending_rate</span> to view all PO orders &amp; assigned salespersons on Quotation Page
+                Click <span className="font-semibold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 cursor-pointer" onClick={() => handleStatusClick("pending_rate")}>Awaiting Quote</span> to view all PO orders &amp; assigned salespersons on Quotation Page
               </p>
             </div>
           </div>
@@ -322,12 +322,12 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
                       />
                       <div>
                         <div className="flex items-center space-x-2">
-                          <span className="font-mono text-xs font-extrabold text-[#0E274D]">
+                          <span className="text-xs font-extrabold text-[#0E274D]">
                             {item.label}
                           </span>
                           {item.key === "pending_rate" && (
                             <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-                              Quote Needed
+                              Action Required
                             </span>
                           )}
                         </div>

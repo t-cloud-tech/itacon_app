@@ -1788,6 +1788,7 @@ class FirestoreService {
     final docRef = _ordersRef.doc(orderId);
     await docRef.update({
       'status': 'confirmed',
+      'changedByRole': 'customer',
       'paymentStatus': 'payment_due',
       'confirmedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -1809,6 +1810,9 @@ class FirestoreService {
     final docRef = _ordersRef.doc(orderId);
     await docRef.update({
       'status': 'rejected',
+      'changedByRole': 'customer',
+      'rejectedBy': 'Customer',
+      'rejectionReason': reason.isNotEmpty ? reason : 'Customer declined quoted rate estimate.',
       'updatedAt': FieldValue.serverTimestamp(),
     });
 

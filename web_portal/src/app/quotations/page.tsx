@@ -15,7 +15,9 @@ import {
   EnrichedSalesPerson, 
   DEFAULT_SALESPERSONS, 
   SAMPLE_CLIENT_ORDERS, 
-  fetchSalesPersonsMap 
+  fetchSalesPersonsMap,
+  getPOStatusLabel,
+  getPOStatusBadgeClass
 } from "@/lib/order-service";
 import { 
   FileSpreadsheet, 
@@ -336,7 +338,7 @@ function QuotationsContent() {
         setActiveTab("all");
         if (paramStatus === "pending_rate") setStatusFilter("pending_approval");
         else if (paramStatus === "rate_quoted") setStatusFilter("sent_to_customer");
-        else if (paramStatus === "confirmed") setStatusFilter("approved");
+        else if (paramStatus === "confirmed") setStatusFilter("accepted");
         else if (paramStatus === "rejected") setStatusFilter("rejected");
       } else if (paramTab === "pending_po") {
         setActiveTab("pending_po");
@@ -431,16 +433,38 @@ function QuotationsContent() {
       const s = (o.status || "").toLowerCase();
       if (s === "rate_quoted" || s === "confirmed" || s === "approved" || s === "rejected" || s === "pending_admin_approval" || s === "pending_salesperson_review") {
         const quoteNum = o.quotationNumber || `QT-${o.poNumber ? o.poNumber.replace(/^ITC-PO-/, "") : o.id.slice(-4)}`;
-        if (!list.some((q) => q.orderId === o.id || q.quotationNumber === quoteNum || (q.poNumber && q.poNumber === o.poNumber))) {
+        const existingIdx = list.findIndex((q) => q.orderId === o.id || (o.quotationId && q.id === o.quotationId) || (quoteNum && q.quotationNumber === quoteNum) || (o.poNumber && q.poNumber === o.poNumber));
+
+        if (existingIdx >= 0) {
+          if (s === "confirmed") {
+            list[existingIdx] = {
+              ...list[existingIdx],
+              status: "accepted",
+              changedByRole: "customer",
+            };
+          } else if (s === "rejected") {
+            list[existingIdx] = {
+              ...list[existingIdx],
+              status: "rejected",
+              changedByRole: o.changedByRole || "customer",
+              rejectedBy: o.rejectedBy || "Customer",
+              rejectionReason: o.rejectionReason,
+            };
+          }
+        } else {
           const sp = salesPersonsMap[o.salesPersonId] || DEFAULT_SALESPERSONS[o.salesPersonId];
           const spName = sp?.name || (o.salesPersonId ? `Salesperson (${o.salesPersonId})` : "Central Sales Desk");
           const totalVal = o.items?.reduce((sum, it) => sum + ((it.basePrice || 540) * (it.quantityBoxes || 1)), 0) || 50000;
 
           let quoteStatus: any = "pending_approval";
-          if (s === "confirmed" || s === "approved") quoteStatus = "approved";
+          if (s === "confirmed") quoteStatus = "accepted";
+          else if (s === "approved") quoteStatus = "approved";
           else if (s === "rate_quoted") quoteStatus = "sent_to_customer";
           else if (s === "rejected") quoteStatus = "rejected";
-          else if (s === "pending_admin_approval" || s === "pending_salesperson_review") quoteStatus = "pending_approval";
+          else if (s === "pending_admin_approval") quoteStatus = "pending_approval";
+          else if (s === "pending_salesperson_review") {
+            quoteStatus = o.adminApprovalStatus === "rejected" ? "pending_salesperson_review" : "approved";
+          }
 
           list.push({
             id: o.quotationId || `qt-order-${o.id}`,
@@ -453,6 +477,12 @@ function QuotationsContent() {
             salespersonId: o.salesPersonId || "sp-1",
             salespersonName: spName,
             status: quoteStatus,
+            approvalStatus: (o.adminApprovalStatus as any) || (quoteStatus === "approved" ? "approved" : "pending"),
+            adminApprovalStatus: o.adminApprovalStatus,
+            salespersonApprovalStatus: o.salespersonApprovalStatus,
+            changedByRole: o.changedByRole,
+            rejectedBy: o.rejectedBy,
+            rejectionReason: o.rejectionReason,
             items: (o.items || []).map((it) => ({
               productId: it.productId,
               productName: it.productName,
@@ -478,7 +508,9 @@ function QuotationsContent() {
             paymentTerms: "30 Days Net",
             validityDays: 15,
             expiryDate: "2026-10-20",
-            requiresSpecialApproval: s === "pending_admin_approval",
+            pricePerSqft: o.pricePerSqft,
+            rateThreshold: 26.5,
+            requiresSpecialApproval: s === "pending_admin_approval" || Boolean(o.adminApprovalRequired) || (o.pricePerSqft !== undefined && o.pricePerSqft < 26.5),
             createdAt: o.createdAt || new Date().toISOString(),
             updatedAt: o.createdAt || new Date().toISOString(),
           });
@@ -511,10 +543,15 @@ function QuotationsContent() {
 
       const matchesStatus =
         statusFilter === "all" ||
-        q.status === statusFilter ||
-        (statusFilter === "approved" && q.status === "accepted") ||
-        (statusFilter === "pending_approval" && (q.status === "pending_admin_approval" || q.status === "sent_to_customer")) ||
-        (statusFilter === "rejected" && (q.status === "declined" || q.status === "rejected"));
+        (statusFilter === "pending_approval" && (q.status === "pending_approval" || q.status === "pending_admin_approval") && (q as any).adminApprovalStatus !== "approved" && (q as any).approvalStatus !== "approved" && (q as any).adminApprovalStatus !== "rejected" && (q as any).approvalStatus !== "rejected") ||
+        (statusFilter === "approved" && ((q.status === "approved" && ((q.pricePerSqft !== undefined && q.pricePerSqft < 26.50) || q.requiresSpecialApproval)) || (q as any).adminApprovalStatus === "approved" || (q as any).approvalStatus === "approved" || q.status === "pending_salesperson_review")) ||
+        (statusFilter === "admin_rejected" && ((q as any).adminApprovalStatus === "rejected" || (q as any).approvalStatus === "rejected" || (q.status === "pending_salesperson_review" && (q as any).adminApprovalStatus === "rejected"))) ||
+        (statusFilter === "sent_to_customer" && (q.status === "sent_to_customer" || q.status === "rate_quoted")) ||
+        (statusFilter === "accepted" && q.status === "accepted") ||
+        (statusFilter === "rejected_customer" && q.status === "rejected" && (q as any).changedByRole === "customer") ||
+        (statusFilter === "rejected_salesperson" && (q.status === "declined" || (q as any).salespersonApprovalStatus === "cancelled" || ((q as any).changedByRole === "salesperson" && (q as any).approvalStatus !== "rejected" && (q as any).adminApprovalStatus !== "rejected"))) ||
+        (statusFilter === "rejected" && (q.status === "declined" || q.status === "rejected")) ||
+        q.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -725,7 +762,7 @@ function QuotationsContent() {
                       : "bg-amber-100 text-amber-900 border border-amber-300"
                   }`}
                 >
-                  {statusCounts.pending_rate} Pending
+                  {statusCounts.pending_rate} Awaiting Quote
                 </span>
               </button>
             )}
@@ -758,10 +795,13 @@ function QuotationsContent() {
                 className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
               >
                 <option value="all">All Statuses</option>
-                <option value="approved">Approved</option>
-                <option value="pending_approval">Pending Approval</option>
-                <option value="sent_to_customer">Sent to App</option>
-                <option value="accepted">Accepted by Client</option>
+                <option value="pending_approval">Awaiting Admin Approval</option>
+                <option value="approved">Admin Approved - Sales Action Required</option>
+                <option value="admin_rejected">Admin Rejected - Sales Action Required</option>
+                <option value="sent_to_customer">Sent to Customer</option>
+                <option value="accepted">Converted to Order</option>
+                <option value="rejected_customer">Rejected by Customer</option>
+                <option value="rejected_salesperson">Rejected by Salesperson</option>
                 <option value="rejected">Rejected</option>
               </select>
             )}
@@ -813,22 +853,22 @@ function QuotationsContent() {
                         {po.status === "pending_admin_approval" ? (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1">
                             <ShieldAlert className="w-3.5 h-3.5 text-amber-700" />
-                            <span>Awaiting Admin Confirmation (&lt; ₹26.50/sq.ft)</span>
+                            <span>Awaiting Admin Approval (&lt; ₹26.50/sq.ft)</span>
                           </span>
                         ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center space-x-1">
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Admin Approved • Awaiting Salesperson Release</span>
+                            <span>Admin Approved - Sales Action Required</span>
                           </span>
                         ) : po.adminApprovalStatus === "rejected" ? (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300 flex items-center space-x-1">
                             <X className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Admin Rejected • Revise Quoted Rate</span>
+                            <span>Admin Rejected - Sales Action Required</span>
                           </span>
                         ) : (
                           <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1">
                             <Clock className="w-3 h-3 text-amber-600" />
-                            <span>Awaiting Rate Quote</span>
+                            <span>Awaiting Quote</span>
                           </span>
                         )}
                         <span className="text-xs text-slate-400">
@@ -880,7 +920,7 @@ function QuotationsContent() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
                         >
                           <ShieldAlert className="w-4 h-4" />
-                          <span>In Admin Review (&lt; ₹26.50) &rarr;</span>
+                          <span>Awaiting Admin Approval (&lt; ₹26.50) &rarr;</span>
                         </Link>
                       ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
                         <Link
@@ -888,7 +928,7 @@ function QuotationsContent() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
                         >
                           <Check className="w-4 h-4" />
-                          <span>Review &amp; Release in Approvals &rarr;</span>
+                          <span>Admin Approved - Sales Action Required &rarr;</span>
                         </Link>
                       ) : po.adminApprovalStatus === "rejected" ? (
                         <Link
@@ -896,7 +936,7 @@ function QuotationsContent() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
                         >
                           <FileSpreadsheet className="w-4 h-4" />
-                          <span>Revise Quoted Rate (&ge; ₹26.50) &rarr;</span>
+                          <span>Admin Rejected - Sales Action Required &rarr;</span>
                         </Link>
                       ) : (
                         <Link
@@ -909,11 +949,11 @@ function QuotationsContent() {
                       )}
                       <span className="text-[11px] text-slate-400 text-center">
                         {po.status === "pending_admin_approval" 
-                          ? "Pending Admin Confirmation" 
+                          ? "Awaiting Admin Approval" 
                           : po.adminApprovalStatus === "approved"
-                          ? "Admin Approved • Ready for Release"
+                          ? "Admin Approved - Sales Action Required"
                           : po.adminApprovalStatus === "rejected"
-                          ? "Rate revision required"
+                          ? "Admin Rejected - Sales Action Required"
                           : "Quantities lock from client PO"}
                       </span>
                     </div>
@@ -992,17 +1032,32 @@ function QuotationsContent() {
 
                         <td className="py-4 px-5">
                           <span
-                            className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                              q.status === "approved" || q.status === "accepted"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : q.status === "pending_approval" || q.status === "pending_admin_approval"
-                                ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : q.status === "sent_to_customer"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                : "bg-slate-100 text-slate-700"
-                            }`}
+                            className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${getPOStatusBadgeClass(
+                              q.status,
+                              {
+                                adminApprovalStatus: (q as any).adminApprovalStatus || q.approvalStatus,
+                                approvalStatus: q.approvalStatus,
+                                salespersonApprovalStatus: (q as any).salespersonApprovalStatus,
+                                changedByRole: (q as any).changedByRole,
+                                rejectedBy: (q as any).rejectedBy,
+                                pricePerSqft: q.pricePerSqft,
+                                rateThreshold: q.rateThreshold,
+                                requiresSpecialApproval: q.requiresSpecialApproval,
+                              }
+                            )}`}
                           >
-                            <span className="capitalize">{q.status.replace(/_/g, " ")}</span>
+                            <span>
+                              {getPOStatusLabel(q.status, {
+                                adminApprovalStatus: (q as any).adminApprovalStatus || q.approvalStatus,
+                                approvalStatus: q.approvalStatus,
+                                salespersonApprovalStatus: (q as any).salespersonApprovalStatus,
+                                changedByRole: (q as any).changedByRole,
+                                rejectedBy: (q as any).rejectedBy,
+                                pricePerSqft: q.pricePerSqft,
+                                rateThreshold: q.rateThreshold,
+                                requiresSpecialApproval: q.requiresSpecialApproval,
+                              })}
+                            </span>
                           </span>
                         </td>
 
@@ -1041,9 +1096,9 @@ function QuotationsContent() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-black text-amber-700 uppercase tracking-tight flex items-center space-x-1.5">
+                  <span className="text-xs font-black text-amber-700 tracking-tight flex items-center space-x-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                    <span>pending_rate</span>
+                    <span>Awaiting Quote</span>
                   </span>
                   <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <Clock className="w-4 h-4 text-amber-600" />
@@ -1080,9 +1135,9 @@ function QuotationsContent() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-black text-blue-700 uppercase tracking-tight flex items-center space-x-1.5">
+                  <span className="text-xs font-black text-blue-700 tracking-tight flex items-center space-x-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    <span>rate_quoted</span>
+                    <span>Sent to Customer</span>
                   </span>
                   <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                     <FileSpreadsheet className="w-4 h-4 text-blue-600" />
@@ -1098,7 +1153,7 @@ function QuotationsContent() {
                 </div>
                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
                   <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                    Awaiting Acceptance
+                    Awaiting Customer Acceptance
                   </span>
                   {activeStatusCard === "rate_quoted" && (
                     <span className="font-extrabold text-[#0E274D] flex items-center space-x-1">
@@ -1119,9 +1174,9 @@ function QuotationsContent() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-black text-emerald-700 uppercase tracking-tight flex items-center space-x-1.5">
+                  <span className="text-xs font-black text-emerald-700 tracking-tight flex items-center space-x-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span>confirmed</span>
+                    <span>Accepted by Customer</span>
                   </span>
                   <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -1132,12 +1187,12 @@ function QuotationsContent() {
                     {statusCounts.confirmed} Orders
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Accepted &amp; Queued for Production/Dispatch
+                    Accepted in App &amp; Queued for Order
                   </p>
                 </div>
                 <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
                   <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    Converted Deals
+                    Accepted by Customer
                   </span>
                   {activeStatusCard === "confirmed" && (
                     <span className="font-extrabold text-[#0E274D] flex items-center space-x-1">
@@ -1158,9 +1213,9 @@ function QuotationsContent() {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-black text-rose-700 uppercase tracking-tight flex items-center space-x-1.5">
+                  <span className="text-xs font-black text-rose-700 tracking-tight flex items-center space-x-1.5">
                     <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                    <span>rejected</span>
+                    <span>Rejected</span>
                   </span>
                   <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
                     <XCircle className="w-4 h-4 text-rose-600" />
@@ -1194,8 +1249,8 @@ function QuotationsContent() {
                 <div className="flex items-center space-x-2">
                   <h3 className="text-sm font-black text-[#0E274D]">
                     {activeStatusCard === "pending_rate"
-                      ? "Pending Rate Quotes by Salespersons"
-                      : `Orders with Status: ${activeStatusCard}`}
+                      ? "Awaiting Quote - Orders Pending Salesperson Rate"
+                      : `Orders with Status: ${getPOStatusLabel(activeStatusCard, { isOrder: true })}`}
                   </h3>
                   <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
                     {filteredStatusOrders.length} {filteredStatusOrders.length === 1 ? "Order" : "Orders"}
@@ -1282,19 +1337,28 @@ function QuotationsContent() {
                                 <Copy className="w-3.5 h-3.5" />
                               )}
                             </button>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 ${
-                              order.status === "pending_rate" || order.status === "submitted" || order.status === "pending_quote"
-                                ? "bg-amber-50 text-amber-800 border border-amber-200"
-                                : order.status === "rate_quoted"
-                                ? "bg-blue-50 text-blue-800 border border-blue-200"
-                                : order.status === "confirmed"
-                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                                : "bg-rose-50 text-rose-800 border border-rose-200"
-                            }`}>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center space-x-1 ${getPOStatusBadgeClass(
+                              order.status,
+                              {
+                                adminApprovalStatus: order.adminApprovalStatus,
+                                salespersonApprovalStatus: order.salespersonApprovalStatus,
+                                changedByRole: order.changedByRole,
+                                rejectedBy: order.rejectedBy,
+                                isOrder: true,
+                              }
+                            )}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${
                                 order.status === "pending_rate" ? "bg-amber-500 animate-pulse" : "bg-slate-400"
                               }`} />
-                              <span>{order.status.replace(/_/g, " ")}</span>
+                              <span>
+                                {getPOStatusLabel(order.status, {
+                                  adminApprovalStatus: order.adminApprovalStatus,
+                                  salespersonApprovalStatus: order.salespersonApprovalStatus,
+                                  changedByRole: order.changedByRole,
+                                  rejectedBy: order.rejectedBy,
+                                  isOrder: true,
+                                })}
+                              </span>
                             </span>
                           </div>
 
@@ -1433,7 +1497,7 @@ function QuotationsContent() {
                               className="w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs hover:shadow transition-all text-center cursor-pointer"
                             >
                               <Check className="w-4 h-4" />
-                              <span>Admin Approved • Release in Approvals &rarr;</span>
+                              <span>Admin Approved - Sales Action Required &rarr;</span>
                             </Link>
                           ) : order.adminApprovalStatus === "rejected" ? (
                             <Link
@@ -1441,7 +1505,7 @@ function QuotationsContent() {
                               className="w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold shadow-xs hover:shadow transition-all text-center cursor-pointer"
                             >
                               <FileSpreadsheet className="w-4 h-4" />
-                              <span>Admin Rejected • Revise Quoted Rate &rarr;</span>
+                              <span>Admin Rejected - Sales Action Required &rarr;</span>
                             </Link>
                           ) : (
                             <Link

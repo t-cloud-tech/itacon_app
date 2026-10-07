@@ -88,8 +88,8 @@ export function OrderFunnelCard({ orders = [] }: OrderFunnelCardProps) {
   const stages: FunnelStageData[] = [
     {
       key: "pending_rate",
-      label: "PO Placed (Awaiting Rate)",
-      sublabel: "Submitted via Mobile App / Dealer",
+      label: "Awaiting Quote",
+      sublabel: "PO Placed via Customer Mobile App",
       count: liveCounts.pending_rate,
       value: liveCounts.pending_rate * 84500,
       boxes: liveCounts.pending_rate * 140,
@@ -101,8 +101,8 @@ export function OrderFunnelCard({ orders = [] }: OrderFunnelCardProps) {
     },
     {
       key: "rate_quoted",
-      label: "Rate Quoted",
-      sublabel: "Custom Box & Sq.Ft Rates Sent",
+      label: "Sent to Customer",
+      sublabel: "Quoted Rates Released to Customer App",
       count: liveCounts.rate_quoted,
       value: liveCounts.rate_quoted * 89200,
       boxes: liveCounts.rate_quoted * 148,
@@ -114,8 +114,8 @@ export function OrderFunnelCard({ orders = [] }: OrderFunnelCardProps) {
     },
     {
       key: "confirmed",
-      label: "Order Confirmed",
-      sublabel: "PO Accepted & Advance Cleared",
+      label: "Accepted by Customer",
+      sublabel: "PO Rates Confirmed in Customer App",
       count: liveCounts.confirmed,
       value: liveCounts.confirmed * 94500,
       boxes: liveCounts.confirmed * 155,
@@ -181,7 +181,7 @@ export function OrderFunnelCard({ orders = [] }: OrderFunnelCardProps) {
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              pending_rate → rate_quoted → confirmed → dispatched → delivered
+              Awaiting Quote → Sent to Customer → Accepted by Customer → Dispatched → Delivered
             </p>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { fetchLiveCustomerById } from "@/lib/customer-service";
+import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { Customer } from "@/types";
 import { 
   ArrowLeft, 
@@ -284,8 +285,8 @@ export default function CustomerDetailPage() {
                         ₹{Number(q.grandTotal).toLocaleString("en-IN")}
                       </td>
                       <td className="py-3.5 px-5">
-                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">
-                          {q.status}
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getPOStatusBadgeClass(q.status, { adminApprovalStatus: q.adminApprovalStatus, salespersonApprovalStatus: q.salespersonApprovalStatus, isOrder: false })}`}>
+                          {getPOStatusLabel(q.status, { adminApprovalStatus: q.adminApprovalStatus, salespersonApprovalStatus: q.salespersonApprovalStatus, isOrder: false })}
                         </span>
                       </td>
                       <td className="py-3.5 px-5 text-right">
@@ -339,8 +340,8 @@ export default function CustomerDetailPage() {
                     <p className="text-base font-extrabold text-[#0E274D]">
                       ₹{Number(ord.grandTotal).toLocaleString("en-IN")}
                     </p>
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">
-                      {ord.status}
+                    <span className={`inline-block mt-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${getPOStatusBadgeClass(ord.status, { adminApprovalStatus: ord.adminApprovalStatus, salespersonApprovalStatus: ord.salespersonApprovalStatus, isOrder: true })}`}>
+                      {getPOStatusLabel(ord.status, { adminApprovalStatus: ord.adminApprovalStatus, salespersonApprovalStatus: ord.salespersonApprovalStatus, isOrder: true })}
                     </span>
                   </div>
                 </div>

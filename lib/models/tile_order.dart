@@ -307,7 +307,7 @@ class TileOrder {
   bool get isRateQuotedStage {
     if (isHistoryStage) return false;
     final s = status.toLowerCase();
-    return s == 'rate_quoted' || s == 'quoted' || s == 'rates_quoted';
+    return s == 'rate_quoted' || s == 'quoted' || s == 'rates_quoted' || s == 'sent_to_customer';
   }
 
   /// Whether this order is confirmed and moving through active fulfillment (Confirmed tab)
