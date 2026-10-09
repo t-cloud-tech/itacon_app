@@ -9,6 +9,18 @@ import 'firestore_service.dart';
 import '../models/user_profile.dart';
 import 'user_session_service.dart';
 
+/// Typed exception thrown when attempting registration with a mobile number
+/// that already belongs to an existing Firebase Authentication or customer account.
+class DuplicateAccountException implements Exception {
+  final String message;
+  const DuplicateAccountException([
+    this.message = 'An account already exists with this mobile number. Please log in instead.',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 class AuthService {
   final FirebaseAuth? _customAuth;
   final FirestoreService _firestoreService;
@@ -413,6 +425,55 @@ class AuthService {
     }
 
     final uid = firebaseUser.uid;
+
+    // ----------------------------------------------------------
+    // 3A. Authoritative Duplicate Registration Check
+    // ----------------------------------------------------------
+    final additionalInfo = userCredential.additionalUserInfo;
+    bool isDuplicateAccount = false;
+
+    if (additionalInfo != null) {
+      if (additionalInfo.isNewUser == false) {
+        isDuplicateAccount = true;
+      }
+    } else {
+      // Fallback inspection when additionalUserInfo is null or unavailable:
+      // 1. Check account creation vs last sign-in timestamp
+      final creationTime = firebaseUser.metadata.creationTime;
+      final lastSignInTime = firebaseUser.metadata.lastSignInTime;
+      if (creationTime != null && lastSignInTime != null) {
+        if (lastSignInTime.difference(creationTime).inSeconds > 5) {
+          isDuplicateAccount = true;
+        }
+      }
+    }
+
+    // Secondary check: verify if an existing COMPLETED customer profile already exists under this UID.
+    // NOTE: An Admin-created pre-registration stub only sets salesperson assignment without password/role
+    // and is NOT a completed customer account (legitimate first-time self-registration is allowed).
+    if (!isDuplicateAccount) {
+      final rawDoc = await _firestoreService.getUserDocument(uid);
+      if (rawDoc != null) {
+        final existingRole = (rawDoc['role'] ?? rawDoc['userCategory'] ?? '').toString().trim();
+        final hasPassword = (rawDoc['passwordHash'] as String?)?.isNotEmpty ?? false;
+        final isVerified = rawDoc['isVerified'] == true || rawDoc['phoneVerified'] == true;
+        if (hasPassword || (isVerified && existingRole.isNotEmpty && existingRole != 'guest')) {
+          isDuplicateAccount = true;
+        }
+      }
+    }
+
+    if (isDuplicateAccount) {
+      // Safely clear the temporary authenticated state created by the rejected signup attempt
+      if (currentUser?.uid == uid) {
+        await signOutFirebaseUser();
+      }
+      _lastRegisteredUid = null;
+
+      throw const DuplicateAccountException(
+        'An account already exists with this mobile number. Please log in instead.',
+      );
+    }
 
     _lastRegisteredUid = uid;
 

@@ -304,6 +304,26 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
+
+      if (e is DuplicateAccountException ||
+          e.toString().contains('An account already exists with this mobile number')) {
+        setState(() {
+          _viewMode = AuthViewMode.login;
+          _loginPhoneController.text = _regPhoneController.text.trim();
+          _signupStep = 1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'An account already exists with this mobile number. Please log in instead.',
+            ),
+            backgroundColor: Color(0xFF1B365D),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Registration error: ${e.toString()}')),
       );
