@@ -44,10 +44,14 @@ class PricingService extends ChangeNotifier {
   static const Map<String, double> tierDiscountMap = {
     'Wholesaler': 0.20, // 20% OFF
     'Wholesale': 0.20,
+    'Wholesaler / Distributor': 0.20,
     'Dealer': 0.15, // 15% OFF
     'Authorized Dealer': 0.15,
+    'Tile Dealer / Showroom': 0.15,
     'Architect': 0.12, // 12% OFF
+    'Architect / Interior Designer': 0.12,
     'Builder': 0.10, // 10% OFF
+    'Builder / Contractor': 0.10,
     'Contractor': 0.08, // 8% OFF
     'Retailer': 0.00,
     'Retail': 0.00,

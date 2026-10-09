@@ -4,7 +4,7 @@ const { sendRegionalGreetings } = require('./sendRegionalGreetings');
 const { sendFcmOnUserNotification } = require('./sendFcmOnUserNotification');
 const { sendOfferNotifications } = require('./sendOfferNotifications');
 const {
-  onUserCreatedReward,
+  onUserCompletedRegistration,
   onOrderStatusChangedRewards,
   onRedemptionRequestCreated,
   submitLoyaltyRedemptionCallable,
@@ -19,7 +19,7 @@ exports.sendFcmOnUserNotification = sendFcmOnUserNotification;
 exports.sendOfferNotifications = sendOfferNotifications;
 
 // Customer Rewards & Loyalty Cloud Functions
-exports.onUserCreatedReward = onUserCreatedReward;
+exports.onUserCompletedRegistration = onUserCompletedRegistration;
 exports.onOrderStatusChangedRewards = onOrderStatusChangedRewards;
 exports.onRedemptionRequestCreated = onRedemptionRequestCreated;
 exports.submitLoyaltyRedemptionCallable = submitLoyaltyRedemptionCallable;

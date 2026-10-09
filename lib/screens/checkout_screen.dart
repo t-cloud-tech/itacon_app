@@ -312,7 +312,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Calculate gross subtotal before tier discount
     double grossBaseSubtotal = 0.0;
     for (final item in appState.cartItems) {
-      final baseBoxCost = item.product.basePrice * item.sqFtPerBox;
+      final baseBoxCost = item.product.isAdhesive
+          ? item.product.basePrice
+          : (item.product.basePrice * item.sqFtPerBox);
       grossBaseSubtotal += baseBoxCost * item.quantity;
     }
 
@@ -1050,51 +1052,64 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              AppPressable(
-                onTap: () {
-                  // Dismiss the dialog only — navigation happens below based on returned action
-                  Navigator.of(dialogCtx).pop('home');
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: AppTheme.borderSubtle),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'BACK TO HOME',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textDark,
+              Expanded(
+                child: AppPressable(
+                  onTap: () {
+                    // Dismiss the dialog only — navigation happens below based on returned action
+                    Navigator.of(dialogCtx).pop('home');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppTheme.borderSubtle),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'BACK TO HOME',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-              AppPressable(
-                onTap: () {
-                  if (kDebugMode) {
-                    debugPrint('[PO NAV] View Order Details tapped');
-                  }
-                  // Dismiss the dialog only — navigation happens below based on returned action
-                  Navigator.of(dialogCtx).pop('details');
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'VIEW ORDER DETAILS →',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+              const SizedBox(width: 8),
+              Expanded(
+                child: AppPressable(
+                  onTap: () {
+                    if (kDebugMode) {
+                      debugPrint('[PO NAV] View Order Details tapped');
+                    }
+                    // Dismiss the dialog only — navigation happens below based on returned action
+                    Navigator.of(dialogCtx).pop('details');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryNavy,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'VIEW ORDER DETAILS →',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ),

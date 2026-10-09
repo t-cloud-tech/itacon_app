@@ -671,7 +671,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           tooltip: 'Back',
           onPressed: () => Navigator.maybePop(context),
         ),
-        title: const Text('Edit Profile & Showroom'),
+        title: const Text('Edit Profile & Details'),
+        backgroundColor: Colors.white,
         elevation: 0,
       ),
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_order.dart';
 import '../services/firestore_service.dart';
@@ -77,125 +78,137 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   @override
   Widget build(BuildContext context) {
-    final userId = AppStateService.instance.currentUserProfile.userId;
-
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
-          tooltip: 'Back',
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else if (widget.onBackToHome != null) {
-              widget.onBackToHome!();
-            }
-          },
-        ),
-        title: const Text('My Orders'),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelColor: AppTheme.primaryNavy,
-          unselectedLabelColor: AppTheme.textSubtle,
-          indicatorColor: AppTheme.accentOrange,
-          indicatorWeight: 3,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: const [
-            Tab(text: 'History'),
-            Tab(text: 'Pending Quote'),
-            Tab(text: 'Rates Quoted'),
-            Tab(text: 'Confirmed'),
-          ],
-        ),
-      ),
-      body: StreamBuilder<List<TileOrder>>(
-        stream: widget.ordersStream ?? FirestoreService.instance.getUserOrdersStream(userId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy));
+    return ListenableBuilder(
+      listenable: AppStateService.instance,
+      builder: (context, _) {
+        String userId = AppStateService.instance.currentUserProfile.userId;
+        try {
+          final authUid = FirebaseAuth.instance.currentUser?.uid;
+          if (authUid != null && authUid.isNotEmpty) {
+            userId = authUid;
           }
+        } catch (_) {}
 
-          final allOrders = snapshot.data ?? [];
+        return Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.primaryNavy),
+              tooltip: 'Back',
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else if (widget.onBackToHome != null) {
+                  widget.onBackToHome!();
+                }
+              },
+            ),
+            title: const Text('My Orders'),
+            bottom: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              labelColor: AppTheme.primaryNavy,
+              unselectedLabelColor: AppTheme.textSubtle,
+              indicatorColor: AppTheme.accentOrange,
+              indicatorWeight: 3,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              tabs: const [
+                Tab(text: 'History'),
+                Tab(text: 'Pending Quote'),
+                Tab(text: 'Rates Quoted'),
+                Tab(text: 'Confirmed'),
+              ],
+            ),
+          ),
+          body: StreamBuilder<List<TileOrder>>(
+            key: ValueKey(userId),
+            stream: widget.ordersStream ?? FirestoreService.instance.getUserOrdersStream(userId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy));
+              }
 
-          // Deterministic stage separation: Each active order belongs to EXACTLY one tab
-          final historyOrders = allOrders.where((o) => o.isHistoryStage).toList();
-          final pendingQuoteOrders = allOrders.where((o) => o.isPendingQuoteStage).toList();
-          final ratesQuotedOrders = allOrders.where((o) => o.isRateQuotedStage).toList();
-          final confirmedOrders = allOrders.where((o) => o.isConfirmedStage).toList();
+              final allOrders = snapshot.data ?? [];
 
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (val) {
-                    setState(() {
-                      _searchQuery = val.trim().toLowerCase();
-                    });
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Search PO reference, product or client...',
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSubtle),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, color: AppTheme.textSubtle),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              // Deterministic stage separation: Each active order belongs to EXACTLY one tab
+              final historyOrders = allOrders.where((o) => o.isHistoryStage).toList();
+              final pendingQuoteOrders = allOrders.where((o) => o.isPendingQuoteStage).toList();
+              final ratesQuotedOrders = allOrders.where((o) => o.isRateQuotedStage).toList();
+              final confirmedOrders = allOrders.where((o) => o.isConfirmedStage).toList();
+
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (val) {
+                        setState(() {
+                          _searchQuery = val.trim().toLowerCase();
+                        });
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search PO reference, product or client...',
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSubtle),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded, color: AppTheme.textSubtle),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildOrderList(
-                      _applySearch(historyOrders),
-                      tabName: 'History',
-                      emptyTitle: 'No completed orders yet',
-                      emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
-                      emptyIcon: Icons.receipt_long_outlined,
-                      isHistoryTab: true,
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildOrderList(
+                          _applySearch(historyOrders),
+                          tabName: 'History',
+                          emptyTitle: 'No completed orders yet',
+                          emptySubtitle: 'Orders that have completed delivery and payment will appear here.',
+                          emptyIcon: Icons.receipt_long_outlined,
+                          isHistoryTab: true,
+                        ),
+                        _buildOrderList(
+                          _applySearch(pendingQuoteOrders),
+                          tabName: 'Pending Quote',
+                          emptyTitle: 'No Pending Quotes',
+                          emptySubtitle: 'When you place an order, quotation requests awaiting factory rates appear here.',
+                          emptyIcon: Icons.hourglass_empty_rounded,
+                          isHistoryTab: false,
+                        ),
+                        _buildOrderList(
+                          _applySearch(ratesQuotedOrders),
+                          tabName: 'Rates Quoted',
+                          emptyTitle: 'No Rates Quoted',
+                          emptySubtitle: 'Orders with rates provided by your salesperson ready for review appear here.',
+                          emptyIcon: Icons.request_quote_outlined,
+                          isHistoryTab: false,
+                        ),
+                        _buildOrderList(
+                          _applySearch(confirmedOrders),
+                          tabName: 'Confirmed',
+                          emptyTitle: 'No Confirmed Orders',
+                          emptySubtitle: 'Accepted and active confirmed orders appear here.',
+                          emptyIcon: Icons.check_circle_outline_rounded,
+                          isHistoryTab: false,
+                        ),
+                      ],
                     ),
-                    _buildOrderList(
-                      _applySearch(pendingQuoteOrders),
-                      tabName: 'Pending Quote',
-                      emptyTitle: 'No Pending Quotes',
-                      emptySubtitle: 'When you place an order, quotation requests awaiting factory rates appear here.',
-                      emptyIcon: Icons.hourglass_empty_rounded,
-                      isHistoryTab: false,
-                    ),
-                    _buildOrderList(
-                      _applySearch(ratesQuotedOrders),
-                      tabName: 'Rates Quoted',
-                      emptyTitle: 'No Rates Quoted',
-                      emptySubtitle: 'Orders with rates provided by your salesperson ready for review appear here.',
-                      emptyIcon: Icons.request_quote_outlined,
-                      isHistoryTab: false,
-                    ),
-                    _buildOrderList(
-                      _applySearch(confirmedOrders),
-                      tabName: 'Confirmed',
-                      emptyTitle: 'No Confirmed Orders',
-                      emptySubtitle: 'Accepted and active confirmed orders appear here.',
-                      emptyIcon: Icons.check_circle_outline_rounded,
-                      isHistoryTab: false,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -263,7 +276,12 @@ class _OrdersScreenState extends State<OrdersScreen>
             displayStatus = 'Rates Quoted';
             break;
           case 'confirmed':
-            displayStatus = 'PO Confirmed';
+          case 'approved':
+          case 'user_confirmed':
+            final bool isPaymentComplete = order.isPaid ||
+                order.paymentStatus?.toLowerCase() == 'paid' ||
+                order.paymentStatus?.toLowerCase() == 'payment_verified';
+            displayStatus = isPaymentComplete ? 'Confirmed' : 'PO Approved';
             break;
           case 'pending_salesperson_review':
           case 'pending_manager_approval':
@@ -306,7 +324,7 @@ class _OrdersScreenState extends State<OrdersScreen>
 
         final Color statusColor;
         final sLower = order.status.toLowerCase();
-        if (sLower == 'confirmed' || sLower == 'delivered' || sLower == 'completed' || order.dispatchStatus == 'delivered') {
+        if (sLower == 'confirmed' || sLower == 'approved' || sLower == 'user_confirmed' || sLower == 'delivered' || sLower == 'completed' || order.dispatchStatus == 'delivered') {
           statusColor = AppTheme.statusSuccess;
         } else if (sLower == 'rate_quoted') {
           statusColor = AppTheme.accentOrange;

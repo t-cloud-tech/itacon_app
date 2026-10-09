@@ -107,7 +107,7 @@ class OrderService {
         color: product.color,
         quantity: cartItem.quantity,
         quantityBoxes: cartItem.quantity,
-        quantitySqFt: isAdh ? 0.0 : cartItem.quantity * 15.5,
+        quantitySqFt: isAdh ? 0.0 : cartItem.quantity * cartItem.sqFtPerBox,
         unit: isAdh ? 'bag' : product.unit,
         moq: product.moq,
         basePrice: product.basePrice,

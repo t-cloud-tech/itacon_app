@@ -407,6 +407,7 @@ class CartScreen extends StatelessWidget {
                   top: false,
                   child: OrderSummaryCard(
                     subtotal: appState.subtotal,
+                    taxAmount: appState.taxAmount,
                     freightFee: appState.freightFee,
                     grandTotal: appState.totalAmount,
                     totalBoxes: appState.totalBoxes,

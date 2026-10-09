@@ -92,6 +92,39 @@ service cloud.firestore {
       );
     }
 
+    // Whitelist of valid customer categories
+    function isValidCustomerCategory(cat) {
+      return cat in ['dealer', 'architect', 'builder', 'wholesaler', 'retailer'];
+    }
+
+    // Ensure customer preserves the staff-assigned salesperson ID and does not forge or change it
+    function isPreservingAssignedSalesperson() {
+      return (!('salesPersonId' in resource.data) || request.resource.data.salesPersonId == resource.data.salesPersonId) &&
+             (!('assignedSalespersonId' in resource.data) || request.resource.data.assignedSalespersonId == resource.data.assignedSalespersonId);
+    }
+
+    // Deny customer modification or reassignment of salesperson fields once already assigned
+    function isModifyingSalespersonAssignmentFields() {
+      return (('salesPersonId' in resource.data && resource.data.salesPersonId != null && resource.data.salesPersonId != '') ||
+              ('assignedSalespersonId' in resource.data && resource.data.assignedSalespersonId != null && resource.data.assignedSalespersonId != '')) &&
+             request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['salesPersonId', 'assignedSalespersonId', 'salespersonName', 'salespersonPhone', 'salespersonReferralCode']);
+    }
+
+    // Narrow self-registration permission for pre-assigned customer stubs
+    function isCustomerSelfRegistrationWrite(userId) {
+      return isOwner(userId) &&
+        (!('role' in resource.data) || resource.data.role == null || resource.data.role == '') &&
+        (!('userCategory' in resource.data) || resource.data.userCategory == null || resource.data.userCategory == '') &&
+        ('role' in request.resource.data) &&
+        isValidCustomerCategory(request.resource.data.role) &&
+        ('userCategory' in request.resource.data) &&
+        isValidCustomerCategory(request.resource.data.userCategory) &&
+        isPreservingAssignedSalesperson() &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
+    }
+
     // Deny writes that forge privileged user fields
     function isModifyingPrivilegedUserFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
@@ -119,9 +152,12 @@ service cloud.firestore {
 
       allow update: if isAuthenticated() &&
         !hasSensitiveFields(request.resource.data) &&
-        ((isOwner(userId) && !isModifyingPrivilegedUserFields()) ||
-         isAdminOrManager() ||
-         (isStaff() && !isModifyingPrivilegedUserFields()));
+        (
+          (isOwner(userId) && !isModifyingPrivilegedUserFields() && !isModifyingSalespersonAssignmentFields()) ||
+          isCustomerSelfRegistrationWrite(userId) ||
+          isAdminOrManager() ||
+          (isStaff() && !isModifyingPrivilegedUserFields())
+        );
 
       allow delete: if isAdminOrManager();
 
@@ -181,14 +217,14 @@ service cloud.firestore {
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy']) &&
          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus']) || request.resource.data.paymentStatus != 'paid')) ||
         ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
-         resource.data.status == 'rate_quoted' &&
+         (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&
          request.resource.data.status == 'confirmed' &&
          request.resource.data.paymentStatus == 'payment_due' &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paymentStatus', 'confirmedAt', 'updatedAt'])) ||
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paymentStatus', 'confirmedAt', 'updatedAt', 'changedByRole'])) ||
         ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
-         resource.data.status == 'rate_quoted' &&
+         (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&
          request.resource.data.status == 'rejected' &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'rejectionReason']))
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'rejectionReason', 'rejectedBy', 'changedByRole']))
       );
 
       allow delete: if false;
@@ -478,19 +514,19 @@ service cloud.firestore {
     // CATEGORY COLLECTIONS
     // =========================================================================
     match /dealers/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /architects/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /builders/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /wholesalers/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /retailers/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
 
     // =========================================================================
@@ -498,10 +534,14 @@ service cloud.firestore {
     // =========================================================================
     match /salesPersons/{spId} {
       allow read: if isAuthenticated();
-      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+      // Privileged counters and salesperson profiles can only be modified by Staff/Admin
+      // or Cloud Functions via Firebase Admin SDK. Untrusted customers cannot change counters.
+      allow write: if isStaff();
 
       match /assigned_clients/{clientId} {
-        allow read: if isAuthenticated();
+        allow read: if isStaff() || (isAuthenticated() && clientId == request.auth.uid);
+        // Direct writes to assigned_clients subcollection restricted to Staff.
+        // Customer assignments are managed authoritatively by backend Cloud Functions (Admin SDK).
         allow write: if isStaff();
       }
     }
@@ -513,17 +553,18 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isStaff()
       );
-      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+      // Managed authoritatively by backend Cloud Functions (Admin SDK) or Staff/Admin
+      allow write: if isStaff() || isAdminOrManager();
     }
 
     match /Auto_Assign_User/{docId} {
       allow read: if isAuthenticated() && (docId == request.auth.uid || isStaff());
-      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+      allow write: if isStaff() || isAdminOrManager();
     }
 
     match /Manual_salesperson_assign/{docId} {
-      allow read: if isStaff();
-      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+      allow read: if isStaff() || (isAuthenticated() && docId == request.auth.uid);
+      allow write: if isStaff() || isAdminOrManager();
     }
 
     // =========================================================================

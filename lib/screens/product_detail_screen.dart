@@ -580,7 +580,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       final isAdhesive = _product.isAdhesive;
                       final pcsPerBox = _product.pcsPerBox > 0 ? _product.pcsPerBox : 2;
                       final sqFtPerBox = _product.sqFtPerBox > 0 ? _product.sqFtPerBox : 15.5;
-                      final boxCost = isAdhesive ? resolved.unitPrice : resolved.unitPrice * pcsPerBox;
+                      final boxCost = isAdhesive ? resolved.unitPrice : resolved.unitPrice * sqFtPerBox;
                       final totalArea = _quantity * sqFtPerBox;
                       final totalCost = _quantity * boxCost;
                       final totalWeightKg = isAdhesive ? (_quantity * 20.0) : (_quantity * _product.boxWeightKg);

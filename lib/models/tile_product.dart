@@ -316,6 +316,10 @@ class TileProduct {
     final bagWt = ((map['bagWeightKg'] ?? map['boxWeightKg'] ?? 20.0) as num).toDouble();
     final usageVal = map['usageTileSizes'] ?? '';
     final appNotes = map['applicationNotes'] ?? '';
+    final rawSqFt = (map['sqFtPerBox'] as num?)?.toDouble();
+    final resolvedSqFt = (rawSqFt != null && rawSqFt > 1.0)
+        ? rawSqFt
+        : (prodLine == 'adhesives' ? 0.0 : TileDimensionHelper.getSqFtPerBox(sz));
 
     return TileProduct(
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? pId.toString()),
@@ -364,7 +368,7 @@ class TileProduct {
       thicknessMm: (map['thicknessMm'] as num?)?.toDouble() ?? 9.0,
       boxWeightKg: (map['boxWeightKg'] as num?)?.toDouble() ?? bagWt,
       pcsPerBox: (map['pcsPerBox'] as num?)?.toInt() ?? TileDimensionHelper.getPcsPerBox(sz),
-      sqFtPerBox: (map['sqFtPerBox'] as num?)?.toDouble() ?? 1.0,
+      sqFtPerBox: resolvedSqFt,
       thicknessCategory: map['thicknessCategory'] ?? 'standard',
       shape: map['shape'] ?? 'rectangle',
       aspectRatio: map['aspectRatio']?.toString() ?? '$aspVal',

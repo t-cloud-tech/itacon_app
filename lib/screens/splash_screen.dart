@@ -5,18 +5,28 @@ import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
 import '../services/notification_service.dart';
 import '../models/user_profile.dart';
+import 'auth_gate.dart';
 import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
+import 'referral_gate_screen.dart';
 
 /// Luxury Splash Screen displaying ITACON GRANITO luxury branding,
 /// smooth curved wave division, pre-cached high-resolution visual assets,
 /// hardware-accelerated entrance animation, and seamless authentication routing.
 class SplashScreen extends StatefulWidget {
   final bool isStaticSplash;
+  final Future<UserProfile?> Function(String uid)? profileLoader;
+  final User? initialUser;
+  final int minDurationMs;
+  final Widget Function(BuildContext context, UserProfile profile)? homeBuilder;
 
   const SplashScreen({
     super.key,
     this.isStaticSplash = false,
+    this.profileLoader,
+    this.initialUser,
+    this.minDurationMs = 1800,
+    this.homeBuilder,
   });
 
   @override
@@ -93,28 +103,30 @@ class _SplashScreenState extends State<SplashScreen>
     // currentUser is typically available synchronously after Firebase.initializeApp().
     // We do NOT use an arbitrary timeout to decide authentication status:
     // a slow device must NOT be treated as unauthenticated.
-    User? currentUser;
-    try {
-      if (Firebase.apps.isNotEmpty) {
-        currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser == null) {
-          // Firebase Auth token may need one event loop tick to restore from keystore.
-          // Wait for the first emission of authStateChanges (no timeout fallback to logout).
-          // If it remains null after the stream emits, the user is genuinely unauthenticated.
-          try {
-            currentUser = await FirebaseAuth.instance
-                .authStateChanges()
-                .first
-                .timeout(
-                  const Duration(seconds: 5),
-                  onTimeout: () => FirebaseAuth.instance.currentUser,
-                );
-          } catch (_) {
-            currentUser = FirebaseAuth.instance.currentUser;
+    User? currentUser = widget.initialUser;
+    if (currentUser == null) {
+      try {
+        if (Firebase.apps.isNotEmpty) {
+          currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser == null) {
+            // Firebase Auth token may need one event loop tick to restore from keystore.
+            // Wait for the first emission of authStateChanges (no timeout fallback to logout).
+            // If it remains null after the stream emits, the user is genuinely unauthenticated.
+            try {
+              currentUser = await FirebaseAuth.instance
+                  .authStateChanges()
+                  .first
+                  .timeout(
+                    const Duration(seconds: 5),
+                    onTimeout: () => FirebaseAuth.instance.currentUser,
+                  );
+            } catch (_) {
+              currentUser = FirebaseAuth.instance.currentUser;
+            }
           }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     // -------------------------------------------------------------------------
     // CASE B: Confirmed unauthenticated user in FirebaseAuth -> Root Login
@@ -123,7 +135,7 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('[SplashScreen] Confirmed unauthenticated state. Routing to Login.');
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-      final remainingMs = 1800 - elapsedMs;
+      final remainingMs = widget.minDurationMs - elapsedMs;
       if (remainingMs > 0) {
         await Future.delayed(Duration(milliseconds: remainingMs));
       }
@@ -144,7 +156,8 @@ class _SplashScreenState extends State<SplashScreen>
     bool isNetworkError = false;
 
     try {
-      realProfile = await _firestoreService.getUserProfile(uid).timeout(
+      final fetcher = widget.profileLoader ?? _firestoreService.getUserProfile;
+      realProfile = await fetcher(uid).timeout(
         const Duration(seconds: 8),
       );
     } catch (e) {
@@ -159,13 +172,21 @@ class _SplashScreenState extends State<SplashScreen>
         await NotificationService.saveCurrentUserToken();
 
         final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-        final remainingMs = 1800 - elapsedMs;
+        final remainingMs = widget.minDurationMs - elapsedMs;
         if (remainingMs > 0) {
           await Future.delayed(Duration(milliseconds: remainingMs));
         }
 
         if (!mounted) return;
-        _navigateToScreen(const MainNavigationScreen());
+        if (AuthGate.requiresSalespersonCompletion(realProfile)) {
+          _navigateToScreen(const ReferralGateScreen());
+          NotificationService.onAppReady();
+          return;
+        }
+        _navigateToScreen(
+          widget.homeBuilder?.call(context, realProfile) ??
+              const MainNavigationScreen(),
+        );
         NotificationService.onAppReady();
         return;
       }
@@ -180,13 +201,21 @@ class _SplashScreenState extends State<SplashScreen>
       await NotificationService.saveCurrentUserToken();
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-      final remainingMs = 1800 - elapsedMs;
+      final remainingMs = widget.minDurationMs - elapsedMs;
       if (remainingMs > 0) {
         await Future.delayed(Duration(milliseconds: remainingMs));
       }
 
       if (!mounted) return;
-      _navigateToScreen(const MainNavigationScreen());
+      if (AuthGate.requiresSalespersonCompletion(restoredProfile)) {
+        _navigateToScreen(const ReferralGateScreen());
+        NotificationService.onAppReady();
+        return;
+      }
+      _navigateToScreen(
+        widget.homeBuilder?.call(context, restoredProfile) ??
+            const MainNavigationScreen(),
+      );
       NotificationService.onAppReady();
       return;
     }
@@ -198,7 +227,7 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('[SplashScreen] User $uid is authenticated but has no Firestore profile. Routing to complete profile/signup.');
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-      final remainingMs = 1800 - elapsedMs;
+      final remainingMs = widget.minDurationMs - elapsedMs;
       if (remainingMs > 0) {
         await Future.delayed(Duration(milliseconds: remainingMs));
       }
@@ -211,7 +240,7 @@ class _SplashScreenState extends State<SplashScreen>
     // Sub-case A.4: Network failure while attempting to fetch profile, and no cache exists yet.
     // Show retry state. Customer remains authenticated in FirebaseAuth.
     final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
-    final remainingMs = 1200 - elapsedMs;
+    final remainingMs = (widget.minDurationMs * 0.67).round() - elapsedMs;
     if (remainingMs > 0) {
       await Future.delayed(Duration(milliseconds: remainingMs));
     }

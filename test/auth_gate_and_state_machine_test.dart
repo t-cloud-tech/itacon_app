@@ -183,6 +183,11 @@ void main() {
     'passwordSalt': testSalt,
     'passwordHash': testPasswordHash,
     'status': 'active',
+    'salesPersonId': 'WNSahNXK9GQrGoiIEmD4QBvAeim1',
+    'assignedSalespersonId': 'WNSahNXK9GQrGoiIEmD4QBvAeim1',
+    'salespersonName': 'Vraj Shah',
+    'salespersonReferralCode': 'SALES101',
+    'isVerified': true,
   };
 
   const vrajUid = '1uiBFvL1Pzaon7nIy57PRJV9cPY2';
@@ -204,6 +209,11 @@ void main() {
     'passwordSalt': vrajSalt,
     'passwordHash': vrajPasswordHash,
     'status': 'active',
+    'salesPersonId': 'WNSahNXK9GQrGoiIEmD4QBvAeim1',
+    'assignedSalespersonId': 'WNSahNXK9GQrGoiIEmD4QBvAeim1',
+    'salespersonName': 'Vraj Shah',
+    'salespersonReferralCode': 'SALES101',
+    'isVerified': true,
   };
 
   setUp(() async {

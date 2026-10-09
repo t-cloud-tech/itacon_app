@@ -7,7 +7,9 @@ import 'package:flutter/foundation.dart';
 
 import 'firestore_service.dart';
 import '../models/user_profile.dart';
+import '../models/user_category.dart';
 import 'user_session_service.dart';
+import 'app_state_service.dart';
 
 class AuthService {
   final FirebaseAuth? _customAuth;
@@ -44,7 +46,7 @@ class AuthService {
     isPendingSecondaryValidation.value = false;
   }
 
-  String? get currentUid => _auth.currentUser?.uid ?? _lastRegisteredUid;
+  String? get currentUid => currentUser?.uid ?? _lastRegisteredUid;
 
   // ============================================================
   // REFERRAL CODE
@@ -106,6 +108,11 @@ class AuthService {
     return null;
   }
 
+  /// Canonical username normalization for case-insensitive and whitespace-safe comparison.
+  static String normalizeUsername(String input) {
+    return input.trim().toLowerCase();
+  }
+
   // ============================================================
   // PHONE NUMBER
   // ============================================================
@@ -139,6 +146,7 @@ class AuthService {
     required String phoneNumber,
     required Function(String verificationId, int? resendToken) onCodeSent,
     required Function(String error) onError,
+    Function(String verificationId)? onAutoRetrievalTimeout,
     int? forceResendingToken,
   }) async {
     try {
@@ -198,7 +206,10 @@ class AuthService {
         },
 
         codeAutoRetrievalTimeout: (String verificationId) {
-          onCodeSent(verificationId, null);
+          // Android auto-retrieval timed out.
+          // NEVER call onCodeSent() here because that would falsely indicate a new OTP was sent
+          // and wipe the user's entered OTP. Only notify the timeout callback if provided.
+          onAutoRetrievalTimeout?.call(verificationId);
         },
 
         // This is the important part for RESEND OTP.
@@ -313,6 +324,95 @@ class AuthService {
   }
 
   // ============================================================
+  // REGISTER INITIAL ACCOUNT (PHASE 1: ACCOUNT & OTP)
+  // ============================================================
+
+  /// Registers initial customer account with minimum required fields (Account & OTP).
+  /// Creates users/{uid} in pending_salesperson state with salesPersonId: null.
+  /// Customer must subsequently validate an active salesperson code on the AuthScreen Sales Code step
+  /// before Home access is granted.
+  Future<String> registerInitialAccount({
+    required String name,
+    required String phoneNumber,
+    required String password,
+    required String verificationId,
+    required String smsCode,
+    String? userCategory,
+    String? countryCode,
+  }) async {
+    final passwordError = validatePassword(password);
+    if (passwordError != null) {
+      throw Exception(passwordError);
+    }
+
+    final cleanCategory = userCategory?.trim() ?? '';
+    if (cleanCategory.isEmpty || !UserCategory.isValidCanonicalCategory(cleanCategory)) {
+      throw Exception('Please select your user category.');
+    }
+
+    if (verificationId.trim().isEmpty) {
+      throw Exception('Please request an OTP before creating your account.');
+    }
+
+    if (smsCode.trim().length != 6) {
+      throw Exception('Please enter the complete 6-digit OTP code.');
+    }
+
+    final resolvedName = name.trim();
+    if (resolvedName.isEmpty) {
+      throw Exception('Please enter your full name.');
+    }
+
+    final phoneParts = FirestoreService.parsePhoneNumberComponents(
+      phoneNumber,
+      explicitCountryCode: countryCode,
+    );
+    final formattedPhone = phoneParts['e164Phone']!;
+    final resolvedCountryCode = phoneParts['countryCode']!;
+
+    isPendingSecondaryValidation.value = true;
+    final UserCredential userCredential;
+    try {
+      userCredential = await verifyPhoneOtp(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+    } catch (_) {
+      isPendingSecondaryValidation.value = false;
+      rethrow;
+    }
+
+    final firebaseUser = userCredential.user;
+    if (firebaseUser == null) {
+      isPendingSecondaryValidation.value = false;
+      throw Exception('Phone verification failed. Please try again.');
+    }
+
+    final uid = firebaseUser.uid;
+    _lastRegisteredUid = uid;
+
+    final userReferralCode = _generateUserReferralCode();
+    final userSalt = generateSalt();
+    final passHash = hashPassword(password, userSalt);
+
+    await _firestoreService.createUserProfile(
+      uid: uid,
+      phone: formattedPhone,
+      countryCode: resolvedCountryCode,
+      name: resolvedName,
+      role: 'customer',
+      userCategory: cleanCategory,
+      userReferralCode: userReferralCode,
+      isVerified: false,
+      passwordHash: passHash,
+      passwordSalt: userSalt,
+    );
+
+    isPendingSecondaryValidation.value = false;
+    return uid;
+  }
+
+  // ============================================================
   // REGISTER USER
   // ============================================================
 
@@ -416,53 +516,32 @@ class AuthService {
 
     _lastRegisteredUid = uid;
 
-    // ----------------------------------------------------------
-    // 4. Check referral code & resolve active salesperson
-    // ----------------------------------------------------------
+    try {
+      // ----------------------------------------------------------
+      // 4. Optional referral code & resolve active salesperson if provided
+      // ----------------------------------------------------------
 
-    String? assignedSpId;
-    String? spName;
-    String? spPhone;
-    String? spReferralCode;
-    String assignmentType = 'auto_assigned';
+      String? assignedSpId;
+      String? spName;
+      String? spPhone;
+      String? spReferralCode;
+      String? assignmentType;
 
-    if (referralCode != null &&
-        referralCode.trim().isNotEmpty) {
-      final spProfile =
-          await _firestoreService
-              .verifySalespersonReferralCode(
-        referralCode.trim(),
-      );
+      if (referralCode != null && referralCode.trim().isNotEmpty) {
+        final normalizedCode = referralCode.trim().toUpperCase();
+        final spProfile = await _firestoreService.verifySalespersonReferralCode(normalizedCode);
 
-      if (spProfile != null) {
-        assignedSpId =
-            (spProfile['id'] ??
-                    spProfile['salesPersonId'] ??
-                    spProfile['salespersonId'])
-                ?.toString();
-        spName = spProfile['name'] ?? spProfile['fullName'];
-        spPhone = spProfile['phone'] ?? spProfile['phoneNumber'];
-        spReferralCode = spProfile['referralCode'] ?? referralCode.trim().toUpperCase();
-        assignmentType = 'manual_referral';
+        if (spProfile != null) {
+          assignedSpId = (spProfile['id'] ??
+                  spProfile['salesPersonId'] ??
+                  spProfile['salespersonId'])
+              ?.toString();
+          spName = (spProfile['name'] ?? spProfile['fullName'])?.toString();
+          spPhone = (spProfile['phone'] ?? spProfile['phoneNumber'])?.toString();
+          spReferralCode = (spProfile['referralCode'] ?? normalizedCode).toString().toUpperCase();
+          assignmentType = 'manual_referral';
+        }
       }
-    }
-
-    // If customer did NOT enter a valid referral code,
-    // preserve approved automatic-assignment behavior to the sole active salesperson.
-    if (assignedSpId == null || assignedSpId.isEmpty) {
-      final autoDetails = await _firestoreService.autoAssignSalespersonDetails(
-        userId: uid,
-        clientName: resolvedName,
-        clientPhone: formattedPhone,
-        companyName: companyName,
-        clientCategory: categoryId,
-      );
-      assignedSpId = autoDetails['salespersonId'] ?? FirestoreService.defaultSalespersonId;
-      spName = autoDetails['name'] ?? FirestoreService.defaultSalespersonName;
-      spPhone = autoDetails['phone'] ?? FirestoreService.defaultSalespersonPhone;
-      spReferralCode = autoDetails['referralCode'] ?? FirestoreService.defaultSalespersonReferralCode;
-      assignmentType = 'auto_assigned';
-    }
 
     // ----------------------------------------------------------
     // 5. Optional email - never invent user_<phone>@itacon.com
@@ -534,6 +613,9 @@ class AuthService {
     // 9. Create Firestore user profile
     // ----------------------------------------------------------
 
+    final bool hasAssignedSalesperson = assignedSpId != null && assignedSpId.isNotEmpty;
+    final String initialStatus = hasAssignedSalesperson ? 'active' : 'pending_salesperson_verification';
+
     await _firestoreService.createUserProfile(
       uid: uid,
       phone: formattedPhone,
@@ -551,6 +633,8 @@ class AuthService {
       userReferralCode: userReferralCode,
       referredByCode: referralCode,
       isVerified: true,
+      status: initialStatus,
+      phoneVerified: true,
       passwordHash: passHash,
       passwordSalt: userSalt,
     );
@@ -579,10 +663,11 @@ class AuthService {
       referralCode: userReferralCode,
       phoneVerified: true,
       whatsappVerified: true,
-      status: 'active',
+      status: initialStatus,
       createdAt: DateTime.now(),
     );
 
+    AppStateService.instance.setCurrentUserProfile(registeredProfile);
     await UserSessionService.saveUserSession(
       registeredProfile,
     );
@@ -591,8 +676,7 @@ class AuthService {
     // 11. Save customer referral
     // ----------------------------------------------------------
 
-    if (referralCode != null &&
-        referralCode.trim().isNotEmpty) {
+    if (referralCode != null && referralCode.trim().isNotEmpty) {
       await _firestoreService.saveCustomerReferralCode(
         userId: uid,
         referralCode: referralCode.trim(),
@@ -606,20 +690,120 @@ class AuthService {
     // 12. Assign salesperson across all required mirrors
     // ----------------------------------------------------------
 
-    if (assignedSpId.isNotEmpty) {
-      await _firestoreService
-          .executeAtomicClientAssignment(
-        clientId: uid,
-        salespersonId: assignedSpId,
-        assignmentType: assignmentType,
-        clientName: resolvedName,
-        clientPhone: formattedPhone,
-        companyName: companyName,
-        clientCategory: categoryId,
+    if (assignedSpId != null && assignedSpId.isNotEmpty) {
+      try {
+        await _firestoreService.executeAtomicClientAssignment(
+          clientId: uid,
+          salespersonId: assignedSpId,
+          assignmentType: assignmentType ?? 'manual_referral',
+          clientName: resolvedName,
+          clientPhone: formattedPhone,
+          companyName: companyName,
+          clientCategory: categoryId,
+        );
+      } catch (e) {
+        debugPrint('Warning: executeAtomicClientAssignment in registerUser: $e');
+      }
+    }
+
+    // ----------------------------------------------------------
+    // 13. Registration Success Gate Verification (Phase 10)
+    // ----------------------------------------------------------
+    final gatePassed = await verifyRegistrationSuccessGate(
+      uid: uid,
+      expectedCategory: categoryId,
+      allowPendingSalesperson: !hasAssignedSalesperson,
+    );
+
+    if (!gatePassed) {
+      isPendingSecondaryValidation.value = false;
+      throw Exception(
+        "We couldn't complete your account setup. Please retry or contact support.",
       );
     }
 
     isPendingSecondaryValidation.value = false;
+    } catch (e) {
+      isPendingSecondaryValidation.value = false;
+      rethrow;
+    }
+  }
+
+  /// Verifies all Phase 10 requirements before marking registration as successful.
+  Future<bool> verifyRegistrationSuccessGate({
+    required String uid,
+    required String expectedCategory,
+    bool allowPendingSalesperson = false,
+  }) async {
+    try {
+      final currentAuthUser = currentUser;
+      if (currentAuthUser == null || currentAuthUser.uid != uid) {
+        debugPrint('AUTH_GATE: currentUser null or UID mismatch');
+        return false;
+      }
+
+      final userDoc = await _firestoreService.getUserDocument(uid);
+      if (userDoc == null) {
+        debugPrint('AUTH_GATE: users/{uid} does not exist');
+        return false;
+      }
+
+      final docUid = userDoc['uid']?.toString();
+      final docUserId = userDoc['userId']?.toString();
+      if (docUid != uid || docUserId != uid) {
+        debugPrint('AUTH_GATE: UID / userId mismatch in users/{uid}');
+        return false;
+      }
+
+      final name = userDoc['name']?.toString().trim() ?? '';
+      final username = userDoc['username']?.toString().trim() ?? '';
+      final phone = userDoc['phone']?.toString().trim() ?? '';
+      final status = userDoc['status']?.toString().trim().toLowerCase() ?? '';
+      final role = (userDoc['role'] ?? userDoc['userCategory'])?.toString().trim() ?? '';
+      final hash = userDoc['passwordHash']?.toString() ?? '';
+      final salt = userDoc['passwordSalt']?.toString() ?? '';
+
+      if (name.isEmpty || username.isEmpty || phone.isEmpty) {
+        debugPrint('AUTH_GATE: name, username, or phone empty');
+        return false;
+      }
+
+      if (allowPendingSalesperson) {
+        if (status != 'active' && status != 'pending_salesperson_verification') {
+          debugPrint('AUTH_GATE: status is not active or pending_salesperson: $status');
+          return false;
+        }
+      } else {
+        if (status != 'active') {
+          debugPrint('AUTH_GATE: status is not active: $status');
+          return false;
+        }
+
+        final spId = (userDoc['salesPersonId'] ?? userDoc['assignedSalespersonId'])?.toString().trim() ?? '';
+        if (spId.isEmpty) {
+          debugPrint('AUTH_GATE: salesPersonId empty in users/{uid}');
+          return false;
+        }
+      }
+
+      if (role.isEmpty || hash.isEmpty || salt.isEmpty) {
+        debugPrint('AUTH_GATE: role, passwordHash, or passwordSalt empty');
+        return false;
+      }
+
+      // Verify category mirror exists under same UID
+      final catColName = FirestoreService.getCategoryCollectionName(expectedCategory);
+      final catDoc = await _firestoreService.getCategoryDocument(catColName, uid);
+      if (catDoc == null) {
+        debugPrint('AUTH_GATE: category mirror {$catColName}/$uid missing');
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('AUTH_GATE: verification exception: $e');
+      return false;
+    }
   }
 
   // ============================================================
@@ -716,19 +900,31 @@ class AuthService {
     debugPrint('AUTH_DEBUG: UID profile lookup success');
 
     // ----------------------------------------------------------
+    // ACCOUNT STATUS VALIDATION
+    // ----------------------------------------------------------
+    final accountStatus = userMap['status']?.toString().toLowerCase().trim();
+    if (accountStatus == 'inactive' || accountStatus == 'blocked' || accountStatus == 'suspended') {
+      debugPrint('AUTH_DEBUG: account inactive failure');
+      await signOutFirebaseUser();
+      isPendingSecondaryValidation.value = false;
+      throw Exception(
+        'Your account is currently inactive. Please contact support.',
+      );
+    }
+
+    // ----------------------------------------------------------
     // USERNAME VALIDATION (if entered)
     // ----------------------------------------------------------
     if (username != null && username.trim().isNotEmpty) {
-      final storedUsername = (userMap['username'] ??
+      final inputNormalized = normalizeUsername(username);
+      final storedUsername = normalizeUsername((userMap['username'] ??
               userMap['userName'] ??
               userMap['name'] ??
               userMap['fullName'] ??
               '')
-          .toString()
-          .trim();
+          .toString());
 
-      if (storedUsername.isEmpty ||
-          storedUsername.toLowerCase() != username.trim().toLowerCase()) {
+      if (storedUsername.isEmpty || storedUsername != inputNormalized) {
         debugPrint('AUTH_DEBUG: username validation failure');
         await signOutFirebaseUser();
         isPendingSecondaryValidation.value = false;
@@ -745,19 +941,18 @@ class AuthService {
     final storedHash = userMap['passwordHash'] as String?;
     final storedSalt = userMap['passwordSalt'] as String?;
 
-    if (storedHash != null && storedSalt != null) {
-      final computedHash = hashPassword(password.trim(), storedSalt);
-      if (computedHash != storedHash) {
-        debugPrint('AUTH_DEBUG: password validation failure');
-        await signOutFirebaseUser();
-        isPendingSecondaryValidation.value = false;
-        throw Exception(
-          'Invalid username or password. Please check your credentials and try again.',
-        );
-      }
-      debugPrint('AUTH_DEBUG: password validation success');
-    } else {
-      // Missing password credentials in profile
+    if (storedHash == null || storedSalt == null || storedHash.isEmpty || storedSalt.isEmpty) {
+      // Incomplete profile setup (missing password credentials)
+      debugPrint('AUTH_DEBUG: profile incomplete - missing password credentials');
+      await signOutFirebaseUser();
+      isPendingSecondaryValidation.value = false;
+      throw Exception(
+        "We couldn't complete your account setup. Please retry or contact support.",
+      );
+    }
+
+    final computedHash = hashPassword(password.trim(), storedSalt);
+    if (computedHash != storedHash) {
       debugPrint('AUTH_DEBUG: password validation failure');
       await signOutFirebaseUser();
       isPendingSecondaryValidation.value = false;
@@ -765,6 +960,7 @@ class AuthService {
         'Invalid username or password. Please check your credentials and try again.',
       );
     }
+    debugPrint('AUTH_DEBUG: password validation success');
 
     // ----------------------------------------------------------
     // SAVE SESSION
@@ -1000,8 +1196,14 @@ class AuthService {
       final existingSpId = existingUser?.salesPersonId;
 
       if (existingSpId != null && existingSpId.isNotEmpty) {
-        // One client must map with only one salesperson. Already mapped!
-        return true;
+        final existingCode = existingUser?.salespersonReferralCode?.trim().toUpperCase();
+        if (existingCode != null && existingCode == code.toUpperCase()) {
+          // Idempotent: client is already assigned to this salesperson
+          return true;
+        }
+        // Strict 1-to-many rule: preserve existing legitimate assignment; reject unauthorized reassignment
+        debugPrint('verifyAndLinkReferralCode: User is already assigned to salesperson $existingSpId. Reassignment prohibited.');
+        return false;
       }
     }
 
@@ -1022,7 +1224,18 @@ class AuthService {
       return false;
     }
 
+    final spName = spProfile['name']?.toString() ?? spProfile['fullName']?.toString() ?? 'Vraj Shah';
+    final spPhone = spProfile['phone']?.toString() ?? spProfile['phoneNumber']?.toString() ?? '+919876543210';
+
     if (uid != null && uid.isNotEmpty) {
+      await _firestoreService.updateUserSalespersonAssignment(
+        uid: uid,
+        salespersonId: spId,
+        salespersonName: spName,
+        salespersonPhone: spPhone,
+        salespersonReferralCode: spCode,
+      );
+
       await _firestoreService.saveCustomerReferralCode(
         userId: uid,
         referralCode: spCode,
@@ -1031,18 +1244,23 @@ class AuthService {
         userCategory: clientCategory,
       );
 
-      await _firestoreService.executeAtomicClientAssignment(
-        clientId: uid,
-        salespersonId: spId,
-        assignmentType: 'manual_referral',
-        clientName: clientName,
-        clientPhone: clientPhone,
-        companyName: companyName,
-        clientCategory: clientCategory,
-      );
+      try {
+        await _firestoreService.executeAtomicClientAssignment(
+          clientId: uid,
+          salespersonId: spId,
+          assignmentType: 'manual_referral',
+          clientName: clientName,
+          clientPhone: clientPhone,
+          companyName: companyName,
+          clientCategory: clientCategory,
+        );
+      } catch (e) {
+        debugPrint('executeAtomicClientAssignment warning: $e');
+      }
 
       final updatedProfile = await _firestoreService.getUserProfile(uid);
       if (updatedProfile != null) {
+        AppStateService.instance.setCurrentUserProfile(updatedProfile);
         await UserSessionService.saveUserSession(updatedProfile);
       }
     }

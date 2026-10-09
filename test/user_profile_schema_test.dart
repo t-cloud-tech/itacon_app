@@ -522,6 +522,7 @@ void main() {
             phoneNumber: '+919624818477',
             categoryId: 'contractor', // unsupported category
             password: 'ValidPassword123!',
+            referralCode: 'SALES101',
           ),
           throwsArgumentError,
         );
@@ -531,6 +532,7 @@ void main() {
             phoneNumber: '+919624818477',
             categoryId: 'customer', // unsupported arbitrary category
             password: 'ValidPassword123!',
+            referralCode: 'SALES101',
           ),
           throwsArgumentError,
         );
@@ -540,6 +542,7 @@ void main() {
             phoneNumber: '+919624818477',
             categoryId: 'xyz', // unknown category
             password: 'ValidPassword123!',
+            referralCode: 'SALES101',
           ),
           throwsArgumentError,
         );
@@ -549,6 +552,7 @@ void main() {
             phoneNumber: '+919624818477',
             categoryId: '', // empty category
             password: 'ValidPassword123!',
+            referralCode: 'SALES101',
           ),
           throwsArgumentError,
         );

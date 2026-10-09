@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,6 +10,7 @@ import '../services/notification_service.dart';
 import '../services/user_session_service.dart';
 import '../widgets/interactive_pressable.dart';
 import 'referral_gate_screen.dart';
+import 'main_navigation_screen.dart';
 import 'auth/forgot_password_screen.dart';
 
 enum AuthViewMode { choice, login, signup }
@@ -41,7 +43,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
   String _loginE164Phone = '';
   String _regE164Phone = '';
-  String _regCountryCode = '+91';
 
   final _loginFormKey = GlobalKey<FormState>();
 
@@ -51,6 +52,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoginSendingOtp = false;
 
   void _requestLoginOtp() async {
+    if (_isLoginSendingOtp) return;
     final rawPhone = _loginPhoneController.text.trim();
 
     if (rawPhone.isEmpty) {
@@ -99,6 +101,11 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       },
 
+      onAutoRetrievalTimeout: (verId) {
+        if (!mounted) return;
+        _verificationId = verId;
+      },
+
       onError: (err) {
         if (!mounted) return;
 
@@ -131,6 +138,9 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   int _signupStep = 1;
+  int _regOtpCooldownSeconds = 0;
+  Timer? _regOtpCooldownTimer;
+  int _otpSessionCounter = 0;
 
   @override
   void initState() {
@@ -145,10 +155,13 @@ class _AuthScreenState extends State<AuthScreen> {
     _isLoading = false;
     _verificationId = null;
     _resendToken = null;
+    _regOtpCooldownSeconds = 0;
+    _otpSessionCounter = 0;
   }
 
   @override
   void dispose() {
+    _regOtpCooldownTimer?.cancel();
     _loginUsernameController.dispose();
     _loginPhoneController.dispose();
     _loginOtpController.dispose();
@@ -164,7 +177,33 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  void _startRegOtpCooldown([int seconds = 60]) {
+    _regOtpCooldownTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _regOtpCooldownSeconds = seconds;
+    });
+    _regOtpCooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_regOtpCooldownSeconds <= 1) {
+        timer.cancel();
+        setState(() {
+          _regOtpCooldownSeconds = 0;
+        });
+      } else {
+        setState(() {
+          _regOtpCooldownSeconds--;
+        });
+      }
+    });
+  }
+
   void _requestOtp() async {
+    if (_isRegSendingOtp || _regOtpCooldownSeconds > 0) return;
+
     final rawPhone = _regPhoneController.text.trim();
 
     if (rawPhone.isEmpty) {
@@ -181,6 +220,7 @@ class _AuthScreenState extends State<AuthScreen> {
         : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
 
     setState(() => _isRegSendingOtp = true);
+    final currentSession = ++_otpSessionCounter;
 
     await _authService.sendOtp(
       phoneNumber: formattedPhone,
@@ -191,7 +231,7 @@ class _AuthScreenState extends State<AuthScreen> {
       forceResendingToken: _resendToken,
 
       onCodeSent: (verId, resendToken) {
-        if (!mounted) return;
+        if (!mounted || currentSession != _otpSessionCounter) return;
 
         setState(() {
           _verificationId = verId;
@@ -199,9 +239,11 @@ class _AuthScreenState extends State<AuthScreen> {
           _otpSent = true;
           _isRegSendingOtp = false;
 
-          // Clear the old OTP when a new OTP is requested.
+          // Clear the old OTP when a genuine fresh OTP is sent.
           _regOtpController.clear();
         });
+
+        _startRegOtpCooldown(60);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -213,8 +255,15 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       },
 
+      onAutoRetrievalTimeout: (verId) {
+        if (!mounted || currentSession != _otpSessionCounter) return;
+        // Android SMS auto-retrieval timed out.
+        // Update/keep verificationId silently; NEVER clear entered OTP or display duplicate notification!
+        _verificationId = verId;
+      },
+
       onError: (err) {
-        if (!mounted) return;
+        if (!mounted || currentSession != _otpSessionCounter) return;
 
         setState(() => _isRegSendingOtp = false);
 
@@ -258,9 +307,7 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       await _authService.registerUser(
-        name: _regFullNameController.text.trim(),
         fullName: _regFullNameController.text.trim(),
-        countryCode: _regCountryCode,
         phoneNumber: formattedPhone,
         categoryId: _selectedCategory ?? UserCategory.allCategories.first.id,
         password: _regPasswordController.text.trim(),
@@ -286,18 +333,23 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Registration Successful! Executive linked.')),
+        SnackBar(
+            content: Text(hasSalesperson
+                ? 'Registration Successful! Executive linked.'
+                : 'Registration Successful! Link your executive.')),
       );
 
-      if (!hasSalesperson) {
+      if (hasSalesperson) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        );
+      } else {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
         );
       }
-      // If hasSalesperson is true, AuthGate's reactive state machine handles
-      // rendering MainNavigationScreen cleanly as the single root authority.
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -555,9 +607,11 @@ class _AuthScreenState extends State<AuthScreen> {
           username: _loginUsernameController.text.trim(),
         );
 
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        // AuthGate is the single root authority and naturally renders AuthenticatedSessionLoader -> MainNavigationScreen
+        // Only transition to Step 2 (Customer Referral Code) if credentials are valid!
+        setState(() {
+          _isLoading = false;
+          _loginStep = 2;
+        });
       } catch (e) {
         if (!mounted) return;
         setState(() => _isLoading = false);
@@ -578,22 +632,11 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       if (referralInput.isNotEmpty) {
-        final success = await _authService.verifyAndLinkReferralCode(
+        await _authService.verifyAndLinkReferralCode(
           referralInput,
           clientName: _loginUsernameController.text.trim(),
           clientPhone: _loginPhoneController.text.trim(),
         );
-        if (!success) {
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Invalid or inactive referral code. Please check and try again.'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-          return;
-        }
       }
 
       final uid = _authService.currentUser?.uid ?? _authService.currentUid;
@@ -618,7 +661,11 @@ class _AuthScreenState extends State<AuthScreen> {
         const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
       );
 
-      // AuthGate is the single root authority and naturally renders MainNavigationScreen.
+      // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -883,7 +930,7 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           _buildLoginTimelineStep(stepNumber: 1, label: 'Account & OTP'),
           Expanded(child: _buildTimelineDashedLine(isPassed: _loginStep > 1)),
-          _buildLoginTimelineStep(stepNumber: 2, label: 'Sales Code'),
+          _buildLoginTimelineStep(stepNumber: 2, label: 'Referral Code'),
         ],
       ),
     );
@@ -1714,15 +1761,18 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
                 onChanged: (phone) {
-                  setState(() {
-                    _regE164Phone = phone.completeNumber;
-                    _regCountryCode = phone.countryCode;
-                  });
-                },
-                onCountryChanged: (country) {
-                  setState(() {
-                    _regCountryCode = '+${country.dialCode}';
-                  });
+                  final newPhone = phone.completeNumber;
+                  if (newPhone != _regE164Phone) {
+                    setState(() {
+                      _regE164Phone = newPhone;
+                      // Invalidate prior OTP state when phone number is edited
+                      _otpSent = false;
+                      _verificationId = null;
+                      _resendToken = null;
+                      _regOtpController.clear();
+                      // Active cooldown is preserved so editing phone cannot bypass rate limiting
+                    });
+                  }
                 },
               ),
             ),
@@ -1730,12 +1780,14 @@ class _AuthScreenState extends State<AuthScreen> {
             SizedBox(
               height: 48,
               child: AppPressable(
-                onTap: (_isLoading || _isRegSendingOtp) ? null : _requestOtp,
+                onTap: (_isLoading || _isRegSendingOtp || _regOtpCooldownSeconds > 0)
+                    ? null
+                    : _requestOtp,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 14),
                   decoration: BoxDecoration(
-                    color: _isRegSendingOtp
+                    color: (_isRegSendingOtp || _regOtpCooldownSeconds > 0)
                         ? const Color(0xFF1B365D).withValues(alpha: 0.5)
                         : const Color(0xFF1B365D),
                     borderRadius: BorderRadius.circular(10),
@@ -1751,7 +1803,9 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         )
                       : Text(
-                          _otpSent ? 'Resend' : 'Send OTP',
+                          _regOtpCooldownSeconds > 0
+                              ? 'Resend (${_regOtpCooldownSeconds}s)'
+                              : (_otpSent ? 'Resend' : 'Send OTP'),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,

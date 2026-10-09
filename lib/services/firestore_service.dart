@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_category.dart';
@@ -31,17 +32,42 @@ import '../models/payment_config.dart';
 import '../models/payment_submission.dart';
 import 'product_catalog_service.dart';
 import 'app_state_service.dart' show AppStateService;
+import 'user_session_service.dart';
+
+enum SalespersonCodeStatus {
+  active,
+  inactive,
+  notFound,
+  networkError,
+}
+
+class SalespersonCodeResult {
+  final SalespersonCodeStatus status;
+  final Map<String, dynamic>? data;
+  final String? errorMessage;
+
+  const SalespersonCodeResult({
+    required this.status,
+    this.data,
+    this.errorMessage,
+  });
+
+  bool get isActive => status == SalespersonCodeStatus.active;
+}
 
 /// Comprehensive Production Service for Cloud Firestore aligned 100% with official PDF Schema.
 /// Supports Phase 1, Phase 2, and Phase 3 collections for Flutter Customers, Web Portal Salesperson, and Admin Managers.
 class FirestoreService {
   static final FirestoreService instance = FirestoreService();
   final FirebaseFirestore? _customDb;
+  final FirebaseFunctions? _customFunctions;
 
-  FirestoreService({FirebaseFirestore? firestore})
-      : _customDb = firestore;
+  FirestoreService({FirebaseFirestore? firestore, FirebaseFunctions? functions})
+      : _customDb = firestore,
+        _customFunctions = functions;
 
   FirebaseFirestore get _db => _customDb ?? FirebaseFirestore.instance;
+  FirebaseFunctions get _functions => _customFunctions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
 
   // ===========================================================================
   // COLLECTION REFERENCES (Matching Official PDF Schema)
@@ -70,7 +96,6 @@ class FirestoreService {
   CollectionReference<Map<String, dynamic>> get _userDemandsRef => _db.collection('user_demands');
   CollectionReference<Map<String, dynamic>> get _paymentConfigRef => _db.collection('paymentConfig');
   CollectionReference<Map<String, dynamic>> get _paymentSubmissionsRef => _db.collection('paymentSubmissions');
-  CollectionReference<Map<String, dynamic>> get _paymentUtrsRef => _db.collection('payment_utrs');
 
   /// Canonical category collection resolver.
   /// Strictly maps allowed categories to their Firestore collections:
@@ -87,15 +112,25 @@ class FirestoreService {
       throw ArgumentError('Category ID cannot be null or empty.');
     }
     final clean = categoryId.toLowerCase().trim();
-    if (clean == 'dealer' || clean == 'dealers') return 'dealers';
-    if (clean == 'architect' || clean == 'architects') return 'architects';
+    if (clean == 'dealer' || clean == 'dealers' || clean == 'tile dealer / showroom') return 'dealers';
+    if (clean == 'architect' ||
+        clean == 'architects' ||
+        clean == 'architect / interior designer' ||
+        clean == 'architect/interior designer') {
+      return 'architects';
+    }
     if (clean == 'builder' ||
         clean == 'builders' ||
         clean == 'builder / contractor' ||
         clean == 'builder/contractor') {
       return 'builders';
     }
-    if (clean == 'wholesaler' || clean == 'wholesalers') return 'wholesalers';
+    if (clean == 'wholesaler' ||
+        clean == 'wholesalers' ||
+        clean == 'wholesaler / distributor' ||
+        clean == 'wholesaler/distributor') {
+      return 'wholesalers';
+    }
     if (clean == 'retailer' || clean == 'retailers') return 'retailers';
 
     throw ArgumentError(
@@ -275,6 +310,7 @@ class FirestoreService {
     String? name,
     @Deprecated('Use name instead') String? fullName,
     required String role,
+    String? userCategory,
     String? religion,
     String? dateOfBirth,
     String? email,
@@ -292,12 +328,26 @@ class FirestoreService {
     String? userReferralCode,
     String? referredByCode,
     bool isVerified = false,
+    String? status,
+    bool? phoneVerified,
     String? passwordHash,
     String? passwordSalt,
   }) async {
     try {
-      final catColName = _getCategoryCollectionName(role);
-      final categoryLabel = UserCategory.getLabel(role);
+      final effectiveCategory = (userCategory != null && userCategory.trim().isNotEmpty)
+          ? userCategory.trim()
+          : role;
+      final cleanRole = effectiveCategory.toLowerCase().trim();
+      final isCanonicalTradeCat = [
+        'dealer', 'dealers', 'tile dealer / showroom',
+        'architect', 'architects', 'architect / interior designer', 'architect/interior designer',
+        'builder', 'builders', 'builder / contractor', 'builder/contractor',
+        'wholesaler', 'wholesalers', 'wholesaler / distributor', 'wholesaler/distributor',
+        'retailer', 'retailers',
+      ].contains(cleanRole);
+
+      final String? catColName = isCanonicalTradeCat ? _getCategoryCollectionName(effectiveCategory) : null;
+      final String? categoryLabel = isCanonicalTradeCat ? UserCategory.getLabel(effectiveCategory) : null;
 
       final resolvedName = (name != null && name.trim().isNotEmpty)
           ? name.trim()
@@ -333,10 +383,18 @@ class FirestoreService {
         }
       }
 
+      // Canonical username stored explicitly so login can match it deterministically
+      // (case-insensitive). Stored in users/{uid} ONLY — never in category mirrors.
+      final canonicalUsername = resolvedName.trim().toLowerCase();
+
       final docData = {
         'userId': uid,
         'uid': uid,
         'name': resolvedName,
+        // REQUIRED: explicit username field — login credential validation reads this.
+        // Without this field, customers who registered with one name format and logged
+        // in with a different casing previously produced false "Invalid credentials" errors.
+        'username': canonicalUsername,
         'religion': religion ?? '',
         'dateOfBirth': dateOfBirth ?? '',
         'dob': dateOfBirth ?? '',
@@ -345,7 +403,7 @@ class FirestoreService {
         'countryCode': resolvedCountryCode,
         'rawPhone': rawPhone,
         'email': safeEmail,
-        'userCategory': role,
+        'userCategory': effectiveCategory,
         'role': role,
         'salesPersonId': assignedSalespersonId,
         'assignedSalespersonId': assignedSalespersonId,
@@ -357,8 +415,8 @@ class FirestoreService {
           'referredByCode': referredByCode.trim().toUpperCase(),
           'referralCodeEntered': referredByCode.trim().toUpperCase(),
         },
-        'status': 'active',
-        'phoneVerified': isVerified,
+        'status': status ?? ((assignedSalespersonId != null && assignedSalespersonId.isNotEmpty) ? 'active' : 'pending_salesperson_verification'),
+        'phoneVerified': phoneVerified ?? isVerified,
         'emailVerified': isVerified,
         'whatsappVerified': isVerified,
         'address': address ?? const {},
@@ -372,11 +430,8 @@ class FirestoreService {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // 1. Store in primary `users` collection (authoritative master profile)
-      await _usersRef.doc(uid).set(docData, SetOptions(merge: true));
-
-      // 2. Store in category-wise collection (dealers/{uid}, architects/{uid}, builders/{uid}, etc.)
-      // Contains ONLY public business metadata. Strictly NO password hashes, salts, or auth tokens.
+      // Category mirror: public business metadata ONLY.
+      // CRITICAL: username (auth credential) MUST NOT exist in category collections.
       final catDocData = Map<String, dynamic>.from(docData);
       catDocData.remove('salesPersonId');
       catDocData.remove('assignedSalespersonId');
@@ -386,16 +441,27 @@ class FirestoreService {
       catDocData.remove('password');
       catDocData.remove('passwordHash');
       catDocData.remove('passwordSalt');
+      catDocData.remove('username'); // auth credential — master profile only
       catDocData.remove('fcmToken');
       catDocData.remove('fcmTokenUpdatedAt');
 
-      await _db.collection(catColName).doc(uid).set({
-        ...catDocData,
-        'userId': uid,
-        'uid': uid,
-        'userCategory': role,
-        'categoryLabel': categoryLabel,
-      }, SetOptions(merge: true));
+      // ATOMIC WRITE: commit both users/{uid} and {category}/{uid} in a single batch.
+      // This prevents the partial-write failure mode:
+      //   - Symptom: master profile missing → login succeeds OTP but profile not found.
+      //   - Root cause: two sequential awaits; if the 2nd failed, master existed but category didn't.
+      // With a single batch.commit(), either both writes succeed or neither does.
+      final batch = _db.batch();
+      batch.set(_usersRef.doc(uid), docData, SetOptions(merge: true));
+      if (catColName != null) {
+        batch.set(_db.collection(catColName).doc(uid), {
+          ...catDocData,
+          'userId': uid,
+          'uid': uid,
+          'userCategory': effectiveCategory,
+          'categoryLabel': categoryLabel,
+        }, SetOptions(merge: true));
+      }
+      await batch.commit();
     } catch (e) {
       rethrow;
     }
@@ -777,6 +843,16 @@ class FirestoreService {
     return null;
   }
 
+  /// Retrieves raw category document data map by UID directly from `{categoryCollection}/{uid}`.
+  Future<Map<String, dynamic>?> getCategoryDocument(String categoryCollection, String uid) async {
+    if (categoryCollection.trim().isEmpty || uid.trim().isEmpty) return null;
+    final doc = await _db.collection(categoryCollection.trim()).doc(uid.trim()).get();
+    if (doc.exists && doc.data() != null) {
+      return {'id': doc.id, ...doc.data()!};
+    }
+    return null;
+  }
+
   Future<void> saveFcmToken(String uid, String token) async {
     if (uid.isEmpty || token.isEmpty) return;
 
@@ -851,7 +927,10 @@ class FirestoreService {
 
   Future<List<Map<String, dynamic>>> getSalespersons() async {
     final snapshot = await _salesPersonsRef.get();
-    return snapshot.docs.map((d) => {'id': d.id, ...d.data()}).toList();
+    return snapshot.docs
+        .where((d) => d.data()['status'] == 'active' && d.data()['isActive'] == true)
+        .map((d) => {'id': d.id, ...d.data()})
+        .toList();
   }
 
   /// Retrieves active salespersons sorted in ascending order of assignedClientsCount (least assigned workload first).
@@ -864,9 +943,8 @@ class FirestoreService {
 
       for (var doc in spSnap.docs) {
         final data = doc.data();
-        final isActive = data['isActive'] == true || data['status'] == 'active';
-        final isInactive = data['isActive'] == false || data['status'] == 'inactive';
-        if (isActive && !isInactive) {
+        final isEligibleActive = data['status'] == 'active' && data['isActive'] == true;
+        if (isEligibleActive) {
           final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
           available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
         }
@@ -879,9 +957,8 @@ class FirestoreService {
 
       for (var doc in userSpSnap.docs) {
         final data = doc.data();
-        final isActive = data['isActive'] == true || data['status'] == 'active';
-        final isInactive = data['isActive'] == false || data['status'] == 'inactive';
-        if (isActive && !isInactive) {
+        final isEligibleActive = data['status'] == 'active' && data['isActive'] == true;
+        if (isEligibleActive) {
           final count = (data['assignedClientsCount'] as num?)?.toInt() ?? 0;
           if (!available.any((item) => item['id'] == doc.id)) {
             available.add({'id': doc.id, ...data, 'assignedClientsCount': count});
@@ -905,11 +982,17 @@ class FirestoreService {
     return available;
   }
 
-  Future<Map<String, dynamic>?> verifySalespersonReferralCode(String referralCode) async {
-    try {
-      final trimmedCode = referralCode.trim().toUpperCase();
-      if (trimmedCode.isEmpty) return null;
+  Future<SalespersonCodeResult> verifySalespersonCodeDetailed(String referralCode) async {
+    final trimmedCode = referralCode.trim().toUpperCase();
+    if (trimmedCode.isEmpty) {
+      return const SalespersonCodeResult(
+        status: SalespersonCodeStatus.notFound,
+        errorMessage: 'Please enter your salesperson code.',
+      );
+    }
 
+    try {
+      // 1. Check salesPersons collection
       final spQuery = await _salesPersonsRef
           .where('referralCode', isEqualTo: trimmedCode)
           .limit(1)
@@ -918,12 +1001,20 @@ class FirestoreService {
       if (spQuery.docs.isNotEmpty) {
         final doc = spQuery.docs.first;
         final data = doc.data();
-        final isInactive = data['isActive'] == false || data['status'] == 'inactive';
-        if (!isInactive) {
-          return {'id': doc.id, ...data};
+        final isEligibleActive = data['status'] == 'active' && data['isActive'] == true;
+        if (!isEligibleActive) {
+          return const SalespersonCodeResult(
+            status: SalespersonCodeStatus.inactive,
+            errorMessage: 'This salesperson code is no longer active. Please contact ITACON.',
+          );
         }
+        return SalespersonCodeResult(
+          status: SalespersonCodeStatus.active,
+          data: {'id': doc.id, ...data},
+        );
       }
 
+      // 2. Check users collection
       final userQuery = await _usersRef
           .where('referralCode', isEqualTo: trimmedCode)
           .where('role', isEqualTo: 'salesperson')
@@ -933,16 +1024,38 @@ class FirestoreService {
       if (userQuery.docs.isNotEmpty) {
         final doc = userQuery.docs.first;
         final data = doc.data();
-        final isInactive = data['isActive'] == false || data['status'] == 'inactive';
-        if (!isInactive) {
-          return {'id': doc.id, ...data};
+        final isEligibleActive = data['status'] == 'active' && data['isActive'] == true;
+        if (!isEligibleActive) {
+          return const SalespersonCodeResult(
+            status: SalespersonCodeStatus.inactive,
+            errorMessage: 'This salesperson code is no longer active. Please contact ITACON.',
+          );
         }
+        return SalespersonCodeResult(
+          status: SalespersonCodeStatus.active,
+          data: {'id': doc.id, ...data},
+        );
       }
 
-      return null;
+      return const SalespersonCodeResult(
+        status: SalespersonCodeStatus.notFound,
+        errorMessage: 'Invalid salesperson code.',
+      );
     } catch (e) {
-      rethrow;
+      debugPrint('Error verifying salesperson code: $e');
+      return const SalespersonCodeResult(
+        status: SalespersonCodeStatus.networkError,
+        errorMessage: "We couldn't verify the salesperson code. Please check your connection and try again.",
+      );
     }
+  }
+
+  Future<Map<String, dynamic>?> verifySalespersonReferralCode(String referralCode) async {
+    final result = await verifySalespersonCodeDetailed(referralCode);
+    if (result.isActive) {
+      return result.data;
+    }
+    return null;
   }
 
   Future<Map<String, String>> autoAssignSalespersonDetails({
@@ -983,9 +1096,9 @@ class FirestoreService {
           final existingSpData = existingSpDoc.data();
           return {
             'salespersonId': existingSpId.toString(),
-            'referralCode': existingSpData?['referralCode'] ?? 'SALES101',
-            'name': existingSpData?['name'] ?? existingSpData?['fullName'] ?? 'ITA Sales Executive',
-            'phone': existingSpData?['phone'] ?? existingSpData?['phoneNumber'] ?? '+919876543210',
+            'referralCode': existingSpData?['referralCode'] ?? defaultSalespersonReferralCode,
+            'name': existingSpData?['name'] ?? existingSpData?['fullName'] ?? defaultSalespersonName,
+            'phone': existingSpData?['phone'] ?? existingSpData?['phoneNumber'] ?? defaultSalespersonPhone,
           };
         }
       }
@@ -998,12 +1111,12 @@ class FirestoreService {
       String spPhone;
 
       if (availableSpList.isNotEmpty) {
-        // Pick salesperson with the lowest assignedClientsCount among existing 3 salespersons
+        // Pick salesperson with the lowest assignedClientsCount among active salespersons
         final chosenSp = availableSpList.first;
         assignedSalespersonId = (chosenSp['id'] ?? chosenSp['salesPersonId'] ?? chosenSp['salespersonId']) as String;
-        spReferralCode = chosenSp['referralCode'] ?? 'SALES101';
-        spName = chosenSp['name'] ?? chosenSp['fullName'] ?? 'ITA Sales Executive';
-        spPhone = chosenSp['phone'] ?? chosenSp['phoneNumber'] ?? '+919876543210';
+        spReferralCode = chosenSp['referralCode'] ?? defaultSalespersonReferralCode;
+        spName = chosenSp['name'] ?? chosenSp['fullName'] ?? defaultSalespersonName;
+        spPhone = chosenSp['phone'] ?? chosenSp['phoneNumber'] ?? defaultSalespersonPhone;
       } else {
         // Default fallback to active salesperson if no salespersons exist in database yet
         assignedSalespersonId = defaultSalespersonId;
@@ -1022,6 +1135,12 @@ class FirestoreService {
           companyName: targetCompany,
           clientCategory: targetCategory,
         );
+
+        final updatedProfile = await getUserProfile(targetUid);
+        if (updatedProfile != null) {
+          AppStateService.instance.setCurrentUserProfile(updatedProfile);
+          await UserSessionService.saveUserSession(updatedProfile);
+        }
       }
 
       return {
@@ -1076,9 +1195,9 @@ class FirestoreService {
 
       final spDoc = await _salesPersonsRef.doc(salespersonId).get();
       final spData = spDoc.data();
-      final spReferralCode = spData?['referralCode'] ?? 'SALES101';
-      final spName = spData?['name'] ?? spData?['fullName'] ?? 'ITA Sales Executive';
-      final spPhone = spData?['phone'] ?? spData?['phoneNumber'] ?? '+919876543210';
+      final spReferralCode = spData?['referralCode'] ?? defaultSalespersonReferralCode;
+      final spName = spData?['name'] ?? spData?['fullName'] ?? defaultSalespersonName;
+      final spPhone = spData?['phone'] ?? spData?['phoneNumber'] ?? defaultSalespersonPhone;
 
       final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(clientId).get();
       final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(clientId).get();
@@ -1094,26 +1213,19 @@ class FirestoreService {
           rawData?['salesPersonId'] ??
           rawData?['assignedSalespersonId'];
 
-      if (existingManualSnap.exists ||
-          existingAutoSnap.exists ||
-          existingAssignSnap.docs.isNotEmpty ||
-          (currentAssignedSp != null && currentAssignedSp.toString().trim().isNotEmpty)) {
+      if (currentAssignedSp != null &&
+          currentAssignedSp.toString().trim().isNotEmpty &&
+          currentAssignedSp.toString().trim() != salespersonId) {
         // Strict 1-to-many rule: One client can only connect to ONE salesperson.
-        // Client assignment already exists. Prevent duplicate document creation or reassignment.
-        // Heal users/{clientId} if assignment fields are missing or null
-        if (clientDoc == null || clientDoc.salesPersonId == null || clientDoc.salesPersonId!.isEmpty) {
-          final effectiveSp = (currentAssignedSp != null && currentAssignedSp.toString().trim().isNotEmpty)
-              ? currentAssignedSp.toString().trim()
-              : salespersonId;
-          await _usersRef.doc(clientId).set({
-            'assignedSalespersonId': effectiveSp,
-            'salesPersonId': effectiveSp,
-            'salespersonName': spName,
-            'salespersonPhone': spPhone,
-            'salespersonReferralCode': spReferralCode,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
+        // Client already legitimately assigned to another salesperson. Reject reassignment.
+        debugPrint('executeAtomicClientAssignment: Client $clientId already assigned to $currentAssignedSp. Reassignment rejected.');
+        return;
+      }
+
+      // Check if assignment already fully exists in mirrors to avoid redundant work
+      if (existingManualSnap.exists &&
+          existingAutoSnap.exists &&
+          existingAssignSnap.docs.isNotEmpty) {
         return;
       }
 
@@ -1130,17 +1242,20 @@ class FirestoreService {
           : (clientDoc?.userCategory ?? 'dealer');
       final resolvedCompany = companyName ?? clientDoc?.companyName ?? '';
 
-      // a. Set assignedSalespersonId, salespersonName, salespersonPhone, and isVerified: true on users/{clientId} ONLY
+      // a. Set assignedSalespersonId, salespersonName, salespersonPhone, and isVerified: true on users/{clientId} ONLY IF rawUserDoc exists
       final userUpdateData = {
         'assignedSalespersonId': salespersonId,
         'salesPersonId': salespersonId,
         'salespersonName': spName,
         'salespersonPhone': spPhone,
         'salespersonReferralCode': spReferralCode,
+        'status': 'active',
         'isVerified': true,
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      batch.set(_usersRef.doc(clientId), userUpdateData, SetOptions(merge: true));
+      if (rawUserDoc.exists) {
+        batch.set(_usersRef.doc(clientId), userUpdateData, SetOptions(merge: true));
+      }
 
       // Category collections (dealers, architects, etc.) DO NOT store salesperson data
       try {
@@ -1206,20 +1321,14 @@ class FirestoreService {
         SetOptions(merge: true),
       );
 
-      // Note: Legacy duplicate write to users/{salespersonId}/assigned_clients is removed to ensure
-      // salesPersons/{salespersonId}/assigned_clients is the single authoritative assigned-client list.
-
-      // d. Increment assignedClientsCount by +1 on salesPersons/{salespersonId} & users/{salespersonId}
-      final counterUpdate = {
-        'assignedClientsCount': FieldValue.increment(1),
-        'activeClientsCount': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      batch.set(_usersRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
-      batch.set(_salesPersonsRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
+      // Note: Privileged salesperson counters (assignedClientsCount, activeClientsCount)
+      // are authoritatively managed by the backend Cloud Function (Admin SDK) to ensure
+      // atomic, tamper-proof, and race-free incrementation. Client-side counter writes
+      // are disabled to maintain security boundary.
 
       await batch.commit();
     } catch (e) {
+      debugPrint('Warning: executeAtomicClientAssignment encountered: $e');
       rethrow;
     }
   }
@@ -1920,9 +2029,8 @@ class FirestoreService {
     });
   }
 
-  /// Submits payment proof and UTR for verification
-  /// Normalizes UTR, registers in payment_utrs, creates paymentSubmissions doc,
-  /// and updates order to pending_verification atomically.
+  /// Submits payment proof and UTR for verification via secure backend Cloud Function.
+  /// Replaces direct Firestore client writes to adhere strictly to firestore.rules (allow write: if false).
   Future<PaymentSubmission> submitPaymentProof({
     required String orderId,
     required double submittedAmount,
@@ -1930,122 +2038,47 @@ class FirestoreService {
     required DateTime paymentDate,
     required String proofStoragePath,
   }) async {
-    final orderDoc = await _ordersRef.doc(orderId).get();
-    if (!orderDoc.exists || orderDoc.data() == null) {
-      throw Exception('Order document $orderId does not exist.');
-    }
-
-    final order = TileOrder.fromMap(orderDoc.data()!, orderDoc.id);
-    if (order.status != 'confirmed') {
-      throw Exception('Payment is only accepted for confirmed purchase orders.');
-    }
-
-    final expectedAmount = order.totalAmount;
-    if (expectedAmount <= 0) {
-      throw Exception('Order total amount is not valid.');
-    }
-
-    if ((submittedAmount - expectedAmount).abs() > 0.01) {
-      throw Exception('Submitted amount must match the confirmed order total (₹${expectedAmount.toStringAsFixed(2)}).');
-    }
-
-    final normalizedUtr = PaymentSubmission.normalizeUtr(utrNumber);
+    final cleanUtr = utrNumber.trim();
+    final normalizedUtr = PaymentSubmission.normalizeUtr(cleanUtr);
     if (normalizedUtr.length < 6) {
       throw Exception('Please enter a valid Transaction/UTR reference (minimum 6 characters).');
     }
 
-    final submissionDocRef = _paymentSubmissionsRef.doc();
-    final utrDocRef = _paymentUtrsRef.doc(normalizedUtr);
-
-    final submission = PaymentSubmission(
-      submissionId: submissionDocRef.id,
-      orderId: orderId,
-      orderReference: order.orderReference,
-      customerId: order.userId,
-      customerName: order.customerName,
-      salesPersonId: order.salesPersonId,
-      paymentMethod: 'bank_transfer',
-      expectedAmount: expectedAmount,
-      submittedAmount: submittedAmount,
-      utrNumber: utrNumber.trim(),
-      utrNormalized: normalizedUtr,
-      paymentDate: paymentDate,
-      proofStoragePath: proofStoragePath,
-      status: 'pending_verification',
-      submittedAt: DateTime.now(),
-    );
-
-    await _db.runTransaction((transaction) async {
-      final existingUtrDoc = await transaction.get(utrDocRef);
-      if (existingUtrDoc.exists) {
-        final data = existingUtrDoc.data() ?? {};
-        final existingStatus = data['status'] as String? ?? '';
-        final existingOrderId = data['orderId'] as String? ?? '';
-        if (existingStatus == 'verified') {
-          throw Exception('This transaction reference (UTR) has already been verified for another order.');
-        }
-        if (existingStatus == 'pending_verification' && existingOrderId != orderId) {
-          throw Exception('This UTR is currently pending verification for another order.');
-        }
-      }
-
-      transaction.set(utrDocRef, {
-        'utr': utrNumber.trim(),
-        'utrNormalized': normalizedUtr,
-        'orderId': orderId,
-        'submissionId': submission.submissionId,
-        'customerId': order.userId,
-        'status': 'pending_verification',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      transaction.set(submissionDocRef, submission.toMap());
-
-      transaction.update(_ordersRef.doc(orderId), {
-        'paymentStatus': 'pending_verification',
-        'paymentSubmissionId': submission.submissionId,
-        'proofStoragePath': proofStoragePath,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      final historyDocRef = _ordersRef.doc(orderId).collection('orderStatusHistory').doc();
-      transaction.set(historyDocRef, {
-        'fromStatus': 'payment_due',
-        'toStatus': 'pending_verification',
-        'changedBy': order.userId,
-        'changedByRole': 'customer',
-        'remarks': 'Customer submitted Bank Transfer payment. UTR: $normalizedUtr, Amount: ₹${submittedAmount.toStringAsFixed(2)}',
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    });
-
-    // In-app notifications
     try {
-      await _usersRef.doc(order.userId).collection('notifications').add({
-        'title': 'Payment Submitted',
-        'message': 'Your payment details for PO #${order.orderReference} were submitted for verification.',
-        'type': 'payment_submitted',
+      final HttpsCallable callable = _functions.httpsCallable('submitPaymentProofCallable');
+      final HttpsCallableResult result = await callable.call<Map<String, dynamic>>({
         'orderId': orderId,
-        'submissionId': submission.submissionId,
-        'read': false,
-        'createdAt': FieldValue.serverTimestamp(),
+        'submittedAmount': submittedAmount,
+        'utrNumber': cleanUtr,
+        'paymentDate': paymentDate.toIso8601String(),
+        'proofStoragePath': proofStoragePath,
       });
 
-      if (order.salesPersonId.isNotEmpty) {
-        await _usersRef.doc(order.salesPersonId).collection('notifications').add({
-          'title': 'Payment Verification Required',
-          'message': '${order.customerName.isNotEmpty ? order.customerName : 'Customer'} submitted payment details for PO #${order.orderReference} (UTR: $normalizedUtr).',
-          'type': 'payment_verification_required',
-          'orderId': orderId,
-          'submissionId': submission.submissionId,
-          'read': false,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (_) {}
+      final Map<String, dynamic> data = Map<String, dynamic>.from(result.data as Map);
+      final String submissionId = (data['submissionId'] ?? '').toString();
+      final String status = (data['status'] ?? 'pending_verification').toString();
 
-    return submission;
+      return PaymentSubmission(
+        submissionId: submissionId,
+        orderId: orderId,
+        orderReference: '',
+        customerId: '',
+        expectedAmount: submittedAmount,
+        submittedAmount: submittedAmount,
+        utrNumber: cleanUtr,
+        utrNormalized: normalizedUtr,
+        paymentDate: paymentDate,
+        proofStoragePath: proofStoragePath,
+        status: status,
+        submittedAt: DateTime.now(),
+      );
+    } on FirebaseFunctionsException catch (fe) {
+      debugPrint('[FirestoreService] submitPaymentProofCallable error: ${fe.code} - ${fe.message}');
+      throw Exception(fe.message ?? 'Payment submission failed: ${fe.code}');
+    } catch (e) {
+      debugPrint('[FirestoreService] submitPaymentProof unexpected error: $e');
+      rethrow;
+    }
   }
 
 
@@ -2505,7 +2538,8 @@ class FirestoreService {
         }
       }
 
-      await _db.collection('customer_referrals').add({
+      final referralDocId = '${userId}_$formattedCode';
+      await _db.collection('customer_referrals').doc(referralDocId).set({
         'referralCode': formattedCode,
         'userId': userId,
         'clientId': userId,
@@ -2516,10 +2550,30 @@ class FirestoreService {
         'userCategory': resolvedCategory,
         'createdAt': FieldValue.serverTimestamp(),
         'enteredAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error saving customer referral code: $e');
     }
+  }
+
+  /// Authoritatively updates users/{uid} with validated salesperson fields.
+  Future<void> updateUserSalespersonAssignment({
+    required String uid,
+    required String salespersonId,
+    required String salespersonName,
+    required String salespersonPhone,
+    required String salespersonReferralCode,
+  }) async {
+    await _usersRef.doc(uid).set({
+      'salesPersonId': salespersonId,
+      'assignedSalespersonId': salespersonId,
+      'salespersonName': salespersonName,
+      'salespersonPhone': salespersonPhone,
+      'salespersonReferralCode': salespersonReferralCode,
+      'status': 'active',
+      'isVerified': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   /// Streams active promotions banners sorted by displayOrder ascending

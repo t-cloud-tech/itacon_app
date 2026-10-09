@@ -1,0 +1,590 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
+
+    // Deny writes that include plaintext credential fields
+    function hasSensitiveFields(data) {
+      return ('password' in data) ||
+             ('pass' in data) ||
+             ('hash' in data) ||
+             ('token' in data);
+    }
+
+    // Authenticated request
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Request is from the owner of a given userId
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Staff = admin, manager, salesperson (via custom claim OR Firestore role/category).
+    // NOTE: salesPersons document existence check = cost-effective proxy for salesperson auth.
+    function isStaff() {
+      return isAuthenticated() && (
+        (('admin' in request.auth.token) && request.auth.token.admin == true) ||
+        (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager', 'salesperson', 'staff']) ||
+        exists(/databases/$(database)/documents/salesPersons/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'salesperson', 'staff'] ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager', 'salesperson', 'staff']
+        ))
+      );
+    }
+
+    // Admin or manager only (for payment config, reward config writes)
+    function isAdminOrManager() {
+      return isAuthenticated() && (
+        (('admin' in request.auth.token) && request.auth.token.admin == true) ||
+        (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager']
+        ))
+      );
+    }
+
+    // Check if authenticated user is the assigned salesperson for this order
+    function isAssignedSalespersonForOrder(orderData) {
+      return isStaff() && (
+        (('salesPersonId' in orderData) && orderData.salesPersonId == request.auth.uid) ||
+        (('salespersonId' in orderData) && orderData.salespersonId == request.auth.uid) ||
+        (('userId' in orderData) && orderData.userId != '' && (
+          (exists(/databases/$(database)/documents/Auto_Assign_User/$(orderData.userId)) &&
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.userId)).data.assignedSalesPersonId == request.auth.uid)) ||
+          (exists(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)) && (
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data.assignedSalesPersonId == request.auth.uid) ||
+           (('salesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.userId)).data.salesPersonId == request.auth.uid)
+          )) ||
+          (exists(/databases/$(database)/documents/users/$(orderData.userId)) && (
+           (('salesPersonId' in get(/databases/$(database)/documents/users/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.userId)).data.salesPersonId == request.auth.uid) ||
+           (('assignedSalespersonId' in get(/databases/$(database)/documents/users/$(orderData.userId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.userId)).data.assignedSalespersonId == request.auth.uid)
+          ))
+        )) ||
+        (('customerId' in orderData) && orderData.customerId != '' && (
+          (exists(/databases/$(database)/documents/Auto_Assign_User/$(orderData.customerId)) &&
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/Auto_Assign_User/$(orderData.customerId)).data.assignedSalesPersonId == request.auth.uid)) ||
+          (exists(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)) && (
+           (('assignedSalesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data.assignedSalesPersonId == request.auth.uid) ||
+           (('salesPersonId' in get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/Manual_salesperson_assign/$(orderData.customerId)).data.salesPersonId == request.auth.uid)
+          )) ||
+          (exists(/databases/$(database)/documents/users/$(orderData.customerId)) && (
+           (('salesPersonId' in get(/databases/$(database)/documents/users/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.customerId)).data.salesPersonId == request.auth.uid) ||
+           (('assignedSalespersonId' in get(/databases/$(database)/documents/users/$(orderData.customerId)).data) &&
+            get(/databases/$(database)/documents/users/$(orderData.customerId)).data.assignedSalespersonId == request.auth.uid)
+          ))
+        ))
+      );
+    }
+
+    // Whitelist of valid customer categories
+    function isValidCustomerCategory(cat) {
+      return cat in ['dealer', 'architect', 'builder', 'wholesaler', 'retailer'];
+    }
+
+    // Ensure customer preserves the staff-assigned salesperson ID and does not forge or change it
+    function isPreservingAssignedSalesperson() {
+      return (!('salesPersonId' in resource.data) || request.resource.data.salesPersonId == resource.data.salesPersonId) &&
+             (!('assignedSalespersonId' in resource.data) || request.resource.data.assignedSalespersonId == resource.data.assignedSalespersonId);
+    }
+
+    // Deny customer modification or reassignment of salesperson fields once already assigned
+    function isModifyingSalespersonAssignmentFields() {
+      return (('salesPersonId' in resource.data && resource.data.salesPersonId != null && resource.data.salesPersonId != '') ||
+              ('assignedSalespersonId' in resource.data && resource.data.assignedSalespersonId != null && resource.data.assignedSalespersonId != '')) &&
+             request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['salesPersonId', 'assignedSalespersonId', 'salespersonName', 'salespersonPhone', 'salespersonReferralCode']);
+    }
+
+    // Narrow self-registration permission for pre-assigned customer stubs
+    function isCustomerSelfRegistrationWrite(userId) {
+      return isOwner(userId) &&
+        (!('role' in resource.data) || resource.data.role == null || resource.data.role == '') &&
+        (!('userCategory' in resource.data) || resource.data.userCategory == null || resource.data.userCategory == '') &&
+        ('role' in request.resource.data) &&
+        isValidCustomerCategory(request.resource.data.role) &&
+        ('userCategory' in request.resource.data) &&
+        isValidCustomerCategory(request.resource.data.userCategory) &&
+        isPreservingAssignedSalesperson() &&
+        !hasRewardFields(request.resource.data);
+    }
+
+    // Deny writes that forge privileged user fields
+    function isModifyingPrivilegedUserFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['role', 'userCategory', 'loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
+    }
+
+    // Deny creates that smuggle reward fields
+    function hasRewardFields(data) {
+      return ('loyaltyPoints' in data) ||
+             ('lifetimePoints' in data) ||
+             ('welcomeBonusGranted' in data) ||
+             ('referredBy' in data);
+    }
+
+    // =========================================================================
+    // USERS COLLECTION
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isStaff();
+
+      allow create: if (isOwner(userId) || isAdminOrManager()) &&
+        !hasSensitiveFields(request.resource.data) &&
+        !hasRewardFields(request.resource.data) &&
+        (!isOwner(userId) || !('role' in request.resource.data) || !(request.resource.data.role in ['admin', 'manager', 'salesperson', 'staff']));
+
+      allow update: if isAuthenticated() &&
+        !hasSensitiveFields(request.resource.data) &&
+        (
+          (isOwner(userId) && !isModifyingPrivilegedUserFields() && !isModifyingSalespersonAssignmentFields()) ||
+          isCustomerSelfRegistrationWrite(userId) ||
+          isAdminOrManager() ||
+          (isStaff() && !isModifyingPrivilegedUserFields())
+        );
+
+      allow delete: if isAdminOrManager();
+
+      match /notifications/{notifId} {
+        allow read, update: if isOwner(userId) || isStaff();
+        allow create: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+        allow delete: if isOwner(userId) || isStaff();
+      }
+
+      match /cart/{itemId} {
+        allow read, write: if isOwner(userId) || isStaff();
+      }
+
+      match /demand_profile/{docId} {
+        allow read: if isOwner(userId) || isStaff();
+        allow write: if isOwner(userId) || isStaff();
+      }
+
+      match /assigned_clients/{clientId} {
+        allow read: if isAuthenticated();
+        allow write: if isStaff();
+      }
+    }
+
+    // =========================================================================
+    // ORDERS COLLECTION
+    // =========================================================================
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.salesPersonId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+
+      allow create: if isAuthenticated() && (
+        ((request.resource.data.userId == request.auth.uid ||
+          request.resource.data.customerId == request.auth.uid) &&
+         request.resource.data.status in ['pending_rate', 'pending_salesperson_review', 'awaiting_quote'] &&
+         (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus in ['not_required', 'unpaid', 'payment_due']) &&
+         (!('paidAmount' in request.resource.data) || request.resource.data.paidAmount == 0 || request.resource.data.paidAmount == null) &&
+         (!('paidAt' in request.resource.data) || request.resource.data.paidAt == null) &&
+         (!('paymentId' in request.resource.data) || request.resource.data.paymentId == null) &&
+         (!('rateQuotedAt' in request.resource.data) || request.resource.data.rateQuotedAt == null) &&
+         (!('confirmedAt' in request.resource.data) || request.resource.data.confirmedAt == null) &&
+         !hasSensitiveFields(request.resource.data)) ||
+        isAdminOrManager() ||
+        (isStaff() && (
+          request.resource.data.salesPersonId == request.auth.uid ||
+          request.resource.data.salespersonId == request.auth.uid
+        ) && !hasSensitiveFields(request.resource.data))
+      );
+
+      allow update: if isAuthenticated() && (
+        ((isAdminOrManager() || isStaff() || isAssignedSalespersonForOrder(resource.data)) &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy']) &&
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus']) || request.resource.data.paymentStatus != 'paid')) ||
+        ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
+         (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&
+         request.resource.data.status == 'confirmed' &&
+         request.resource.data.paymentStatus == 'payment_due' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paymentStatus', 'confirmedAt', 'updatedAt', 'changedByRole'])) ||
+        ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
+         (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&
+         request.resource.data.status == 'rejected' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'rejectionReason', 'rejectedBy', 'changedByRole']))
+      );
+
+      allow delete: if false;
+
+      match /orderItems/{itemId} {
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid ||
+          isStaff()
+        );
+        allow create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          isAdminOrManager() ||
+          isAssignedSalespersonForOrder(get(/databases/$(database)/documents/orders/$(orderId)).data)
+        );
+        allow update: if isAdminOrManager() ||
+          isAssignedSalespersonForOrder(get(/databases/$(database)/documents/orders/$(orderId)).data);
+        allow delete: if false;
+      }
+
+      match /orderStatusHistory/{historyId} {
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid ||
+          isStaff()
+        );
+        allow create: if isAuthenticated() && (
+          get(/databases/$(database)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+          get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+          isAdminOrManager() ||
+          isAssignedSalespersonForOrder(get(/databases/$(database)/documents/orders/$(orderId)).data)
+        ) && !hasSensitiveFields(request.resource.data);
+        allow update, delete: if false;
+      }
+    }
+
+    // =========================================================================
+    // QUOTATIONS COLLECTION
+    // =========================================================================
+    match /quotations/{quoteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // SALES ORDERS COLLECTION
+    // =========================================================================
+    match /salesOrders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // PRICE & DISCOUNT APPROVAL COLLECTIONS
+    // =========================================================================
+    match /approvalRequests/{requestId} {
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /priceApprovals/{approvalId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // ESTIMATES COLLECTION
+    // =========================================================================
+    match /estimates/{estimateId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.salesPersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow create, update: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow delete: if isAdminOrManager();
+
+      match /estimateItems/{itemId} {
+        allow read: if isAuthenticated();
+        allow write: if isStaff();
+      }
+    }
+
+    // =========================================================================
+    // CART & WISHLIST COLLECTIONS
+    // =========================================================================
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId) || isStaff();
+      match /cartItems/{itemId} {
+        allow read, write: if isOwner(userId) || isStaff();
+      }
+    }
+
+    match /wishlists/{userId} {
+      allow read, write: if isOwner(userId) || isStaff();
+      match /wishlistItems/{itemId} {
+        allow read, write: if isOwner(userId) || isStaff();
+      }
+    }
+
+    // =========================================================================
+    // NOTIFICATIONS COLLECTION (root-level)
+    // =========================================================================
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.targetUser == request.auth.uid ||
+        isStaff()
+      );
+      allow create: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.targetUser == request.auth.uid ||
+        isStaff()
+      ) && !hasSensitiveFields(request.resource.data);
+      allow delete: if isStaff();
+    }
+
+    // =========================================================================
+    // CUSTOMER DIRECTORY & CRM
+    // =========================================================================
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /leads/{leadId} {
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /opportunities/{oppId} {
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+    match /followUps/{followUpId} {
+      allow read: if isStaff();
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+    }
+
+    // =========================================================================
+    // CUSTOMER PRICING & TIERS
+    // =========================================================================
+    match /customerPricing/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+
+    // =========================================================================
+    // MARKETING: FESTIVAL GREETINGS, OFFERS, PROMOTIONS
+    // =========================================================================
+    match /festivalGreetings/{greetingId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /offers/{offerId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+    match /promotions/{promoId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // =========================================================================
+    // LOGISTICS, DESIGN REQUESTS, DEMANDS
+    // =========================================================================
+    match /handoffs/{handoffId} {
+      allow read, write: if isStaff();
+    }
+    match /customerSummary/{docId} {
+      allow read: if isAuthenticated() && (isOwner(docId) || isStaff());
+      allow write: if isStaff();
+    }
+    match /design_requests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isAuthenticated();
+      allow update, delete: if isStaff();
+    }
+    match /transporters/{transporterId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+    match /shipments/{shipmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        isStaff()
+      );
+      allow write: if isStaff();
+    }
+    match /user_demands/{demandId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isStaff());
+      allow create: if isAuthenticated();
+      allow update, delete: if isStaff();
+    }
+
+    // =========================================================================
+    // PAYMENT SECURITY - MUST NOT BE WEAKENED
+    // =========================================================================
+
+    match /paymentConfig/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
+
+    match /paymentSubmissions/{submissionId} {
+      allow read: if isAuthenticated() && (
+        resource.data.customerId == request.auth.uid ||
+        resource.data.salesPersonId == request.auth.uid ||
+        resource.data.salespersonId == request.auth.uid ||
+        isStaff()
+      );
+      allow write: if false;
+    }
+
+    match /payment_utrs/{utrNormalized} {
+      allow read: if isAdminOrManager();
+      allow write: if false;
+    }
+
+    // =========================================================================
+    // REWARDS & LOYALTY SYSTEM - MUST NOT BE WEAKENED
+    // =========================================================================
+
+    match /loyaltyConfig/{configId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+
+    match /loyaltyTransactions/{txId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdminOrManager());
+      allow write: if false;
+    }
+
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.referrerUid == request.auth.uid ||
+        resource.data.referredUid == request.auth.uid ||
+        isAdminOrManager()
+      );
+      allow write: if false;
+    }
+
+    match /loyaltyRedemptions/{redemptionId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdminOrManager());
+      allow write: if false;
+    }
+
+    match /customer_referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.clientId == request.auth.uid ||
+        resource.data.referrerUid == request.auth.uid ||
+        resource.data.newUserUid == request.auth.uid ||
+        isAdminOrManager()
+      );
+      allow create: if isAuthenticated() &&
+        (request.resource.data.userId == request.auth.uid ||
+         request.resource.data.clientId == request.auth.uid) &&
+        !hasSensitiveFields(request.resource.data);
+      allow update, delete: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // CATEGORY COLLECTIONS
+    // =========================================================================
+    match /dealers/{userId} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+    }
+    match /architects/{userId} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+    }
+    match /builders/{userId} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+    }
+    match /wholesalers/{userId} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+    }
+    match /retailers/{userId} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff());
+    }
+
+    // =========================================================================
+    // SALESPERSON & ASSIGNMENT COLLECTIONS
+    // =========================================================================
+    match /salesPersons/{spId} {
+      allow read: if isAuthenticated();
+      allow write: if (isStaff() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedClientsCount', 'activeClientsCount', 'updatedAt']))) && !hasSensitiveFields(request.resource.data);
+
+      match /assigned_clients/{clientId} {
+        allow read: if isAuthenticated();
+        allow write: if isStaff() || (isAuthenticated() && clientId == request.auth.uid);
+      }
+    }
+
+    match /client_assignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        resource.data.clientId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.userId == request.auth.uid ||
+        isStaff()
+      );
+      allow write: if ((isAuthenticated() && assignmentId == 'ASGN_' + request.auth.uid) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
+    }
+
+    match /Auto_Assign_User/{docId} {
+      allow read: if isAuthenticated() && (docId == request.auth.uid || isStaff());
+      allow write: if (isOwner(docId) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
+    }
+
+    match /Manual_salesperson_assign/{docId} {
+      allow read: if isStaff() || (isAuthenticated() && docId == request.auth.uid);
+      allow write: if (isOwner(docId) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
+    }
+
+    // =========================================================================
+    // PRODUCTS, TILES, CATEGORIES, SYSTEM CONFIG
+    // =========================================================================
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+    match /tiles/{tileId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+    match /categories/{catId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+    match /systemConfigs/{configId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // SECURITY NOTE:
+    // No broad wildcard match /{document=**} exists.
+    // All collections not listed here are DENIED by default (Firestore default).
+    // =========================================================================
+  }
+}

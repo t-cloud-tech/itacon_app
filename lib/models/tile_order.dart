@@ -315,6 +315,8 @@ class TileOrder {
     if (isHistoryStage) return false;
     final s = status.toLowerCase();
     return s == 'confirmed' ||
+           s == 'approved' ||
+           s == 'user_confirmed' ||
            s == 'order_confirmed' ||
            s == 'processing' ||
            s == 'dispatched' ||

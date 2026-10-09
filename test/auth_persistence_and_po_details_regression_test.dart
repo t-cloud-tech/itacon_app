@@ -398,8 +398,8 @@ void main() {
 
       // Screen remains open
       expect(find.text('PO Details (ITC-PO-2026-CONF1)'), findsOneWidget);
-      expect(find.text('Payment Required (Quotation Confirmed)'), findsOneWidget);
-      expect(find.text('Order Confirmed'), findsOneWidget);
+      expect(find.text('Payment Required (PO Approved)'), findsOneWidget);
+      expect(find.text('PO Approved'), findsOneWidget);
       expect(find.text('Download Official PO (PDF)'), findsOneWidget);
 
       // Payment section is present alongside PO details (NEVER replaces PO details)

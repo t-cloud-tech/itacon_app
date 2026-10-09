@@ -7,6 +7,7 @@ import '../models/user_profile.dart';
 import 'app_state_service.dart';
 import 'auth_service.dart';
 import 'notification_service.dart';
+import '../screens/auth_screen.dart';
 import 'user_demand_service.dart';
 
 /// Manages persistent user login session across app restarts
@@ -59,13 +60,17 @@ class UserSessionService {
       // 2. Perform complete session, auth, cache, and in-memory state teardown
       await clearUserSession();
 
-      // 3. Pop any pushed routes back to the root AuthGate.
-      // AuthGate is the single root authority and reactively renders AuthScreen when user is null.
+      // 3. Navigate cleanly to AuthScreen on the root navigator, wiping the entire stack
       final navState = NotificationService.navigatorKey.currentState ??
           (context != null && context.mounted ? Navigator.of(context, rootNavigator: true) : null);
 
-      if (navState != null && navState.canPop()) {
-        navState.popUntil((route) => route.isFirst);
+      if (navState != null) {
+        navState.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const AuthScreen(initialMode: AuthViewMode.login),
+          ),
+          (route) => false,
+        );
       }
     } catch (e) {
       debugPrint('[UserSessionService] Error during centralized logout: $e');

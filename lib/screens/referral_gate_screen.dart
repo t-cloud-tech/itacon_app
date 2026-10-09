@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
+import '../services/firestore_service.dart';
+import '../services/user_session_service.dart';
 import 'main_navigation_screen.dart';
 
 class ReferralGateScreen extends StatefulWidget {
@@ -156,11 +157,11 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       }
     } else {
-      setState(() => _error = 'Invalid code. Check with your salesperson.');
+      setState(() => _error = 'Invalid or inactive salesperson code.');
     }
   }
 
@@ -172,9 +173,9 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
 
     try {
       final details = await _authService.autoAssignSalespersonDetails();
-      final refCode = details['referralCode'] ?? 'SALES101';
-      final spName = details['name'] ?? 'ITA Sales Executive';
-      final spPhone = details['phone'] ?? '+919876543210';
+      final refCode = details['referralCode'] ?? FirestoreService.defaultSalespersonReferralCode;
+      final spName = details['name'] ?? FirestoreService.defaultSalespersonName;
+      final spPhone = details['phone'] ?? FirestoreService.defaultSalespersonPhone;
 
       if (mounted) {
         setState(() {
@@ -191,14 +192,14 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _codeController.text = 'SALES101';
+          _codeController.text = FirestoreService.defaultSalespersonReferralCode;
           _isLoading = false;
         });
 
         _showSmsConfirmationDialog(
-          spName: 'ITA Sales Executive',
-          spPhone: '+919876543210',
-          referralCode: 'SALES101',
+          spName: FirestoreService.defaultSalespersonName,
+          spPhone: FirestoreService.defaultSalespersonPhone,
+          referralCode: FirestoreService.defaultSalespersonReferralCode,
         );
       }
     }
@@ -206,14 +207,31 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [
+            TextButton.icon(
+              icon: const Icon(Icons.logout_rounded, color: Color(0xFF1A237E), size: 18),
+              label: const Text(
+                'Logout',
+                style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold),
+              ),
+              onPressed: () => UserSessionService.logout(context),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
@@ -327,6 +345,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

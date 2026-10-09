@@ -9,6 +9,7 @@ import '../services/user_session_service.dart';
 import '../theme/app_theme.dart';
 import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
+import 'referral_gate_screen.dart';
 import 'splash_screen.dart';
 
 import '../services/auth_service.dart';
@@ -34,6 +35,27 @@ class AuthGate extends StatelessWidget {
     this.profileLoader,
     this.authenticatedChild,
   });
+
+  /// Evaluates whether an authenticated customer must complete salesperson referral code on AuthScreen.
+  ///
+  /// CRITICAL ARCHITECTURAL GUARANTEE:
+  /// Existing / historical completed accounts have status 'active' and MUST NOT be forced
+  /// to [AuthScreen] merely because a newly introduced salesperson field is absent.
+  /// Only accounts whose registration is genuinely pending salesperson completion
+  /// (status == 'pending_salesperson_verification') are gated.
+  static bool requiresSalespersonCompletion(UserProfile profile) {
+    final role = profile.role.toLowerCase();
+    final isStaffUser = ['admin', 'manager', 'salesperson', 'staff'].contains(role);
+    if (isStaffUser) return false;
+
+    final hasSalesperson = (profile.salesPersonId != null && profile.salesPersonId!.trim().isNotEmpty) ||
+                           (profile.assignedSalespersonId != null && profile.assignedSalespersonId!.trim().isNotEmpty);
+    if (hasSalesperson) return false;
+
+    // Existing / historical valid customers have isVerified/phoneVerified == true.
+    // An incomplete new registration specifically has !hasSalesperson AND !profile.phoneVerified.
+    return !profile.phoneVerified || profile.status == 'pending_salesperson_verification';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +205,7 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
 
       final remoteProfile = await fetcher(uid);
       if (remoteProfile != null && remoteProfile.name != 'Valued Partner') {
+        appState.setCurrentUserProfile(remoteProfile);
         await UserSessionService.saveUserSession(remoteProfile);
         if (kDebugMode) debugPrint('[AUTH] Profile load success');
         if (mounted) {
@@ -302,6 +325,13 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
           ),
         ),
       );
+    }
+
+    if (AppStateService.instance.hasSessionProfile) {
+      final profile = AppStateService.instance.currentUserProfile;
+      if (AuthGate.requiresSalespersonCompletion(profile)) {
+        return const ReferralGateScreen();
+      }
     }
 
     return widget.authenticatedChild ?? const MainNavigationScreen();

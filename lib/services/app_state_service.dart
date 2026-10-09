@@ -8,6 +8,7 @@ import '../models/user_profile.dart';
 import 'firestore_service.dart';
 import 'pricing_service.dart';
 import 'user_demand_service.dart';
+import '../utils/tile_dimension_helper.dart';
 
 /// Represents an item in the user's cart
 class CartItem {
@@ -61,9 +62,13 @@ class CartItem {
   }
 
   double get effectiveUnitPrice => PricingService.instance.resolvePrice(product).unitPrice;
-  double get sqFtPerBox => product.sqFtPerBox > 0 ? product.sqFtPerBox : 15.5;
+  double get sqFtPerBox {
+    if (product.isAdhesive) return 0.0;
+    if (product.sqFtPerBox > 1.0) return product.sqFtPerBox;
+    return TileDimensionHelper.getSqFtPerBox(selectedSize);
+  }
   int get pcsPerBox => product.pcsPerBox > 0 ? product.pcsPerBox : 2;
-  double get boxPrice => product.isAdhesive ? effectiveUnitPrice : (effectiveUnitPrice * pcsPerBox);
+  double get boxPrice => product.isAdhesive ? effectiveUnitPrice : (effectiveUnitPrice * sqFtPerBox);
   double get itemTotal => boxPrice * quantity;
 
   int get quantityInBoxes => quantity;
@@ -99,8 +104,9 @@ class AppStateService extends ChangeNotifier {
 
   double get subtotal =>
       _cartItems.fold(0.0, (sum, item) => sum + item.itemTotal);
+  double get taxAmount => subtotal * 0.18;
   double get freightFee => 0.0;
-  double get totalAmount => subtotal;
+  double get totalAmount => subtotal + taxAmount;
 
   bool isFavorite(String productId) => _favoriteProductsMap.containsKey(productId);
 

@@ -27,6 +27,7 @@ class CartProvider extends ChangeNotifier {
   double get totalWeightTons => _appState.totalWeightTons;
 
   double get subtotal => _appState.subtotal;
+  double get taxAmount => _appState.taxAmount;
   double get freightFee => _appState.freightFee;
   double get totalAmount => _appState.totalAmount;
 

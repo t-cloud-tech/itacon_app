@@ -16,11 +16,11 @@ class ProfileTierCard extends StatelessWidget {
     this.onViewContractRates,
   });
 
-  // Default executive fallback credentials
-  static const String _defaultSalespersonName = 'Rajesh Sharma';
-  static const String _defaultRole = 'Senior Sales Executive';
-  static const String _defaultPhone = '+91 93744 90901';
-  static const String _defaultEmpId = 'EMP-ITACON-408';
+  // Default executive fallback credentials (aligned with single active production salesperson)
+  static const String _defaultSalespersonName = 'Vraj Shah';
+  static const String _defaultRole = 'Sales Executive';
+  static const String _defaultPhone = '+91 98765 43210';
+  static const String _defaultEmpId = 'SALES101';
 
   Future<void> _makeCall(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
@@ -47,10 +47,17 @@ class ProfileTierCard extends StatelessWidget {
     final discountRatio = PricingService.tierDiscountMap[category] ?? 0.0;
     final discountPct = (discountRatio * 100).toStringAsFixed(0);
 
-    const salespersonName = _defaultSalespersonName;
-    const salespersonPhone = _defaultPhone;
+    final salespersonName = (user.salespersonName != null && user.salespersonName!.trim().isNotEmpty)
+        ? user.salespersonName!
+        : _defaultSalespersonName;
+    final salespersonPhone = (user.salespersonPhone != null && user.salespersonPhone!.trim().isNotEmpty)
+        ? user.salespersonPhone!
+        : _defaultPhone;
     const salespersonRole = _defaultRole;
-    const salespersonEmpId = _defaultEmpId;
+    final salespersonEmpId = (user.salespersonReferralCode != null && user.salespersonReferralCode!.trim().isNotEmpty)
+        ? user.salespersonReferralCode!
+        : _defaultEmpId;
+    final initialLetter = salespersonName.isNotEmpty ? salespersonName[0].toUpperCase() : 'V';
 
     return Container(
       width: double.infinity,
@@ -228,9 +235,9 @@ class ProfileTierCard extends StatelessWidget {
                                 color: AppTheme.accentOrange.withValues(alpha: 0.5),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               salespersonEmpId,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -251,10 +258,10 @@ class ProfileTierCard extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.15),
                               shape: BoxShape.circle,
                             ),
-                            child: const Center(
+                            child: Center(
                               child: Text(
-                                'R',
-                                style: TextStyle(
+                                initialLetter,
+                                style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -269,9 +276,9 @@ class ProfileTierCard extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
+                                Text(
                                   salespersonName,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
@@ -286,9 +293,9 @@ class ProfileTierCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                const Text(
+                                Text(
                                   salespersonPhone,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,

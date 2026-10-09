@@ -10,11 +10,11 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { SalesOrder, OrderStatus, PaymentSubmissionRecord } from "@/types";
 import { subscribeAllOrders, ClientOrderPO } from "@/lib/order-service";
-import { 
-  Truck, 
-  Search, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Truck,
+  Search,
+  CheckCircle2,
+  Clock,
   CreditCard,
   Building2,
   Eye,
@@ -177,7 +177,7 @@ export default function SalesOrdersPage() {
 
   // Filtered Client POs
   const filteredClientPOs = clientPOs.filter(po => {
-    const matchesSearch = 
+    const matchesSearch =
       po.poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.companyName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -188,7 +188,7 @@ export default function SalesOrdersPage() {
 
   // Filtered Orders
   const filteredOrders = orders.filter(o => {
-    const matchesSearch = 
+    const matchesSearch =
       o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       o.customerName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || o.status === statusFilter;
@@ -237,7 +237,7 @@ export default function SalesOrdersPage() {
     try {
       const verifyCallable = httpsCallable(functions, "verifyPaymentCallable");
       const res: any = await verifyCallable({ submissionId: verifyingSub.id });
-      
+
       if (res.data?.success) {
         setActionSuccess(`Payment of ₹${verifyingSub.submittedAmount.toLocaleString("en-IN")} verified successfully!`);
         setVerifyingSub(null);
@@ -349,28 +349,25 @@ export default function SalesOrdersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => { setActiveTab("client_pos"); setStatusFilter("all"); setSearchTerm(""); }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${
-                activeTab === "client_pos"
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${activeTab === "client_pos"
                   ? "bg-[#0E274D] text-white shadow-sm"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+                }`}
             >
               <Smartphone className="w-3.5 h-3.5" />
               <span>Client POs (Mobile App)</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-                activeTab === "client_pos" ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-800"
-              }`}>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "client_pos" ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-800"
+                }`}>
                 {clientPOs.length}
               </span>
             </button>
 
             <button
               onClick={() => { setActiveTab("sales_orders"); setStatusFilter("all"); setSearchTerm(""); }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${
-                activeTab === "sales_orders"
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${activeTab === "sales_orders"
                   ? "bg-[#0E274D] text-white shadow-sm"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+                }`}
             >
               <Truck className="w-3.5 h-3.5" />
               <span>Factory Sales Orders</span>
@@ -381,11 +378,10 @@ export default function SalesOrdersPage() {
 
             <button
               onClick={() => { setActiveTab("payments"); setPaymentFilter("all"); setPaymentSearch(""); }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer relative ${
-                activeTab === "payments"
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer relative ${activeTab === "payments"
                   ? "bg-[#0E274D] text-white shadow-sm"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+                }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Payment Verification</span>
@@ -420,8 +416,8 @@ export default function SalesOrdersPage() {
                   activeTab === "client_pos"
                     ? "Search client name, company or PO#..."
                     : activeTab === "sales_orders"
-                    ? "Search order # or customer..."
-                    : "Search PO #, customer, or UTR..."
+                      ? "Search order # or customer..."
+                      : "Search PO #, customer, or UTR..."
                 }
                 value={activeTab === "payments" ? paymentSearch : searchTerm}
                 onChange={(e) => {
@@ -508,28 +504,27 @@ export default function SalesOrdersPage() {
                         <span className="px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold uppercase tracking-wider">
                           Mobile App PO
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border ${
-                          po.status === "pending_rate" 
-                            ? "bg-amber-50 text-amber-800 border-amber-200" 
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border ${po.status === "pending_rate"
+                            ? "bg-amber-50 text-amber-800 border-amber-200"
                             : po.status === "pending_admin_approval"
-                            ? "bg-amber-100 text-amber-900 border-amber-300"
-                            : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
-                            ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                            : po.adminApprovalStatus === "rejected"
-                            ? "bg-rose-100 text-rose-900 border-rose-300"
-                            : po.status === "rate_quoted"
-                            ? "bg-blue-50 text-blue-800 border-blue-200"
-                            : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                        }`}>
-                          {po.status === "pending_rate" 
-                            ? "Quote Needed" 
+                              ? "bg-amber-100 text-amber-900 border-amber-300"
+                              : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : po.adminApprovalStatus === "rejected"
+                                  ? "bg-rose-100 text-rose-900 border-rose-300"
+                                  : po.status === "rate_quoted"
+                                    ? "bg-blue-50 text-blue-800 border-blue-200"
+                                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          }`}>
+                          {po.status === "pending_rate"
+                            ? "Quote Needed"
                             : po.status === "pending_admin_approval"
-                            ? "Awaiting Admin (< ₹26.50)"
-                            : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
-                            ? "Admin Approved • Awaiting Salesperson Release"
-                            : po.adminApprovalStatus === "rejected"
-                            ? "Admin Rejected • Revise Rate"
-                            : po.status.replace("_", " ")}
+                              ? "Awaiting Admin (< ₹26.50)"
+                              : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
+                                ? "Admin Approved • Awaiting Salesperson Release"
+                                : po.adminApprovalStatus === "rejected"
+                                  ? "Admin Rejected • Revise Rate"
+                                  : po.status.replace("_", " ")}
                         </span>
                         <span className="text-xs text-slate-400">
                           {new Date(po.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -610,15 +605,15 @@ export default function SalesOrdersPage() {
                         </Link>
                       )}
                       <span className="text-[11px] text-slate-400 text-center">
-                        {po.status === "pending_rate" 
-                          ? "Quantities locked to PO" 
+                        {po.status === "pending_rate"
+                          ? "Quantities locked to PO"
                           : po.status === "pending_admin_approval"
-                          ? "Awaiting Admin Confirmation"
-                          : po.adminApprovalStatus === "approved"
-                          ? "Admin Approved • Ready for Release"
-                          : po.adminApprovalStatus === "rejected"
-                          ? "Rate revision required"
-                          : "Rate estimate delivered"}
+                            ? "Awaiting Admin Confirmation"
+                            : po.adminApprovalStatus === "approved"
+                              ? "Admin Approved • Ready for Release"
+                              : po.adminApprovalStatus === "rejected"
+                                ? "Rate revision required"
+                                : "Rate estimate delivered"}
                       </span>
                     </div>
                   </div>
@@ -692,13 +687,12 @@ export default function SalesOrdersPage() {
                         </td>
 
                         <td className="py-4 px-5">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${
-                            ord.paymentStatus === "paid"
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${ord.paymentStatus === "paid"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : ord.paymentStatus === "partial"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                          }`}>
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : "bg-red-50 text-red-700 border-red-200"
+                            }`}>
                             {ord.paymentStatus}
                           </span>
                         </td>
@@ -782,8 +776,8 @@ export default function SalesOrdersPage() {
 
                           <td className="py-4 px-5 text-xs text-slate-600">
                             {sub.paymentDate ? (
-                              typeof sub.paymentDate === "string" 
-                                ? sub.paymentDate 
+                              typeof sub.paymentDate === "string"
+                                ? sub.paymentDate
                                 : new Date(sub.paymentDate?.seconds * 1000).toLocaleDateString("en-IN")
                             ) : "N/A"}
                           </td>

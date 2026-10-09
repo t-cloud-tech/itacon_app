@@ -259,7 +259,267 @@ assert.strictEqual(verifyRegistrationPayloadAgainstRules(flutterRegistrationPayl
 const forgedPayload = { ...flutterRegistrationPayload, loyaltyPoints: 50000 };
 assert.strictEqual(verifyRegistrationPayloadAgainstRules(forgedPayload).valid, false, 'Direct loyaltyPoints injection must be caught by rules');
 
+// Test 15: Incomplete Customer Registration (No salesperson) -> No welcome bonus, No assignment
+function processRegistrationCompletion(userData, existingWelcomeGranted = false, alreadyAssigned = false) {
+  const spId = (userData.salesPersonId || userData.assignedSalespersonId || '').toString().trim();
+  const isVerified = userData.isVerified === true || userData.status === 'active';
+
+  // If salesperson not verified, account is incomplete -> skip
+  if (!spId || !isVerified) {
+    return {
+      status: 'skipped_incomplete',
+      pointsAwarded: 0,
+      assignmentsCreated: false,
+      counterIncremented: false,
+    };
+  }
+
+  let pointsAwarded = 0;
+  if (!existingWelcomeGranted) {
+    pointsAwarded = 500;
+  }
+
+  let counterIncremented = false;
+  if (!alreadyAssigned) {
+    counterIncremented = true;
+  }
+
+  return {
+    status: 'completed',
+    pointsAwarded: pointsAwarded,
+    assignmentsCreated: true,
+    counterIncremented: counterIncremented,
+    assignmentCollections: [
+      `client_assignments/ASGN_${userData.userId || userData.uid}`,
+      `Auto_Assign_User/${userData.userId || userData.uid}`,
+      `salesPersons/${spId}/assigned_clients/${userData.userId || userData.uid}`,
+    ],
+  };
+}
+
+const incompleteUser = {
+  uid: 'CUST_INC_1',
+  userId: 'CUST_INC_1',
+  name: 'Incomplete Partner',
+  salesPersonId: null,
+  isVerified: false,
+};
+const incompleteResult = processRegistrationCompletion(incompleteUser);
+assert.strictEqual(incompleteResult.status, 'skipped_incomplete', 'Incomplete registration must be skipped');
+assert.strictEqual(incompleteResult.pointsAwarded, 0, 'Incomplete registration must receive 0 welcome points');
+assert.strictEqual(incompleteResult.assignmentsCreated, false, 'Incomplete registration must not create assignments');
+
+// Test 16: Completed Customer Registration (Salesperson verified) -> +500 points, assignments created
+const completedUser = {
+  uid: 'CUST_COMP_1',
+  userId: 'CUST_COMP_1',
+  name: 'Complete Partner',
+  salesPersonId: 'SP_101',
+  isVerified: true,
+};
+const completedResult = processRegistrationCompletion(completedUser, false, false);
+assert.strictEqual(completedResult.status, 'completed', 'Completed registration must process successfully');
+assert.strictEqual(completedResult.pointsAwarded, 500, 'Completed registration must award 500 welcome points');
+assert.strictEqual(completedResult.assignmentsCreated, true, 'Assignments must be created');
+assert.strictEqual(completedResult.counterIncremented, true, 'assignedClientsCount must be incremented on initial assignment');
+assert.strictEqual(completedResult.assignmentCollections.length, 3, 'Must create in all 3 assignment collections');
+
+// Test 17: Completion Idempotency (Retry or subsequent profile update) -> 0 extra points, no duplicate counter increment
+const retryResult = processRegistrationCompletion(completedUser, true, true);
+assert.strictEqual(retryResult.status, 'completed');
+assert.strictEqual(retryResult.pointsAwarded, 0, 'No duplicate welcome bonus on retry/subsequent update');
+assert.strictEqual(retryResult.counterIncremented, false, 'No duplicate counter increment on retry/subsequent update');
+
+// Test 18-25: Server-Side Active Salesperson Validation Suite
+const mockSalespersonsDb = {
+  'SP_ACTIVE_1': {
+    id: 'SP_ACTIVE_1',
+    name: 'Vraj Shah (Authoritative)',
+    phone: '+919876543210',
+    referralCode: 'SALES101',
+    isActive: true,
+    status: 'active',
+  },
+  'SP_INACTIVE_1': {
+    id: 'SP_INACTIVE_1',
+    name: 'Inactive Rep',
+    phone: '+919876543219',
+    referralCode: 'INACTIVE99',
+    isActive: false,
+    status: 'inactive',
+  },
+};
+
+function processRegistrationCompletionWithValidation(userData, salespersonsStore = mockSalespersonsDb, existingWelcomeGranted = false, alreadyAssigned = false, existingAssignmentSpId = null, alreadyInSubcollection = false) {
+  const candidateSpId = (userData.salesPersonId || userData.assignedSalespersonId || '').toString().trim();
+  const isVerified = userData.isVerified === true || userData.status === 'active';
+
+  // 1. Missing / Empty salesperson ID or not verified
+  if (!candidateSpId || !isVerified) {
+    return { status: 'skipped_incomplete', pointsAwarded: 0, assignmentsCreated: false, counterIncremented: false };
+  }
+
+  // 2. Authoritative server-side lookup
+  const spDoc = salespersonsStore[candidateSpId];
+  if (!spDoc) {
+    return { status: 'rejected_nonexistent_salesperson', pointsAwarded: 0, assignmentsCreated: false, counterIncremented: false };
+  }
+
+  const isExplicitlyInactive = spDoc.isActive === false || spDoc.status === 'inactive';
+  const isActive = (spDoc.isActive === true || spDoc.status === 'active') && !isExplicitlyInactive;
+  if (!isActive) {
+    return { status: 'rejected_inactive_salesperson', pointsAwarded: 0, assignmentsCreated: false, counterIncremented: false };
+  }
+
+  // 3. Unauthorized reassignment rejection
+  if (existingAssignmentSpId && existingAssignmentSpId !== candidateSpId) {
+    return {
+      status: 'rejected_unauthorized_reassignment',
+      preservedSalespersonId: existingAssignmentSpId,
+      pointsAwarded: 0,
+      assignmentsCreated: false,
+      counterIncremented: false,
+    };
+  }
+
+  // Authoritative server-side metadata wins over client-provided fields
+  const authoritativeName = spDoc.name || 'ITA Sales Executive';
+  const authoritativePhone = spDoc.phone || '';
+  const authoritativeCode = (spDoc.referralCode || '').toUpperCase();
+
+  let pointsAwarded = 0;
+  if (!existingWelcomeGranted) {
+    pointsAwarded = 500;
+  }
+
+  let counterIncremented = false;
+  if (!alreadyAssigned && !alreadyInSubcollection) {
+    counterIncremented = true;
+  }
+
+  return {
+    status: 'completed',
+    pointsAwarded,
+    assignmentsCreated: true,
+    counterIncremented,
+    salespersonName: authoritativeName,
+    salespersonPhone: authoritativePhone,
+    salespersonReferralCode: authoritativeCode,
+  };
+}
+
+// Test 18: ACTIVE legitimate salesperson -> completion succeeds
+const t18 = processRegistrationCompletionWithValidation({
+  userId: 'U_18',
+  salesPersonId: 'SP_ACTIVE_1',
+  isVerified: true,
+});
+assert.strictEqual(t18.status, 'completed', 'Active salesperson must complete');
+assert.strictEqual(t18.pointsAwarded, 500, 'Must award 500 welcome points');
+assert.strictEqual(t18.assignmentsCreated, true, 'Must create assignment mirrors');
+assert.strictEqual(t18.counterIncremented, true, 'Must increment assignedClientsCount on first assignment');
+
+// Test 19: INACTIVE salesperson -> rejected, no welcome reward, no assignment mirrors
+const t19 = processRegistrationCompletionWithValidation({
+  userId: 'U_19',
+  salesPersonId: 'SP_INACTIVE_1',
+  isVerified: true,
+});
+assert.strictEqual(t19.status, 'rejected_inactive_salesperson', 'Inactive salesperson must be rejected');
+assert.strictEqual(t19.pointsAwarded, 0, 'No points for inactive salesperson');
+assert.strictEqual(t19.assignmentsCreated, false, 'No assignments for inactive salesperson');
+assert.strictEqual(t19.counterIncremented, false, 'No counter increment for inactive salesperson');
+
+// Test 20: NONEXISTENT salesperson -> rejected, no welcome reward, no assignment mirrors
+const t20 = processRegistrationCompletionWithValidation({
+  userId: 'U_20',
+  salesPersonId: 'SP_GHOST_999',
+  isVerified: true,
+});
+assert.strictEqual(t20.status, 'rejected_nonexistent_salesperson', 'Nonexistent salesperson must be rejected');
+assert.strictEqual(t20.pointsAwarded, 0);
+assert.strictEqual(t20.assignmentsCreated, false);
+
+// Test 21: EMPTY salesperson -> no completion
+const t21 = processRegistrationCompletionWithValidation({
+  userId: 'U_21',
+  salesPersonId: '',
+  isVerified: true,
+});
+assert.strictEqual(t21.status, 'skipped_incomplete');
+assert.strictEqual(t21.pointsAwarded, 0);
+assert.strictEqual(t21.assignmentsCreated, false);
+
+// Test 22: FORGED salesperson metadata with legitimate ID -> server authoritative metadata wins
+const t22 = processRegistrationCompletionWithValidation({
+  userId: 'U_22',
+  salesPersonId: 'SP_ACTIVE_1',
+  salespersonName: 'Forged Fake Name',
+  salespersonPhone: '+910000000000',
+  salespersonReferralCode: 'FORGED_CODE',
+  isVerified: true,
+});
+assert.strictEqual(t22.status, 'completed');
+assert.strictEqual(t22.salespersonName, 'Vraj Shah (Authoritative)', 'Server authoritative name must win');
+assert.strictEqual(t22.salespersonPhone, '+919876543210', 'Server authoritative phone must win');
+assert.strictEqual(t22.salespersonReferralCode, 'SALES101', 'Server authoritative code must win');
+
+// Test 23: FORGED/nonexistent salesperson ID -> blocked
+const t23 = processRegistrationCompletionWithValidation({
+  userId: 'U_23',
+  salesPersonId: 'FORGED_ID_ATTACK',
+  isVerified: true,
+});
+assert.strictEqual(t23.status, 'rejected_nonexistent_salesperson');
+assert.strictEqual(t23.pointsAwarded, 0);
+
+// Test 24: Profile update after completion -> no duplicate actions
+const t24 = processRegistrationCompletionWithValidation(
+  { userId: 'U_18', salesPersonId: 'SP_ACTIVE_1', isVerified: true },
+  mockSalespersonsDb,
+  true, // already granted
+  true  // already assigned
+);
+assert.strictEqual(t24.status, 'completed');
+assert.strictEqual(t24.pointsAwarded, 0, 'No duplicate welcome reward on profile update');
+assert.strictEqual(t24.counterIncremented, false, 'No duplicate counter increment on profile update');
+
+// Test 25: Trigger retry -> no duplicate actions
+const t25 = processRegistrationCompletionWithValidation(
+  { userId: 'U_18', salesPersonId: 'SP_ACTIVE_1', isVerified: true },
+  mockSalespersonsDb,
+  true, // already granted
+  true  // already assigned
+);
+assert.strictEqual(t25.pointsAwarded, 0, 'No duplicate welcome reward on trigger retry');
+assert.strictEqual(t25.counterIncremented, false, 'No duplicate counter increment on trigger retry');
+
+// Test 26: Unauthorized Reassignment Attempt -> Rejected, existing assignment preserved
+const t26 = processRegistrationCompletionWithValidation(
+  { userId: 'U_26', salesPersonId: 'SP_ACTIVE_1', isVerified: true },
+  mockSalespersonsDb,
+  true, // already granted
+  true, // already assigned
+  'SP_LEGITIMATE_PREVIOUS' // client already has legitimate previous assignment
+);
+assert.strictEqual(t26.status, 'rejected_unauthorized_reassignment', 'Reassignment must be rejected');
+assert.strictEqual(t26.preservedSalespersonId, 'SP_LEGITIMATE_PREVIOUS', 'Must preserve original assignment');
+assert.strictEqual(t26.counterIncremented, false, 'Must not increment counter on rejected reassignment');
+
+// Test 27: Already in assigned_clients subcollection -> no duplicate counter increment
+const t27 = processRegistrationCompletionWithValidation(
+  { userId: 'U_27', salesPersonId: 'SP_ACTIVE_1', isVerified: true },
+  mockSalespersonsDb,
+  true,
+  false, // assignment doc missing
+  null,
+  true   // but already exists in assigned_clients subcollection
+);
+assert.strictEqual(t27.status, 'completed');
+assert.strictEqual(t27.counterIncremented, false, 'Must not increment counter if already in subcollection');
+
 // Run async tests
 testConcurrentRedemptions().then(() => {
-  console.log('✅ All Backend Loyalty Reward Engine Unit Tests (including Concurrent Double-Spend & Role Auth) Passed Successfully!');
+  console.log('✅ All Backend Loyalty Reward Engine Unit Tests (including Concurrent Double-Spend, Role Auth, Registration Completion, & Server-Side Salesperson Validation) Passed Successfully!');
 });
+

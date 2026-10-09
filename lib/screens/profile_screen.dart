@@ -388,11 +388,9 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _openEditProfileModal(BuildContext context, UserProfile profile) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (modalCtx) => _EditProfileBottomSheet(profile: profile),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
     );
   }
 

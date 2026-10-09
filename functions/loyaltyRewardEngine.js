@@ -41,25 +41,48 @@ async function getLoyaltyConfig(db) {
 }
 
 /**
- * Cloud Function Trigger: onUserCreatedReward
- * Triggered on `users/{userId}` creation.
- * Idempotently awards 500 Welcome Points once, and processes referral step 1 if referredByCode is present.
+ * Cloud Function Trigger: onUserCompletedRegistration
+ * Triggered on `users/{userId}` write (creation or update).
+ * Requirements:
+ * 1. Initial account + category created, but salesperson not verified -> NO +500 welcome reward yet.
+ * 2. ACTIVE salesperson successfully verified and registration becomes complete -> +500 welcome points ONCE.
+ * 3. Authoritatively creates/synchronizes:
+ *    - client_assignments/ASGN_{uid}
+ *    - Auto_Assign_User/{uid}
+ *    - salesPersons/{spUid}/assigned_clients/{uid}
+ *    - assignedClientsCount exactly once (idempotent).
+ * 4. Trigger retries, profile updates, and category updates must not duplicate it.
  */
-exports.onUserCreatedReward = functions.firestore
+exports.onUserCompletedRegistration = functions.firestore
   .document('users/{userId}')
-  .onCreate(async (snap, context) => {
+  .onWrite(async (change, context) => {
     const userId = context.params.userId;
-    const userData = snap.data();
+    if (!change.after.exists) return null; // user deleted
+    const userData = change.after.data();
+    if (!userData) return null;
 
-    if (!userData) {
-      console.log(`[RewardEngine] Empty user data for user ${userId}. Skipping.`);
+    const assignedSpId = (
+      userData.salesPersonId ||
+      userData.assignedSalespersonId ||
+      ''
+    ).toString().trim();
+
+    // Incomplete account: salesperson not verified yet. STOP and skip!
+    if (!assignedSpId) {
+      console.log(`[RewardEngine] User ${userId} has no assigned salesperson yet. Skipping completion rewards.`);
+      return null;
+    }
+
+    const isVerified = userData.isVerified === true || userData.status === 'active';
+    if (!isVerified) {
+      console.log(`[RewardEngine] User ${userId} is not marked active/verified yet. Skipping completion rewards.`);
       return null;
     }
 
     const db = admin.firestore();
     const config = await getLoyaltyConfig(db);
 
-    console.log(`[RewardEngine] Processing welcome reward & referral for user ${userId}`);
+    console.log(`[RewardEngine] Processing registration completion rewards & assignments for user ${userId} with salesperson ${assignedSpId}`);
 
     try {
       await db.runTransaction(async (transaction) => {
@@ -69,39 +92,149 @@ exports.onUserCreatedReward = functions.firestore
         if (!userDoc.exists) return;
         const currentData = userDoc.data() || {};
 
-        // 1. Welcome Bonus Check (Must run exactly once)
-        if (currentData.welcomeBonusGranted === true) {
-          console.log(`[RewardEngine] User ${userId} already received welcome bonus. Skipping.`);
+        // 1. Authoritative Server-Side Salesperson Validation
+        const candidateSpId = assignedSpId;
+        const spRef = db.collection('salesPersons').doc(candidateSpId);
+        const spDoc = await transaction.get(spRef);
+
+        let authoritativeSpData = null;
+
+        if (spDoc.exists) {
+          const spData = spDoc.data() || {};
+          const isExplicitlyInactive = spData.isActive === false || spData.status === 'inactive';
+          const isActive = (spData.isActive === true || spData.status === 'active') && !isExplicitlyInactive;
+          if (isActive) {
+            authoritativeSpData = spData;
+          }
+        } else {
+          // Fallback check in users collection for role === 'salesperson'
+          const userSpRef = db.collection('users').doc(candidateSpId);
+          const userSpDoc = await transaction.get(userSpRef);
+          if (userSpDoc.exists) {
+            const uData = userSpDoc.data() || {};
+            const isSalesperson = uData.role === 'salesperson' || uData.userCategory === 'salesperson';
+            const isExplicitlyInactive = uData.isActive === false || uData.status === 'inactive';
+            const isActive = (uData.isActive === true || uData.status === 'active') && !isExplicitlyInactive;
+            if (isSalesperson && isActive) {
+              authoritativeSpData = uData;
+            }
+          }
+        }
+
+        // FAIL CLOSED: If salesperson does not exist or is inactive, ABORT completion.
+        if (!authoritativeSpData) {
+          console.log(`[RewardEngine] Candidate salesperson ${candidateSpId} is non-existent, inactive, or malformed. Failing closed.`);
           return;
         }
 
+        // Authoritative salesperson metadata directly from server document
+        const spId = candidateSpId;
+        const authoritativeSpName = authoritativeSpData.name || authoritativeSpData.fullName || 'ITA Sales Executive';
+        const authoritativeSpPhone = authoritativeSpData.phone || authoritativeSpData.phoneNumber || '';
+        const authoritativeSpCode = (authoritativeSpData.referralCode || currentData.salespersonReferralCode || '').toString().toUpperCase();
+
+        // 2. Authoritative Salesperson Assignment Mirroring & Reassignment Guard (Admin SDK)
+        const assignmentId = `ASGN_${userId}`;
+        const assignmentRef = db.collection('client_assignments').doc(assignmentId);
+        const spAssignedClientRef = db.collection('salesPersons').doc(spId).collection('assigned_clients').doc(userId);
         const welcomeTxRef = db.collection('loyaltyTransactions').doc(`welcome_${userId}`);
-        const welcomeTxDoc = await transaction.get(welcomeTxRef);
-        if (welcomeTxDoc.exists) {
-          console.log(`[RewardEngine] Welcome transaction already exists for user ${userId}. Skipping.`);
-          transaction.set(userRef, { welcomeBonusGranted: true }, { merge: true });
-          return;
+
+        // Read all documents upfront BEFORE any transaction.set writes
+        const [assignmentSnap, spClientSnap, welcomeTxDoc] = await Promise.all([
+          transaction.get(assignmentRef),
+          transaction.get(spAssignedClientRef),
+          transaction.get(welcomeTxRef),
+        ]);
+
+        const alreadyAssigned = assignmentSnap.exists;
+        const clientAlreadyInSubcollection = spClientSnap.exists;
+
+        // Preserve existing legitimate salesperson assignment: reject unauthorized reassignment
+        if (alreadyAssigned) {
+          const existingAssignment = assignmentSnap.data() || {};
+          const existingSpId = (existingAssignment.salespersonId || '').toString().trim();
+          if (existingSpId && existingSpId !== spId) {
+            console.warn(`[RewardEngine] Client ${userId} is already legitimately assigned to salesperson ${existingSpId}. Rejecting unauthorized reassignment to ${spId}.`);
+            transaction.set(userRef, {
+              salesPersonId: existingSpId,
+              assignedSalespersonId: existingSpId,
+              salespersonName: existingAssignment.salespersonName || authoritativeSpName,
+              salespersonPhone: existingAssignment.salespersonPhone || authoritativeSpPhone,
+              salespersonReferralCode: existingAssignment.salespersonReferralCode || authoritativeSpCode,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            return;
+          }
         }
+
+        const assignmentData = {
+          assignmentId: assignmentId,
+          clientId: userId,
+          clientName: currentData.name || currentData.fullName || 'Client',
+          clientPhone: currentData.phone || '',
+          clientCategory: currentData.role || currentData.userCategory || 'dealer',
+          salespersonId: spId,
+          salespersonName: authoritativeSpName,
+          salespersonPhone: authoritativeSpPhone,
+          salespersonReferralCode: authoritativeSpCode,
+          companyName: currentData.companyName || '',
+          assignmentType: currentData.referredByCode ? 'manual_referral' : 'salesperson_code',
+          status: 'active',
+          assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+
+        transaction.set(assignmentRef, assignmentData, { merge: true });
+        transaction.set(db.collection('Auto_Assign_User').doc(userId), assignmentData, { merge: true });
+
+        transaction.set(spAssignedClientRef, {
+          clientId: userId,
+          userId: userId,
+          name: currentData.name || currentData.fullName || 'Client',
+          clientName: currentData.name || currentData.fullName || 'Client',
+          phone: currentData.phone || '',
+          clientPhone: currentData.phone || '',
+          phoneNumber: currentData.phone || '',
+          clientCategory: currentData.role || currentData.userCategory || 'dealer',
+          userCategory: currentData.role || currentData.userCategory || 'dealer',
+          companyName: currentData.companyName || '',
+          assignmentType: currentData.referredByCode ? 'manual_referral' : 'salesperson_code',
+          assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        // Idempotency: increment salesperson counters ONLY once upon initial assignment
+        if (!alreadyAssigned && !clientAlreadyInSubcollection) {
+          const counterUpdate = {
+            assignedClientsCount: admin.firestore.FieldValue.increment(1),
+            activeClientsCount: admin.firestore.FieldValue.increment(1),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          transaction.set(db.collection('salesPersons').doc(spId), counterUpdate, { merge: true });
+        }
+
+        // 3. Welcome Bonus Check (Must run exactly once upon salesperson verification completion)
+        const welcomeAlreadyGranted = currentData.welcomeBonusGranted === true;
 
         let userPoints = Number(currentData.loyaltyPoints) || 0;
         let userLifetime = Number(currentData.lifetimePoints) || userPoints;
 
-        userPoints += config.signupBonusPoints;
-        userLifetime += config.signupBonusPoints;
+        if (!welcomeAlreadyGranted && !welcomeTxDoc.exists) {
+          userPoints += config.signupBonusPoints;
+          userLifetime += config.signupBonusPoints;
 
-        // Record Welcome Transaction
-        transaction.set(welcomeTxRef, {
-          transactionId: welcomeTxRef.id,
-          userId: userId,
-          type: 'welcome_bonus',
-          points: config.signupBonusPoints,
-          balanceAfter: userPoints,
-          description: 'Welcome bonus on joining ITACON Granito',
-          status: 'completed',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+          // Record Welcome Transaction
+          transaction.set(welcomeTxRef, {
+            transactionId: welcomeTxRef.id,
+            userId: userId,
+            type: 'welcome_bonus',
+            points: config.signupBonusPoints,
+            balanceAfter: userPoints,
+            description: 'Welcome bonus on joining ITACON Granito',
+            status: 'completed',
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
 
-        // 2. Referral Step 1: If user registered with a referral code
+        // 4. Referral Step 1: If user registered with a referral code
         const referredByCode = (
           currentData.referredByCode ||
           currentData.referralCodeEntered ||
@@ -109,7 +242,6 @@ exports.onUserCreatedReward = functions.firestore
         );
 
         let referrerUid = null;
-        let referralDocId = null;
 
         if (referredByCode && typeof referredByCode === 'string' && referredByCode.trim().length > 0) {
           const cleanCode = referredByCode.trim().toUpperCase();
@@ -138,7 +270,6 @@ exports.onUserCreatedReward = functions.firestore
 
                 if (refQuery.empty) {
                   const refDocRef = db.collection('referrals').doc();
-                  referralDocId = refDocRef.id;
 
                   // Create referral record
                   transaction.set(refDocRef, {
@@ -151,7 +282,7 @@ exports.onUserCreatedReward = functions.firestore
                     qualifyingOrderId: null,
                     signupRewardGranted: true,
                     orderRewardGranted: false,
-                    referredCustomerName: currentData.name || '',
+                    referredCustomerName: currentData.name || currentData.fullName || '',
                     referredCustomerPhone: currentData.phone || '',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                   });
@@ -168,7 +299,7 @@ exports.onUserCreatedReward = functions.firestore
                     points: config.referralSignupPoints,
                     balanceAfter: referrerPoints,
                     relatedReferralId: refDocRef.id,
-                    description: `Referral sign-up reward for inviting ${currentData.name || 'Trade Partner'}`,
+                    description: `Referral sign-up reward for inviting ${currentData.name || currentData.fullName || 'Trade Partner'}`,
                     status: 'completed',
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                   });
@@ -183,7 +314,7 @@ exports.onUserCreatedReward = functions.firestore
                   const notifRef = db.collection('users').doc(referrerUid).collection('notifications').doc();
                   transaction.set(notifRef, {
                     title: 'New Trade Referral! 🎉',
-                    message: `${currentData.name || 'A new partner'} registered using your referral code. +500 Loyalty Points credited to your account!`,
+                    message: `${currentData.name || currentData.fullName || 'A new partner'} registered using your referral code. +500 Loyalty Points credited to your account!`,
                     type: 'referral_signup',
                     read: false,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -194,20 +325,23 @@ exports.onUserCreatedReward = functions.firestore
           }
         }
 
-        // Finalize User document update
+        // 5. Finalize User document update with authoritative salesperson metadata
         transaction.set(userRef, {
           loyaltyPoints: userPoints,
           lifetimePoints: userLifetime,
           welcomeBonusGranted: true,
+          salespersonName: authoritativeSpName,
+          salespersonPhone: authoritativeSpPhone,
+          salespersonReferralCode: authoritativeSpCode,
           ifReferrer: referrerUid ? { referredBy: referrerUid } : {},
           ...(referrerUid ? { referredBy: referrerUid } : {}),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
 
-        console.log(`[RewardEngine] Successfully granted welcome bonus to user ${userId} and processed referral.`);
+        console.log(`[RewardEngine] Successfully finalized completion for user ${userId}: welcome bonus +500 awarded once, assignments linked to verified active salesperson ${spId}.`);
       });
     } catch (error) {
-      console.error(`[RewardEngine] Error processing user welcome reward for ${userId}:`, error);
+      console.error(`[RewardEngine] Error processing user completion reward for ${userId}:`, error);
       throw error;
     }
 

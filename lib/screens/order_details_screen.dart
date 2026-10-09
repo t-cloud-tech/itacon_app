@@ -189,9 +189,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = e.toString();
+        if (errorMsg.startsWith('Exception: ')) {
+          errorMsg = errorMsg.substring(11);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment submission failed: $e'),
+            content: Text('Payment submission failed: $errorMsg'),
             backgroundColor: AppTheme.statusError,
             duration: const Duration(seconds: 4),
           ),
@@ -500,7 +504,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
         bannerBorder = AppTheme.accentOrange;
         bannerIcon = Icons.account_balance_wallet_outlined;
-        bannerTitle = 'Payment Required (Quotation Confirmed)';
+        bannerTitle = 'Payment Required (PO Approved)';
         bannerDesc = 'Please complete the bank transfer below to proceed with order dispatch.';
       }
     } else if (isRejected) {
@@ -907,24 +911,31 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.statusSuccess.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 20),
-                SizedBox(width: 8),
-                Text(
-                  'Order Confirmed',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.statusSuccess),
+          Builder(
+            builder: (context) {
+              final bool isPaymentComplete = order.isPaid ||
+                  order.paymentStatus?.toLowerCase() == 'paid' ||
+                  order.paymentStatus?.toLowerCase() == 'payment_verified';
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.statusSuccess.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      isPaymentComplete ? 'Confirmed' : 'PO Approved',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.statusSuccess),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 12),
           SizedBox(

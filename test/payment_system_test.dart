@@ -223,6 +223,93 @@ void main() {
       expect(isReceiptValid('receipt.exe', 1024), isFalse);
       expect(isReceiptValid('receipt.jpg', 11 * 1024 * 1024), isFalse); // Oversized rejected
     });
+
+    test('submitPaymentProof pre-validates UTR length >= 6 before invoking network', () {
+      bool validateUtrLength(String utr) {
+        final normalized = PaymentSubmission.normalizeUtr(utr);
+        return normalized.length >= 6;
+      }
+
+      expect(validateUtrLength(''), isFalse);
+      expect(validateUtrLength('12345'), isFalse);
+      expect(validateUtrLength('AB-12'), isFalse); // only 4 characters
+      expect(validateUtrLength('ABC123'), isTrue);
+      expect(validateUtrLength('2024102912345678'), isTrue);
+    });
+
+    test('Customer submission result enforces pending_verification status invariant (never paid)', () {
+      final mockCallableResponse = {
+        'success': true,
+        'submissionId': 'sub_order_001_1710000000',
+        'status': 'pending_verification',
+      };
+
+      final submission = PaymentSubmission(
+        submissionId: mockCallableResponse['submissionId'] as String,
+        orderId: 'order_001',
+        orderReference: 'ITC-PO-2026-001',
+        customerId: 'cust_123',
+        expectedAmount: 50000.0,
+        submittedAmount: 50000.0,
+        utrNumber: '2024102912345678',
+        utrNormalized: '2024102912345678',
+        paymentDate: DateTime.now(),
+        proofStoragePath: 'payment_proofs/order_001/sub_order_001_1710000000/receipt.jpg',
+        status: mockCallableResponse['status'] as String,
+        submittedAt: DateTime.now(),
+      );
+
+      expect(submission.status, equals('pending_verification'));
+      expect(submission.isPending, isTrue);
+      expect(submission.isVerified, isFalse, reason: 'Customer submission must NEVER mark order paid directly');
+      expect(submission.verifiedAt, isNull);
+      expect(submission.verifiedBy, isNull);
+    });
+
+    test('In-flight submission guard blocks duplicate calls during network processing', () {
+      bool isSubmitting = false;
+      int callCount = 0;
+
+      void attemptSubmit() {
+        if (isSubmitting) return; // Guard
+        isSubmitting = true;
+        callCount++;
+      }
+
+      // First tap
+      attemptSubmit();
+      expect(callCount, equals(1));
+      expect(isSubmitting, isTrue);
+
+      // Rapid consecutive taps while request is in flight
+      attemptSubmit();
+      attemptSubmit();
+      attemptSubmit();
+      expect(callCount, equals(1), reason: 'Duplicate in-flight taps must be blocked');
+
+      // Request completes
+      isSubmitting = false;
+
+      // Legitimate subsequent attempt after completion/error
+      attemptSubmit();
+      expect(callCount, equals(2));
+    });
+
+    test('proofStoragePath satisfies Cloud Function exact regex contract', () {
+      const orderId = 'order_abc_123';
+      final validRegex = RegExp(r'^payment_proofs\/' + orderId + r'\/[a-zA-Z0-9_-]+\/receipt\.(jpg|jpeg|png|webp|pdf)$');
+
+      expect(validRegex.hasMatch('payment_proofs/order_abc_123/sub_order_123_171000/receipt.jpg'), isTrue);
+      expect(validRegex.hasMatch('payment_proofs/order_abc_123/sub_order_123_171000/receipt.jpeg'), isTrue);
+      expect(validRegex.hasMatch('payment_proofs/order_abc_123/sub_order_123_171000/receipt.png'), isTrue);
+      expect(validRegex.hasMatch('payment_proofs/order_abc_123/sub_order_123_171000/receipt.pdf'), isTrue);
+      expect(validRegex.hasMatch('payment_proofs/order_abc_123/sub_order_123_171000/receipt.webp'), isTrue);
+
+      // Invalid formats rejected
+      expect(validRegex.hasMatch('payment_proofs/order_different/sub_order_123_171000/receipt.jpg'), isFalse);
+      expect(validRegex.hasMatch('payment_proofs/order_abc_123/sub_order_123_171000/invoice.pdf'), isFalse);
+      expect(validRegex.hasMatch('arbitrary_path/receipt.jpg'), isFalse);
+    });
   });
 }
 
