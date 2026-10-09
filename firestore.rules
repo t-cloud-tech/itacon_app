@@ -92,6 +92,38 @@ service cloud.firestore {
       );
     }
 
+    // Whitelist of valid customer categories
+    function isValidCustomerCategory(cat) {
+      return cat in ['dealer', 'architect', 'builder', 'wholesaler', 'retailer'];
+    }
+
+    // Ensure customer preserves the staff-assigned salesperson ID and does not forge or change it
+    function isPreservingAssignedSalesperson() {
+      return (!('salesPersonId' in resource.data) || request.resource.data.salesPersonId == resource.data.salesPersonId) &&
+             (!('assignedSalespersonId' in resource.data) || request.resource.data.assignedSalespersonId == resource.data.assignedSalespersonId);
+    }
+
+    // Deny customer modification or reassignment of salesperson fields once already assigned
+    function isModifyingSalespersonAssignmentFields() {
+      return (('salesPersonId' in resource.data && resource.data.salesPersonId != null && resource.data.salesPersonId != '') ||
+              ('assignedSalespersonId' in resource.data && resource.data.assignedSalespersonId != null && resource.data.assignedSalespersonId != '')) &&
+             request.resource.data.diff(resource.data).affectedKeys()
+               .hasAny(['salesPersonId', 'assignedSalespersonId', 'salespersonName', 'salespersonPhone', 'salespersonReferralCode']);
+    }
+
+    // Narrow self-registration permission for pre-assigned customer stubs
+    function isCustomerSelfRegistrationWrite(userId) {
+      return isOwner(userId) &&
+        (!('role' in resource.data) || resource.data.role == null || resource.data.role == '') &&
+        (!('userCategory' in resource.data) || resource.data.userCategory == null || resource.data.userCategory == '') &&
+        ('role' in request.resource.data) &&
+        isValidCustomerCategory(request.resource.data.role) &&
+        ('userCategory' in request.resource.data) &&
+        isValidCustomerCategory(request.resource.data.userCategory) &&
+        isPreservingAssignedSalesperson() &&
+        !hasRewardFields(request.resource.data);
+    }
+
     // Deny writes that forge privileged user fields
     function isModifyingPrivilegedUserFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
@@ -119,9 +151,12 @@ service cloud.firestore {
 
       allow update: if isAuthenticated() &&
         !hasSensitiveFields(request.resource.data) &&
-        ((isOwner(userId) && !isModifyingPrivilegedUserFields()) ||
-         isAdminOrManager() ||
-         (isStaff() && !isModifyingPrivilegedUserFields()));
+        (
+          (isOwner(userId) && !isModifyingPrivilegedUserFields() && !isModifyingSalespersonAssignmentFields()) ||
+          isCustomerSelfRegistrationWrite(userId) ||
+          isAdminOrManager() ||
+          (isStaff() && !isModifyingPrivilegedUserFields())
+        );
 
       allow delete: if isAdminOrManager();
 
@@ -498,11 +533,11 @@ service cloud.firestore {
     // =========================================================================
     match /salesPersons/{spId} {
       allow read: if isAuthenticated();
-      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
+      allow write: if (isStaff() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedClientsCount', 'activeClientsCount', 'updatedAt']))) && !hasSensitiveFields(request.resource.data);
 
       match /assigned_clients/{clientId} {
         allow read: if isAuthenticated();
-        allow write: if isStaff();
+        allow write: if isStaff() || (isAuthenticated() && clientId == request.auth.uid);
       }
     }
 
@@ -513,17 +548,17 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isStaff()
       );
-      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+      allow write: if ((isAuthenticated() && assignmentId == 'ASGN_' + request.auth.uid) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
     }
 
     match /Auto_Assign_User/{docId} {
       allow read: if isAuthenticated() && (docId == request.auth.uid || isStaff());
-      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+      allow write: if (isOwner(docId) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
     }
 
     match /Manual_salesperson_assign/{docId} {
-      allow read: if isStaff();
-      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+      allow read: if isStaff() || (isAuthenticated() && docId == request.auth.uid);
+      allow write: if (isOwner(docId) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
     }
 
     // =========================================================================

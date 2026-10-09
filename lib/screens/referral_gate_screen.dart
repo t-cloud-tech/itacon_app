@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
+import '../services/user_session_service.dart';
 import 'main_navigation_screen.dart';
 
 class ReferralGateScreen extends StatefulWidget {
@@ -102,7 +102,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Salesperson assigned and referral code auto-filled below. Click "Verify Code & Unlock" to proceed.',
+              'Salesperson linked successfully! Tap OK to proceed.',
               style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
             ),
           ],
@@ -156,7 +156,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
         );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       }
     } else {
@@ -206,11 +206,33 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          actions: [
+            TextButton.icon(
+              onPressed: _isLoading ? null : () => UserSessionService.logout(context),
+              icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFF1A237E)),
+              label: const Text(
+                'Log Out',
+                style: TextStyle(
+                  color: Color(0xFF1A237E),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -327,6 +349,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

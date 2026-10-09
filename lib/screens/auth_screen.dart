@@ -286,8 +286,11 @@ class _AuthScreenState extends State<AuthScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Registration Successful! Executive linked.')),
+        SnackBar(
+          content: Text(hasSalesperson
+              ? 'Registration Successful! Executive linked.'
+              : 'Registration Successful! Please link your salesperson.'),
+        ),
       );
 
       if (!hasSalesperson) {

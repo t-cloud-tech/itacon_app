@@ -9,6 +9,7 @@ import '../services/user_session_service.dart';
 import '../theme/app_theme.dart';
 import 'auth_screen.dart';
 import 'main_navigation_screen.dart';
+import 'referral_gate_screen.dart';
 import 'splash_screen.dart';
 
 import '../services/auth_service.dart';
@@ -304,6 +305,28 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
       );
     }
 
-    return widget.authenticatedChild ?? const MainNavigationScreen();
+    if (widget.authenticatedChild != null) {
+      return widget.authenticatedChild!;
+    }
+
+    final profile = AppStateService.instance.hasSessionProfile
+        ? AppStateService.instance.currentUserProfile
+        : null;
+
+    final isStaff = profile != null &&
+        (profile.role == 'admin' ||
+         profile.role == 'salesperson' ||
+         profile.role == 'manager' ||
+         profile.role == 'super_admin');
+
+    final hasAssignedSalesperson = profile != null &&
+        ((profile.salesPersonId != null && profile.salesPersonId!.trim().isNotEmpty) ||
+         (profile.assignedSalespersonId != null && profile.assignedSalespersonId!.trim().isNotEmpty));
+
+    if (profile != null && !isStaff && !hasAssignedSalesperson) {
+      return const ReferralGateScreen();
+    }
+
+    return const MainNavigationScreen();
   }
 }

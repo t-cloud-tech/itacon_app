@@ -1218,8 +1218,15 @@ class FirestoreService {
       batch.set(_usersRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
       batch.set(_salesPersonsRef.doc(salespersonId), counterUpdate, SetOptions(merge: true));
 
-      await batch.commit();
+      try {
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Warning: executeAtomicClientAssignment batch commit: $e');
+        // Resilient fallback update directly to users/{clientId} ensuring customer is linked
+        await _usersRef.doc(clientId).set(userUpdateData, SetOptions(merge: true));
+      }
     } catch (e) {
+      debugPrint('Error in executeAtomicClientAssignment: $e');
       rethrow;
     }
   }

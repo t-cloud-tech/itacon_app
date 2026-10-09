@@ -426,6 +426,20 @@ class AuthService {
     String? spReferralCode;
     String assignmentType = 'auto_assigned';
 
+    // Check if user already had a pre-assigned salesperson from Admin
+    if (uid.isNotEmpty) {
+      final existingDoc = await _firestoreService.getUserProfile(uid);
+      if (existingDoc != null &&
+          existingDoc.salesPersonId != null &&
+          existingDoc.salesPersonId!.trim().isNotEmpty) {
+        assignedSpId = existingDoc.salesPersonId;
+        spName = existingDoc.salespersonName;
+        spPhone = existingDoc.salespersonPhone;
+        spReferralCode = existingDoc.salespersonReferralCode;
+        assignmentType = 'admin_preassigned';
+      }
+    }
+
     if (referralCode != null &&
         referralCode.trim().isNotEmpty) {
       final spProfile =
@@ -447,22 +461,9 @@ class AuthService {
       }
     }
 
-    // If customer did NOT enter a valid referral code,
-    // preserve approved automatic-assignment behavior to the sole active salesperson.
-    if (assignedSpId == null || assignedSpId.isEmpty) {
-      final autoDetails = await _firestoreService.autoAssignSalespersonDetails(
-        userId: uid,
-        clientName: resolvedName,
-        clientPhone: formattedPhone,
-        companyName: companyName,
-        clientCategory: categoryId,
-      );
-      assignedSpId = autoDetails['salespersonId'] ?? FirestoreService.defaultSalespersonId;
-      spName = autoDetails['name'] ?? FirestoreService.defaultSalespersonName;
-      spPhone = autoDetails['phone'] ?? FirestoreService.defaultSalespersonPhone;
-      spReferralCode = autoDetails['referralCode'] ?? FirestoreService.defaultSalespersonReferralCode;
-      assignmentType = 'auto_assigned';
-    }
+    // NOTE: If customer did NOT enter a referral code and was not pre-assigned by Admin,
+    // do NOT silently auto-assign in the background. The customer will be routed to
+    // ReferralGateScreen after registration to enter their referral code manually or tap Auto-Assign.
 
     // ----------------------------------------------------------
     // 5. Optional email - never invent user_<phone>@itacon.com
@@ -606,7 +607,7 @@ class AuthService {
     // 12. Assign salesperson across all required mirrors
     // ----------------------------------------------------------
 
-    if (assignedSpId.isNotEmpty) {
+    if (assignedSpId != null && assignedSpId.isNotEmpty) {
       await _firestoreService
           .executeAtomicClientAssignment(
         clientId: uid,
@@ -1080,7 +1081,7 @@ class AuthService {
       }
     }
 
-    return await _firestoreService
+    final result = await _firestoreService
         .autoAssignSalespersonDetails(
       userId: uid,
       clientName: name,
@@ -1088,6 +1089,15 @@ class AuthService {
       companyName: company,
       clientCategory: category,
     );
+
+    if (uid != null && uid.isNotEmpty) {
+      final updatedProfile = await _firestoreService.getUserProfile(uid);
+      if (updatedProfile != null) {
+        await UserSessionService.saveUserSession(updatedProfile);
+      }
+    }
+
+    return result;
   }
 
   Future<String?> autoAssignSalesperson({
