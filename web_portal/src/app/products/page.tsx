@@ -288,12 +288,17 @@ export default function ProductsPage() {
               {/* Price & Quote CTA Footer */}
               <div className="p-5 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase font-semibold text-slate-400 block">Base Price / Box</span>
+                  <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                    {tile.basePrice && tile.basePrice <= 150 ? "Base Price / Sq.ft" : "Base Price / Box"}
+                  </span>
                   <span className="text-lg font-extrabold text-[#0E274D]">
-                    ₹{tile.basePrice || 550}
+                    ₹{tile.basePrice || 35}
+                    {tile.basePrice && tile.basePrice <= 150 ? "/sq.ft" : ""}
                   </span>
                   <span className="text-[10px] text-slate-500 ml-1">
-                    (₹{((tile.basePrice || 550) / (tile.sqFtPerBox || 15.5)).toFixed(1)}/sqft)
+                    {tile.basePrice && tile.basePrice <= 150
+                      ? `(₹${(tile.basePrice * (tile.sqFtPerBox || 15.5)).toFixed(1)}/box)`
+                      : `(₹${((tile.basePrice || 550) / (tile.sqFtPerBox || 15.5)).toFixed(1)}/sqft)`}
                   </span>
                 </div>
 

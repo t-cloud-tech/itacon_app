@@ -454,7 +454,12 @@ function QuotationsContent() {
         } else {
           const sp = salesPersonsMap[o.salesPersonId] || DEFAULT_SALESPERSONS[o.salesPersonId];
           const spName = sp?.name || (o.salesPersonId ? `Salesperson (${o.salesPersonId})` : "Central Sales Desk");
-          const totalVal = o.items?.reduce((sum, it) => sum + ((it.basePrice || 540) * (it.quantityBoxes || 1)), 0) || 50000;
+          const totalVal = o.items?.reduce((sum, it) => {
+            const sqftPerBox = it.sqftPerBox || 15.5;
+            const ratePerSqft = (it.basePrice && it.basePrice > 150) ? (it.basePrice / sqftPerBox) : (it.basePrice || 35);
+            const boxPrice = ratePerSqft * sqftPerBox;
+            return sum + (it.lineTotal || (boxPrice * (it.quantityBoxes || 1)));
+          }, 0) || 50000;
 
           let quoteStatus: any = "pending_approval";
           if (s === "confirmed") quoteStatus = "accepted";
@@ -483,20 +488,29 @@ function QuotationsContent() {
             changedByRole: o.changedByRole,
             rejectedBy: o.rejectedBy,
             rejectionReason: o.rejectionReason,
-            items: (o.items || []).map((it) => ({
-              productId: it.productId,
-              productName: it.productName,
-              sku: it.sku,
-              size: it.size,
-              quantityBoxes: it.quantityBoxes,
-              sqftPerBox: it.sqftPerBox,
-              totalSqft: it.quantitySqFt,
-              weightKg: (it.weightPerBoxKg || 29.0) * it.quantityBoxes,
-              unitPrice: it.basePrice,
-              discountPercent: it.discountPercent || 0,
-              effectivePrice: it.unitPrice || it.basePrice,
-              lineTotal: it.lineTotal || (it.basePrice * it.quantityBoxes),
-            })),
+            items: (o.items || []).map((it) => {
+              const sqftPerBox = it.sqftPerBox || 15.5;
+              const ratePerSqft = (it.basePrice && it.basePrice > 150) ? (it.basePrice / sqftPerBox) : (it.basePrice || 35);
+              const disc = it.discountPercent || 0;
+              const effRateSqft = Number((ratePerSqft * (1 - disc / 100)).toFixed(2));
+              const effBoxPrice = Number((effRateSqft * sqftPerBox).toFixed(2));
+              const lineTotal = it.lineTotal || Number(((it.quantityBoxes || 1) * effBoxPrice).toFixed(2));
+
+              return {
+                productId: it.productId,
+                productName: it.productName,
+                sku: it.sku,
+                size: it.size,
+                quantityBoxes: it.quantityBoxes,
+                sqftPerBox: sqftPerBox,
+                totalSqft: it.quantitySqFt || Number(((it.quantityBoxes || 1) * sqftPerBox).toFixed(2)),
+                weightKg: (it.weightPerBoxKg || 29.0) * it.quantityBoxes,
+                unitPrice: ratePerSqft,
+                discountPercent: disc,
+                effectivePrice: effBoxPrice,
+                lineTotal: lineTotal,
+              };
+            }),
             subtotal: totalVal,
             discountTotal: 0,
             taxPercent: 18,
@@ -1309,10 +1323,12 @@ function QuotationsContent() {
                     };
 
                   const totalSqft = order.items?.reduce((sum, it) => sum + (it.quantitySqFt || 0), 0) || 0;
-                  const estimatedValue = order.items?.reduce(
-                    (sum, it) => sum + ((it.basePrice || 540) * (it.quantityBoxes || 1)),
-                    0
-                  ) || 0;
+                  const estimatedValue = order.items?.reduce((sum, it) => {
+                    const sqftPerBox = it.sqftPerBox || 15.5;
+                    const ratePerSqft = (it.basePrice && it.basePrice > 150) ? (it.basePrice / sqftPerBox) : (it.basePrice || 35);
+                    const boxPrice = ratePerSqft * sqftPerBox;
+                    return sum + (it.lineTotal || (boxPrice * (it.quantityBoxes || 1)));
+                  }, 0) || 0;
 
                   return (
                     <div

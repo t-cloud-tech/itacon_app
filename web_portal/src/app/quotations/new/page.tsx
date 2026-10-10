@@ -55,10 +55,10 @@ function QuotationForm() {
       sqftPerBox: 15.5,
       totalSqft: 1519,
       weightKg: 2842,
-      unitPrice: 540,
+      unitPrice: 35, // Rate per sq.ft
       discountPercent: 5,
-      effectivePrice: 513,
-      lineTotal: 50274,
+      effectivePrice: 515.38, // 35 * (1 - 0.05) * 15.5 = 515.375 per box
+      lineTotal: 50507,
     }
   ]);
 
@@ -71,7 +71,7 @@ function QuotationForm() {
       size: "600x1200 mm",
       sqftPerBox: 15.5,
       weightPerBoxKg: 29.5,
-      basePrice: 580,
+      basePrice: 38,
     },
     {
       productId: "prod-2",
@@ -80,7 +80,7 @@ function QuotationForm() {
       size: "800x1600 mm",
       sqftPerBox: 27.56,
       weightPerBoxKg: 54.0,
-      basePrice: 920,
+      basePrice: 48,
     },
     {
       productId: "prod-3",
@@ -89,7 +89,7 @@ function QuotationForm() {
       size: "600x1200 mm",
       sqftPerBox: 15.5,
       weightPerBoxKg: 29.0,
-      basePrice: 540,
+      basePrice: 35,
     },
     {
       productId: "prod-4",
@@ -98,7 +98,7 @@ function QuotationForm() {
       size: "600x600 mm",
       sqftPerBox: 15.5,
       weightPerBoxKg: 27.5,
-      basePrice: 420,
+      basePrice: 32,
     },
   ];
 
@@ -147,10 +147,18 @@ function QuotationForm() {
               const sqftPerBox = Number(pi.sqftPerBox) || 15.5;
               const sqft = Number(pi.quantitySqFt) || Number((qty * sqftPerBox).toFixed(2));
               const weightKg = Number((qty * (pi.weightPerBoxKg || 29.0)).toFixed(1));
-              const basePrice = Number(pi.basePrice) || 540;
-              const disc = pi.discountPercent !== undefined ? Number(pi.discountPercent) : 5;
-              const effPrice = Number((basePrice * (1 - disc / 100)).toFixed(2));
-              const total = Number((qty * effPrice).toFixed(2));
+
+              // Base price is per SQFT (e.g. 35/sqft). If legacy data has box price (> 150), convert to per sqft.
+              let basePricePerSqft = Number(pi.basePrice) || 35;
+              if (basePricePerSqft > 150 && sqftPerBox > 0) {
+                basePricePerSqft = Number((basePricePerSqft / sqftPerBox).toFixed(2));
+              }
+
+              const disc = pi.discountPercent !== undefined ? Number(pi.discountPercent) : 0;
+              // 35/sqf means: 35 x 15.5 (sqf per box) = 542.50 per box
+              const effRateSqft = Number((basePricePerSqft * (1 - disc / 100)).toFixed(2));
+              const effPricePerBox = Number((effRateSqft * sqftPerBox).toFixed(2));
+              const total = Number((qty * effPricePerBox).toFixed(2));
 
               return {
                 productId: pi.productId || "prod-po",
@@ -162,10 +170,10 @@ function QuotationForm() {
                 sqftPerBox: sqftPerBox,
                 totalSqft: sqft,
                 weightKg: weightKg,
-                unitPrice: basePrice,
+                unitPrice: basePricePerSqft, // Rate per sq.ft (e.g. 35)
                 discountPercent: disc,
-                effectivePrice: effPrice,
-                lineTotal: total,
+                effectivePrice: effPricePerBox, // Price per box (e.g. 542.50)
+                lineTotal: total, // Quantity boxes * Price per box
               };
             });
             setItems(mappedItems);
@@ -192,9 +200,11 @@ function QuotationForm() {
     const qty = 100;
     const sqft = Number((qty * t.sqftPerBox).toFixed(2));
     const weight = Number((qty * t.weightPerBoxKg).toFixed(1));
-    const disc = 5;
-    const effPrice = Number((t.basePrice * (1 - disc / 100)).toFixed(2));
-    const total = Number((qty * effPrice).toFixed(2));
+    const disc = 0;
+    const basePricePerSqft = t.basePrice;
+    const effRateSqft = Number((basePricePerSqft * (1 - disc / 100)).toFixed(2));
+    const effPricePerBox = Number((effRateSqft * t.sqftPerBox).toFixed(2));
+    const total = Number((qty * effPricePerBox).toFixed(2));
 
     setItems(prev => [
       ...prev,
@@ -207,9 +217,9 @@ function QuotationForm() {
         sqftPerBox: t.sqftPerBox,
         totalSqft: sqft,
         weightKg: weight,
-        unitPrice: t.basePrice,
+        unitPrice: basePricePerSqft,
         discountPercent: disc,
-        effectivePrice: effPrice,
+        effectivePrice: effPricePerBox,
         lineTotal: total,
       }
     ]);
@@ -222,7 +232,7 @@ function QuotationForm() {
 
       // If linked to an order, box count is strictly locked to client order!
       const qty = linkedOrder ? item.quantityBoxes : (field === "quantityBoxes" ? (parseInt(val, 10) || 0) : item.quantityBoxes);
-      const uPrice = field === "unitPrice" ? (parseFloat(val) || 0) : item.unitPrice;
+      const uPrice = field === "unitPrice" ? (parseFloat(val) || 0) : item.unitPrice; // Rate per sq.ft
       const disc = field === "discountPercent" ? (parseFloat(val) || 0) : item.discountPercent;
 
       const sqftPerBox = item.sqftPerBox || 15.5;
@@ -233,8 +243,13 @@ function QuotationForm() {
       item.discountPercent = disc;
       item.totalSqft = Number((qty * sqftPerBox).toFixed(2));
       item.weightKg = Number((qty * weightPerBoxKg).toFixed(1));
-      item.effectivePrice = Number((uPrice * (1 - disc / 100)).toFixed(2));
-      item.lineTotal = Number((qty * item.effectivePrice).toFixed(2));
+
+      // Correct calculation logic:
+      // Price per sqft * sqft per box = price per box (e.g. 35 x 15.5 = 542.50 per box)
+      const effectiveRateSqft = Number((uPrice * (1 - disc / 100)).toFixed(2));
+      const effectivePricePerBox = Number((effectiveRateSqft * sqftPerBox).toFixed(2));
+      item.effectivePrice = effectivePricePerBox; // 542.50 per box
+      item.lineTotal = Number((qty * effectivePricePerBox).toFixed(2)); // total = boxes * box price
 
       copy[index] = item;
       return copy;
@@ -252,13 +267,13 @@ function QuotationForm() {
   const totalWeightTons = Number((totalWeightKg / 1000).toFixed(2));
   const totalSqft = Number(items.reduce((sum, i) => sum + (i.totalSqft || 0), 0).toFixed(1));
 
-  const subtotal = items.reduce((sum, i) => sum + (i.lineTotal || 0), 0);
+  const subtotal = Number(items.reduce((sum, i) => sum + (i.lineTotal || 0), 0).toFixed(2));
   const maxDiscountGiven = items.reduce((max, i) => Math.max(max, i.discountPercent || 0), 0);
 
   // Per Sq. Ft Rate Analysis (< ₹26.50/sq.ft threshold rule)
   const avgRatePerSqft = totalSqft > 0 ? Number((subtotal / totalSqft).toFixed(2)) : 0;
   const itemsBelowMinRate = items.filter(i => {
-    const rate = i.totalSqft > 0 ? (i.lineTotal / i.totalSqft) : (i.effectivePrice / (i.sqftPerBox || 15.5));
+    const rate = i.unitPrice * (1 - (i.discountPercent || 0) / 100);
     return rate < MIN_RATE_PER_SQFT;
   });
   const isRateBelowThreshold = avgRatePerSqft < MIN_RATE_PER_SQFT || itemsBelowMinRate.length > 0;
@@ -311,7 +326,11 @@ function QuotationForm() {
       const quoteNumber = `QT-2026-${Math.floor(100 + Math.random() * 900)}`;
       // If cost < 26.50 / sq.ft, status is strictly pending_admin_approval
       const quoteStatus = requiresAdminConfirmation ? "pending_admin_approval" : "approved";
-      const discountTotal = items.reduce((sum, i) => sum + ((i.quantityBoxes * i.unitPrice) - i.lineTotal), 0);
+      const discountTotal = items.reduce((sum, i) => {
+        const sqftPerBox = i.sqftPerBox || 15.5;
+        const undiscountedLineTotal = (i.quantityBoxes || 0) * (i.unitPrice * sqftPerBox);
+        return sum + Math.max(0, undiscountedLineTotal - i.lineTotal);
+      }, 0);
 
       const docRef = await addDoc(collection(db, "quotations"), {
         quotationNumber: quoteNumber,
@@ -659,15 +678,16 @@ function QuotationForm() {
                     {/* BASE PRICE - EDITABLE BY SALESPERSON */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1 flex items-center justify-between">
-                        <span>Base Price</span>
+                        <span>Base Price (₹/sq.ft)</span>
                         {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
                       </label>
                       <input
                         type="number"
+                        step="0.01"
                         value={item.unitPrice}
                         onChange={(e) => handleUpdateItem(idx, "unitPrice", e.target.value)}
                         className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
-                        placeholder="Rate (₹)"
+                        placeholder="Rate (₹/sqft)"
                       />
                     </div>
 
@@ -689,7 +709,6 @@ function QuotationForm() {
                     </div>
 
                     {/* LINE TOTAL - Dynamically calculated */}
-                    {/* LINE TOTAL - Dynamically calculated */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Line Total</label>
                       <span className="text-xs font-bold text-[#0E274D] block py-1.5">
@@ -702,11 +721,11 @@ function QuotationForm() {
                       <div className="flex items-center space-x-2">
                         <span className="text-slate-500">Effective Rate per Sq. Ft:</span>
                         <strong className="text-[#0E274D] font-bold">
-                          ₹{((item.totalSqft > 0 ? (item.lineTotal / item.totalSqft) : (item.effectivePrice / (item.sqftPerBox || 15.5)))).toFixed(2)} / sq.ft
+                          ₹{(item.unitPrice * (1 - (item.discountPercent || 0) / 100)).toFixed(2)} / sq.ft
                         </strong>
-                        <span className="text-slate-400 font-mono text-[10px]">(₹{item.effectivePrice}/box)</span>
+                        <span className="text-slate-500 font-medium text-[11px]">(₹{item.effectivePrice.toFixed(2)}/box)</span>
                       </div>
-                      {(item.totalSqft > 0 ? (item.lineTotal / item.totalSqft) : (item.effectivePrice / (item.sqftPerBox || 15.5))) < MIN_RATE_PER_SQFT ? (
+                      {(item.unitPrice * (1 - (item.discountPercent || 0) / 100)) < MIN_RATE_PER_SQFT ? (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
                           <ShieldAlert className="w-3 h-3 text-amber-700" />
                           Rate &lt; ₹26.50 / sq.ft (Admin Confirmation Required)

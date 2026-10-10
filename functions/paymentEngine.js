@@ -525,12 +525,12 @@ exports.verifyPaymentCallable = functions.https.onCall(async (data, context) => 
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    transaction.update(utrRef, {
+    transaction.set(utrRef, {
       status: 'verified',
       verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
       verifiedBy: staffUid,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    }, { merge: true });
 
     transaction.update(orderRef, {
       paymentStatus: 'paid',
@@ -655,11 +655,11 @@ exports.rejectPaymentCallable = functions.https.onCall(async (data, context) => 
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    transaction.update(utrRef, {
+    transaction.set(utrRef, {
       status: 'rejected',
       rejectionReason: trimmedReason,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    }, { merge: true });
 
     transaction.update(orderRef, {
       paymentStatus: 'rejected',

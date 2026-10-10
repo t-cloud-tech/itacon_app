@@ -330,7 +330,7 @@ export default function QuotationDetailPage() {
                   <th className="py-2.5 px-3">Size</th>
                   <th className="py-2.5 px-3 text-center">Boxes</th>
                   <th className="py-2.5 px-3 text-right">Coverage (Sqft)</th>
-                  <th className="py-2.5 px-3 text-right">Base Price</th>
+                  <th className="py-2.5 px-3 text-right">Base Price (₹/sqft)</th>
                   <th className="py-2.5 px-3 text-center">Disc. %</th>
                   <th className="py-2.5 px-3 text-right rounded-r">Amount (₹)</th>
                 </tr>
@@ -345,7 +345,12 @@ export default function QuotationDetailPage() {
                     <td className="py-3 px-3 text-slate-600">{item.size || "Standard"}</td>
                     <td className="py-3 px-3 text-center font-bold text-slate-700">{item.quantityBoxes}</td>
                     <td className="py-3 px-3 text-right text-slate-600">{item.totalSqft}</td>
-                    <td className="py-3 px-3 text-right text-slate-600">₹{item.unitPrice}</td>
+                    <td className="py-3 px-3 text-right text-slate-600">
+                      <div>₹{item.unitPrice}/sq.ft</div>
+                      {item.effectivePrice && (
+                        <div className="text-[10px] text-slate-400">₹{item.effectivePrice}/box</div>
+                      )}
+                    </td>
                     <td className="py-3 px-3 text-center font-semibold text-emerald-600">{item.discountPercent}%</td>
                     <td className="py-3 px-3 text-right font-bold text-slate-900">
                       ₹{Number(item.lineTotal).toLocaleString("en-IN")}
