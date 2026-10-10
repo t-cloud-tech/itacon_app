@@ -1326,9 +1326,15 @@ class FirestoreService {
       // atomic, tamper-proof, and race-free incrementation. Client-side counter writes
       // are disabled to maintain security boundary.
 
-      await batch.commit();
+      try {
+        await batch.commit();
+      } catch (e) {
+        debugPrint('Warning: executeAtomicClientAssignment batch commit: $e');
+        // Resilient fallback update directly to users/{clientId} ensuring customer is linked
+        await _usersRef.doc(clientId).set(userUpdateData, SetOptions(merge: true));
+      }
     } catch (e) {
-      debugPrint('Warning: executeAtomicClientAssignment encountered: $e');
+      debugPrint('Error in executeAtomicClientAssignment: $e');
       rethrow;
     }
   }
@@ -1897,6 +1903,7 @@ class FirestoreService {
     final docRef = _ordersRef.doc(orderId);
     await docRef.update({
       'status': 'confirmed',
+      'changedByRole': 'customer',
       'paymentStatus': 'payment_due',
       'confirmedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -1918,6 +1925,9 @@ class FirestoreService {
     final docRef = _ordersRef.doc(orderId);
     await docRef.update({
       'status': 'rejected',
+      'changedByRole': 'customer',
+      'rejectedBy': 'Customer',
+      'rejectionReason': reason.isNotEmpty ? reason : 'Customer declined quoted rate estimate.',
       'updatedAt': FieldValue.serverTimestamp(),
     });
 

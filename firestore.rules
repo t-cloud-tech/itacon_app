@@ -121,8 +121,7 @@ service cloud.firestore {
         ('userCategory' in request.resource.data) &&
         isValidCustomerCategory(request.resource.data.userCategory) &&
         isPreservingAssignedSalesperson() &&
-        !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
+!hasRewardFields(request.resource.data);
     }
 
     // Deny writes that forge privileged user fields
@@ -532,17 +531,13 @@ service cloud.firestore {
     // =========================================================================
     // SALESPERSON & ASSIGNMENT COLLECTIONS
     // =========================================================================
-    match /salesPersons/{spId} {
+        match /salesPersons/{spId} {
       allow read: if isAuthenticated();
-      // Privileged counters and salesperson profiles can only be modified by Staff/Admin
-      // or Cloud Functions via Firebase Admin SDK. Untrusted customers cannot change counters.
-      allow write: if isStaff();
+      allow write: if (isStaff() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedClientsCount', 'activeClientsCount', 'updatedAt']))) && !hasSensitiveFields(request.resource.data);
 
       match /assigned_clients/{clientId} {
         allow read: if isStaff() || (isAuthenticated() && clientId == request.auth.uid);
-        // Direct writes to assigned_clients subcollection restricted to Staff.
-        // Customer assignments are managed authoritatively by backend Cloud Functions (Admin SDK).
-        allow write: if isStaff();
+        allow write: if isStaff() || (isAuthenticated() && clientId == request.auth.uid);
       }
     }
 
@@ -553,18 +548,17 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isStaff()
       );
-      // Managed authoritatively by backend Cloud Functions (Admin SDK) or Staff/Admin
-      allow write: if isStaff() || isAdminOrManager();
+      allow write: if ((isAuthenticated() && assignmentId == 'ASGN_' + request.auth.uid) || isAdminOrManager() || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
 
     match /Auto_Assign_User/{docId} {
       allow read: if isAuthenticated() && (docId == request.auth.uid || isStaff());
-      allow write: if isStaff() || isAdminOrManager();
+      allow write: if (isOwner(docId) || isAdminOrManager() || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
 
     match /Manual_salesperson_assign/{docId} {
       allow read: if isStaff() || (isAuthenticated() && docId == request.auth.uid);
-      allow write: if isStaff() || isAdminOrManager();
+      allow write: if (isOwner(docId) || isAdminOrManager() || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
 
     // =========================================================================

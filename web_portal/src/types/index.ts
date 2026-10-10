@@ -141,12 +141,15 @@ export interface QuotationItem {
 
 export type QuotationStatus = 
   | "draft" 
+  | "pending_rate"
   | "pending_approval" 
   | "pending_admin_approval"
+  | "pending_salesperson_review"
   | "approved" 
-  | "rejected" 
+  | "rate_quoted"
   | "sent_to_customer" 
   | "accepted" 
+  | "rejected" 
   | "declined" 
   | "expired";
 
@@ -176,6 +179,11 @@ export interface Quotation {
   expiryDate: string;
   requiresSpecialApproval: boolean;
   approvalStatus?: "none" | "pending" | "approved" | "rejected";
+  adminApprovalStatus?: "none" | "pending" | "approved" | "rejected" | string;
+  salespersonApprovalStatus?: "pending_release" | "action_required_revision" | "released" | "cancelled" | "none" | string;
+  changedByRole?: string;
+  rejectedBy?: string;
+  rejectionReason?: string;
   approvedBy?: string;
   approvedAt?: string;
   approvalRemarks?: string;

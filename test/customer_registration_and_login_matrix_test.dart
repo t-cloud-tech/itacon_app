@@ -936,7 +936,7 @@ void main() {
       expect(testUid.startsWith('USER_'), isFalse);
     });
 
-    test('20. Section 7: Existing phone re-registration reuses canonical UID safely', () async {
+    test('20. Section 7: Existing phone re-registration blocks duplicate and guides to login', () async {
       final mockFirestore = MockFirestoreService();
       const testUid = 'CANONICAL_PHONE_UID';
       final mockUser = MockAuthUser(uid: testUid, phoneNumber: '+919876543210');
@@ -955,20 +955,22 @@ void main() {
 
       expect(mockFirestore.usersCollection.length, equals(1));
 
-      // Re-registration or recovery attempt with same Auth user
-      await authService.registerUser(
-        name: 'Original Phone Owner Updated',
-        phoneNumber: '+919876543210',
-        categoryId: 'builder',
-        password: 'Password123!',
-        verificationId: 'v2',
-        smsCode: '111111',
-        referralCode: 'SALES101',
+      // Re-registration attempt with same completed account throws DuplicateAccountException
+      expect(
+        () => authService.registerUser(
+          name: 'Original Phone Owner Updated',
+          phoneNumber: '+919876543210',
+          categoryId: 'builder',
+          password: 'Password123!',
+          verificationId: 'v2',
+          smsCode: '111111',
+          referralCode: 'SALES101',
+        ),
+        throwsA(isA<DuplicateAccountException>()),
       );
 
       // Must NOT create a second users document
       expect(mockFirestore.usersCollection.length, equals(1));
-      expect(mockFirestore.usersCollection[testUid]!['name'], equals('Original Phone Owner Updated'));
     });
 
     test('21. Section 8: Display name is preserved while canonical username is normalized lowercase', () async {

@@ -103,7 +103,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Salesperson assigned and referral code auto-filled below. Click "Verify Code & Unlock" to proceed.',
+              'Salesperson linked successfully! Tap OK to proceed.',
               style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
             ),
           ],
@@ -217,18 +217,23 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
           automaticallyImplyLeading: false,
           actions: [
             TextButton.icon(
-              icon: const Icon(Icons.logout_rounded, color: Color(0xFF1A237E), size: 18),
+              onPressed: _isLoading ? null : () => UserSessionService.logout(context),
+              icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFF1A237E)),
               label: const Text(
-                'Logout',
-                style: TextStyle(color: Color(0xFF1A237E), fontWeight: FontWeight.bold),
+                'Log Out',
+                style: TextStyle(
+                  color: Color(0xFF1A237E),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
-              onPressed: () => UserSessionService.logout(context),
             ),
+            const SizedBox(width: 8),
           ],
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,

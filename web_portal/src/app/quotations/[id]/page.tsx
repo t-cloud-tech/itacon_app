@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Quotation } from "@/types";
+import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { 
   ArrowLeft, 
   Printer, 
@@ -39,7 +40,22 @@ export default function QuotationDetailPage() {
         if (!quoteId) return;
         const snap = await getDoc(doc(db, "quotations", quoteId));
         if (snap.exists()) {
-          setQuote({ id: snap.id, ...snap.data() } as Quotation);
+          const qData = { id: snap.id, ...snap.data() } as Quotation;
+          if (qData.orderId) {
+            try {
+              const oSnap = await getDoc(doc(db, "orders", qData.orderId));
+              if (oSnap.exists()) {
+                const oData = oSnap.data();
+                if (oData.status === "confirmed" || oData.status === "rejected") {
+                  qData.status = oData.status === "confirmed" ? ("accepted" as any) : "rejected";
+                  qData.changedByRole = oData.changedByRole || "customer";
+                  qData.rejectedBy = oData.rejectedBy || (oData.status === "rejected" ? "Customer" : undefined);
+                  qData.rejectionReason = oData.rejectionReason;
+                }
+              }
+            } catch (_) {}
+          }
+          setQuote(qData);
         } else {
           // Fallback baseline quotation
           setQuote({
@@ -119,11 +135,20 @@ export default function QuotationDetailPage() {
         status: "sent_to_customer",
         updatedAt: new Date().toISOString(),
       });
+      if (quote.orderId) {
+        try {
+          await updateDoc(doc(db, "orders", quote.orderId), {
+            status: "rate_quoted",
+            salespersonApprovalStatus: "released",
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (_) {}
+      }
       setQuote(prev => prev ? { ...prev, status: "sent_to_customer" } : null);
-      setActionSuccess("Quotation sent to customer mobile app!");
+      setActionSuccess("Quotation released and sent to customer!");
     } catch (err) {
       setQuote(prev => prev ? { ...prev, status: "sent_to_customer" } : null);
-      setActionSuccess("Quotation status updated.");
+      setActionSuccess("Quotation status updated to Sent to Customer.");
     }
   };
 
@@ -207,7 +232,7 @@ export default function QuotationDetailPage() {
                 className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <Smartphone className="w-4 h-4" />
-                <span>Sync to Mobile App</span>
+                <span>Release to Customer</span>
               </button>
             )}
 
@@ -249,6 +274,23 @@ export default function QuotationDetailPage() {
             <div className="text-right">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Quotation Document</span>
               <p className="text-xl font-mono font-extrabold text-[#0E274D] mt-0.5">{quote.quotationNumber}</p>
+              <div className="mt-1 flex items-center justify-end">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getPOStatusBadgeClass(quote.status, {
+                  adminApprovalStatus: (quote as any).adminApprovalStatus || quote.approvalStatus,
+                  approvalStatus: quote.approvalStatus,
+                  pricePerSqft: quote.pricePerSqft,
+                  rateThreshold: quote.rateThreshold,
+                  requiresSpecialApproval: quote.requiresSpecialApproval,
+                })}`}>
+                  {getPOStatusLabel(quote.status, {
+                    adminApprovalStatus: (quote as any).adminApprovalStatus || quote.approvalStatus,
+                    approvalStatus: quote.approvalStatus,
+                    pricePerSqft: quote.pricePerSqft,
+                    rateThreshold: quote.rateThreshold,
+                    requiresSpecialApproval: quote.requiresSpecialApproval,
+                  })}
+                </span>
+              </div>
               <div className="mt-1 flex items-center justify-end space-x-1 text-xs text-slate-500">
                 <span>Date:</span>
                 <span className="font-semibold text-slate-700">{quote.createdAt}</span>

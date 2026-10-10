@@ -6,7 +6,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, limit, orderBy } from "firebase/firestore";
-import { subscribeClientPORequests, subscribeAllOrders, ClientOrderPO } from "@/lib/order-service";
+import { subscribeClientPORequests, subscribeAllOrders, ClientOrderPO, getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { RevenueOverviewCard } from "@/components/dashboard/revenue-overview-card";
 import { OrdersStatusDonutCard } from "@/components/dashboard/orders-status-donut-card";
 import { 
@@ -410,15 +410,11 @@ export default function DashboardPage() {
                         </td>
                         <td className="py-3.5">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              quote.status === "approved"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : quote.status === "pending_approval"
-                                ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : "bg-blue-50 text-blue-700 border border-blue-200"
-                            }`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getPOStatusBadgeClass(
+                              quote.status
+                            )}`}
                           >
-                            {quote.status.replace("_", " ")}
+                            {getPOStatusLabel(quote.status)}
                           </span>
                         </td>
                         <td className="py-3.5 text-right">

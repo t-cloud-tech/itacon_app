@@ -9,7 +9,7 @@ import { collection, query, where, getDocs, orderBy, onSnapshot } from "firebase
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { SalesOrder, OrderStatus, PaymentSubmissionRecord } from "@/types";
-import { subscribeAllOrders, ClientOrderPO } from "@/lib/order-service";
+import { subscribeAllOrders, ClientOrderPO, getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import {
   Truck,
   Search,
@@ -182,7 +182,17 @@ export default function SalesOrdersPage() {
       po.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.companyName.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "all" || po.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "pending_rate" && (po.status === "pending_rate" || po.status === "submitted" || po.status === "pending_quote")) ||
+      (statusFilter === "pending_admin_approval" && po.status === "pending_admin_approval" && po.adminApprovalStatus !== "approved" && po.adminApprovalStatus !== "rejected") ||
+      (statusFilter === "pending_salesperson_review" && (po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released"))) ||
+      (statusFilter === "admin_rejected" && (po.adminApprovalStatus === "rejected" || (po.status === "pending_salesperson_review" && po.salespersonApprovalStatus === "action_required_revision"))) ||
+      (statusFilter === "rate_quoted" && (po.status === "rate_quoted" || (po as any).status === "sent_to_customer")) ||
+      (statusFilter === "confirmed" && po.status === "confirmed") ||
+      (statusFilter === "rejected" && (po.status === "rejected" || (po as any).status === "declined")) ||
+      po.status === statusFilter;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -297,7 +307,7 @@ export default function SalesOrdersPage() {
       case "in_production":
         return "bg-amber-50 text-amber-700 border-amber-200";
       case "confirmed":
-        return "bg-purple-50 text-purple-700 border-purple-200";
+        return "bg-emerald-50 text-emerald-800 border-emerald-200";
       case "cancelled":
         return "bg-rose-50 text-rose-700 border-rose-200";
       default:
@@ -440,9 +450,13 @@ export default function SalesOrdersPage() {
                 className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
               >
                 <option value="all">All PO Statuses</option>
-                <option value="pending_rate">Awaiting Quote (pending_rate)</option>
-                <option value="rate_quoted">Rate Quoted</option>
-                <option value="confirmed">Confirmed</option>
+                <option value="pending_rate">Awaiting Quote</option>
+                <option value="pending_admin_approval">Awaiting Admin Approval</option>
+                <option value="pending_salesperson_review">Admin Approved - Sales Action Required</option>
+                <option value="admin_rejected">Admin Rejected - Sales Action Required</option>
+                <option value="rate_quoted">Sent to Customer</option>
+                <option value="confirmed">Accepted by Customer</option>
+                <option value="rejected">Rejected</option>
               </select>
             )}
 
@@ -504,27 +518,27 @@ export default function SalesOrdersPage() {
                         <span className="px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold uppercase tracking-wider">
                           Mobile App PO
                         </span>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize border ${po.status === "pending_rate"
-                            ? "bg-amber-50 text-amber-800 border-amber-200"
-                            : po.status === "pending_admin_approval"
-                              ? "bg-amber-100 text-amber-900 border-amber-300"
-                              : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
-                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                                : po.adminApprovalStatus === "rejected"
-                                  ? "bg-rose-100 text-rose-900 border-rose-300"
-                                  : po.status === "rate_quoted"
-                                    ? "bg-blue-50 text-blue-800 border-blue-200"
-                                    : "bg-emerald-50 text-emerald-800 border-emerald-200"
-                          }`}>
-                          {po.status === "pending_rate"
-                            ? "Quote Needed"
-                            : po.status === "pending_admin_approval"
-                              ? "Awaiting Admin (< ₹26.50)"
-                              : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released")
-                                ? "Admin Approved • Awaiting Salesperson Release"
-                                : po.adminApprovalStatus === "rejected"
-                                  ? "Admin Rejected • Revise Rate"
-                                  : po.status.replace("_", " ")}
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getPOStatusBadgeClass(
+                          po.status,
+                          {
+                            adminApprovalStatus: po.adminApprovalStatus,
+                            salespersonApprovalStatus: po.salespersonApprovalStatus,
+                            changedByRole: po.changedByRole,
+                            rejectedBy: po.rejectedBy,
+                            pricePerSqft: po.pricePerSqft,
+                            adminApprovalRequired: po.adminApprovalRequired,
+                            isOrder: true,
+                          }
+                        )}`}>
+                          {getPOStatusLabel(po.status, {
+                            adminApprovalStatus: po.adminApprovalStatus,
+                            salespersonApprovalStatus: po.salespersonApprovalStatus,
+                            changedByRole: po.changedByRole,
+                            rejectedBy: po.rejectedBy,
+                            pricePerSqft: po.pricePerSqft,
+                            adminApprovalRequired: po.adminApprovalRequired,
+                            isOrder: true,
+                          })}
                         </span>
                         <span className="text-xs text-slate-400">
                           {new Date(po.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
@@ -569,7 +583,7 @@ export default function SalesOrdersPage() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
                         >
                           <FileSpreadsheet className="w-4 h-4" />
-                          <span>Quote Rates & Discount &rarr;</span>
+                          <span>Quote Rates &amp; Discount &rarr;</span>
                         </Link>
                       ) : po.status === "pending_admin_approval" ? (
                         <Link
@@ -577,7 +591,7 @@ export default function SalesOrdersPage() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
                         >
                           <Clock className="w-3.5 h-3.5" />
-                          <span>In Admin Review (&lt; ₹26.50)</span>
+                          <span>Awaiting Admin Approval (&lt; ₹26.50)</span>
                         </Link>
                       ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
                         <Link
@@ -585,7 +599,7 @@ export default function SalesOrdersPage() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          <span>Review &amp; Release in Approvals &rarr;</span>
+                          <span>Admin Approved - Sales Action Required &rarr;</span>
                         </Link>
                       ) : po.adminApprovalStatus === "rejected" ? (
                         <Link
@@ -593,7 +607,7 @@ export default function SalesOrdersPage() {
                           className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
                         >
                           <FileSpreadsheet className="w-3.5 h-3.5" />
-                          <span>Revise Quoted Rate &rarr;</span>
+                          <span>Admin Rejected - Sales Action Required &rarr;</span>
                         </Link>
                       ) : (
                         <Link
@@ -608,12 +622,12 @@ export default function SalesOrdersPage() {
                         {po.status === "pending_rate"
                           ? "Quantities locked to PO"
                           : po.status === "pending_admin_approval"
-                            ? "Awaiting Admin Confirmation"
+                            ? "Awaiting Admin Approval"
                             : po.adminApprovalStatus === "approved"
-                              ? "Admin Approved • Ready for Release"
-                              : po.adminApprovalStatus === "rejected"
-                                ? "Rate revision required"
-                                : "Rate estimate delivered"}
+                            ? "Admin Approved - Sales Action Required"
+                            : po.adminApprovalStatus === "rejected"
+                            ? "Admin Rejected - Sales Action Required"
+                            : "Sent to Customer"}
                       </span>
                     </div>
                   </div>
@@ -698,8 +712,8 @@ export default function SalesOrdersPage() {
                         </td>
 
                         <td className="py-4 px-5">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${getStatusBadge(ord.status)}`}>
-                            {ord.status.replace("_", " ")}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(ord.status)}`}>
+                            {getPOStatusLabel(ord.status, { isOrder: true })}
                           </span>
                         </td>
                       </tr>

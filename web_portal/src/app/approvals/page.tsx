@@ -686,21 +686,21 @@ export default function ApprovalsPage() {
                       {isAdminApproved && (
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
                           <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Admin Approved</span>
+                          <span>Admin Approved - Sales Action Required</span>
                         </span>
                       )}
 
                       {isAdminRejected && (
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-1">
                           <X className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Admin Rejected</span>
+                          <span>Admin Rejected - Sales Action Required</span>
                         </span>
                       )}
 
                       {isPending && (
                         <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Pending Admin Confirmation</span>
+                          <span>Awaiting Admin Approval</span>
                         </span>
                       )}
 
@@ -734,7 +734,7 @@ export default function ApprovalsPage() {
                             <AlertCircle className="w-4 h-4 text-rose-600" />
                           )}
                           <span>
-                            {isAdminApproved ? "Admin Approved Rate" : "Admin Rejected Rate"}
+                            {isAdminApproved ? "Admin Approved - Sales Action Required" : "Admin Rejected - Sales Action Required"}
                             {item.decidedBy ? ` by ${item.decidedBy}` : ""} ({item.decidedAt || "Recent"})
                             {!isSalespersonRole ? ` • Reflected in ${item.salespersonName}'s Approval Tab` : " • Ready for your action"}
                           </span>
@@ -748,7 +748,7 @@ export default function ApprovalsPage() {
                       {isReleased ? (
                         <span className="inline-flex items-center space-x-1 text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                           <Unlock className="w-3 h-3" />
-                          <span>Released to App: Quoted rates are live on customer app</span>
+                          <span>Sent to Customer: Quoted rates are live on customer app</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center space-x-1 text-amber-800 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-300">
@@ -794,7 +794,7 @@ export default function ApprovalsPage() {
                         /* SALESPERSON VIEW of Pending: Waiting for Head-Office Admin */
                         <div className="text-right">
                           <span className="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 inline-block">
-                            Awaiting Admin Confirmation
+                            Awaiting Admin Approval
                           </span>
                           <p className="text-[10px] text-slate-400 mt-1 max-w-[170px]">
                             Under head-office review (&lt; ₹26.50/sq.ft). Rates remain locked on client app.
@@ -814,7 +814,7 @@ export default function ApprovalsPage() {
                                 className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50"
                               >
                                 <Send className="w-3.5 h-3.5" />
-                                <span>Release to Customer App</span>
+                                <span>Release to Customer</span>
                               </button>
                               <span className="text-[10px] text-slate-400 text-right">
                                 Syncs rates to your client&apos;s app
@@ -824,7 +824,7 @@ export default function ApprovalsPage() {
                             /* ADMIN VIEW: Cannot release to customer app; shows status */
                             <div className="text-right space-y-1">
                               <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
-                                Approved • Awaiting Salesperson Release
+                                Admin Approved - Sales Action Required
                               </span>
                               <p className="text-[10px] text-slate-400 max-w-[200px]">
                                 Sent to {item.salespersonName}&apos;s tab. Salesperson will release to client.
@@ -834,7 +834,7 @@ export default function ApprovalsPage() {
                         ) : (
                           <div className="text-right space-y-1">
                             <span className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-block">
-                              Released to Client
+                              Sent to Customer
                             </span>
                             {item.salespersonReleasedAt && (
                               <p className="text-[10px] text-slate-400">
@@ -869,7 +869,7 @@ export default function ApprovalsPage() {
                           /* ADMIN VIEW: Cannot revise rate; shows read-only status */
                           <div className="text-right space-y-1">
                             <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-block">
-                              Rejected • Awaiting Salesperson Revision
+                              Admin Rejected - Sales Action Required
                             </span>
                             <p className="text-[10px] text-slate-400 max-w-[200px]">
                               Reflected in {item.salespersonName}&apos;s tab for rate revision.

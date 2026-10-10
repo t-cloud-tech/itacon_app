@@ -327,11 +327,22 @@ class _AuthenticatedSessionLoaderState extends State<AuthenticatedSessionLoader>
       );
     }
 
-    if (AppStateService.instance.hasSessionProfile) {
-      final profile = AppStateService.instance.currentUserProfile;
-      if (AuthGate.requiresSalespersonCompletion(profile)) {
-        return const ReferralGateScreen();
-      }
+    final profile = AppStateService.instance.hasSessionProfile
+        ? AppStateService.instance.currentUserProfile
+        : null;
+
+    final isStaff = profile != null &&
+        (profile.role == 'admin' ||
+         profile.role == 'salesperson' ||
+         profile.role == 'manager' ||
+         profile.role == 'super_admin');
+
+    final hasAssignedSalesperson = profile != null &&
+        ((profile.salesPersonId != null && profile.salesPersonId!.trim().isNotEmpty) ||
+         (profile.assignedSalespersonId != null && profile.assignedSalespersonId!.trim().isNotEmpty));
+
+    if (profile != null && !isStaff && !hasAssignedSalesperson) {
+      return const ReferralGateScreen();
     }
 
     return widget.authenticatedChild ?? const MainNavigationScreen();

@@ -11,6 +11,18 @@ import '../models/user_category.dart';
 import 'user_session_service.dart';
 import 'app_state_service.dart';
 
+/// Typed exception thrown when attempting registration with a mobile number
+/// that already belongs to an existing Firebase Authentication or customer account.
+class DuplicateAccountException implements Exception {
+  final String message;
+  const DuplicateAccountException([
+    this.message = 'An account already exists with this mobile number. Please log in instead.',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 class AuthService {
   final FirebaseAuth? _customAuth;
   final FirestoreService _firestoreService;
@@ -514,6 +526,59 @@ class AuthService {
 
     final uid = firebaseUser.uid;
 
+    // ----------------------------------------------------------
+    // 3A. Authoritative Duplicate Registration Check
+    // ----------------------------------------------------------
+    final additionalInfo = userCredential.additionalUserInfo;
+    bool isDuplicateAccount = false;
+
+    if (additionalInfo != null) {
+      if (additionalInfo.isNewUser == false) {
+        isDuplicateAccount = true;
+      }
+    } else {
+      // Fallback inspection when additionalUserInfo is null or unavailable:
+      // 1. Check account creation vs last sign-in timestamp
+      try {
+        final creationTime = firebaseUser.metadata.creationTime;
+        final lastSignInTime = firebaseUser.metadata.lastSignInTime;
+        if (creationTime != null && lastSignInTime != null) {
+          if (lastSignInTime.difference(creationTime).inSeconds > 5) {
+            isDuplicateAccount = true;
+          }
+        }
+      } catch (_) {
+        // Fallback safely if metadata is unavailable or unimplemented
+      }
+    }
+
+    // Secondary check: verify if an existing COMPLETED customer profile already exists under this UID.
+    // NOTE: An Admin-created pre-registration stub only sets salesperson assignment without password/role
+    // and is NOT a completed customer account (legitimate first-time self-registration is allowed).
+    if (!isDuplicateAccount) {
+      final rawDoc = await _firestoreService.getUserDocument(uid);
+      if (rawDoc != null) {
+        final existingRole = (rawDoc['role'] ?? rawDoc['userCategory'] ?? '').toString().trim();
+        final hasPassword = (rawDoc['passwordHash'] as String?)?.isNotEmpty ?? false;
+        final isVerified = rawDoc['isVerified'] == true || rawDoc['phoneVerified'] == true;
+        if (hasPassword || (isVerified && existingRole.isNotEmpty && existingRole != 'guest')) {
+          isDuplicateAccount = true;
+        }
+      }
+    }
+
+    if (isDuplicateAccount) {
+      // Safely clear the temporary authenticated state created by the rejected signup attempt
+      if (currentUser?.uid == uid) {
+        await signOutFirebaseUser();
+      }
+      _lastRegisteredUid = null;
+
+      throw const DuplicateAccountException(
+        'An account already exists with this mobile number. Please log in instead.',
+      );
+    }
+
     _lastRegisteredUid = uid;
 
     try {
@@ -526,6 +591,20 @@ class AuthService {
       String? spPhone;
       String? spReferralCode;
       String? assignmentType;
+
+      // Check if user already had a pre-assigned salesperson from Admin
+      if (uid.isNotEmpty) {
+        final existingDoc = await _firestoreService.getUserProfile(uid);
+        if (existingDoc != null &&
+            existingDoc.salesPersonId != null &&
+            existingDoc.salesPersonId!.trim().isNotEmpty) {
+          assignedSpId = existingDoc.salesPersonId;
+          spName = existingDoc.salespersonName;
+          spPhone = existingDoc.salespersonPhone;
+          spReferralCode = existingDoc.salespersonReferralCode;
+          assignmentType = 'admin_preassigned';
+        }
+      }
 
       if (referralCode != null && referralCode.trim().isNotEmpty) {
         final normalizedCode = referralCode.trim().toUpperCase();
@@ -542,6 +621,10 @@ class AuthService {
           assignmentType = 'manual_referral';
         }
       }
+
+      // NOTE: If customer did NOT enter a referral code and was not pre-assigned by Admin,
+      // do NOT silently auto-assign in the background. The customer will be routed to
+      // ReferralGateScreen after registration to enter their referral code manually or tap Auto-Assign.
 
     // ----------------------------------------------------------
     // 5. Optional email - never invent user_<phone>@itacon.com
@@ -1298,7 +1381,7 @@ class AuthService {
       }
     }
 
-    return await _firestoreService
+    final result = await _firestoreService
         .autoAssignSalespersonDetails(
       userId: uid,
       clientName: name,
@@ -1306,6 +1389,15 @@ class AuthService {
       companyName: company,
       clientCategory: category,
     );
+
+    if (uid != null && uid.isNotEmpty) {
+      final updatedProfile = await _firestoreService.getUserProfile(uid);
+      if (updatedProfile != null) {
+        await UserSessionService.saveUserSession(updatedProfile);
+      }
+    }
+
+    return result;
   }
 
   Future<String?> autoAssignSalesperson({

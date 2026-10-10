@@ -334,9 +334,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(hasSalesperson
-                ? 'Registration Successful! Executive linked.'
-                : 'Registration Successful! Link your executive.')),
+          content: Text(hasSalesperson
+              ? 'Registration Successful! Executive linked.'
+              : 'Registration Successful! Please link your salesperson.'),
+        ),
       );
 
       if (hasSalesperson) {
@@ -353,6 +354,26 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
+
+      if (e is DuplicateAccountException ||
+          e.toString().contains('An account already exists with this mobile number')) {
+        setState(() {
+          _viewMode = AuthViewMode.login;
+          _loginPhoneController.text = _regPhoneController.text.trim();
+          _signupStep = 1;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'An account already exists with this mobile number. Please log in instead.',
+            ),
+            backgroundColor: Color(0xFF1B365D),
+            duration: Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Registration error: ${e.toString()}')),
       );
@@ -848,8 +869,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               const SizedBox(height: 16),
                               _buildLoginActionButton(),
                               const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   const Text(
                                     "Don't have an account? ",
@@ -925,7 +947,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // ===========================================================================
   Widget _buildLoginTimelineIndicator() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
           _buildLoginTimelineStep(stepNumber: 1, label: 'Account & OTP'),
@@ -1451,8 +1473,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               const SizedBox(height: 16),
                               _buildSignupActionButton(),
                               const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   const Text(
                                     "Already have an account? ",

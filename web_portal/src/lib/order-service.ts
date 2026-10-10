@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { UserProfile, SalesPerson, UserRole } from "@/types";
 import { fetchLiveCustomers } from "@/lib/customer-service";
+export * from "./po-status-helper";
 
 export interface ClientOrderItem {
   productId: string;
@@ -58,12 +59,15 @@ export interface ClientOrderPO {
   pricePerSqft?: number;
   adminApprovalRequired?: boolean;
   adminApprovalStatus?: "pending" | "approved" | "rejected" | "none";
-  salespersonApprovalStatus?: "pending_release" | "action_required_revision" | "released" | "none";
+  salespersonApprovalStatus?: "pending_release" | "action_required_revision" | "released" | "cancelled" | "none";
   salespersonReleasedAt?: string;
   salespersonReleasedBy?: string;
   adminDecisionReason?: string;
   adminApprovedAt?: string;
   adminApprovedBy?: string;
+  rejectedBy?: string;
+  rejectionReason?: string;
+  changedByRole?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -614,6 +618,13 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
     adminApprovalStatus: data.adminApprovalStatus || "none",
     adminApprovedAt: data.adminApprovedAt,
     adminApprovedBy: data.adminApprovedBy,
+    salespersonApprovalStatus: data.salespersonApprovalStatus || "none",
+    salespersonReleasedAt: data.salespersonReleasedAt,
+    salespersonReleasedBy: data.salespersonReleasedBy,
+    adminDecisionReason: data.adminDecisionReason,
+    rejectedBy: data.rejectedBy,
+    rejectionReason: data.rejectionReason,
+    changedByRole: data.changedByRole,
     createdAt: data.createdAt?.seconds 
       ? new Date(data.createdAt.seconds * 1000).toISOString()
       : (typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString()),
