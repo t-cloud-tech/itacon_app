@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
-import { db, storage, functions } from "@/lib/firebase";
+import { db, storage, functions, invokeCallable } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
@@ -245,8 +245,11 @@ export default function SalesOrdersPage() {
     setActionSuccess(null);
 
     try {
-      const verifyCallable = httpsCallable(functions, "verifyPaymentCallable");
-      const res: any = await verifyCallable({ submissionId: verifyingSub.id });
+      const res: any = await invokeCallable(
+        "verifyPaymentCallable",
+        { submissionId: verifyingSub.id },
+        "us-central1"
+      );
       
       if (res.data?.success) {
         setActionSuccess(`Payment of ₹${verifyingSub.submittedAmount.toLocaleString("en-IN")} verified successfully!`);
@@ -276,11 +279,14 @@ export default function SalesOrdersPage() {
     setActionSuccess(null);
 
     try {
-      const rejectCallable = httpsCallable(functions, "rejectPaymentCallable");
-      const res: any = await rejectCallable({
-        submissionId: rejectingSub.id,
-        reason: rejectionReason.trim(),
-      });
+      const res: any = await invokeCallable(
+        "rejectPaymentCallable",
+        {
+          submissionId: rejectingSub.id,
+          reason: rejectionReason.trim(),
+        },
+        "us-central1"
+      );
 
       if (res.data?.success) {
         setActionSuccess("Payment submission rejected and customer notified.");
