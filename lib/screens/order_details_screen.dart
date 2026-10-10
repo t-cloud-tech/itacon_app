@@ -688,28 +688,54 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                     ),
                   )
                 else
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        (item.size.toLowerCase().contains('adhesive') || item.productName.toLowerCase().contains('adhesive') || item.unit == 'bag')
-                            ? '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/bag'
-                            : '₹${(item.unitPrice ?? 0.0).toStringAsFixed(2)}/sq ft',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.accentOrange,
-                        ),
-                      ),
-                      Text(
-                        'Total: ₹${(item.lineTotal ?? (item.quantitySqFt * (item.unitPrice ?? 0.0))).toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryNavy,
-                        ),
-                      ),
-                    ],
+                  Builder(
+                    builder: (context) {
+                      double displayUnitPrice = item.unitPrice ?? 0.0;
+                      double displayLineTotal = item.lineTotal ?? 0.0;
+                      if (displayUnitPrice <= 0.0) {
+                        if (displayLineTotal > 0.0 && item.quantitySqFt > 0) {
+                          displayUnitPrice = displayLineTotal / item.quantitySqFt;
+                        } else if (order.pricePerSqft != null && order.pricePerSqft! > 0) {
+                          displayUnitPrice = order.pricePerSqft!;
+                          displayLineTotal = item.quantitySqFt * displayUnitPrice;
+                        } else if (order.subtotal > 0) {
+                          final totalSqFt = order.items.fold<double>(0.0, (sum, i) => sum + i.quantitySqFt);
+                          if (totalSqFt > 0) {
+                            displayUnitPrice = order.subtotal / totalSqFt;
+                            displayLineTotal = item.quantitySqFt * displayUnitPrice;
+                          }
+                        }
+                      }
+                      if (displayLineTotal <= 0.0 && displayUnitPrice > 0.0) {
+                        displayLineTotal = (item.size.toLowerCase().contains('adhesive') || item.productName.toLowerCase().contains('adhesive') || item.unit == 'bag')
+                            ? item.quantityBoxes * displayUnitPrice
+                            : item.quantitySqFt * displayUnitPrice;
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            (item.size.toLowerCase().contains('adhesive') || item.productName.toLowerCase().contains('adhesive') || item.unit == 'bag')
+                                ? '₹${displayUnitPrice.toStringAsFixed(2)}/bag'
+                                : '₹${displayUnitPrice.toStringAsFixed(2)}/sq ft',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.accentOrange,
+                            ),
+                          ),
+                          Text(
+                            'Total: ₹${displayLineTotal.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.primaryNavy,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
               ],
             ),

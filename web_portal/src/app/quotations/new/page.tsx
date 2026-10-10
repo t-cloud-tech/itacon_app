@@ -361,6 +361,7 @@ function QuotationForm() {
             pricePerSqft: avgRatePerSqft,
             salespersonId: user?.userId || salesperson?.salesPersonId,
             salespersonName: user?.name || salesperson?.name,
+            taxAmount: taxAmount,
           }
         );
       }

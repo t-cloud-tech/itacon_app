@@ -82,32 +82,53 @@ class OrderItem {
     };
   }
 
-  factory OrderItem.fromMap(Map<String, dynamic> map) {
+  factory OrderItem.fromMap(Map<String, dynamic> map, [double? fallbackRatePerSqft]) {
     final pId = (map['productId'] ?? map['tileId'] ?? '').toString();
     final qBoxes = _asInt(map['quantityBoxes'] ?? map['quantity'] ?? map['boxes'] ?? map['qty'], 1);
-    final qSqFt = _asDouble(map['quantitySqFt'] ?? map['sqft'], qBoxes * 15.5);
+    final qSqFt = _asDouble(map['quantitySqFt'] ?? map['sqft'] ?? map['totalSqft'], qBoxes * 15.5);
     final bPrice = _asDouble(map['basePrice'] ?? map['price']);
     final fPrice = _asDouble(map['finalPrice'] ?? map['rate'] ?? bPrice);
 
     double? uPrice;
-    if (map['unitPrice'] != null) {
+    if (map['unitPrice'] != null && _asDouble(map['unitPrice']) > 0) {
       uPrice = _asDouble(map['unitPrice']);
-    } else if (map['quotedUnitPrice'] != null) {
+    } else if (map['quotedUnitPrice'] != null && _asDouble(map['quotedUnitPrice']) > 0) {
       uPrice = _asDouble(map['quotedUnitPrice']);
-    } else if (map['pricePerSqft'] != null) {
+    } else if (map['pricePerSqft'] != null && _asDouble(map['pricePerSqft']) > 0) {
       uPrice = _asDouble(map['pricePerSqft']);
-    } else if (map['quotedRate'] != null) {
+    } else if (map['quotedRate'] != null && _asDouble(map['quotedRate']) > 0) {
       uPrice = _asDouble(map['quotedRate']);
-    } else if (map['rate'] != null) {
+    } else if (map['rate'] != null && _asDouble(map['rate']) > 0) {
       uPrice = _asDouble(map['rate']);
     }
+
     double? lTotal;
-    if (map['lineTotal'] != null) {
+    if (map['lineTotal'] != null && _asDouble(map['lineTotal']) > 0) {
       lTotal = _asDouble(map['lineTotal']);
-    } else if (map['totalPrice'] != null) {
+    } else if (map['totalPrice'] != null && _asDouble(map['totalPrice']) > 0) {
       lTotal = _asDouble(map['totalPrice']);
-    } else if (uPrice != null && uPrice > 0) {
-      lTotal = qSqFt * uPrice;
+    } else if (fPrice > 0 && fPrice != bPrice && (fPrice > 200 || fPrice > qBoxes * 10)) {
+      lTotal = fPrice;
+    }
+
+    // If line total is known but unit rate is missing, derive unit rate
+    if ((uPrice == null || uPrice <= 0) && lTotal != null && lTotal > 0 && qSqFt > 0) {
+      uPrice = lTotal / qSqFt;
+    }
+
+    final isBag = (map['unit'] == 'bag' ||
+        (map['size'] != null && map['size'].toString().toLowerCase().contains('bag')) ||
+        (map['productName'] != null && map['productName'].toString().toLowerCase().contains('adhesive')));
+
+    // Fallback rate from order level if still null or 0
+    if ((uPrice == null || uPrice <= 0) && fallbackRatePerSqft != null && fallbackRatePerSqft > 0) {
+      uPrice = fallbackRatePerSqft;
+    }
+
+    if (lTotal == null || lTotal <= 0) {
+      if (uPrice != null && uPrice > 0) {
+        lTotal = isBag ? (qBoxes * uPrice) : (qSqFt * uPrice);
+      }
     }
 
     return OrderItem(
@@ -120,7 +141,7 @@ class OrderItem {
       quantity: qBoxes,
       quantityBoxes: qBoxes,
       quantitySqFt: qSqFt,
-      unit: map['unit'] ?? 'box',
+      unit: map['unit'] ?? (isBag ? 'bag' : 'box'),
       moq: _asInt(map['moq'], 10),
       basePrice: bPrice,
       finalPrice: fPrice,
@@ -208,6 +229,7 @@ class TileOrder {
   final Map<String, dynamic> estimateDetails;
   final String? shipmentId;
   final double? freightAmount;
+  final double? pricePerSqft; // Overall or quoted rate per sq ft
   final String dispatchStatus; // unassigned, assigned, dispatched, delivered
   final String paymentMethod; // bank_transfer
   final String? paymentStatus; // not_required, payment_due, pending_verification, paid, rejected
@@ -254,6 +276,7 @@ class TileOrder {
     this.estimateDetails = const {},
     this.shipmentId,
     this.freightAmount,
+    this.pricePerSqft,
     this.dispatchStatus = 'unassigned',
     this.paymentMethod = 'bank_transfer',
     this.paymentStatus,
@@ -387,6 +410,7 @@ class TileOrder {
             },
       'shipmentId': shipmentId,
       'freightAmount': freightAmount,
+      'pricePerSqft': pricePerSqft,
       'dispatchStatus': dispatchStatus,
       'paymentMethod': paymentMethod,
       if (paymentStatus != null) 'paymentStatus': paymentStatus,
@@ -411,8 +435,16 @@ class TileOrder {
     final ref = (map['orderReference'] ?? map['orderReferenceNumber'] ?? 'ITC-PO-2026-${docId.substring(0, min(5, docId.length)).toUpperCase()}').toString();
     final sub = _asDouble(map['subtotal'] ?? map['subTotal']);
     final disc = _asDouble(map['discount'] ?? map['discountAmount']);
-    final tx = _asDouble(map['taxAmount'] ?? map['tax'] ?? map['gstAmount'] ?? ((sub - disc > 0 ? sub - disc : 0.0) * 0.18));
+    double tx = _asDouble(map['taxAmount'] ?? map['tax'] ?? map['gstAmount']);
     final tot = _asDouble(map['totalAmount'] ?? map['total'] ?? map['grandTotal'] ?? (sub - disc + tx));
+    
+    // Auto-resolve tax if tax was omitted or defaulted to 0 on order quotation
+    if (tx == 0.0 && tot > (sub - disc) && (tot - (sub - disc)) > 0) {
+      tx = tot - (sub - disc);
+    } else if (tx == 0.0 && sub > 0 && map['status'] != 'pending_rate' && map['status'] != 'pending_admin_approval') {
+      tx = (sub - disc > 0 ? sub - disc : 0.0) * 0.18;
+    }
+    
     final tBoxes = _asInt(map['totalBoxes'] ?? map['boxes']);
     final tKg = _asDouble(map['totalWeightKg'] ?? map['weightKg']);
     final tTons = _asDouble(map['totalWeightTons'] ?? map['weightTons'] ?? (tKg / 1000.0));
@@ -421,7 +453,111 @@ class TileOrder {
         ? Map<String, dynamic>.from(map['deliveryLocation'])
         : {'address': (map['deliveryAddress'] ?? '').toString()};
 
-    final rawItems = map['orderItems'] ?? map['items'] ?? map['quotedItems'];
+    final rawOrderItems = map['orderItems'];
+    final rawItems = map['items'];
+    final rawQuoted = map['quotedItems'];
+
+    final quotedByProdId = <String, Map<String, dynamic>>{};
+    final quotedByIndex = <int, Map<String, dynamic>>{};
+    if (rawQuoted is List) {
+      for (int i = 0; i < rawQuoted.length; i++) {
+        final q = rawQuoted[i];
+        if (q is Map) {
+          final m = Map<String, dynamic>.from(q);
+          final pid = (m['productId'] ?? m['tileId'] ?? '').toString();
+          if (pid.isNotEmpty) quotedByProdId[pid] = m;
+          quotedByIndex[i] = m;
+        }
+      }
+    }
+
+    List? candidateList;
+    if (rawOrderItems is List && rawOrderItems.isNotEmpty) {
+      candidateList = rawOrderItems;
+    } else if (rawItems is List && rawItems.isNotEmpty) {
+      candidateList = rawItems;
+    } else if (rawQuoted is List && rawQuoted.isNotEmpty) {
+      candidateList = rawQuoted;
+    }
+
+    final pSqft = map['pricePerSqft'] != null ? _asDouble(map['pricePerSqft']) : null;
+
+    final parsedItems = <OrderItem>[];
+    if (candidateList != null) {
+      for (int i = 0; i < candidateList.length; i++) {
+        final rawItem = candidateList[i];
+        if (rawItem is Map) {
+          final itemMap = Map<String, dynamic>.from(rawItem);
+          final pId = (itemMap['productId'] ?? itemMap['tileId'] ?? '').toString();
+
+          final currentRate = _asDouble(itemMap['unitPrice'] ?? itemMap['quotedUnitPrice'] ?? itemMap['pricePerSqft'] ?? itemMap['quotedRate'] ?? itemMap['rate']);
+          final currentLineTotal = _asDouble(itemMap['lineTotal'] ?? itemMap['totalPrice']);
+
+          // Enrich rates from quotedItems if current item has 0 or missing rate
+          if ((currentRate <= 0.0 || currentLineTotal <= 0.0) && (quotedByProdId.containsKey(pId) || quotedByIndex.containsKey(i))) {
+            final quotedMatch = quotedByProdId[pId] ?? quotedByIndex[i];
+            if (quotedMatch != null) {
+              if (currentRate <= 0.0) {
+                final qRate = quotedMatch['unitPrice'] ?? quotedMatch['quotedUnitPrice'] ?? quotedMatch['pricePerSqft'] ?? quotedMatch['quotedRate'] ?? quotedMatch['rate'];
+                if (qRate != null && _asDouble(qRate) > 0) {
+                  itemMap['unitPrice'] = qRate;
+                }
+              }
+              if (currentLineTotal <= 0.0) {
+                final qTotal = quotedMatch['lineTotal'] ?? quotedMatch['totalPrice'];
+                if (qTotal != null && _asDouble(qTotal) > 0) {
+                  itemMap['lineTotal'] = qTotal;
+                }
+              }
+            }
+          }
+
+          parsedItems.add(OrderItem.fromMap(itemMap, pSqft));
+        }
+      }
+    }
+
+    // If order has subtotal > 0 and is in quoted/confirmed stage, ensure no item has 0 rates:
+    final isQuotedOrConfirmed = (map['status'] != 'pending_rate' && map['status'] != 'pending_admin_approval');
+    if (isQuotedOrConfirmed && sub > 0 && parsedItems.isNotEmpty) {
+      final hasZeroRateItems = parsedItems.any((i) => (i.unitPrice == null || i.unitPrice! <= 0));
+      if (hasZeroRateItems) {
+        final totalSqFtAll = parsedItems.fold<double>(0.0, (s, i) => s + i.quantitySqFt);
+        final fallbackRate = (pSqft != null && pSqft > 0)
+            ? pSqft
+            : (totalSqFtAll > 0 ? (sub / totalSqFtAll) : 0.0);
+
+        if (fallbackRate > 0) {
+          for (int i = 0; i < parsedItems.length; i++) {
+            final item = parsedItems[i];
+            if (item.unitPrice == null || item.unitPrice! <= 0) {
+              final newRate = fallbackRate;
+              final newTotal = item.lineTotal != null && item.lineTotal! > 0
+                  ? item.lineTotal!
+                  : (item.quantitySqFt * newRate);
+              parsedItems[i] = OrderItem(
+                productId: item.productId,
+                sku: item.sku,
+                productName: item.productName,
+                size: item.size,
+                surface: item.surface,
+                color: item.color,
+                quantity: item.quantity,
+                quantityBoxes: item.quantityBoxes,
+                quantitySqFt: item.quantitySqFt,
+                unit: item.unit,
+                moq: item.moq,
+                basePrice: item.basePrice,
+                finalPrice: item.finalPrice,
+                unitPrice: newRate,
+                lineTotal: newTotal,
+                orderType: item.orderType,
+              );
+            }
+          }
+        }
+      }
+    }
 
     final cName = (map['customerName'] ?? map['clientName'] ?? map['userName'] ?? '').toString();
     final cPhone = map['customerPhone']?.toString() ?? map['phone']?.toString();
@@ -432,15 +568,6 @@ class TileOrder {
     final pRejReason = map['rejectionReason']?.toString();
     final pAt = map['paidAt'] is Timestamp ? (map['paidAt'] as Timestamp).toDate() : null;
     final dAt = map['deliveredAt'] is Timestamp ? (map['deliveredAt'] as Timestamp).toDate() : null;
-
-    final parsedItems = <OrderItem>[];
-    if (rawItems is List) {
-      for (final item in rawItems) {
-        if (item is Map) {
-          parsedItems.add(OrderItem.fromMap(Map<String, dynamic>.from(item)));
-        }
-      }
-    }
 
     return TileOrder(
       id: docId,
@@ -473,6 +600,7 @@ class TileOrder {
       estimateDetails: Map<String, dynamic>.from(map['estimateDetails'] ?? {}),
       shipmentId: map['shipmentId'] as String?,
       freightAmount: map['freightAmount'] != null ? _asDouble(map['freightAmount']) : null,
+      pricePerSqft: pSqft,
       dispatchStatus: map['dispatchStatus'] as String? ?? 'unassigned',
       paymentMethod: (map['paymentMethod'] ?? 'bank_transfer').toString(),
       paymentStatus: pStatus,
@@ -529,6 +657,7 @@ class TileOrder {
     Map<String, dynamic>? estimateDetails,
     String? shipmentId,
     double? freightAmount,
+    double? pricePerSqft,
     String? dispatchStatus,
     String? paymentMethod,
     String? paymentStatus,
@@ -575,6 +704,7 @@ class TileOrder {
       estimateDetails: estimateDetails ?? this.estimateDetails,
       shipmentId: shipmentId ?? this.shipmentId,
       freightAmount: freightAmount ?? this.freightAmount,
+      pricePerSqft: pricePerSqft ?? this.pricePerSqft,
       dispatchStatus: dispatchStatus ?? this.dispatchStatus,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       paymentStatus: paymentStatus ?? this.paymentStatus,

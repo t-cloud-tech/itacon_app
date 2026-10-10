@@ -187,5 +187,131 @@ void main() {
       expect(managerApprovalOrder.isPendingQuoteStage, isTrue);
       expect(managerApprovalOrder.status, 'pending_manager_approval');
     });
+
+    test('5. PO with null unitPrice in orderItems is enriched from salesperson quotedItems', () {
+      final docMap = {
+        'id': 'ITC-PO-2026-8848',
+        'orderReference': 'ITC-PO-2026-8848',
+        'userId': 'user_123',
+        'status': 'confirmed',
+        'orderType': 'ready_stock',
+        'deliveryLocation': {'address': 'Plot No. 42, Morbi'},
+        'transportRequired': false,
+        'remarks': '',
+        'orderItems': [
+          {
+            'productId': 'prod_patara_bianco',
+            'productName': 'EMPRO PATARA BIANCO',
+            'size': '600x1200 mm',
+            'surface': 'Glossy',
+            'quantity': 2,
+            'quantityBoxes': 2,
+            'quantitySqFt': 31.0,
+            'unitPrice': null,
+            'lineTotal': null,
+          },
+          {
+            'productId': 'prod_patara_grey',
+            'productName': 'EMPRO PATARA GREY',
+            'size': '600x1200 mm',
+            'surface': 'Glossy',
+            'quantity': 3,
+            'quantityBoxes': 3,
+            'quantitySqFt': 46.5,
+            'unitPrice': null,
+            'lineTotal': null,
+          },
+        ],
+        'quotedItems': [
+          {
+            'productId': 'prod_patara_bianco',
+            'productName': 'EMPRO PATARA BIANCO',
+            'quantityBoxes': 2,
+            'totalSqft': 31.0,
+            'unitPrice': 35.0,
+            'lineTotal': 1085.0,
+          },
+          {
+            'productId': 'prod_patara_grey',
+            'productName': 'EMPRO PATARA GREY',
+            'quantityBoxes': 3,
+            'totalSqft': 46.5,
+            'unitPrice': 35.0,
+            'lineTotal': 1627.5,
+          },
+        ],
+        'subtotal': 2712.50,
+        'discount': 0.0,
+        'taxAmount': 0.0,
+        'totalAmount': 3200.75,
+        'totalBoxes': 5,
+        'paymentStatus': 'pending_verification',
+      };
+
+      final order = TileOrder.fromMap(docMap, 'ITC-PO-2026-8848');
+
+      expect(order.items.length, 2);
+      expect(order.items[0].unitPrice, 35.0);
+      expect(order.items[0].lineTotal, 1085.0);
+      expect(order.items[1].unitPrice, 35.0);
+      expect(order.items[1].lineTotal, 1627.5);
+      expect(order.subtotal, 2712.50);
+      expect(order.taxAmount, 488.25);
+      expect(order.totalAmount, 3200.75);
+    });
+
+    test('6. User screenshot scenario: PO with 0 tax and null item rates auto-resolves rate per sq.ft from subtotal', () {
+      final screenshotMap = {
+        'id': 'ITC-PO-2026-8848',
+        'orderReference': 'ITC-PO-2026-8848',
+        'userId': 'user_123',
+        'status': 'confirmed',
+        'orderType': 'ready_stock',
+        'deliveryLocation': {'address': 'Morbi'},
+        'transportRequired': false,
+        'remarks': '',
+        'orderItems': [
+          {
+            'productId': 'prod_1',
+            'productName': 'EMPRO PATARA BIANCO',
+            'size': '600x1200 mm',
+            'surface': 'Glossy',
+            'quantity': 2,
+            'quantityBoxes': 2,
+            'quantitySqFt': 31.0,
+            'unitPrice': 0.0,
+            'lineTotal': 0.0,
+          },
+          {
+            'productId': 'prod_2',
+            'productName': 'EMPRO PATARA GREY',
+            'size': '600x1200 mm',
+            'surface': 'Glossy',
+            'quantity': 3,
+            'quantityBoxes': 3,
+            'quantitySqFt': 46.5,
+            'unitPrice': 0.0,
+            'lineTotal': 0.0,
+          },
+        ],
+        'subtotal': 2712.50,
+        'discount': 0.0,
+        'taxAmount': 0.0,
+        'totalAmount': 3200.75,
+        'totalBoxes': 5,
+        'paymentStatus': 'pending_verification',
+      };
+
+      final order = TileOrder.fromMap(screenshotMap, 'ITC-PO-2026-8848');
+
+      // Total sq.ft = 31.0 + 46.5 = 77.5 sq.ft
+      // 2712.50 / 77.5 = 35.00/sq.ft
+      expect(order.items[0].unitPrice, 35.0);
+      expect(order.items[0].lineTotal, 1085.0);
+      expect(order.items[1].unitPrice, 35.0);
+      expect(order.items[1].lineTotal, 1627.5);
+      expect(order.taxAmount, 488.25);
+      expect(order.totalAmount, 3200.75);
+    });
   });
 }

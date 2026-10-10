@@ -836,6 +836,7 @@ export async function linkQuotationToOrder(
     pricePerSqft?: number;
     salespersonId?: string;
     salespersonName?: string;
+    taxAmount?: number;
   }
 ): Promise<void> {
   const orderRef = doc(db, "orders", orderId);
@@ -845,14 +846,64 @@ export async function linkQuotationToOrder(
   // If cost < ₹26.50/sq ft, order is locked in pending_admin_approval until Admin confirms
   const status = requiresAdmin ? "pending_admin_approval" : "rate_quoted";
 
+  const tax = options?.taxAmount !== undefined
+    ? options.taxAmount
+    : Math.max(0, Number((grandTotal - (subtotal - discountTotal)).toFixed(2)));
+
+  // Format line items to sync with mobile app OrderItem schema
+  const formattedItems = (quotedItems || []).map((item: any) => {
+    const qtyBoxes = Number(item.quantityBoxes || item.quantity || 1);
+    const sqftPerBox = Number(item.sqftPerBox || 15.5);
+    const totalSqft = Number(item.totalSqft || item.quantitySqFt || (qtyBoxes * sqftPerBox));
+    const lineTotal = Number(item.lineTotal || (item.effectivePrice ? item.effectivePrice * qtyBoxes : 0));
+
+    const isBag = (item.unit === 'bag' ||
+      (item.size && item.size.toLowerCase().includes('bag')) ||
+      (item.productName && item.productName.toLowerCase().includes('adhesive')));
+
+    const unitRate = isBag
+      ? (qtyBoxes > 0 ? Number((lineTotal / qtyBoxes).toFixed(2)) : Number(item.unitPrice || 0))
+      : (totalSqft > 0 ? Number((lineTotal / totalSqft).toFixed(2)) : (pricePerSqft || Number(item.unitPrice || 0)));
+
+    return {
+      ...item,
+      productId: item.productId || item.tileId || "prod-item",
+      tileId: item.productId || item.tileId || "prod-item",
+      sku: item.sku || "ITA-SKU",
+      productName: item.productName || item.tileName || "Tile Product",
+      tileName: item.productName || item.tileName || "Tile Product",
+      size: item.size || "600x1200 mm",
+      surface: item.finish || item.surface || "Glossy",
+      color: item.color || "Standard",
+      quantityBoxes: qtyBoxes,
+      quantity: qtyBoxes,
+      quantitySqFt: totalSqft,
+      sqftPerBox: sqftPerBox,
+      unit: item.unit || (isBag ? 'bag' : 'box'),
+      moq: Number(item.moq || 10),
+      basePrice: Number(item.basePrice || item.unitPrice || 0),
+      finalPrice: lineTotal,
+      unitPrice: unitRate,
+      quotedUnitPrice: unitRate,
+      pricePerSqft: unitRate,
+      lineTotal: lineTotal,
+      totalPrice: lineTotal,
+    };
+  });
+
   const updatePayload: Record<string, any> = {
     status,
     quotationId,
     quotationNumber,
-    quotedItems,
+    items: formattedItems,
+    orderItems: formattedItems,
+    quotedItems: formattedItems,
     subtotal,
     discount: discountTotal,
+    taxAmount: tax,
+    tax,
     totalAmount: grandTotal,
+    total: grandTotal,
     pricePerSqft,
     minRateThreshold: MIN_RATE_PER_SQFT,
     adminApprovalRequired: requiresAdmin,
@@ -871,6 +922,15 @@ export async function linkQuotationToOrder(
 
   try {
     await setDoc(orderRef, updatePayload, { merge: true });
+
+    // Also update orderItems subcollection so any subcollection readers sync
+    for (const it of formattedItems) {
+      if (it.productId) {
+        try {
+          await setDoc(doc(db, "orders", orderId, "orderItems", it.productId), it, { merge: true });
+        } catch (_) {}
+      }
+    }
   } catch (err) {
     console.error("Could not sync quotation link to order document:", err);
     throw err;

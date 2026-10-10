@@ -1867,16 +1867,21 @@ class FirestoreService {
     required String salespersonId,
   }) async {
     final docRef = _ordersRef.doc(orderId);
+    final totalSqft = itemsWithRates.fold<double>(0.0, (s, i) => s + i.quantitySqFt);
+    final avgRate = totalSqft > 0 ? (subtotal / totalSqft) : 0.0;
+
     final updatedData = {
       'status': 'rate_quoted',
       'items': itemsWithRates.map((i) => i.toMap()).toList(),
       'orderItems': itemsWithRates.map((i) => i.toMap()).toList(),
+      'quotedItems': itemsWithRates.map((i) => i.toMap()).toList(),
       'subtotal': subtotal,
       'discount': discount,
       'taxAmount': taxAmount,
       'tax': taxAmount,
       'totalAmount': totalAmount,
       'total': totalAmount,
+      'pricePerSqft': avgRate,
       'rateQuotedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };

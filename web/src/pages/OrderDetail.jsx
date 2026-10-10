@@ -80,14 +80,18 @@ export default function OrderDetail({ orderId, currentSalespersonId = 'SP_001' }
   // Compute calculations on keystroke
   let subtotal = 0;
   const computedItems = items.map((item) => {
-    const rate = unitPrices[item.productId] || 0;
+    const rate = unitPrices[item.productId] || unitPrices[item.tileId] || 0;
     const sqFt = item.quantitySqFt || (item.quantityBoxes || item.quantity || 0) * 15.5;
     const lineTotal = Math.round(sqFt * rate * 100) / 100;
     subtotal += lineTotal;
     return {
       ...item,
       unitPrice: rate,
-      lineTotal: lineTotal
+      quotedUnitPrice: rate,
+      pricePerSqft: rate,
+      lineTotal: lineTotal,
+      finalPrice: lineTotal,
+      totalPrice: lineTotal
     };
   });
 
@@ -111,17 +115,20 @@ export default function OrderDetail({ orderId, currentSalespersonId = 'SP_001' }
 
     setSubmitting(true);
     try {
+      const totalSqft = computedItems.reduce((acc, i) => acc + (i.quantitySqFt || 0), 0) || 1;
       const orderRef = doc(db, 'orders', order.id);
       await updateDoc(orderRef, {
         status: 'rate_quoted',
         orderItems: computedItems,
         items: computedItems,
+        quotedItems: computedItems,
         subtotal: subtotal,
         discount: numDiscount,
         taxAmount: taxAmount,
         tax: taxAmount,
         totalAmount: totalAmount,
         total: totalAmount,
+        pricePerSqft: Math.round((subtotal / totalSqft) * 100) / 100,
         freightAmount: null, // Explicitly removed
         rateQuotedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
