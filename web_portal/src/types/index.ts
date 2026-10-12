@@ -75,7 +75,7 @@ export interface Customer {
   address?: string;
   pincode?: string;
   gstNumber?: string;
-  category: "Dealer" | "Wholesaler" | "Retailer" | "Contractor" | "Architect" | "Builder";
+  category: "Dealer" | "Wholesaler" | "Retailer" | "Contractor" | "Architect" | "Builder" | "Trader";
   priceTier: "A" | "B" | "C";
   creditLimit: number;
   paymentTerms: string;

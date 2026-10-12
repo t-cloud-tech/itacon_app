@@ -135,6 +135,7 @@ export default function CustomersPage() {
               <option value="Architect">Architect</option>
               <option value="Contractor">Contractor</option>
               <option value="Retailer">Retailer</option>
+              <option value="Trader">Trader</option>
             </select>
 
             {/* Price Tier Filter */}

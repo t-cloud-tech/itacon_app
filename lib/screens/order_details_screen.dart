@@ -317,7 +317,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
               title: const Text('Order Details'),
             ),
-            body: const Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy)),
+            body: const SafeArea(
+              top: false,
+              child: Center(child: CircularProgressIndicator(color: AppTheme.primaryNavy)),
+            ),
           );
         }
 
@@ -331,25 +334,28 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
               title: const Text('Order Details'),
             ),
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.receipt_long_outlined, size: 54, color: AppTheme.textSubtle),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'PO Details Unavailable',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'The requested order details could not be retrieved at this time.\nPlease check your connection or contact your salesperson.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
-                    ),
-                  ],
+            body: SafeArea(
+              top: false,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.receipt_long_outlined, size: 54, color: AppTheme.textSubtle),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'PO Details Unavailable',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'The requested order details could not be retrieved at this time.\nPlease check your connection or contact your salesperson.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: AppTheme.textSubtle),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -378,66 +384,69 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             title: Text('PO Details (${order.orderReference})'),
             elevation: 0,
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (snapshot.hasError) ...[
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.wifi_off_rounded, color: Colors.amber.shade800, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Live sync paused. Displaying local PO quotation details.',
-                            style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+          body: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (snapshot.hasError) ...[
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.wifi_off_rounded, color: Colors.amber.shade800, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Live sync paused. Displaying local PO quotation details.',
+                              style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.w500),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // Top Status Alert Banner
+                  _buildStatusBanner(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
+                  const SizedBox(height: 16),
+
+                  // Order Summary Header Card
+                  _buildHeaderCard(order),
+                  const SizedBox(height: 16),
+
+                  // Ordered Items Breakdown Table
+                  const Text(
+                    'Ordered Items Breakdown',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  _buildItemsTable(order, isPendingRate || isPendingAdminApproval),
+                  const SizedBox(height: 16),
+
+                  // Financial Summary Card (Excluding Freight)
+                  if (!isPendingRate && !isPendingAdminApproval) ...[
+                    _buildFinancialSummaryCard(order),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // Dynamic Action Block at Bottom
+                  _buildDynamicActionBlock(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
                 ],
-
-                // Top Status Alert Banner
-                _buildStatusBanner(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
-                const SizedBox(height: 16),
-
-                // Order Summary Header Card
-                _buildHeaderCard(order),
-                const SizedBox(height: 16),
-
-                // Ordered Items Breakdown Table
-                const Text(
-                  'Ordered Items Breakdown',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _buildItemsTable(order, isPendingRate || isPendingAdminApproval),
-                const SizedBox(height: 16),
-
-                // Financial Summary Card (Excluding Freight)
-                if (!isPendingRate && !isPendingAdminApproval) ...[
-                  _buildFinancialSummaryCard(order),
-                  const SizedBox(height: 20),
-                ],
-
-                // Dynamic Action Block at Bottom
-                _buildDynamicActionBlock(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
-              ],
+              ),
             ),
           ),
         );
@@ -604,19 +613,24 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Total Boxes', style: TextStyle(fontSize: 11, color: AppTheme.textSubtle)),
-                  Text('${order.totalBoxes} Boxes', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ],
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Total Boxes', style: TextStyle(fontSize: 11, color: AppTheme.textSubtle)),
+                    Text('${order.totalBoxes} Boxes', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text('Total Weight (Tonnes)', style: TextStyle(fontSize: 11, color: AppTheme.textSubtle)),
-                  Text('${order.totalWeightTons.toStringAsFixed(2)} Tonnes', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ],
+              const SizedBox(width: 8),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Total Weight (Tonnes)', style: TextStyle(fontSize: 11, color: AppTheme.textSubtle), textAlign: TextAlign.right),
+                    Text('${order.totalWeightTons.toStringAsFixed(2)} Tonnes', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.right),
+                  ],
+                ),
               ),
             ],
           ),
@@ -631,6 +645,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
         itemCount: order.items.length,
         separatorBuilder: (_, _) => const Divider(height: 1, color: AppTheme.borderSubtle),
         itemBuilder: (context, index) {
@@ -672,18 +687,21 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ),
                 const SizedBox(width: 8),
                 if (isPendingRate)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentOrange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Rate Approval in Progress',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.accentOrange,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentOrange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Rate Approval in Progress',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.accentOrange,
+                        ),
                       ),
                     ),
                   )
@@ -759,14 +777,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Final Total Amount',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: AppTheme.primaryNavy,
+              const Flexible(
+                child: Text(
+                  'Final Total Amount',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.primaryNavy,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '₹${order.totalAmount.toStringAsFixed(2)}',
                 style: const TextStyle(
@@ -788,7 +809,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle)),
+          Flexible(child: Text(label, style: const TextStyle(fontSize: 13, color: AppTheme.textSubtle))),
+          const SizedBox(width: 8),
           Text(
             '${isDiscount ? '-' : ''}₹${amount.abs().toStringAsFixed(2)}',
             style: TextStyle(

@@ -1496,6 +1496,7 @@ void main() {
         'Builder / Contractor': 'builders',
         'Wholesaler': 'wholesalers',
         'Retailer': 'retailers',
+        'Trader': 'traders',
       };
 
       for (final entry in mappings.entries) {

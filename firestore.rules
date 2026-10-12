@@ -32,8 +32,10 @@ service cloud.firestore {
         (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager', 'salesperson', 'staff']) ||
         exists(/databases/$(database)/documents/salesPersons/$(request.auth.uid)) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'salesperson', 'staff'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager', 'salesperson', 'staff']
+          (('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'salesperson', 'staff']) ||
+          (('userCategory' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager', 'salesperson', 'staff'])
         ))
       );
     }
@@ -44,8 +46,10 @@ service cloud.firestore {
         (('admin' in request.auth.token) && request.auth.token.admin == true) ||
         (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager']) ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager']
+          (('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager']) ||
+          (('userCategory' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager'])
         ))
       );
     }
@@ -94,7 +98,7 @@ service cloud.firestore {
 
     // Whitelist of valid customer categories
     function isValidCustomerCategory(cat) {
-      return cat in ['dealer', 'architect', 'builder', 'wholesaler', 'retailer'];
+      return cat in ['dealer', 'architect', 'builder', 'wholesaler', 'retailer', 'trader'];
     }
 
     // Ensure customer preserves the staff-assigned salesperson ID and does not forge or change it
@@ -121,7 +125,8 @@ service cloud.firestore {
         ('userCategory' in request.resource.data) &&
         isValidCustomerCategory(request.resource.data.userCategory) &&
         isPreservingAssignedSalesperson() &&
-!hasRewardFields(request.resource.data);
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
     }
 
     // Deny writes that forge privileged user fields
@@ -147,7 +152,10 @@ service cloud.firestore {
       allow create: if (isOwner(userId) || isAdminOrManager()) &&
         !hasSensitiveFields(request.resource.data) &&
         !hasRewardFields(request.resource.data) &&
-        (!isOwner(userId) || !('role' in request.resource.data) || !(request.resource.data.role in ['admin', 'manager', 'salesperson', 'staff']));
+        (!isOwner(userId) || (
+          (!('role' in request.resource.data) || !(request.resource.data.role in ['admin', 'manager', 'salesperson', 'staff'])) &&
+          (!('userCategory' in request.resource.data) || !(request.resource.data.userCategory in ['admin', 'manager', 'salesperson', 'staff']))
+        ));
 
       allow update: if isAuthenticated() &&
         !hasSensitiveFields(request.resource.data) &&
@@ -513,27 +521,36 @@ service cloud.firestore {
     // CATEGORY COLLECTIONS
     // =========================================================================
     match /dealers/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow read: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /architects/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow read: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /builders/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow read: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /wholesalers/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow read: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
     match /retailers/{userId} {
-      allow read, write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow read: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
+    }
+    match /traders/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isStaff());
+      allow write: if isAuthenticated() && (isOwner(userId) || isStaff()) && !hasSensitiveFields(request.resource.data);
     }
 
     // =========================================================================
     // SALESPERSON & ASSIGNMENT COLLECTIONS
     // =========================================================================
-        match /salesPersons/{spId} {
+    match /salesPersons/{spId} {
       allow read: if isAuthenticated();
-      allow write: if (isStaff() || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedClientsCount', 'activeClientsCount', 'updatedAt']))) && !hasSensitiveFields(request.resource.data);
+      allow write: if isStaff() && !hasSensitiveFields(request.resource.data);
 
       match /assigned_clients/{clientId} {
         allow read: if isStaff() || (isAuthenticated() && clientId == request.auth.uid);
@@ -548,17 +565,17 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isStaff()
       );
-      allow write: if ((isAuthenticated() && assignmentId == 'ASGN_' + request.auth.uid) || isAdminOrManager() || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow write: if ((isAuthenticated() && assignmentId == 'ASGN_' + request.auth.uid) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
     }
 
     match /Auto_Assign_User/{docId} {
       allow read: if isAuthenticated() && (docId == request.auth.uid || isStaff());
-      allow write: if (isOwner(docId) || isAdminOrManager() || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow write: if (isOwner(docId) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
     }
 
     match /Manual_salesperson_assign/{docId} {
       allow read: if isStaff() || (isAuthenticated() && docId == request.auth.uid);
-      allow write: if (isOwner(docId) || isAdminOrManager() || isStaff()) && !hasSensitiveFields(request.resource.data);
+      allow write: if (isOwner(docId) || isAdminOrManager()) && !hasSensitiveFields(request.resource.data);
     }
 
     // =========================================================================

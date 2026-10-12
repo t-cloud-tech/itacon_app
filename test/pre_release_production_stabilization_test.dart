@@ -51,6 +51,7 @@ void main() {
         'builder',
         'wholesaler',
         'retailer',
+        'trader',
       ];
 
       for (final cat in supportedCategories) {

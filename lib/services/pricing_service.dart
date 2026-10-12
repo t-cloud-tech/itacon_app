@@ -55,6 +55,8 @@ class PricingService extends ChangeNotifier {
     'Contractor': 0.08, // 8% OFF
     'Retailer': 0.00,
     'Retail': 0.00,
+    'Trader': 0.00, // Standard catalogue rate until business discount policy is confirmed
+    'trader': 0.00,
   };
 
   /// Static helper calculating effective unit price given base price, size, surface, and optional user profile

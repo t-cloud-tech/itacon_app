@@ -104,6 +104,7 @@ class FirestoreService {
   /// - builder -> builders (including 'Builder / Contractor')
   /// - wholesaler -> wholesalers
   /// - retailer -> retailers
+  /// - trader -> traders
   ///
   /// Any unknown, arbitrary, empty, or null category is strictly rejected
   /// with an [ArgumentError] and will NOT guess or create collections.
@@ -132,10 +133,11 @@ class FirestoreService {
       return 'wholesalers';
     }
     if (clean == 'retailer' || clean == 'retailers') return 'retailers';
+    if (clean == 'trader' || clean == 'traders') return 'traders';
 
     throw ArgumentError(
       'Unsupported user category: "$categoryId". '
-      'Valid categories are strictly: dealer, architect, builder, wholesaler, retailer.',
+      'Valid categories are strictly: dealer, architect, builder, wholesaler, retailer, trader.',
     );
   }
 
@@ -344,6 +346,7 @@ class FirestoreService {
         'builder', 'builders', 'builder / contractor', 'builder/contractor',
         'wholesaler', 'wholesalers', 'wholesaler / distributor', 'wholesaler/distributor',
         'retailer', 'retailers',
+        'trader', 'traders',
       ].contains(cleanRole);
 
       final String? catColName = isCanonicalTradeCat ? _getCategoryCollectionName(effectiveCategory) : null;
@@ -675,7 +678,7 @@ class FirestoreService {
     }
 
     // Defensive check: also delete across standard category collections to eliminate any cross-duplicates
-    for (final col in ['dealers', 'architects', 'builders', 'wholesalers', 'retailers']) {
+    for (final col in ['dealers', 'architects', 'builders', 'wholesalers', 'retailers', 'traders']) {
       if (resolvedCatCol == col) continue;
       final altRef = _db.collection(col).doc(cleanUid);
       batch.delete(altRef);

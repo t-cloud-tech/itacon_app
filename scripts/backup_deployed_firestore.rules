@@ -121,7 +121,8 @@ service cloud.firestore {
         ('userCategory' in request.resource.data) &&
         isValidCustomerCategory(request.resource.data.userCategory) &&
         isPreservingAssignedSalesperson() &&
-        !hasRewardFields(request.resource.data);
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
     }
 
     // Deny writes that forge privileged user fields

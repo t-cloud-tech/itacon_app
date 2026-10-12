@@ -96,7 +96,7 @@ export async function fetchLiveCustomers(
             address: typeof data.address === "string" ? data.address : (data.address?.line1 || ""),
             pincode: data.pincode || data.address?.pincode || "",
             gstNumber: data.gstNumber || data.gstin || "",
-            category: ["Dealer", "Wholesaler", "Retailer", "Contractor", "Architect", "Builder"].includes(category)
+            category: ["Dealer", "Wholesaler", "Retailer", "Contractor", "Architect", "Builder", "Trader"].includes(category)
               ? category
               : "Dealer",
             priceTier: tier as "A" | "B" | "C",

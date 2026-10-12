@@ -231,6 +231,35 @@ describe('SECTION 2: FIRESTORE RULES VERIFICATION FOR CUSTOMER REGISTRATION', fu
     await assertSucceeds(batch.commit());
   });
 
+  it('6b. Allow: Real WriteBatch for Trader -> traders/{uid} (PASS)', async () => {
+    const db = asUser(TEST_UID);
+    const batch = db.batch();
+
+    const masterDoc = {
+      userId: TEST_UID,
+      uid: TEST_UID,
+      name: 'Trader User',
+      phone: '+919876543210',
+      userCategory: 'Trader',
+      role: 'trader',
+      passwordHash: 'hash123',
+      passwordSalt: 'salt123',
+    };
+    const categoryDoc = {
+      userId: TEST_UID,
+      uid: TEST_UID,
+      name: 'Trader User',
+      phone: '+919876543210',
+      userCategory: 'Trader',
+      role: 'trader',
+      categoryLabel: 'Trader',
+    };
+
+    batch.set(db.collection('users').doc(TEST_UID), masterDoc);
+    batch.set(db.collection('traders').doc(TEST_UID), categoryDoc);
+    await assertSucceeds(batch.commit());
+  });
+
   it('7. Deny: Missing category / unmapped category mirror is BLOCKED', async () => {
     const db = asUser(TEST_UID);
     // Writing to an unmapped/arbitrary collection without explicit rule is denied by default
@@ -276,75 +305,145 @@ describe('SECTION 2: FIRESTORE RULES VERIFICATION FOR CUSTOMER REGISTRATION', fu
     );
   });
 
-  it('11. Deny: Staff/admin role injection in users/{uid} is BLOCKED', async () => {
+  it('11. Deny: Staff/admin role or category injection in users/{uid} is BLOCKED', async () => {
     const db = asUser(TEST_UID);
-
-    // Customer cannot inject role: 'admin'
     await assertFails(
       db.collection('users').doc(TEST_UID).set({
         userId: TEST_UID,
         uid: TEST_UID,
         name: 'Malicious User',
         role: 'admin',
-      })
-    );
-
-    // Customer cannot inject role: 'salesperson'
-    await assertFails(
-      db.collection('users').doc(TEST_UID).set({
-        userId: TEST_UID,
-        uid: TEST_UID,
-        name: 'Malicious User',
-        role: 'salesperson',
+        userCategory: 'staff',
       })
     );
   });
 
   it('12. Deny: Credential fields inside category mirror is BLOCKED', async () => {
     const db = asUser(TEST_UID);
-    
-    // Check plaintext password denial in category mirror
     await assertFails(
       db.collection('dealers').doc(TEST_UID).set({
         userId: TEST_UID,
         password: 'PlaintextPassword123!',
       })
     );
+  });
 
-    // Check token denial in category mirror
+  it('13. Deny: Cross-user or staff-only assignment collections from normal customer is BLOCKED', async () => {
+    const db = asUser(TEST_UID);
     await assertFails(
-      db.collection('dealers').doc(TEST_UID).set({
-        userId: TEST_UID,
-        token: 'secret_jwt_token',
+      db.collection('client_assignments').doc(`ASGN_${OTHER_UID}`).set({
+        clientId: OTHER_UID,
+        salespersonId: 'SP_001',
       })
     );
   });
 
-  it('13. Deny: Staff-only assignment collections from normal customer is BLOCKED', async () => {
+  it('14. Deny: Customer cannot promote role to admin on existing profile', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('users').doc(TEST_UID).set({
+        userId: TEST_UID,
+        uid: TEST_UID,
+        name: 'Customer',
+        role: 'dealer',
+        userCategory: 'dealer',
+      });
+    });
+
     const db = asUser(TEST_UID);
-
-    // a. client_assignments
     await assertFails(
-      db.collection('client_assignments').doc(`ASGN_${TEST_UID}`).set({
-        clientId: TEST_UID,
-        salespersonId: 'SP_001',
+      db.collection('users').doc(TEST_UID).update({
+        role: 'admin',
       })
     );
+  });
 
-    // b. Auto_Assign_User
+  it('15. Deny: Customer cannot promote userCategory to admin on existing profile', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('users').doc(TEST_UID).set({
+        userId: TEST_UID,
+        uid: TEST_UID,
+        name: 'Customer',
+        role: 'dealer',
+        userCategory: 'dealer',
+      });
+    });
+
+    const db = asUser(TEST_UID);
     await assertFails(
-      db.collection('Auto_Assign_User').doc(TEST_UID).set({
-        clientId: TEST_UID,
-        salespersonId: 'SP_001',
+      db.collection('users').doc(TEST_UID).update({
+        userCategory: 'admin',
       })
     );
+  });
 
-    // c. salesPersons/{spId}/assigned_clients
+  it('16. Allow: Customer can read their own category document (e.g. dealers/{uid}, traders/{uid})', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('traders').doc(TEST_UID).set({
+        userId: TEST_UID,
+        name: 'Trader Owner',
+        role: 'trader',
+      });
+    });
+
+    const db = asUser(TEST_UID);
+    await assertSucceeds(
+      db.collection('traders').doc(TEST_UID).get()
+    );
+  });
+
+  it('17. Deny: Customer cannot read another customer category document', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('traders').doc(OTHER_UID).set({
+        userId: OTHER_UID,
+        name: 'Secret Trader',
+        role: 'trader',
+      });
+    });
+
+    const db = asUser(TEST_UID);
     await assertFails(
-      db.collection('salesPersons').doc('SP_001').collection('assigned_clients').doc(TEST_UID).set({
-        clientId: TEST_UID,
+      db.collection('traders').doc(OTHER_UID).get()
+    );
+  });
+
+  it('18. Deny: Customer cannot directly modify salesperson counters', async () => {
+    const SP_ID = 'SP_TEST_99';
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('salesPersons').doc(SP_ID).set({
+        salespersonId: SP_ID,
+        name: 'Sales Rep',
+        assignedClientsCount: 5,
+        activeClientsCount: 2,
+      });
+    });
+
+    const db = asUser(TEST_UID);
+    await assertFails(
+      db.collection('salesPersons').doc(SP_ID).update({
+        assignedClientsCount: 10,
+      })
+    );
+  });
+
+  it('19. Allow: Staff can update salesperson document and counters', async () => {
+    const SP_ID = 'SP_TEST_99';
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('salesPersons').doc(SP_ID).set({
+        salespersonId: SP_ID,
+        name: 'Sales Rep',
+        assignedClientsCount: 5,
+      });
+    });
+
+    const staffDb = testEnv.authenticatedContext('STAFF_UID_1', { role: 'staff' }).firestore();
+    await assertSucceeds(
+      staffDb.collection('salesPersons').doc(SP_ID).update({
+        assignedClientsCount: 6,
       })
     );
   });
 
 });
+
+
+

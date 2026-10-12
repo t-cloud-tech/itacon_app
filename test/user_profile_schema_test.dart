@@ -483,6 +483,8 @@ void main() {
         expect(FirestoreService.getCategoryCollectionName('wholesaler'), 'wholesalers');
         // 5. retailer -> retailers
         expect(FirestoreService.getCategoryCollectionName('retailer'), 'retailers');
+        // 6. trader -> traders
+        expect(FirestoreService.getCategoryCollectionName('trader'), 'traders');
       });
 
       test('26. Unknown category is rejected (6)', () {

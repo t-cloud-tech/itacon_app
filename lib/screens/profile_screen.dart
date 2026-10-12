@@ -903,6 +903,7 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
     'Builder / Contractor',
     'Wholesaler',
     'Retailer',
+    'Trader',
   ];
 
   @override

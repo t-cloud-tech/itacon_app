@@ -34,7 +34,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _gstController;
   late TextEditingController _addressLineController;
 
-  late String _selectedCategory;
+  String? _selectedCategory;
   late String _selectedRegion;
   String? _profilePhotoUrl;
   List<String> _showroomImages = [];
@@ -46,6 +46,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'Builder / Contractor',
     'Wholesaler',
     'Retailer',
+    'Trader',
   ];
 
   // Default sample showroom assets for demonstration
@@ -77,16 +78,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       text: (profile.address['line1'] ?? profile.address['addressLine'] ?? '') as String,
     );
 
-    final initialCat = profile.userCategory.isNotEmpty ? profile.userCategory : 'Dealer';
-    if (initialCat.toLowerCase() == 'builder' ||
+    final initialCat = profile.userCategory.trim();
+    if (initialCat.isEmpty) {
+      _selectedCategory = null;
+    } else if (initialCat.toLowerCase() == 'builder' ||
         initialCat.toLowerCase() == 'builder / contractor' ||
         initialCat.toLowerCase() == 'contractor') {
       _selectedCategory = 'Builder / Contractor';
     } else {
-      _selectedCategory = _categories.firstWhere(
+      final matched = _categories.where(
         (c) => c.toLowerCase() == initialCat.toLowerCase(),
-        orElse: () => 'Dealer',
       );
+      _selectedCategory = matched.isNotEmpty ? matched.first : null;
     }
     _selectedRegion = profile.region.isNotEmpty ? profile.region : 'West India (Gujarat/Maharashtra)';
     _profilePhotoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
@@ -592,7 +595,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       email: normalizedEmail,
       phone: _phoneController.text.trim(),
       companyName: _companyController.text.trim(),
-      userCategory: _selectedCategory,
+      userCategory: _selectedCategory ?? '',
       city: _cityController.text.trim(),
       state: _stateController.text.trim(),
       region: _selectedRegion,
@@ -616,7 +619,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         phone: _phoneController.text.trim(),
         email: normalizedEmail,
         companyName: _companyController.text.trim(),
-        role: _selectedCategory,
+        role: _selectedCategory ?? '',
         city: _cityController.text.trim(),
         state: _stateController.text.trim(),
         region: _selectedRegion,
@@ -633,7 +636,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         name: _nameController.text.trim(),
         religion: _religionController.text.trim(),
         dateOfBirth: _dobController.text.trim(),
-        role: _selectedCategory,
+        role: _selectedCategory ?? '',
         email: normalizedEmail,
         companyName: _companyController.text.trim(),
         city: _cityController.text.trim(),
@@ -971,19 +974,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               // ---------------------------------------------------------------
               // 3. INPUT FORM FIELDS
               // ---------------------------------------------------------------
-              _buildInputField('Full Name', _nameController, Icons.person_outlined),
+              _buildInputField(
+                'Full Name',
+                _nameController,
+                Icons.person_outlined,
+                hintText: 'Enter full name',
+              ),
               const SizedBox(height: 14),
               _buildDateField('Date of Birth', _dobController, Icons.cake_outlined),
               const SizedBox(height: 14),
               _buildReligionField('Religion', _religionController, Icons.diversity_3_outlined),
               const SizedBox(height: 14),
-              _buildInputField('Mobile Number', _phoneController, Icons.phone_outlined,
-                  keyboardType: TextInputType.phone),
+              _buildInputField(
+                'Mobile Number',
+                _phoneController,
+                Icons.phone_outlined,
+                keyboardType: TextInputType.phone,
+                hintText: 'Enter mobile number',
+              ),
               const SizedBox(height: 14),
-              _buildInputField('Email Address', _emailController, Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress),
+              _buildInputField(
+                'Email Address',
+                _emailController,
+                Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                hintText: 'Enter your email address',
+              ),
               const SizedBox(height: 14),
-              _buildInputField('Company / Business Name', _companyController, Icons.business_outlined),
+              _buildInputField(
+                'Company / Business Name',
+                _companyController,
+                Icons.business_outlined,
+                hintText: 'Enter company or business name',
+              ),
               const SizedBox(height: 14),
 
               // User Category Dropdown
@@ -1001,7 +1024,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: _categories.contains(_selectedCategory) ? _selectedCategory : 'Dealer',
+                    value: (_selectedCategory != null && _categories.contains(_selectedCategory))
+                        ? _selectedCategory
+                        : null,
+                    hint: const Text(
+                      'Select business category',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textSubtle,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
                     isExpanded: true,
                     items: _categories.map((cat) {
                       return DropdownMenuItem(
@@ -1017,17 +1050,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 14),
 
-              _buildInputField('Delivery Address', _addressLineController, Icons.home_outlined),
+              _buildInputField(
+                'Delivery Address',
+                _addressLineController,
+                Icons.home_outlined,
+                hintText: 'Enter your complete delivery address',
+              ),
               const SizedBox(height: 14),
 
               Row(
                 children: [
                   Expanded(
-                    child: _buildInputField('City', _cityController, Icons.location_city_outlined),
+                    child: _buildInputField(
+                      'City',
+                      _cityController,
+                      Icons.location_city_outlined,
+                      hintText: 'Enter city',
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _buildInputField('State', _stateController, Icons.map_outlined),
+                    child: _buildInputField(
+                      'State',
+                      _stateController,
+                      Icons.map_outlined,
+                      hintText: 'Select state',
+                    ),
                   ),
                 ],
               ),
@@ -1036,12 +1084,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _buildInputField('Pincode', _pincodeController, Icons.pin_drop_outlined,
-                        keyboardType: TextInputType.number),
+                    child: _buildInputField(
+                      'Pincode',
+                      _pincodeController,
+                      Icons.pin_drop_outlined,
+                      keyboardType: TextInputType.number,
+                      hintText: 'Enter 6-digit pincode',
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _buildInputField('GSTIN Number', _gstController, Icons.receipt_long_outlined),
+                    child: _buildInputField(
+                      'GSTIN Number',
+                      _gstController,
+                      Icons.receipt_long_outlined,
+                      hintText: 'Enter GSTIN number (if applicable)',
+                    ),
                   ),
                 ],
               ),
@@ -1144,7 +1202,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
             suffixIcon: const Icon(Icons.calendar_today_rounded,
                 color: AppTheme.primaryNavy, size: 18),
-            hintText: 'Select $label (DD/MM/YYYY)',
+            hintText: 'Select date of birth (DD/MM/YYYY)',
+            hintStyle: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSubtle,
+              fontWeight: FontWeight.normal,
+            ),
             filled: true,
             fillColor: Colors.white,
             contentPadding:
@@ -1201,6 +1264,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
             hintText: 'Enter or select religion',
+            hintStyle: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSubtle,
+              fontWeight: FontWeight.normal,
+            ),
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1254,6 +1322,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     TextEditingController controller,
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
+    String? hintText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1273,6 +1342,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
+            hintText: hintText ?? 'Enter $label',
+            hintStyle: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.textSubtle,
+              fontWeight: FontWeight.normal,
+            ),
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

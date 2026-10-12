@@ -15,6 +15,7 @@ class UserCategory {
     UserCategory(id: 'builder', label: 'Builder / Contractor'),
     UserCategory(id: 'wholesaler', label: 'Wholesaler / Distributor'),
     UserCategory(id: 'retailer', label: 'Retailer'),
+    UserCategory(id: 'trader', label: 'Trader'),
   ];
 
   /// The exact canonical category values expected for Signup and Profile displays.
@@ -24,6 +25,7 @@ class UserCategory {
     'Builder / Contractor',
     'Wholesaler',
     'Retailer',
+    'Trader',
   ];
 
   /// Get category label by [id] or canonical name. Returns 'Unknown' if category is not found.
@@ -35,10 +37,12 @@ class UserCategory {
               cat.id.toLowerCase() == clean ||
               cat.label.toLowerCase() == clean ||
               (clean == 'dealer' && cat.id == 'dealer') ||
+              (clean == 'architect' && cat.id == 'architect') ||
               (clean == 'architect / interior designer' && cat.id == 'architect') ||
               (clean == 'builder / contractor' && cat.id == 'builder') ||
               (clean == 'wholesaler' && cat.id == 'wholesaler') ||
-              (clean == 'retailer' && cat.id == 'retailer'))
+              (clean == 'retailer' && cat.id == 'retailer') ||
+              (clean == 'trader' && cat.id == 'trader'))
           .label;
     } catch (_) {
       return 'Unknown';
@@ -52,17 +56,19 @@ class UserCategory {
         cat.id.toLowerCase() == clean ||
         cat.label.toLowerCase() == clean ||
         clean == 'dealer' ||
+        clean == 'architect' ||
         clean == 'architect / interior designer' ||
         clean == 'builder / contractor' ||
         clean == 'wholesaler' ||
-        clean == 'retailer');
+        clean == 'retailer' ||
+        clean == 'trader');
   }
 
   /// List of all category IDs.
   static List<String> get categoryIds =>
       allCategories.map((c) => c.id).toList();
 
-  /// Checks if [category] is one of the 5 canonical customer signup categories.
+  /// Checks if [category] is one of the canonical customer signup categories.
   static bool isValidCanonicalCategory(String? category) {
     if (category == null) return false;
     final trimmed = category.trim();
