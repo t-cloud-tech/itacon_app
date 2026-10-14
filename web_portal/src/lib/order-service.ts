@@ -6,6 +6,7 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
+  addDoc,
   query, 
   where,
   onSnapshot,
@@ -1125,3 +1126,125 @@ export async function salespersonDeclineOrder(
     } catch (_) {}
   }
 }
+
+/**
+ * Converts a quotation or confirmed PO into an authoritative Factory Sales Order.
+ * Automatically saves the sales order to Firestore 'salesOrders' collection,
+ * updates the quotation status to 'accepted', and updates any linked order in 'orders' to 'confirmed'.
+ */
+export async function convertQuotationToSalesOrder(
+  quotation: {
+    id: string;
+    quotationNumber?: string;
+    poNumber?: string;
+    orderId?: string;
+    customerId?: string;
+    customerName?: string;
+    customerPhone?: string;
+    salespersonId?: string;
+    items?: any[];
+    subtotal?: number;
+    taxAmount?: number;
+    grandTotal?: number;
+    shippingAddress?: string;
+    deliveryAddress?: string;
+    paymentTerms?: string;
+  },
+  userId?: string
+): Promise<{ orderId: string; orderNumber: string }> {
+  const now = new Date().toISOString();
+  const salesOrdersRef = collection(db, "salesOrders");
+
+  // 1. Check if a sales order already exists for this quotation
+  const existingQuery = query(
+    salesOrdersRef,
+    where("quotationId", "==", quotation.id)
+  );
+  let orderDocId = "";
+  let orderNumber = "";
+
+  try {
+    const existingSnap = await getDocs(existingQuery);
+    if (!existingSnap.empty) {
+      const existingDoc = existingSnap.docs[0];
+      orderDocId = existingDoc.id;
+      orderNumber = existingDoc.data().orderNumber || `ORD-2026-${orderDocId.slice(-4)}`;
+      await updateDoc(doc(db, "salesOrders", orderDocId), {
+        status: "confirmed",
+        updatedAt: now,
+      });
+    }
+  } catch (err) {
+    console.warn("Could not check existing sales order:", err);
+  }
+
+  // If none exists, create a new sales order document
+  if (!orderDocId) {
+    const randNum = Math.floor(100 + Math.random() * 900);
+    orderNumber = quotation.poNumber 
+      ? quotation.poNumber.replace(/^ITC-PO-/, "ORD-") 
+      : quotation.quotationNumber
+      ? quotation.quotationNumber.replace(/^QT-/, "ORD-")
+      : `ORD-2026-${randNum}`;
+
+    try {
+      const newDoc = await addDoc(salesOrdersRef, {
+        orderNumber,
+        quotationId: quotation.id,
+        quotationNumber: quotation.quotationNumber || "",
+        poNumber: quotation.poNumber || "",
+        orderId: quotation.orderId || "",
+        customerId: quotation.customerId || "cust-unknown",
+        customerName: quotation.customerName || "Customer",
+        customerPhone: quotation.customerPhone || "",
+        salespersonId: quotation.salespersonId || userId || "sp-1",
+        status: "confirmed",
+        items: quotation.items || [],
+        subtotal: quotation.subtotal || quotation.grandTotal || 0,
+        taxAmount: quotation.taxAmount || 0,
+        grandTotal: quotation.grandTotal || quotation.subtotal || 0,
+        shippingAddress: quotation.shippingAddress || quotation.deliveryAddress || "As per customer master profile",
+        paymentTerms: quotation.paymentTerms || "100% advance on PO confirmation",
+        paymentStatus: "unpaid",
+        createdAt: now,
+        updatedAt: now,
+        timestamp: serverTimestamp(),
+      });
+      orderDocId = newDoc.id;
+    } catch (err) {
+      console.warn("Could not add sales order to Firestore:", err);
+      orderDocId = `ord-${Date.now()}`;
+    }
+  }
+
+  // 2. Update quotation document in 'quotations' collection to accepted
+  try {
+    const quoteRef = doc(db, "quotations", quotation.id);
+    await updateDoc(quoteRef, {
+      status: "accepted",
+      salesOrderId: orderDocId,
+      salesOrderNumber: orderNumber,
+      updatedAt: now,
+    });
+  } catch (err) {
+    console.warn("Could not update quotation status in Firestore:", err);
+  }
+
+  // 3. If quotation is linked to an order in 'orders' collection, update it as confirmed
+  if (quotation.orderId) {
+    try {
+      const orderRef = doc(db, "orders", quotation.orderId);
+      await updateDoc(orderRef, {
+        status: "confirmed",
+        salesOrderId: orderDocId,
+        salesOrderNumber: orderNumber,
+        updatedAt: now,
+      });
+    } catch (err) {
+      console.warn("Could not update orders doc in Firestore:", err);
+    }
+  }
+
+  return { orderId: orderDocId, orderNumber };
+}
+

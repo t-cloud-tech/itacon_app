@@ -236,9 +236,14 @@ export interface SalesOrder {
   id: string;
   orderNumber: string;
   quotationId?: string;
+  quotationNumber?: string;
+  poNumber?: string;
+  orderId?: string;
   customerId: string;
   customerName: string;
+  customerPhone?: string;
   salespersonId: string;
+  salespersonName?: string;
   status: OrderStatus;
   items: QuotationItem[];
   subtotal: number;

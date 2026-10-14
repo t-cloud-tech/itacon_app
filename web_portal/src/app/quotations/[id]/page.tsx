@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { Quotation } from "@/types";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { 
@@ -24,13 +24,11 @@ import {
 
 export default function QuotationDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const quoteId = params?.id as string;
   const { user } = useAuth();
 
   const [quote, setQuote] = useState<Quotation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConverting, setIsConverting] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   useEffect(() => {
@@ -152,45 +150,6 @@ export default function QuotationDetailPage() {
     }
   };
 
-  const handleConvertToOrder = async () => {
-    if (!quote) return;
-    setIsConverting(true);
-    try {
-      const orderNumber = `ORD-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const docRef = await addDoc(collection(db, "salesOrders"), {
-        orderNumber,
-        quotationId: quote.id,
-        customerId: quote.customerId,
-        customerName: quote.customerName,
-        salespersonId: user?.userId || quote.salespersonId,
-        status: "confirmed",
-        items: quote.items,
-        subtotal: quote.subtotal,
-        taxAmount: quote.taxAmount,
-        grandTotal: quote.grandTotal,
-        shippingAddress: "As per customer master profile",
-        paymentTerms: quote.paymentTerms,
-        paymentStatus: "unpaid",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        timestamp: serverTimestamp(),
-      });
-
-      // Update quotation status
-      await updateDoc(doc(db, "quotations", quote.id), {
-        status: "accepted",
-        updatedAt: new Date().toISOString(),
-      });
-
-      router.push(`/orders`);
-    } catch (err) {
-      console.warn("Conversion error:", err);
-      router.push(`/orders`);
-    } finally {
-      setIsConverting(false);
-    }
-  };
-
   if (isLoading || !quote) {
     return (
       <DashboardShell title="Quotation Detail">
@@ -236,15 +195,14 @@ export default function QuotationDetailPage() {
               </button>
             )}
 
-            {quote.status !== "accepted" && (
-              <button
-                onClick={handleConvertToOrder}
-                disabled={isConverting}
-                className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+            {quote.status === "accepted" && (
+              <Link
+                href={`/orders?tab=sales_orders&search=${encodeURIComponent(quote.quotationNumber || quote.poNumber || "")}`}
+                className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
                 <Truck className="w-4 h-4" />
-                <span>{isConverting ? "Converting..." : "Convert to Sales Order"}</span>
-              </button>
+                <span>View Factory Sales Order &rarr;</span>
+              </Link>
             )}
           </div>
         </div>

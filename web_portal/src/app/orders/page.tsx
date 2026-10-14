@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db, storage, functions, invokeCallable } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
-import { SalesOrder, OrderStatus, PaymentSubmissionRecord } from "@/types";
+import { SalesOrder, OrderStatus, PaymentSubmissionRecord, Quotation } from "@/types";
 import { subscribeAllOrders, ClientOrderPO, getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import {
   Truck,
@@ -32,17 +33,39 @@ import {
   Check
 } from "lucide-react";
 
-export default function SalesOrdersPage() {
+function SalesOrdersContent() {
+  const searchParams = useSearchParams();
   const { user, role, salesperson } = useAuth();
-  const [activeTab, setActiveTab] = useState<"client_pos" | "sales_orders" | "payments">("client_pos");
+
+  const tabParam = searchParams.get("tab");
+  const searchParam = searchParams.get("search");
+
+  const [activeTab, setActiveTab] = useState<"client_pos" | "sales_orders" | "payments">(
+    tabParam === "sales_orders" ? "sales_orders" : tabParam === "payments" ? "payments" : "client_pos"
+  );
 
   // Orders State
   const [orders, setOrders] = useState<SalesOrder[]>([]);
+  const [acceptedQuotations, setAcceptedQuotations] = useState<Quotation[]>([]);
   const [clientPOs, setClientPOs] = useState<ClientOrderPO[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(searchParam || "");
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isLoadingPOs, setIsLoadingPOs] = useState(true);
+
+  // Sync tab & search when URL parameters change
+  useEffect(() => {
+    if (tabParam === "sales_orders") {
+      setActiveTab("sales_orders");
+    } else if (tabParam === "payments") {
+      setActiveTab("payments");
+    } else if (tabParam === "client_pos") {
+      setActiveTab("client_pos");
+    }
+    if (searchParam) {
+      setSearchTerm(searchParam);
+    }
+  }, [tabParam, searchParam]);
 
   // Payment Verification State
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmissionRecord[]>([]);
@@ -77,75 +100,231 @@ export default function SalesOrdersPage() {
     return () => unsubPOs();
   }, [user, salesperson, role]);
 
-  // 2. Fetch Sales Orders from salesOrders collection
+  // 2. Real-time subscription to salesOrders and quotations with "accepted" / "converted" status
   useEffect(() => {
-    async function fetchSalesOrders() {
-      setIsLoadingOrders(true);
-      try {
-        const refCol = collection(db, "salesOrders");
-        let q = query(refCol, orderBy("createdAt", "desc"));
+    setIsLoadingOrders(true);
+    const refCol = collection(db, "salesOrders");
+    let qSales = query(refCol);
 
-        if (role === "salesperson" && user?.userId) {
-          q = query(refCol, where("salespersonId", "==", user.userId));
-        }
-
-        const snap = await getDocs(q);
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SalesOrder));
-
-        if (list.length > 0) {
-          setOrders(list);
-        } else {
-          // Demo fallback orders
-          setOrders([
-            {
-              id: "ord-1",
-              orderNumber: "ORD-2026-055",
-              quotationId: "qt-104",
-              customerId: "cust-1",
-              customerName: "Gujarat Ceramics & Tiles",
-              salespersonId: user?.userId || "sp-1",
-              status: "dispatched",
-              items: [],
-              subtotal: 283560,
-              taxAmount: 51040,
-              grandTotal: 345000,
-              shippingAddress: "Shop 12, Ceramic Plaza, 8-A National Highway, Morbi - 363642",
-              dispatchDate: "2026-09-21",
-              trackingNumber: "GJ-TRK-88190",
-              paymentStatus: "paid",
-              paymentTerms: "100% advance on PO confirmation",
-              createdAt: "2026-09-20",
-              updatedAt: "2026-09-21",
-            },
-            {
-              id: "ord-2",
-              orderNumber: "ORD-2026-056",
-              quotationId: "qt-105",
-              customerId: "cust-2",
-              customerName: "Somany Buildcon",
-              salespersonId: user?.userId || "sp-2",
-              status: "in_production",
-              items: [],
-              subtotal: 540000,
-              taxAmount: 97200,
-              grandTotal: 637200,
-              shippingAddress: "Plot 45, GIDC Industrial Estate, Rajkot - 360003",
-              paymentStatus: "partial",
-              paymentTerms: "50% advance, balance on dispatch",
-              createdAt: "2026-09-22",
-              updatedAt: "2026-09-22",
-            },
-          ]);
-        }
-      } catch (err) {
-        console.warn("Could not fetch sales orders:", err);
-      } finally {
-        setIsLoadingOrders(false);
-      }
+    if (role === "salesperson" && user?.userId) {
+      qSales = query(refCol, where("salespersonId", "==", user.userId));
     }
 
-    fetchSalesOrders();
+    const unsubSalesOrders = onSnapshot(
+      qSales,
+      (snap) => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SalesOrder));
+        list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setOrders(list);
+        setIsLoadingOrders(false);
+      },
+      (err) => {
+        console.warn("Real-time sales orders warning:", err);
+        setIsLoadingOrders(false);
+      }
+    );
+
+    // Also listen to quotations in real-time matching the quotations/page.tsx query
+    const quotesRef = collection(db, "quotations");
+    let qQuotes = query(quotesRef);
+
+    if (role === "salesperson" && user?.userId) {
+      qQuotes = query(quotesRef, where("salespersonId", "==", user.userId));
+    }
+
+    const unsubQuotes = onSnapshot(
+      qQuotes,
+      (snap) => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Quotation));
+        setAcceptedQuotations(list);
+      },
+      (err) => {
+        console.warn("Real-time quotations listener warning:", err);
+      }
+    );
+
+    return () => {
+      unsubSalesOrders();
+      unsubQuotes();
+    };
   }, [user, role]);
+
+  // Merge Firestore salesOrders with any converted quotations and mobile confirmed orders
+  const allFactorySalesOrders = useMemo(() => {
+    const list: SalesOrder[] = [...orders];
+
+    const isAlreadyPresent = (item: {
+      quotationId?: string;
+      quotationNumber?: string;
+      poNumber?: string;
+      orderId?: string;
+      orderNumber?: string;
+    }) => {
+      return list.some(o => {
+        if (item.quotationId && (o.quotationId === item.quotationId || o.id === item.quotationId || o.id === `quote-conv-${item.quotationId}`)) return true;
+        if (item.quotationNumber && (
+          (o as any).quotationNumber === item.quotationNumber ||
+          o.orderNumber === item.quotationNumber.replace(/^QT-/, "ORD-") ||
+          o.orderNumber === item.quotationNumber
+        )) return true;
+        if (item.poNumber && (
+          (o as any).poNumber === item.poNumber ||
+          o.orderNumber === item.poNumber.replace(/^ITC-PO-/, "ORD-") ||
+          o.orderNumber === item.poNumber
+        )) return true;
+        if (item.orderId && ((o as any).orderId === item.orderId || o.id === item.orderId || (o as any).id === `po-conv-${item.orderId}`)) return true;
+        if (item.orderNumber && o.orderNumber === item.orderNumber) return true;
+        return false;
+      });
+    };
+
+    // 1. Add any accepted/converted quotations OR quotations whose linked mobile order is confirmed
+    acceptedQuotations.forEach((q) => {
+      const qStatus = (q.status || "").toLowerCase();
+      // Match linked order in clientPOs
+      const linkedPO = clientPOs.find(p => p.id === q.orderId || (q.poNumber && p.poNumber === q.poNumber) || (q.quotationNumber && p.quotationNumber === q.quotationNumber));
+      const linkedPOStatus = (linkedPO?.status || "").toLowerCase();
+
+      const isConverted = 
+        qStatus === "accepted" || 
+        qStatus === "converted" || 
+        linkedPOStatus === "confirmed" || 
+        linkedPOStatus === "accepted";
+
+      if (isConverted && !isAlreadyPresent({
+        quotationId: q.id,
+        quotationNumber: q.quotationNumber,
+        poNumber: q.poNumber,
+        orderId: q.orderId,
+      })) {
+        const orderNum = q.quotationNumber
+          ? q.quotationNumber.replace(/^QT-/, "ORD-")
+          : q.poNumber
+          ? q.poNumber.replace(/^ITC-PO-/, "ORD-")
+          : `ORD-2026-${q.id.slice(-4)}`;
+
+        const totalAmt = q.grandTotal || (linkedPO as any)?.totalAmount || linkedPO?.items?.reduce((s, it) => s + (it.lineTotal || 0), 0) || q.subtotal || 0;
+
+        list.push({
+          id: `quote-conv-${q.id}`,
+          orderNumber: orderNum,
+          quotationId: q.id,
+          quotationNumber: q.quotationNumber,
+          poNumber: q.poNumber || linkedPO?.poNumber,
+          orderId: q.orderId || linkedPO?.id,
+          customerId: q.customerId || linkedPO?.userId || "cust-1",
+          customerName: q.customerName || linkedPO?.companyName || linkedPO?.customerName || "Customer",
+          customerPhone: q.customerPhone || linkedPO?.customerPhone,
+          salespersonId: q.salespersonId || linkedPO?.salesPersonId || user?.userId || "sp-1",
+          salespersonName: q.salespersonName || (linkedPO as any)?.salespersonName,
+          status: "confirmed",
+          items: q.items || (linkedPO?.items as any) || [],
+          subtotal: q.subtotal || totalAmt,
+          taxAmount: q.taxAmount || 0,
+          grandTotal: totalAmt,
+          shippingAddress: (q as any).shippingAddress || linkedPO?.deliveryAddress || "Plot No. 42, Industrial Ceramic Zone, Morbi - 363642, Gujarat",
+          paymentTerms: q.paymentTerms || "Immediate / Advance",
+          paymentStatus: "unpaid",
+          createdAt: q.createdAt || new Date().toISOString(),
+          updatedAt: q.updatedAt || new Date().toISOString(),
+        });
+      }
+    });
+
+    // 2. Add any confirmed mobile client POs that are not already in salesOrders
+    clientPOs.forEach((po) => {
+      const s = (po.status || "").toLowerCase();
+      const isConfirmed = s === "confirmed" || s === "accepted" || s === "converted";
+
+      if (isConfirmed && !isAlreadyPresent({
+        quotationId: po.quotationId,
+        quotationNumber: po.quotationNumber,
+        poNumber: po.poNumber,
+        orderId: po.id,
+      })) {
+        const orderNum = po.quotationNumber
+          ? po.quotationNumber.replace(/^QT-/, "ORD-")
+          : po.poNumber
+          ? po.poNumber.replace(/^ITC-PO-/, "ORD-")
+          : `ORD-${po.id.slice(-4)}`;
+
+        const poTotal = 
+          (po as any).totalAmount || 
+          po.items?.reduce((s, it) => s + (it.lineTotal || (it.basePrice && it.quantityBoxes ? it.basePrice * it.quantityBoxes : 0)), 0) || 
+          50000;
+
+        list.push({
+          id: `po-conv-${po.id}`,
+          orderNumber: orderNum,
+          quotationId: po.quotationId,
+          quotationNumber: po.quotationNumber,
+          poNumber: po.poNumber,
+          orderId: po.id,
+          customerId: po.userId || "cust-1",
+          customerName: po.companyName || po.customerName || "Customer",
+          customerPhone: po.customerPhone,
+          salespersonId: po.salesPersonId || user?.userId || "sp-1",
+          salespersonName: (po as any).salespersonName,
+          status: "confirmed",
+          items: (po.items as any) || [],
+          subtotal: poTotal,
+          taxAmount: 0,
+          grandTotal: poTotal,
+          shippingAddress: po.deliveryAddress || "Plot No. 42, Industrial Ceramic Zone, Morbi - 363642, Gujarat",
+          paymentTerms: "Immediate / Advance",
+          paymentStatus: "unpaid",
+          createdAt: po.createdAt || new Date().toISOString(),
+          updatedAt: po.updatedAt || new Date().toISOString(),
+        });
+      }
+    });
+
+    // 3. Fallback sample demo orders if list is completely empty
+    if (list.length === 0 && !isLoadingOrders) {
+      list.push(
+        {
+          id: "ord-1",
+          orderNumber: "ORD-2026-055",
+          quotationId: "qt-104",
+          customerId: "cust-1",
+          customerName: "Gujarat Ceramics & Tiles",
+          salespersonId: user?.userId || "sp-1",
+          status: "dispatched",
+          items: [],
+          subtotal: 283560,
+          taxAmount: 51040,
+          grandTotal: 345000,
+          shippingAddress: "Shop 12, Ceramic Plaza, 8-A National Highway, Morbi - 363642",
+          dispatchDate: "2026-09-21",
+          trackingNumber: "GJ-TRK-88190",
+          paymentStatus: "paid",
+          paymentTerms: "100% advance on PO confirmation",
+          createdAt: "2026-09-20",
+          updatedAt: "2026-09-21",
+        },
+        {
+          id: "ord-2",
+          orderNumber: "ORD-2026-056",
+          quotationId: "qt-105",
+          customerId: "cust-2",
+          customerName: "Somany Buildcon",
+          salespersonId: user?.userId || "sp-2",
+          status: "in_production",
+          items: [],
+          subtotal: 540000,
+          taxAmount: 97200,
+          grandTotal: 637200,
+          shippingAddress: "Plot 45, GIDC Industrial Estate, Rajkot - 360003",
+          paymentStatus: "partial",
+          paymentTerms: "50% advance, balance on dispatch",
+          createdAt: "2026-09-22",
+          updatedAt: "2026-09-22",
+        }
+      );
+    }
+
+    return list;
+  }, [orders, acceptedQuotations, clientPOs, user?.userId, isLoadingOrders]);
 
   // 3. Fetch Payment Submissions in Real-Time
   useEffect(() => {
@@ -199,10 +378,16 @@ export default function SalesOrdersPage() {
   });
 
   // Filtered Orders
-  const filteredOrders = orders.filter(o => {
-    const matchesSearch =
-      o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredOrders = allFactorySalesOrders.filter(o => {
+    const term = searchTerm.toLowerCase().trim();
+    const matchesSearch = 
+      !term ||
+      o.orderNumber.toLowerCase().includes(term) ||
+      o.customerName.toLowerCase().includes(term) ||
+      (o.quotationId && o.quotationId.toLowerCase().includes(term)) ||
+      (Boolean((o as any).quotationNumber) && (o as any).quotationNumber.toLowerCase().includes(term)) ||
+      (Boolean((o as any).poNumber) && (o as any).poNumber.toLowerCase().includes(term)) ||
+      (Boolean((o as any).orderId) && (o as any).orderId.toLowerCase().includes(term));
     const matchesStatus = statusFilter === "all" || o.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -431,7 +616,7 @@ export default function SalesOrdersPage() {
               <Truck className="w-3.5 h-3.5" />
               <span>Factory Sales Orders</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                {orders.length}
+                {allFactorySalesOrders.length}
               </span>
             </button>
 
@@ -731,8 +916,24 @@ export default function SalesOrdersPage() {
                     filteredOrders.map((ord) => (
                       <tr key={ord.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-5">
-                          <span className="font-bold text-[#0E274D] block">{ord.orderNumber}</span>
-                          <span className="text-xs text-slate-400">Created: {ord.createdAt}</span>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-[#0E274D] block">{ord.orderNumber}</span>
+                            {(Boolean(ord.quotationNumber) || Boolean(ord.quotationId)) && (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-[9px] uppercase tracking-wider" title={`Converted from quotation ${ord.quotationNumber || ord.quotationId}`}>
+                                Quotation Converted
+                              </span>
+                            )}
+                          </div>
+                          {(Boolean(ord.quotationNumber) || Boolean(ord.poNumber)) && (
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500 font-medium">
+                              {ord.quotationNumber && <span className="font-semibold text-slate-700">Quote: {ord.quotationNumber}</span>}
+                              {ord.quotationNumber && ord.poNumber && <span>•</span>}
+                              {ord.poNumber && <span>PO: {ord.poNumber}</span>}
+                            </div>
+                          )}
+                          <span className="text-xs text-slate-400 block mt-0.5">
+                            Created: {new Date(ord.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
                         </td>
 
                         <td className="py-4 px-5">
@@ -1200,3 +1401,12 @@ export default function SalesOrdersPage() {
     </DashboardShell>
   );
 }
+
+export default function SalesOrdersPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-500">Loading sales orders & factory fulfillment...</div>}>
+      <SalesOrdersContent />
+    </Suspense>
+  );
+}
+
