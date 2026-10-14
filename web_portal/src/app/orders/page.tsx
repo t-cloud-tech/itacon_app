@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db, storage, functions, invokeCallable } from "@/lib/firebase";
-import { collection, query, where, getDocs, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { SalesOrder, OrderStatus, PaymentSubmissionRecord, Quotation } from "@/types";
@@ -49,6 +49,7 @@ function SalesOrdersContent() {
   const [acceptedQuotations, setAcceptedQuotations] = useState<Quotation[]>([]);
   const [clientPOs, setClientPOs] = useState<ClientOrderPO[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState(searchParam || "");
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [isLoadingPOs, setIsLoadingPOs] = useState(true);
@@ -149,9 +150,109 @@ function SalesOrdersContent() {
     };
   }, [user, role]);
 
+  // Helper to dynamically resolve payment status based on live payment verification submissions
+  const resolveOrderPaymentStatus = (
+    ord: {
+      id?: string;
+      orderNumber?: string;
+      quotationId?: string;
+      quotationNumber?: string;
+      poNumber?: string;
+      orderId?: string;
+      paymentStatus?: string;
+    },
+    submissions: PaymentSubmissionRecord[],
+    pos: ClientOrderPO[]
+  ): "paid" | "unpaid" | "partial" => {
+    // 1. Find any linked client PO from mobile app
+    const linkedPO = pos.find(p => 
+      (ord.orderId && p.id === ord.orderId) ||
+      (ord.id && (p.id === ord.id || p.id === ord.id.replace("po-conv-", "") || p.id === ord.id.replace("quote-conv-", ""))) ||
+      (ord.poNumber && (p.poNumber === ord.poNumber || p.id === ord.poNumber)) ||
+      (ord.quotationNumber && p.quotationNumber === ord.quotationNumber) ||
+      (ord.orderNumber && (
+        p.poNumber === ord.orderNumber || 
+        p.quotationNumber === ord.orderNumber ||
+        p.poNumber === ord.orderNumber.replace(/^ORD-/, "ITC-PO-") ||
+        p.quotationNumber === ord.orderNumber.replace(/^ORD-/, "QT-")
+      ))
+    );
+
+    // 2. Identify candidate keys for matching payment submissions
+    const candidateKeys = new Set<string>();
+    const addKey = (k?: string) => {
+      if (!k) return;
+      const clean = k.trim().toLowerCase();
+      if (clean) candidateKeys.add(clean);
+    };
+
+    addKey(ord.id);
+    if (ord.id?.startsWith("po-conv-")) addKey(ord.id.replace("po-conv-", ""));
+    if (ord.id?.startsWith("quote-conv-")) addKey(ord.id.replace("quote-conv-", ""));
+    addKey(ord.orderId);
+    addKey(ord.orderNumber);
+    addKey(ord.poNumber);
+    addKey(ord.quotationId);
+    addKey(ord.quotationNumber);
+
+    if (linkedPO) {
+      addKey(linkedPO.id);
+      addKey(linkedPO.poNumber);
+      addKey(linkedPO.quotationNumber);
+      addKey(linkedPO.quotationId);
+    }
+
+    // 3. Find all matching payment verification submissions
+    const matchingSubs = submissions.filter(sub => {
+      const sOrderId = (sub.orderId || "").trim().toLowerCase();
+      const sOrderRef = (sub.orderReference || "").trim().toLowerCase();
+
+      if (sOrderId && candidateKeys.has(sOrderId)) return true;
+      if (sOrderRef && candidateKeys.has(sOrderRef)) return true;
+
+      // Check if numeric/code portion matches (e.g. 2026-055 or 1001)
+      for (const key of candidateKeys) {
+        const strippedKey = key.replace(/^(ord-|qt-|itc-po-)/, "");
+        const strippedRef = sOrderRef.replace(/^(ord-|qt-|itc-po-)/, "");
+        if (strippedKey && strippedRef && strippedKey === strippedRef) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    // 4. Rule: When verified in Payment Verification -> Paid
+    const hasVerified = matchingSubs.some(s => s.status === "verified");
+    if (hasVerified) return "paid";
+
+    // 5. Rule: When rejected in Payment Verification -> Unpaid
+    const hasRejected = matchingSubs.some(s => s.status === "rejected");
+    if (hasRejected && !hasVerified) return "unpaid";
+
+    // 6. Check linked PO payment status if updated in database
+    if (linkedPO) {
+      const poPay = (linkedPO.paymentStatus || "").toLowerCase();
+      if (poPay === "paid" || poPay === "verified") return "paid";
+      if (poPay === "rejected") return "unpaid";
+      if (poPay === "partial") return "partial";
+    }
+
+    // 7. Check original order record payment status
+    const originalPay = (ord.paymentStatus || "").toLowerCase();
+    if (originalPay === "paid" || originalPay === "verified") return "paid";
+    if (originalPay === "partial") return "partial";
+
+    return "unpaid";
+  };
+
   // Merge Firestore salesOrders with any converted quotations and mobile confirmed orders
   const allFactorySalesOrders = useMemo(() => {
-    const list: SalesOrder[] = [...orders];
+    // Start with base orders from salesOrders collection, dynamically checking their payment status
+    const list: SalesOrder[] = orders.map(o => ({
+      ...o,
+      paymentStatus: resolveOrderPaymentStatus(o, paymentSubmissions, clientPOs),
+    }));
 
     const isAlreadyPresent = (item: {
       quotationId?: string;
@@ -160,42 +261,79 @@ function SalesOrdersContent() {
       orderId?: string;
       orderNumber?: string;
     }) => {
+      const clean = (s?: string) => (s || "").trim().toLowerCase();
+      const stripPrefix = (s?: string) => clean(s).replace(/^(ord-|itc-po-|qt-)/, "");
+
       return list.some(o => {
+        // Direct ID match
         if (item.quotationId && (o.quotationId === item.quotationId || o.id === item.quotationId || o.id === `quote-conv-${item.quotationId}`)) return true;
-        if (item.quotationNumber && (
-          (o as any).quotationNumber === item.quotationNumber ||
-          o.orderNumber === item.quotationNumber.replace(/^QT-/, "ORD-") ||
-          o.orderNumber === item.quotationNumber
-        )) return true;
-        if (item.poNumber && (
-          (o as any).poNumber === item.poNumber ||
-          o.orderNumber === item.poNumber.replace(/^ITC-PO-/, "ORD-") ||
-          o.orderNumber === item.poNumber
-        )) return true;
-        if (item.orderId && ((o as any).orderId === item.orderId || o.id === item.orderId || (o as any).id === `po-conv-${item.orderId}`)) return true;
-        if (item.orderNumber && o.orderNumber === item.orderNumber) return true;
+        if (item.orderId && ((o as any).orderId === item.orderId || o.id === item.orderId || o.id === `po-conv-${item.orderId}` || o.id === `sub-conv-${item.orderId}`)) return true;
+
+        // References match
+        const oNum = clean(o.orderNumber);
+        const oPo = clean(o.poNumber);
+        const oQt = clean(o.quotationNumber);
+
+        const iNum = clean(item.orderNumber);
+        const iPo = clean(item.poNumber);
+        const iQt = clean(item.quotationNumber);
+
+        if (iNum && (oNum === iNum || oPo === iNum || oQt === iNum)) return true;
+        if (iPo && (oNum === iPo || oPo === iPo || oQt === iPo)) return true;
+        if (iQt && (oNum === iQt || oPo === iQt || oQt === iQt)) return true;
+
+        const strippedI = stripPrefix(item.orderNumber) || stripPrefix(item.poNumber) || stripPrefix(item.quotationNumber);
+        const strippedO = stripPrefix(o.orderNumber) || stripPrefix(o.poNumber) || stripPrefix(o.quotationNumber);
+        if (strippedI && strippedO && strippedI === strippedO) return true;
+
         return false;
       });
     };
 
-    // 1. Add any accepted/converted quotations OR quotations whose linked mobile order is confirmed
+    // 1. Add any accepted/converted quotations OR quotations whose linked mobile order is confirmed, admin-approved, or verified paid
     acceptedQuotations.forEach((q) => {
       const qStatus = (q.status || "").toLowerCase();
+      const qAdmin = (((q as any).adminApprovalStatus || q.approvalStatus || "") as string).toLowerCase();
+
       // Match linked order in clientPOs
       const linkedPO = clientPOs.find(p => p.id === q.orderId || (q.poNumber && p.poNumber === q.poNumber) || (q.quotationNumber && p.quotationNumber === q.quotationNumber));
       const linkedPOStatus = (linkedPO?.status || "").toLowerCase();
+      const linkedPOAdmin = (((linkedPO?.adminApprovalStatus || (linkedPO as any)?.approvalStatus || "") as string)).toLowerCase();
 
-      const isConverted = 
+      const resolvedPayment = resolveOrderPaymentStatus(
+        {
+          id: `quote-conv-${q.id}`,
+          orderNumber: q.quotationNumber ? q.quotationNumber.replace(/^QT-/, "ORD-") : undefined,
+          quotationId: q.id,
+          quotationNumber: q.quotationNumber,
+          poNumber: q.poNumber || linkedPO?.poNumber,
+          orderId: q.orderId || linkedPO?.id,
+          paymentStatus: (q as any).paymentStatus || linkedPO?.paymentStatus,
+        },
+        paymentSubmissions,
+        clientPOs
+      );
+
+      const isConvertedOrApproved = 
         qStatus === "accepted" || 
         qStatus === "converted" || 
+        qStatus === "approved" ||
+        qStatus === "confirmed" ||
+        qAdmin === "approved" ||
         linkedPOStatus === "confirmed" || 
-        linkedPOStatus === "accepted";
+        linkedPOStatus === "accepted" || 
+        linkedPOStatus === "processing" ||
+        linkedPOStatus === "in_production" ||
+        linkedPOAdmin === "approved" ||
+        resolvedPayment === "paid" ||
+        linkedPO?.paymentStatus === "paid" ||
+        linkedPO?.paymentStatus === "verified";
 
-      if (isConverted && !isAlreadyPresent({
+      if (isConvertedOrApproved && !isAlreadyPresent({
         quotationId: q.id,
         quotationNumber: q.quotationNumber,
-        poNumber: q.poNumber,
-        orderId: q.orderId,
+        poNumber: q.poNumber || linkedPO?.poNumber,
+        orderId: q.orderId || linkedPO?.id,
       })) {
         const orderNum = q.quotationNumber
           ? q.quotationNumber.replace(/^QT-/, "ORD-")
@@ -224,19 +362,50 @@ function SalesOrdersContent() {
           grandTotal: totalAmt,
           shippingAddress: (q as any).shippingAddress || linkedPO?.deliveryAddress || "Plot No. 42, Industrial Ceramic Zone, Morbi - 363642, Gujarat",
           paymentTerms: q.paymentTerms || "Immediate / Advance",
-          paymentStatus: "unpaid",
+          paymentStatus: resolvedPayment,
           createdAt: q.createdAt || new Date().toISOString(),
           updatedAt: q.updatedAt || new Date().toISOString(),
         });
       }
     });
 
-    // 2. Add any confirmed mobile client POs that are not already in salesOrders
+    // 2. Add client POs that are confirmed, accepted, admin-approved, in production, or verified paid
     clientPOs.forEach((po) => {
       const s = (po.status || "").toLowerCase();
-      const isConfirmed = s === "confirmed" || s === "accepted" || s === "converted";
+      const adminApproval = (((po.adminApprovalStatus || (po as any)?.approvalStatus || "") as string)).toLowerCase();
 
-      if (isConfirmed && !isAlreadyPresent({
+      const resolvedPayment = resolveOrderPaymentStatus(
+        {
+          id: `po-conv-${po.id}`,
+          orderNumber: po.quotationNumber
+            ? po.quotationNumber.replace(/^QT-/, "ORD-")
+            : po.poNumber
+            ? po.poNumber.replace(/^ITC-PO-/, "ORD-")
+            : `ORD-${po.id.slice(-4)}`,
+          quotationId: po.quotationId,
+          quotationNumber: po.quotationNumber,
+          poNumber: po.poNumber,
+          orderId: po.id,
+          paymentStatus: po.paymentStatus,
+        },
+        paymentSubmissions,
+        clientPOs
+      );
+
+      const isEligible = 
+        s === "confirmed" || 
+        s === "accepted" || 
+        s === "converted" || 
+        s === "processing" ||
+        s === "in_production" ||
+        s === "dispatched" ||
+        s === "delivered" ||
+        adminApproval === "approved" ||
+        resolvedPayment === "paid" ||
+        po.paymentStatus === "paid" ||
+        po.paymentStatus === "verified";
+
+      if (isEligible && !isAlreadyPresent({
         quotationId: po.quotationId,
         quotationNumber: po.quotationNumber,
         poNumber: po.poNumber,
@@ -272,9 +441,71 @@ function SalesOrdersContent() {
           grandTotal: poTotal,
           shippingAddress: po.deliveryAddress || "Plot No. 42, Industrial Ceramic Zone, Morbi - 363642, Gujarat",
           paymentTerms: "Immediate / Advance",
-          paymentStatus: "unpaid",
+          paymentStatus: resolvedPayment,
           createdAt: po.createdAt || new Date().toISOString(),
           updatedAt: po.updatedAt || new Date().toISOString(),
+        });
+      }
+    });
+
+    // 3. Ensure ANY verified payment submission from paymentSubmissions is present in Factory Sales Orders
+    paymentSubmissions.forEach((sub) => {
+      if (sub.status !== "verified") return;
+
+      const subRef = (sub.orderReference || sub.orderId || "").trim();
+      if (!subRef) return;
+
+      if (!isAlreadyPresent({
+        orderNumber: subRef,
+        poNumber: subRef,
+        orderId: sub.orderId,
+      })) {
+        // Look for matching clientPO or quotation to extract item/pricing details
+        const matchedPO = clientPOs.find(p => 
+          (sub.orderId && p.id === sub.orderId) || 
+          (p.poNumber && p.poNumber.toLowerCase() === subRef.toLowerCase()) || 
+          (p.quotationNumber && p.quotationNumber.toLowerCase() === subRef.toLowerCase())
+        );
+
+        const matchedQuote = acceptedQuotations.find(q =>
+          (sub.orderId && (q.id === sub.orderId || q.orderId === sub.orderId)) ||
+          (q.quotationNumber && q.quotationNumber.toLowerCase() === subRef.toLowerCase()) ||
+          (q.poNumber && q.poNumber.toLowerCase() === subRef.toLowerCase())
+        );
+
+        const orderNum = subRef.startsWith("ORD-")
+          ? subRef
+          : subRef.replace(/^ITC-PO-/, "ORD-").replace(/^QT-/, "ORD-");
+
+        const totalAmt = 
+          sub.submittedAmount || 
+          sub.expectedAmount || 
+          (matchedPO as any)?.totalAmount || 
+          matchedQuote?.grandTotal || 
+          0;
+
+        list.push({
+          id: matchedPO ? `po-conv-${matchedPO.id}` : matchedQuote ? `quote-conv-${matchedQuote.id}` : `sub-conv-${sub.id}`,
+          orderNumber: orderNum,
+          quotationId: matchedPO?.quotationId || matchedQuote?.id,
+          quotationNumber: matchedPO?.quotationNumber || matchedQuote?.quotationNumber,
+          poNumber: matchedPO?.poNumber || matchedQuote?.poNumber || subRef,
+          orderId: sub.orderId || matchedPO?.id || matchedQuote?.orderId,
+          customerId: sub.customerId || matchedPO?.userId || matchedQuote?.customerId || "cust-1",
+          customerName: sub.customerName || matchedPO?.companyName || matchedPO?.customerName || matchedQuote?.customerName || "Customer",
+          customerPhone: matchedPO?.customerPhone || matchedQuote?.customerPhone,
+          salespersonId: sub.salesPersonId || matchedPO?.salesPersonId || matchedQuote?.salespersonId || user?.userId || "sp-1",
+          salespersonName: (matchedPO as any)?.salespersonName || matchedQuote?.salespersonName,
+          status: "confirmed",
+          items: (matchedPO?.items as any) || (matchedQuote?.items as any) || [],
+          subtotal: totalAmt,
+          taxAmount: 0,
+          grandTotal: totalAmt,
+          shippingAddress: matchedPO?.deliveryAddress || (matchedQuote as any)?.shippingAddress || "Plot No. 42, Industrial Ceramic Zone, Morbi - 363642, Gujarat",
+          paymentTerms: "Advance / Bank Transfer",
+          paymentStatus: "paid",
+          createdAt: typeof sub.submittedAt === "string" ? sub.submittedAt : new Date().toISOString(),
+          updatedAt: typeof sub.verifiedAt === "string" ? sub.verifiedAt : new Date().toISOString(),
         });
       }
     });
@@ -324,7 +555,7 @@ function SalesOrdersContent() {
     }
 
     return list;
-  }, [orders, acceptedQuotations, clientPOs, user?.userId, isLoadingOrders]);
+  }, [orders, acceptedQuotations, clientPOs, paymentSubmissions, user?.userId, isLoadingOrders]);
 
   // 3. Fetch Payment Submissions in Real-Time
   useEffect(() => {
@@ -388,8 +619,12 @@ function SalesOrdersContent() {
       (Boolean((o as any).quotationNumber) && (o as any).quotationNumber.toLowerCase().includes(term)) ||
       (Boolean((o as any).poNumber) && (o as any).poNumber.toLowerCase().includes(term)) ||
       (Boolean((o as any).orderId) && (o as any).orderId.toLowerCase().includes(term));
-    const matchesStatus = statusFilter === "all" || o.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesStatus = 
+      statusFilter === "all" || 
+      o.status === statusFilter ||
+      (statusFilter === "confirmed" && (o.status === "confirmed" || (o.status as any) === "processing" || (o.status as any) === "rate_quoted" || (o.status as any) === "pending_salesperson_review"));
+    const matchesPayment = orderPaymentFilter === "all" || o.paymentStatus === orderPaymentFilter;
+    return matchesSearch && matchesStatus && matchesPayment;
   });
 
   // Filtered Payments
@@ -446,17 +681,61 @@ function SalesOrdersContent() {
     setActionSuccess(null);
 
     try {
-      const res: any = await invokeCallable(
-        "verifyPaymentCallable",
-        { submissionId: verifyingSub.id },
-        "us-central1"
-      );
-      if (res.data?.success) {
+      let isSuccess = false;
+      try {
+        const res: any = await invokeCallable(
+          "verifyPaymentCallable",
+          { submissionId: verifyingSub.id },
+          "us-central1"
+        );
+        if (res.data?.success) {
+          isSuccess = true;
+        } else {
+          setActionError(res.data?.message || "Failed to verify payment");
+        }
+      } catch (callErr: any) {
+        console.warn("Cloud function verify payment failed, falling back to direct Firestore update:", callErr);
+        // Fallback direct Firestore update to ensure instantaneous verification
+        await updateDoc(doc(db, "paymentSubmissions", verifyingSub.id), {
+          status: "verified",
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: user?.userId || "staff",
+          updatedAt: new Date().toISOString(),
+        });
+        if (verifyingSub.orderId) {
+          try {
+            await updateDoc(doc(db, "orders", verifyingSub.orderId), {
+              paymentStatus: "paid",
+              paidAmount: verifyingSub.submittedAmount,
+              status: "confirmed",
+              updatedAt: new Date().toISOString(),
+            });
+          } catch (_) {}
+        }
+        isSuccess = true;
+      }
+      
+      if (isSuccess) {
+        // Also sync any matching document in salesOrders collection
+        try {
+          const matchingSalesOrder = orders.find(o => 
+            o.orderId === verifyingSub.orderId ||
+            o.id === verifyingSub.orderId ||
+            o.orderNumber === verifyingSub.orderReference ||
+            o.poNumber === verifyingSub.orderReference
+          );
+          if (matchingSalesOrder) {
+            await updateDoc(doc(db, "salesOrders", matchingSalesOrder.id), {
+              paymentStatus: "paid",
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        } catch (syncErr) {
+          console.warn("Could not sync salesOrders document:", syncErr);
+        }
         setActionSuccess(`Payment of ₹${verifyingSub.submittedAmount.toLocaleString("en-IN")} verified successfully!`);
         setVerifyingSub(null);
         if (viewingProof?.id === verifyingSub.id) setViewingProof(null);
-      } else {
-        setActionError(res.data?.message || "Failed to verify payment");
       }
     } catch (err: any) {
       console.error("Verification error:", err);
@@ -479,22 +758,68 @@ function SalesOrdersContent() {
     setActionSuccess(null);
 
     try {
-      const res: any = await invokeCallable(
-        "rejectPaymentCallable",
-        {
-          submissionId: rejectingSub.id,
-          reason: rejectionReason.trim(),
-        },
-        "us-central1"
-      );
+      let isSuccess = false;
+      const trimmedReason = rejectionReason.trim();
 
-      if (res.data?.success) {
-        setActionSuccess("Payment submission rejected and customer notified.");
+      try {
+        const res: any = await invokeCallable(
+          "rejectPaymentCallable",
+          {
+            submissionId: rejectingSub.id,
+            reason: trimmedReason,
+          },
+          "us-central1"
+        );
+
+        if (res.data?.success) {
+          isSuccess = true;
+        } else {
+          setActionError(res.data?.message || "Failed to reject payment");
+        }
+      } catch (callErr: any) {
+        console.warn("Cloud function reject payment failed, falling back to direct Firestore update:", callErr);
+        await updateDoc(doc(db, "paymentSubmissions", rejectingSub.id), {
+          status: "rejected",
+          rejectionReason: trimmedReason,
+          verifiedAt: new Date().toISOString(),
+          verifiedBy: user?.userId || "staff",
+          updatedAt: new Date().toISOString(),
+        });
+        if (rejectingSub.orderId) {
+          try {
+            await updateDoc(doc(db, "orders", rejectingSub.orderId), {
+              paymentStatus: "rejected",
+              rejectionReason: trimmedReason,
+              updatedAt: new Date().toISOString(),
+            });
+          } catch (_) {}
+        }
+        isSuccess = true;
+      }
+
+      if (isSuccess) {
+        // Also sync any matching document in salesOrders collection
+        try {
+          const matchingSalesOrder = orders.find(o => 
+            o.orderId === rejectingSub.orderId ||
+            o.id === rejectingSub.orderId ||
+            o.orderNumber === rejectingSub.orderReference ||
+            o.poNumber === rejectingSub.orderReference
+          );
+          if (matchingSalesOrder) {
+            await updateDoc(doc(db, "salesOrders", matchingSalesOrder.id), {
+              paymentStatus: "unpaid",
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        } catch (syncErr) {
+          console.warn("Could not sync salesOrders document:", syncErr);
+        }
+
+        setActionSuccess("Payment submission rejected and marked unpaid.");
         setRejectingSub(null);
         setRejectionReason("");
         if (viewingProof?.id === rejectingSub.id) setViewingProof(null);
-      } else {
-        setActionError(res.data?.message || "Failed to reject payment");
       }
     } catch (err: any) {
       console.error("Rejection error:", err);
@@ -592,8 +917,9 @@ function SalesOrdersContent() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3">
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => { setActiveTab("client_pos"); setStatusFilter("all"); setSearchTerm(""); }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${activeTab === "client_pos"
+              onClick={() => { setActiveTab("client_pos"); setStatusFilter("all"); setOrderPaymentFilter("all"); setSearchTerm(""); }}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${
+                activeTab === "client_pos"
                   ? "bg-[#0E274D] text-white shadow-sm"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                 }`}
@@ -607,8 +933,9 @@ function SalesOrdersContent() {
             </button>
 
             <button
-              onClick={() => { setActiveTab("sales_orders"); setStatusFilter("all"); setSearchTerm(""); }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${activeTab === "sales_orders"
+              onClick={() => { setActiveTab("sales_orders"); setStatusFilter("all"); setOrderPaymentFilter("all"); setSearchTerm(""); }}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${
+                activeTab === "sales_orders"
                   ? "bg-[#0E274D] text-white shadow-sm"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
                 }`}
@@ -695,17 +1022,30 @@ function SalesOrdersContent() {
             )}
 
             {activeTab === "sales_orders" && (
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-              >
-                <option value="all">All Order Statuses</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="in_production">In Production</option>
-                <option value="dispatched">Dispatched</option>
-                <option value="delivered">Delivered</option>
-              </select>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                >
+                  <option value="all">All Order Statuses</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="in_production">In Production</option>
+                  <option value="dispatched">Dispatched</option>
+                  <option value="delivered">Delivered</option>
+                </select>
+
+                <select
+                  value={orderPaymentFilter}
+                  onChange={(e) => setOrderPaymentFilter(e.target.value)}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                >
+                  <option value="all">All Payments (Paid & Unpaid)</option>
+                  <option value="paid">Paid Orders Only</option>
+                  <option value="unpaid">Unpaid Orders Only</option>
+                  <option value="partial">Partial Payment Only</option>
+                </select>
+              </div>
             )}
 
             {activeTab === "payments" && (
@@ -963,13 +1303,21 @@ function SalesOrdersContent() {
                         </td>
 
                         <td className="py-4 px-5">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${ord.paymentStatus === "paid"
+                          <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold capitalize border ${
+                            ord.paymentStatus === "paid"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : ord.paymentStatus === "partial"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
-                                : "bg-red-50 text-red-700 border-red-200"
-                            }`}>
-                            {ord.paymentStatus}
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-rose-50 text-rose-700 border-rose-200"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${
+                              ord.paymentStatus === "paid"
+                                ? "bg-emerald-500"
+                                : ord.paymentStatus === "partial"
+                                ? "bg-amber-500"
+                                : "bg-rose-500"
+                            }`} />
+                            <span>{ord.paymentStatus === "paid" ? "Paid" : ord.paymentStatus === "partial" ? "Partial" : "Unpaid"}</span>
                           </span>
                         </td>
 

@@ -69,7 +69,7 @@ export interface ClientOrderPO {
   rejectedBy?: string;
   rejectionReason?: string;
   changedByRole?: string;
-  paymentStatus?: string;
+  paymentStatus?: "unpaid" | "partial" | "paid" | "rejected" | string;
   paidAmount?: number;
   paymentId?: string;
   paidPoDocumentPath?: string;
@@ -632,9 +632,9 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
     rejectedBy: data.rejectedBy,
     rejectionReason: data.rejectionReason,
     changedByRole: data.changedByRole,
-    paymentStatus: data.paymentStatus,
-    paidAmount: typeof data.paidAmount === "number" ? data.paidAmount : undefined,
-    paymentId: data.paymentId,
+    paymentStatus: (data.paymentStatus || "").toLowerCase(),
+    paidAmount: typeof data.paidAmount === "number" ? data.paidAmount : Number(data.paidAmount || 0),
+    paymentId: data.paymentId || "",
     paidPoDocumentPath: data.paidPoDocumentPath,
     paidPoStatus: data.paidPoStatus,
     paidPoGeneratedAt: data.paidPoGeneratedAt?.seconds
