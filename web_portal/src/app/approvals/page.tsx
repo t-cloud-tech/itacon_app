@@ -26,9 +26,7 @@ import {
   Building2,
   Smartphone,
   Lock,
-  Unlock,
   Send,
-  Edit3,
   Filter,
   Eye
 } from "lucide-react";
@@ -451,6 +449,7 @@ export default function ApprovalsPage() {
   // SALESPERSON ACTION 2: Formally decline PO after Admin rejection
   // --------------------------------------------------------------------------
   const handleSalespersonDecline = async (approval: ApprovalRequest) => {
+    if (processingId === approval.id || approval.salespersonActionStatus === "cancelled") return;
     setProcessingId(approval.id);
     const spName = user?.name || salesperson?.name || approval.salespersonName || "Sales Executive";
     try {
@@ -462,6 +461,12 @@ export default function ApprovalsPage() {
           "Rate exception rejected by management. Customer declined rate revision.",
           approval.id
         );
+      } else {
+        try {
+          await updateDoc(doc(db, "approvalRequests", approval.id), {
+            salespersonActionStatus: "cancelled",
+          });
+        } catch (_) {}
       }
 
       setApprovals(prev => prev.map(a => 
@@ -477,6 +482,7 @@ export default function ApprovalsPage() {
           ? { ...a, salespersonActionStatus: "cancelled" } 
           : a
       ));
+      setActionSuccessMsg(`PO marked as declined.`);
     } finally {
       setProcessingId(null);
     }
@@ -495,7 +501,7 @@ export default function ApprovalsPage() {
           : "Administrative authorization for all salespersons' PO rate quotes below ₹26.50/sq.ft and discount exceptions."
       }
     >
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-7xl mx-auto">
         {/* Success Alert Banner */}
         {actionSuccessMsg && (
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 shadow-sm flex items-start space-x-3 transition-all animate-in fade-in slide-in-from-top-2">
@@ -620,275 +626,283 @@ export default function ApprovalsPage() {
           </div>
         </div>
 
-        {/* Approvals List */}
-        <div className="space-y-4">
+        {/* Approvals Table */}
+        <div className="card-luxury overflow-hidden bg-white rounded-xl border border-slate-200 shadow-sm">
           {displayApprovals.length === 0 ? (
-            <div className="card-luxury p-12 text-center">
-              <CheckSquare className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
-              <h3 className="text-sm font-bold text-[#0E274D]">No Approvals in &ldquo;{statusFilter}&rdquo;</h3>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="p-12 text-center">
+              <CheckSquare className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+              <h3 className="text-base font-bold text-[#0E274D]">No Approvals in &ldquo;{statusFilter}&rdquo;</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                 {isSalespersonRole
                   ? `You have no Purchase Orders with "${statusFilter}" status.`
                   : `All salesperson rate requests in this category are up to date.`}
               </p>
             </div>
           ) : (
-            displayApprovals.map((item) => {
-              const isLowRate = item.referenceType === "low_rate_po" || (item.pricePerSqft && item.pricePerSqft < 26.50);
-              const isAdminApproved = item.adminDecision === "approved" || item.status === "approved";
-              const isAdminRejected = item.adminDecision === "rejected" || item.status === "rejected";
-              const isPending = item.status === "pending";
-              const isReleased = item.salespersonActionStatus === "released";
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="py-3.5 px-5">Reference / PO #</th>
+                    <th className="py-3.5 px-5">Customer &amp; Salesperson</th>
+                    <th className="py-3.5 px-5">Rate &amp; Value</th>
+                    <th className="py-3.5 px-5">Status</th>
+                    <th className="py-3.5 px-5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {displayApprovals.map((item) => {
+                    const isLowRate = item.referenceType === "low_rate_po" || (item.pricePerSqft && item.pricePerSqft < 26.50);
+                    const isAdminApproved = item.adminDecision === "approved" || item.status === "approved";
+                    const isAdminRejected = item.adminDecision === "rejected" || item.status === "rejected";
+                    const isPending = item.status === "pending";
+                    const isReleased = item.salespersonActionStatus === "released";
 
-              return (
-                <div
-                  key={item.id}
-                  className={`card-luxury p-6 flex flex-col md:flex-row md:items-start justify-between gap-6 transition-all ${
-                    isAdminApproved && !isReleased
-                      ? "ring-2 ring-emerald-500/40 bg-gradient-to-r from-emerald-50/20 to-white"
-                      : isAdminRejected
-                      ? "ring-1 ring-rose-200 bg-gradient-to-r from-rose-50/20 to-white"
-                      : ""
-                  }`}
-                >
-                  <div className="space-y-3 flex-1">
-                    {/* Header Tags */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-black text-[#0E274D] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                        {item.referenceNumber}
-                      </span>
-
-                      {/* In Admin view, always display the Salesperson badge */}
-                      {!isSalespersonRole ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-900 border border-blue-200 flex items-center space-x-1">
-                          <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Salesperson: {item.salespersonName}</span>
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-50 text-orange-900 border border-orange-200 flex items-center space-x-1">
-                          <UserCheck className="w-3.5 h-3.5 text-orange-600" />
-                          <span>My Quoted Order</span>
-                        </span>
-                      )}
-
-                      {isLowRate ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
-                          <ShieldAlert className="w-3.5 h-3.5 text-amber-700" />
-                          Rate: ₹{item.pricePerSqft?.toFixed(2) || "24.50"}/sq.ft (&lt; ₹26.50 Threshold)
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                          {item.discountRequested}% Discount Requested
-                        </span>
-                      )}
-
-                      {/* Status Pills */}
-                      {isAdminApproved && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Admin Approved - Sales Action Required</span>
-                        </span>
-                      )}
-
-                      {isAdminRejected && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300 flex items-center gap-1">
-                          <X className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Admin Rejected - Sales Action Required</span>
-                        </span>
-                      )}
-
-                      {isPending && (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-amber-700" />
-                          <span>Awaiting Admin Approval</span>
-                        </span>
-                      )}
-
-                      <span className="text-xs text-slate-400">• Created: {item.createdAt}</span>
-                    </div>
-
-                    {/* Customer & Value info */}
-                    <div>
-                      <h3 className="text-base font-bold text-[#0E274D]">{item.customerName}</h3>
-                      <p className="text-xs text-slate-500">
-                        Salesperson: <span className="font-semibold text-slate-700">{item.salespersonName}</span> • Total Order Value: <strong className="text-slate-800">₹{Number(item.totalValue).toLocaleString("en-IN")}</strong>
-                      </p>
-                    </div>
-
-                    {/* Salesperson Justification */}
-                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200/80 leading-relaxed">
-                      <strong>Quoting Justification:</strong> {item.reason}
-                    </p>
-
-                    {/* Admin Decision Feedback Box (Reflecting in salesperson approval tab) */}
-                    {item.decisionNotes && (
-                      <div className={`p-3 rounded-lg border text-xs leading-relaxed ${
-                        isAdminApproved 
-                          ? "bg-emerald-50/80 border-emerald-200 text-emerald-900" 
-                          : "bg-rose-50/80 border-rose-200 text-rose-900"
-                      }`}>
-                        <div className="font-bold flex items-center space-x-1.5 mb-1">
-                          {isAdminApproved ? (
-                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          ) : (
-                            <AlertCircle className="w-4 h-4 text-rose-600" />
-                          )}
-                          <span>
-                            {isAdminApproved ? "Admin Approved - Sales Action Required" : "Admin Rejected - Sales Action Required"}
-                            {item.decidedBy ? ` by ${item.decidedBy}` : ""} ({item.decidedAt || "Recent"})
-                            {!isSalespersonRole ? ` • Reflected in ${item.salespersonName}'s Approval Tab` : " • Ready for your action"}
-                          </span>
-                        </div>
-                        <p>{item.decisionNotes}</p>
-                      </div>
-                    )}
-
-                    {/* Customer App Status Indicator */}
-                    <div className="flex items-center space-x-2 text-[11px]">
-                      {isReleased ? (
-                        <span className="inline-flex items-center space-x-1 text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          <Unlock className="w-3 h-3" />
-                          <span>Sent to Customer: Quoted rates are live on customer app</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center space-x-1 text-amber-800 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-300">
-                          <Lock className="w-3 h-3 text-amber-600" />
-                          <span>Customer App Status: Protected (Admin cannot directly update PO detail on customer app)</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Actions Column: Differs based on Admin vs Salesperson role */}
-                  <div className="shrink-0 flex flex-col items-end justify-center space-y-2.5 pt-2 md:pt-0">
-                    {/* CASE 1: PENDING */}
-                    {isPending ? (
-                      !isSalespersonRole ? (
-                        /* ADMIN VIEW of Pending: Admin can Approve or Reject */
-                        <div className="flex flex-col items-end space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleAdminDecision(item, "rejected")}
-                              disabled={processingId === item.id}
-                              className="flex items-center space-x-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                              title="Reject rate exception and reflect in salesperson approval tab"
+                    return (
+                      <tr 
+                        key={item.id} 
+                        className={`hover:bg-slate-50/70 transition-colors ${
+                          isAdminApproved && !isReleased
+                            ? "bg-emerald-50/10"
+                            : isAdminRejected
+                            ? "bg-rose-50/10"
+                            : ""
+                        }`}
+                      >
+                        {/* 1. Reference / PO # */}
+                        <td className="py-4 px-5 align-top">
+                          <div>
+                            <Link
+                              href={`/quotations/${item.referenceId}`}
+                              className="font-bold text-[#0E274D] hover:underline flex items-center space-x-1.5 font-mono"
                             >
-                              <X className="w-3.5 h-3.5" />
-                              <span>Reject</span>
-                            </button>
-                            <button
-                              onClick={() => handleAdminDecision(item, "approved")}
-                              disabled={processingId === item.id}
-                              className="flex items-center space-x-1.5 px-4 py-2 bg-[#0E274D] hover:bg-[#1A3A6D] text-white text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
-                              title="Approve rate exception and reflect in salesperson approval tab"
-                            >
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>Approve (&lt; ₹26.50)</span>
-                            </button>
-                          </div>
-                          <span className="text-[10px] text-slate-400 text-right">
-                            Reflects in {item.salespersonName}&apos;s tab
-                          </span>
-                        </div>
-                      ) : (
-                        /* SALESPERSON VIEW of Pending: Waiting for Head-Office Admin */
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 inline-block">
-                            Awaiting Admin Approval
-                          </span>
-                          <p className="text-[10px] text-slate-400 mt-1 max-w-[170px]">
-                            Under head-office review (&lt; ₹26.50/sq.ft). Rates remain locked on client app.
-                          </p>
-                        </div>
-                      )
-                    ) : isAdminApproved ? (
-                      /* CASE 2: APPROVED */
-                      <div className="flex flex-col items-end space-y-1.5">
-                        {!isReleased ? (
-                          isSalespersonRole ? (
-                            /* SALESPERSON ONLY: Button activates after approved status to release to customer app */
-                            <>
-                              <button
-                                onClick={() => handleSalespersonRelease(item)}
-                                disabled={processingId === item.id}
-                                className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50"
-                              >
-                                <Send className="w-3.5 h-3.5" />
-                                <span>Release to Customer</span>
-                              </button>
-                              <span className="text-[10px] text-slate-400 text-right">
-                                Syncs rates to your client&apos;s app
-                              </span>
-                            </>
-                          ) : (
-                            /* ADMIN VIEW: Cannot release to customer app; shows status */
-                            <div className="text-right space-y-1">
-                              <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
-                                Admin Approved - Sales Action Required
-                              </span>
-                              <p className="text-[10px] text-slate-400 max-w-[200px]">
-                                Sent to {item.salespersonName}&apos;s tab. Salesperson will release to client.
-                              </p>
-                            </div>
-                          )
-                        ) : (
-                          <div className="text-right space-y-1">
-                            <span className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-block">
-                              Sent to Customer
+                              <span>{item.referenceNumber}</span>
+                            </Link>
+                            <span className="text-xs text-slate-400 block mt-0.5">
+                              {item.createdAt}
                             </span>
-                            {item.salespersonReleasedAt && (
-                              <p className="text-[10px] text-slate-400">
-                                On {item.salespersonReleasedAt}
+                            {isLowRate ? (
+                              <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                <ShieldAlert className="w-3 h-3 text-amber-700" />
+                                <span>&lt; ₹26.50/sq.ft</span>
+                              </span>
+                            ) : item.discountRequested ? (
+                              <span className="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                {item.discountRequested}% Disc.
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+
+                        {/* 2. Customer & Salesperson */}
+                        <td className="py-4 px-5 align-top">
+                          <div className="max-w-xs">
+                            <p className="font-bold text-slate-900">{item.customerName}</p>
+                            <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                              <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                              <span>
+                                Rep: <strong className="text-slate-700 font-semibold">{item.salespersonName}</strong>
+                              </span>
+                              {isSalespersonRole && (
+                                <span className="text-[10px] bg-orange-100 text-orange-800 px-1.5 py-0.2 rounded font-bold">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                            {item.reason && (
+                              <p className="text-xs text-slate-500 mt-1.5 italic line-clamp-2" title={item.reason}>
+                                <span className="font-semibold text-slate-600 not-italic">Reason: </span>
+                                &ldquo;{item.reason}&rdquo;
                               </p>
                             )}
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      /* CASE 3: REJECTED */
-                      <div className="flex flex-col items-end space-y-2">
-                        {isSalespersonRole ? (
-                          /* SALESPERSON ONLY: Revise rate or decline */
-                          <>
-                            <Link
-                              href={`/quotations/new?orderId=${item.orderId || ""}&poNumber=${item.referenceNumber}&customerId=${item.customerId}&name=${encodeURIComponent(item.customerName)}&revise=true`}
-                              className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Revise Rate (&ge; ₹26.50) &rarr;</span>
-                            </Link>
-                            <button
-                              onClick={() => handleSalespersonDecline(item)}
-                              disabled={processingId === item.id}
-                              className="text-xs text-rose-600 hover:text-rose-800 font-semibold hover:underline cursor-pointer"
-                            >
-                              Decline Client PO
-                            </button>
-                          </>
-                        ) : (
-                          /* ADMIN VIEW: Cannot revise rate; shows read-only status */
-                          <div className="text-right space-y-1">
-                            <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-block">
-                              Admin Rejected - Sales Action Required
-                            </span>
-                            <p className="text-[10px] text-slate-400 max-w-[200px]">
-                              Reflected in {item.salespersonName}&apos;s tab for rate revision.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                        </td>
 
-                    <Link
-                      href={`/quotations/${item.referenceId}`}
-                      className="text-xs text-[#0E274D] font-bold hover:underline block pt-1"
-                    >
-                      View Full Quotation &rarr;
-                    </Link>
-                  </div>
-                </div>
-              );
-            })
+                        {/* 3. Rate & Total Value */}
+                        <td className="py-4 px-5 align-top">
+                          <div>
+                            <p className="font-extrabold text-[#0E274D]">
+                              ₹{Number(item.totalValue).toLocaleString("en-IN")}
+                            </p>
+                            {item.pricePerSqft != null && (
+                              <div className="text-xs text-slate-700 font-semibold mt-0.5">
+                                Rate: <span className="text-slate-900 font-bold">₹{item.pricePerSqft.toFixed(2)}</span> / sq.ft
+                              </div>
+                            )}
+                            <span className="text-[11px] text-slate-400 block mt-0.5">
+                              Threshold: ₹{(item.rateThreshold || 26.50).toFixed(2)} / sq.ft
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 4. Status */}
+                        <td className="py-4 px-5 align-top">
+                          <div>
+                            {isPending && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                <Clock className="w-3 h-3 text-amber-700" />
+                                <span>Awaiting Admin Approval</span>
+                              </span>
+                            )}
+                            {isAdminApproved && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>Admin Approved</span>
+                              </span>
+                            )}
+                            {isAdminRejected && (
+                              <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-900 border border-rose-300">
+                                <X className="w-3 h-3 text-rose-600" />
+                                <span>Admin Rejected</span>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* 5. Actions */}
+                        <td className="py-4 px-5 align-top text-right">
+                          <div className="flex flex-col items-end space-y-2">
+                            {/* CASE 1: PENDING */}
+                            {isPending ? (
+                              !isSalespersonRole ? (
+                                /* ADMIN VIEW on Pending: Admin can Approve or Reject */
+                                <div className="flex flex-col items-end space-y-1.5">
+                                  <div className="flex items-center space-x-1.5">
+                                    <button
+                                      onClick={() => handleAdminDecision(item, "rejected")}
+                                      disabled={processingId === item.id}
+                                      className="flex items-center space-x-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold border border-red-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                                      title="Reject rate exception and reflect in salesperson approval tab"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>Reject</span>
+                                    </button>
+                                    <button
+                                      onClick={() => handleAdminDecision(item, "approved")}
+                                      disabled={processingId === item.id}
+                                      className="flex items-center space-x-1 px-3 py-1.5 bg-[#0E274D] hover:bg-[#1A3A6D] text-white text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
+                                      title="Approve rate exception and reflect in salesperson approval tab"
+                                    >
+                                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                      <span>Approve</span>
+                                    </button>
+                                  </div>
+                                  <span className="text-[10px] text-slate-400">
+                                    Reflects in {item.salespersonName}&apos;s tab
+                                  </span>
+                                </div>
+                              ) : (
+                                /* SALESPERSON VIEW on Pending: Waiting for Head-Office Admin */
+                                <div className="text-right">
+                                  <span className="text-[11px] font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 inline-block">
+                                    Awaiting Admin
+                                  </span>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">
+                                    Rates locked on app
+                                  </p>
+                                </div>
+                              )
+                            ) : isAdminApproved ? (
+                              /* CASE 2: APPROVED */
+                              !isReleased ? (
+                                isSalespersonRole ? (
+                                  /* SALESPERSON on Approved: Release to Customer */
+                                  <div className="flex flex-col items-end space-y-1">
+                                    <button
+                                      onClick={() => handleSalespersonRelease(item)}
+                                      disabled={processingId === item.id}
+                                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50"
+                                    >
+                                      <Send className="w-3.5 h-3.5" />
+                                      <span>Release to Customer</span>
+                                    </button>
+                                    <span className="text-[10px] text-slate-400">
+                                      Syncs to customer app
+                                    </span>
+                                  </div>
+                                ) : (
+                                  /* ADMIN on Approved: Waiting for salesperson to release */
+                                  <div className="text-right space-y-0.5">
+                                    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
+                                      Sales Action Required
+                                    </span>
+                                    <p className="text-[10px] text-slate-400">
+                                      {item.salespersonName} will release
+                                    </p>
+                                  </div>
+                                )
+                              ) : (
+                                /* BOTH on Released: Sent to Customer */
+                                <div className="text-right space-y-0.5">
+                                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-block">
+                                    Sent to Customer
+                                  </span>
+                                  {item.salespersonReleasedAt && (
+                                    <p className="text-[10px] text-slate-400">
+                                      {item.salespersonReleasedAt}
+                                    </p>
+                                  )}
+                                </div>
+                              )
+                            ) : (
+                              /* CASE 3: REJECTED */
+                              isSalespersonRole ? (
+                                /* SALESPERSON on Rejected: Only Decline Client PO button (clicked once) */
+                                <div className="flex flex-col items-end space-y-1">
+                                  {item.salespersonActionStatus === "cancelled" ? (
+                                    <div className="text-right space-y-0.5">
+                                      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200 inline-block">
+                                        PO Declined
+                                      </span>
+                                      <p className="text-[10px] text-slate-400">
+                                        Client PO has been declined
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => handleSalespersonDecline(item)}
+                                      disabled={processingId === item.id}
+                                      className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title="Decline client purchase order"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                      <span>
+                                        {processingId === item.id ? "Declining..." : "Decline Client PO"}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                /* ADMIN on Rejected */
+                                <div className="text-right space-y-0.5">
+                                  <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-block">
+                                    Rejected by Admin
+                                  </span>
+                                  <p className="text-[10px] text-slate-400">
+                                    {item.salespersonActionStatus === "cancelled"
+                                      ? "Salesperson declined PO"
+                                      : "Reflected in salesperson tab"}
+                                  </p>
+                                </div>
+                              )
+                            )}
+
+                            {/* View Full Quotation link / Details */}
+                            <Link
+                              href={`/quotations/${item.referenceId}`}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-[#0E274D] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Details</span>
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
