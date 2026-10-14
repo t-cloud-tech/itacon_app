@@ -16,6 +16,7 @@ class PaymentSubmission {
   final String utrNormalized;
   final DateTime paymentDate;
   final String proofStoragePath;
+  final List<String> proofStoragePaths;
   final String status; // pending_verification, verified, rejected
   final DateTime submittedAt;
   final DateTime? verifiedAt;
@@ -36,6 +37,7 @@ class PaymentSubmission {
     required this.utrNormalized,
     required this.paymentDate,
     required this.proofStoragePath,
+    this.proofStoragePaths = const [],
     this.status = 'pending_verification',
     required this.submittedAt,
     this.verifiedAt,
@@ -66,6 +68,7 @@ class PaymentSubmission {
       'utrNormalized': utrNormalized,
       'paymentDate': Timestamp.fromDate(paymentDate),
       'proofStoragePath': proofStoragePath,
+      'proofStoragePaths': proofStoragePaths.isNotEmpty ? proofStoragePaths : (proofStoragePath.isNotEmpty ? [proofStoragePath] : []),
       'status': status,
       'submittedAt': Timestamp.fromDate(submittedAt),
       'verifiedAt': verifiedAt != null ? Timestamp.fromDate(verifiedAt!) : null,
@@ -99,6 +102,20 @@ class PaymentSubmission {
     final rawUtr = map['utrNumber'] ?? '';
     final normUtr = map['utrNormalized'] ?? normalizeUtr(rawUtr);
 
+    final rawPaths = map['proofStoragePaths'];
+    final List<String> paths = [];
+    if (rawPaths is List) {
+      for (final p in rawPaths) {
+        if (p != null && p.toString().isNotEmpty) {
+          paths.add(p.toString());
+        }
+      }
+    }
+    final primaryPath = (map['proofStoragePath'] ?? '').toString();
+    if (paths.isEmpty && primaryPath.isNotEmpty) {
+      paths.add(primaryPath);
+    }
+
     return PaymentSubmission(
       submissionId: map['submissionId'] ?? id,
       orderId: map['orderId'] ?? '',
@@ -112,7 +129,8 @@ class PaymentSubmission {
       utrNumber: rawUtr,
       utrNormalized: normUtr,
       paymentDate: pDate,
-      proofStoragePath: map['proofStoragePath'] ?? '',
+      proofStoragePath: primaryPath.isNotEmpty ? primaryPath : (paths.isNotEmpty ? paths.first : ''),
+      proofStoragePaths: paths,
       status: map['status'] ?? 'pending_verification',
       submittedAt: sDate,
       verifiedAt: vDate,

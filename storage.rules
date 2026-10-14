@@ -28,7 +28,7 @@ service firebase.storage {
     }
 
     function isDeterministicReceiptName(fileName) {
-      return fileName.matches('receipt\\.(jpg|jpeg|png|webp|pdf)');
+      return fileName.matches('receipt(_[0-4])?\\.(jpg|jpeg|png|webp|pdf)');
     }
 
     // ITACON Product catalog images (tiles, mockups, adhesives)

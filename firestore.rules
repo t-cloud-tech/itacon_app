@@ -96,9 +96,90 @@ service cloud.firestore {
       );
     }
 
-    // Whitelist of valid customer categories
+    // Whitelist of valid customer categories (supports ID and display forms)
     function isValidCustomerCategory(cat) {
-      return cat in ['dealer', 'architect', 'builder', 'wholesaler', 'retailer', 'trader'];
+      return cat in [
+        'dealer', 'Dealer', 'Tile Dealer / Showroom',
+        'architect', 'Architect', 'Architect / Interior Designer',
+        'builder', 'Builder', 'Builder / Contractor',
+        'wholesaler', 'Wholesaler', 'Wholesaler / Distributor',
+        'retailer', 'Retailer',
+        'trader', 'Trader'
+      ];
+    }
+
+    // Check if customer profile has all mandatory ordering details, legacy field compatibility, and is active
+    function isCustomerProfileOrderReady(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        isProfileDataOrderReady(get(/databases/$(database)/documents/users/$(userId)).data);
+    }
+
+    function isProfileDataOrderReady(userData) {
+      return (
+        // 1. Account status: Must have status == 'active', strictly NOT blocked/inactive/suspended/pending
+        (('status' in userData) && userData.status == 'active') &&
+        !(userData.status in [
+          'blocked', 'suspended', 'inactive', 'pending',
+          'pending_approval', 'pending_salesperson_verification',
+          'awaiting_verification', 'rejected'
+        ]) &&
+
+        // 2. Customer Name (supports name or fullName)
+        ((('name' in userData) && userData.name is string && userData.name.size() >= 2) ||
+         (('fullName' in userData) && userData.fullName is string && userData.fullName.size() >= 2)) &&
+
+        // 3. Phone (supports phone or phoneNumber)
+        ((('phone' in userData) && userData.phone is string && userData.phone.size() >= 10) ||
+         (('phoneNumber' in userData) && userData.phoneNumber is string && userData.phoneNumber.size() >= 10)) &&
+
+        // 4. Verification: phoneVerified or isVerified must be true
+        ((('phoneVerified' in userData) && userData.phoneVerified == true) ||
+         (('isVerified' in userData) && userData.isVerified == true)) &&
+
+        // 5. Genuine Email: not dummy user_*@itacon.com and valid pattern
+        (('email' in userData) && userData.email is string && userData.email.size() >= 5 &&
+         userData.email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$') &&
+         !userData.email.matches('^user_.*@itacon\\.com$')) &&
+
+        // 6. Company / Firm Name (supports companyName, company, businessName)
+        ((('companyName' in userData) && userData.companyName is string && userData.companyName.size() >= 1) ||
+         (('company' in userData) && userData.company is string && userData.company.size() >= 1) ||
+         (('businessName' in userData) && userData.businessName is string && userData.businessName.size() >= 1)) &&
+
+        // 7. Customer Category (supports userCategory or role)
+        ((('userCategory' in userData) && isValidCustomerCategory(userData.userCategory)) ||
+         (('role' in userData) && isValidCustomerCategory(userData.role))) &&
+
+        // 8. City and State
+        (('city' in userData) && userData.city is string && userData.city.size() >= 1) &&
+        (('state' in userData) && userData.state is string && userData.state.size() >= 1) &&
+
+        // 9. Valid 6-digit Indian PIN code
+        (('pincode' in userData) && userData.pincode is string && userData.pincode.matches('^[1-9][0-9]{5}$')) &&
+
+        // 10. Street Address (supports map with line1/addressLine/street OR string address)
+        (
+          (('address' in userData) && (userData.address is map) && (
+            (('line1' in userData.address) && userData.address.line1 is string && userData.address.line1.size() >= 1) ||
+            (('addressLine' in userData.address) && userData.address.addressLine is string && userData.address.addressLine.size() >= 1) ||
+            (('street' in userData.address) && userData.address.street is string && userData.address.street.size() >= 1)
+          )) ||
+          (('address' in userData) && (userData.address is string) && userData.address.size() >= 1)
+        ) &&
+
+        // 11. Optional GSTIN (if present, format validated; empty or omitted is permitted)
+        (!('gstNumber' in userData) || userData.gstNumber == '' || userData.gstNumber == null ||
+         (userData.gstNumber is string && userData.gstNumber.matches('^[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}[1-9A-Za-z]{1}[Zz][0-9A-Za-z]{1}$'))) &&
+        (!('gstin' in userData) || userData.gstin == '' || userData.gstin == null ||
+         (userData.gstin is string && userData.gstin.matches('^[0-9]{2}[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}[1-9A-Za-z]{1}[Zz][0-9A-Za-z]{1}$')))
+      );
+    }
+
+    // Verify order document has a delivery destination
+    function hasValidOrderDeliveryAddress(orderData) {
+      return (('deliveryAddress' in orderData) && orderData.deliveryAddress is string && orderData.deliveryAddress.size() >= 3) ||
+             (('deliveryLocation' in orderData) && (orderData.deliveryLocation is map) &&
+              ('address' in orderData.deliveryLocation) && orderData.deliveryLocation.address is string && orderData.deliveryLocation.address.size() >= 3);
     }
 
     // Ensure customer preserves the staff-assigned salesperson ID and does not forge or change it
@@ -129,10 +210,20 @@ service cloud.firestore {
           .hasAny(['loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
     }
 
-    // Deny writes that forge privileged user fields
+    // Deny writes that forge privileged user fields (prevents self-elevation of role, status, verification, loyalty)
     function isModifyingPrivilegedUserFields() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(['role', 'userCategory', 'loyaltyPoints', 'lifetimePoints', 'welcomeBonusGranted', 'referredBy']);
+        .hasAny([
+          'role',
+          'userCategory',
+          'status',
+          'phoneVerified',
+          'isVerified',
+          'loyaltyPoints',
+          'lifetimePoints',
+          'welcomeBonusGranted',
+          'referredBy'
+        ]);
     }
 
     // Deny creates that smuggle reward fields
@@ -204,6 +295,8 @@ service cloud.firestore {
       allow create: if isAuthenticated() && (
         ((request.resource.data.userId == request.auth.uid ||
           request.resource.data.customerId == request.auth.uid) &&
+         isCustomerProfileOrderReady(request.auth.uid) &&
+         hasValidOrderDeliveryAddress(request.resource.data) &&
          request.resource.data.status in ['pending_rate', 'pending_salesperson_review', 'awaiting_quote'] &&
          (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus in ['not_required', 'unpaid', 'payment_due']) &&
          (!('paidAmount' in request.resource.data) || request.resource.data.paidAmount == 0 || request.resource.data.paidAmount == null) &&

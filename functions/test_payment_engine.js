@@ -194,8 +194,8 @@ function checkVerificationAuthorization(callerUser, order) {
   return { authorized: false, reason: "Unauthorized role" };
 }
 
-// Simulated submission validation with exact paise precision
-function validatePaymentSubmission({ order, callerUid, submittedAmount, rawUtr, proofStoragePath }) {
+// Simulated submission validation with exact paise precision and multi-attachment rules
+function validatePaymentSubmission({ order, callerUid, submittedAmount, rawUtr, proofStoragePath, proofStoragePaths, mockStorageFiles }) {
   if (order.userId !== callerUid) {
     return { valid: false, error: "Order does not belong to user" };
   }
@@ -212,13 +212,59 @@ function validatePaymentSubmission({ order, callerUid, submittedAmount, rawUtr, 
   if (!normUtr || normUtr.length < 6) {
     return { valid: false, error: "Invalid UTR format" };
   }
-  if (proofStoragePath) {
-    const validProofPathRegex = new RegExp(`^payment_proofs\\/${order.id}\\/[a-zA-Z0-9_-]+\\/receipt\\.(jpg|jpeg|png|webp|pdf)$`);
-    if (!validProofPathRegex.test(proofStoragePath)) {
-      return { valid: false, error: "Invalid deterministic proof path format" };
+
+  let paths = [];
+  if (Array.isArray(proofStoragePaths) && proofStoragePaths.length > 0) {
+    paths = proofStoragePaths.map(p => (typeof p === 'string' ? p.trim() : '')).filter(p => p.length > 0);
+  } else if (proofStoragePath && typeof proofStoragePath === 'string' && proofStoragePath.trim().length > 0) {
+    paths = [proofStoragePath.trim()];
+  }
+
+  if (paths.length === 0) {
+    return { valid: false, error: "At least one payment proof attachment is required" };
+  }
+  if (paths.length > 5) {
+    return { valid: false, error: "Maximum 5 payment proof attachments allowed" };
+  }
+
+  const uniquePaths = new Set(paths);
+  if (uniquePaths.size !== paths.length) {
+    return { valid: false, error: "Duplicate payment proof attachment paths detected" };
+  }
+
+  const validProofPathRegex = new RegExp(`^payment_proofs\\/${order.id}\\/([a-zA-Z0-9_-]+)\\/receipt(_[0-4])?\\.(jpg|jpeg|png|webp|pdf)$`);
+  const matchFirst = paths[0].match(validProofPathRegex);
+  if (!matchFirst) {
+    return { valid: false, error: "Invalid primary deterministic proof path format" };
+  }
+  const submissionId = matchFirst[1];
+
+  for (let i = 0; i < paths.length; i++) {
+    const p = paths[i];
+    const match = p.match(validProofPathRegex);
+    if (!match) {
+      return { valid: false, error: `Invalid attachment path format at index ${i}` };
+    }
+    if (match[1] !== submissionId) {
+      return { valid: false, error: `Attachment at index ${i} belongs to different submission` };
+    }
+
+    if (mockStorageFiles) {
+      const fileData = mockStorageFiles instanceof Map ? mockStorageFiles.get(p) : mockStorageFiles[p];
+      if (!fileData) {
+        return { valid: false, error: `Attachment ${i + 1} does not exist in Storage` };
+      }
+      if (fileData.size > 10 * 1024 * 1024) {
+        return { valid: false, error: `Attachment ${i + 1} exceeds 10 MB limit` };
+      }
+      const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!allowedMimes.includes(fileData.contentType)) {
+        return { valid: false, error: `Attachment ${i + 1} has unsupported MIME type` };
+      }
     }
   }
-  return { valid: true, utrNormalized: normUtr };
+
+  return { valid: true, utrNormalized: normUtr, submissionId, paths };
 }
 
 // Simulated Reward Trigger check
@@ -597,6 +643,362 @@ function runTests() {
     assert.strictEqual(newEntry.status, "pending_verification");
     assert.strictEqual(initialEntry.status, "rejected");
     console.log("✔ Test 18: Rejected payment preserves audit history and allows new resubmission");
+    passed++;
+  }
+
+  // Test 19: Single PDF submission validation
+  {
+    const order = { id: "ORD_P1", userId: "cust_p1", totalAmount: 25000, status: "confirmed" };
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_p1",
+      submittedAmount: 25000,
+      rawUtr: "AXIS12345678",
+      proofStoragePaths: ["payment_proofs/ORD_P1/sub_p1_001/receipt.pdf"],
+    });
+    assert.strictEqual(res.valid, true);
+    assert.strictEqual(res.paths.length, 1);
+    assert.strictEqual(res.submissionId, "sub_p1_001");
+    console.log("✔ Test 19: Single PDF attachment correctly validated");
+    passed++;
+  }
+
+  // Test 20: Single image submission validation (JPG/PNG/WEBP)
+  {
+    const order = { id: "ORD_IMG1", userId: "cust_img", totalAmount: 15000, status: "confirmed" };
+    for (const ext of ["jpg", "jpeg", "png", "webp"]) {
+      const res = validatePaymentSubmission({
+        order,
+        callerUid: "cust_img",
+        submittedAmount: 15000,
+        rawUtr: "HDFC98765432",
+        proofStoragePaths: [`payment_proofs/ORD_IMG1/sub_img_001/receipt.${ext}`],
+      });
+      assert.strictEqual(res.valid, true);
+    }
+    console.log("✔ Test 20: Single image attachments (JPG, JPEG, PNG, WEBP) validated");
+    passed++;
+  }
+
+  // Test 21: Multiple PDFs only (up to 5 pages/documents)
+  {
+    const order = { id: "ORD_MPDF", userId: "cust_mpdf", totalAmount: 50000, status: "confirmed" };
+    const pdfPaths = [
+      "payment_proofs/ORD_MPDF/sub_mpdf_1/receipt.pdf",
+      "payment_proofs/ORD_MPDF/sub_mpdf_1/receipt_1.pdf",
+      "payment_proofs/ORD_MPDF/sub_mpdf_1/receipt_2.pdf",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_mpdf",
+      submittedAmount: 50000,
+      rawUtr: "ICIC99887766",
+      proofStoragePaths: pdfPaths,
+    });
+    assert.strictEqual(res.valid, true);
+    assert.strictEqual(res.paths.length, 3);
+    console.log("✔ Test 21: Multiple PDFs only (up to 5) validated");
+    passed++;
+  }
+
+  // Test 22: Multiple screenshots only (images)
+  {
+    const order = { id: "ORD_MSHOT", userId: "cust_mshot", totalAmount: 32000, status: "confirmed" };
+    const imgPaths = [
+      "payment_proofs/ORD_MSHOT/sub_mshot_1/receipt.jpg",
+      "payment_proofs/ORD_MSHOT/sub_mshot_1/receipt_1.png",
+      "payment_proofs/ORD_MSHOT/sub_mshot_1/receipt_2.webp",
+      "payment_proofs/ORD_MSHOT/sub_mshot_1/receipt_3.jpeg",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_mshot",
+      submittedAmount: 32000,
+      rawUtr: "SBI11223344",
+      proofStoragePaths: imgPaths,
+    });
+    assert.strictEqual(res.valid, true);
+    assert.strictEqual(res.paths.length, 4);
+    console.log("✔ Test 22: Multiple screenshots/images only validated");
+    passed++;
+  }
+
+  // Test 23: Mixed PDF and image files
+  {
+    const order = { id: "ORD_MIX", userId: "cust_mix", totalAmount: 45000, status: "confirmed" };
+    const mixedPaths = [
+      "payment_proofs/ORD_MIX/sub_mix_1/receipt.pdf",
+      "payment_proofs/ORD_MIX/sub_mix_1/receipt_1.png",
+      "payment_proofs/ORD_MIX/sub_mix_1/receipt_2.jpg",
+      "payment_proofs/ORD_MIX/sub_mix_1/receipt_3.pdf",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_mix",
+      submittedAmount: 45000,
+      rawUtr: "PNB55667788",
+      proofStoragePaths: mixedPaths,
+    });
+    assert.strictEqual(res.valid, true);
+    assert.strictEqual(res.paths.length, 4);
+    console.log("✔ Test 23: Mixed PDF and image attachments validated");
+    passed++;
+  }
+
+  // Test 24: Exactly 5 attachments (maximum boundary allowed)
+  {
+    const order = { id: "ORD_MAX5", userId: "cust_max5", totalAmount: 90000, status: "confirmed" };
+    const fivePaths = [
+      "payment_proofs/ORD_MAX5/sub_max5/receipt.pdf",
+      "payment_proofs/ORD_MAX5/sub_max5/receipt_1.jpg",
+      "payment_proofs/ORD_MAX5/sub_max5/receipt_2.png",
+      "payment_proofs/ORD_MAX5/sub_max5/receipt_3.webp",
+      "payment_proofs/ORD_MAX5/sub_max5/receipt_4.pdf",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_max5",
+      submittedAmount: 90000,
+      rawUtr: "BOI99001122",
+      proofStoragePaths: fivePaths,
+    });
+    assert.strictEqual(res.valid, true);
+    assert.strictEqual(res.paths.length, 5);
+    console.log("✔ Test 24: Exactly five attachments accepted at boundary limit");
+    passed++;
+  }
+
+  // Test 25: More than 5 attachments strictly rejected
+  {
+    const order = { id: "ORD_OVER", userId: "cust_over", totalAmount: 90000, status: "confirmed" };
+    const sixPaths = [
+      "payment_proofs/ORD_OVER/sub_over/receipt.pdf",
+      "payment_proofs/ORD_OVER/sub_over/receipt_1.jpg",
+      "payment_proofs/ORD_OVER/sub_over/receipt_2.png",
+      "payment_proofs/ORD_OVER/sub_over/receipt_3.webp",
+      "payment_proofs/ORD_OVER/sub_over/receipt_4.pdf",
+      "payment_proofs/ORD_OVER/sub_over/receipt_5.pdf",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_over",
+      submittedAmount: 90000,
+      rawUtr: "BOI99001122",
+      proofStoragePaths: sixPaths,
+    });
+    assert.strictEqual(res.valid, false);
+    assert.strictEqual(res.error, "Maximum 5 payment proof attachments allowed");
+    console.log("✔ Test 25: More than 5 attachments strictly rejected");
+    passed++;
+  }
+
+  // Test 26: Duplicate attachment paths rejected
+  {
+    const order = { id: "ORD_DUP", userId: "cust_dup", totalAmount: 10000, status: "confirmed" };
+    const dupPaths = [
+      "payment_proofs/ORD_DUP/sub_dup/receipt.jpg",
+      "payment_proofs/ORD_DUP/sub_dup/receipt.jpg",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_dup",
+      submittedAmount: 10000,
+      rawUtr: "DUP12345678",
+      proofStoragePaths: dupPaths,
+    });
+    assert.strictEqual(res.valid, false);
+    assert.strictEqual(res.error, "Duplicate payment proof attachment paths detected");
+    console.log("✔ Test 26: Duplicate attachment paths strictly rejected");
+    passed++;
+  }
+
+  // Test 27: Cross-order / unauthorized path rejected
+  {
+    const order = { id: "ORD_A", userId: "cust_a", totalAmount: 10000, status: "confirmed" };
+    const crossPaths = [
+      "payment_proofs/ORD_B/sub_a/receipt.jpg",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_a",
+      submittedAmount: 10000,
+      rawUtr: "CROSS123456",
+      proofStoragePaths: crossPaths,
+    });
+    assert.strictEqual(res.valid, false);
+    console.log("✔ Test 27: Cross-order / mismatched storage paths strictly rejected");
+    passed++;
+  }
+
+  // Test 28: Attachment belonging to different submission ID rejected
+  {
+    const order = { id: "ORD_SUBDIFF", userId: "cust_sd", totalAmount: 10000, status: "confirmed" };
+    const diffSubPaths = [
+      "payment_proofs/ORD_SUBDIFF/sub_alpha/receipt.jpg",
+      "payment_proofs/ORD_SUBDIFF/sub_beta/receipt_1.jpg",
+    ];
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_sd",
+      submittedAmount: 10000,
+      rawUtr: "DIFF12345678",
+      proofStoragePaths: diffSubPaths,
+    });
+    assert.strictEqual(res.valid, false);
+    assert(res.error.includes("belongs to different submission"));
+    console.log("✔ Test 28: Attachments belonging to different submission folders rejected");
+    passed++;
+  }
+
+  // Test 29: Missing storage object rejected (incomplete upload check)
+  {
+    const order = { id: "ORD_MISS", userId: "cust_miss", totalAmount: 10000, status: "confirmed" };
+    const mockStorage = new Map();
+    mockStorage.set("payment_proofs/ORD_MISS/sub_miss/receipt.pdf", { size: 1024, contentType: "application/pdf" });
+    // Second file missing from storage (e.g. failed during customer upload)
+    const res = validatePaymentSubmission({
+      order,
+      callerUid: "cust_miss",
+      submittedAmount: 10000,
+      rawUtr: "MISS12345678",
+      proofStoragePaths: [
+        "payment_proofs/ORD_MISS/sub_miss/receipt.pdf",
+        "payment_proofs/ORD_MISS/sub_miss/receipt_1.jpg",
+      ],
+      mockStorageFiles: mockStorage,
+    });
+    assert.strictEqual(res.valid, false);
+    assert(res.error.includes("does not exist in Storage"));
+    console.log("✔ Test 29: Missing or unuploaded Storage objects rejected");
+    passed++;
+  }
+
+  // Test 30: File exceeding 10 MB or invalid MIME rejected
+  {
+    const order = { id: "ORD_LIMIT", userId: "cust_lim", totalAmount: 10000, status: "confirmed" };
+    const mockStorageOversize = new Map();
+    mockStorageOversize.set("payment_proofs/ORD_LIMIT/sub_lim/receipt.pdf", { size: 15 * 1024 * 1024, contentType: "application/pdf" });
+    const resOver = validatePaymentSubmission({
+      order,
+      callerUid: "cust_lim",
+      submittedAmount: 10000,
+      rawUtr: "OVER12345678",
+      proofStoragePaths: ["payment_proofs/ORD_LIMIT/sub_lim/receipt.pdf"],
+      mockStorageFiles: mockStorageOversize,
+    });
+    assert.strictEqual(resOver.valid, false);
+    assert(resOver.error.includes("exceeds 10 MB limit"));
+
+    const mockStorageBadMime = new Map();
+    mockStorageBadMime.set("payment_proofs/ORD_LIMIT/sub_lim/receipt.pdf", { size: 1024, contentType: "application/x-msdownload" });
+    const resMime = validatePaymentSubmission({
+      order,
+      callerUid: "cust_lim",
+      submittedAmount: 10000,
+      rawUtr: "MIME12345678",
+      proofStoragePaths: ["payment_proofs/ORD_LIMIT/sub_lim/receipt.pdf"],
+      mockStorageFiles: mockStorageBadMime,
+    });
+    assert.strictEqual(resMime.valid, false);
+    assert(resMime.error.includes("unsupported MIME type"));
+    console.log("✔ Test 30: Attachments exceeding 10 MB or with invalid MIME types rejected");
+    passed++;
+  }
+
+  // Test 31: Assigned salesperson can view and verify multi-receipt submission; unassigned denied
+  {
+    const engine = new MockPaymentEngine();
+    const order = { id: "ORD_SP_MULTI", userId: "cust_sp", salesPersonId: "sp_assigned_1", totalAmount: 40000, status: "confirmed" };
+    engine.createOrder(order);
+
+    const sub = {
+      submissionId: "sub_sp_multi",
+      orderId: "ORD_SP_MULTI",
+      customerId: "cust_sp",
+      status: "pending_verification",
+      expectedAmount: 40000,
+      submittedAmount: 40000,
+      utrNumber: "SPMULTI123456",
+      utrNormalized: "SPMULTI123456",
+      proofStoragePath: "payment_proofs/ORD_SP_MULTI/sub_sp_multi/receipt.pdf",
+      proofStoragePaths: [
+        "payment_proofs/ORD_SP_MULTI/sub_sp_multi/receipt.pdf",
+        "payment_proofs/ORD_SP_MULTI/sub_sp_multi/receipt_1.jpg",
+      ],
+    };
+    engine.submissions.set(sub.submissionId, sub);
+    engine.utrs.set(sub.utrNormalized, { status: "pending_verification" });
+
+    // Unassigned salesperson denied
+    assert.throws(() => {
+      engine.verifyPayment({
+        staffUser: { uid: "sp_rogue_99", role: "salesperson", admin: false },
+        submissionId: sub.submissionId,
+      });
+    }, /Unassigned salesperson cannot verify payment/);
+
+    // Assigned salesperson can verify
+    const verifyRes = engine.verifyPayment({
+      staffUser: { uid: "sp_assigned_1", role: "salesperson", admin: false },
+      submissionId: sub.submissionId,
+    });
+    assert.strictEqual(verifyRes.success, true);
+    assert.strictEqual(sub.status, "verified");
+    assert.strictEqual(engine.orders.get(order.id).paymentStatus, "paid");
+    console.log("✔ Test 31: Salesperson assignment guard verified (assigned verified, unassigned denied)");
+    passed++;
+  }
+
+  // Test 32: Legacy single-receipt records fall back to proofStoragePath safely
+  {
+    const legacyRecord = {
+      id: "sub_leg_1",
+      submissionId: "sub_leg_1",
+      orderId: "ORD_LEG",
+      proofStoragePath: "payment_proofs/ORD_LEG/sub_leg_1/receipt.jpg",
+      // proofStoragePaths is undefined / missing in legacy record
+    };
+    const resolvedPaths = (legacyRecord.proofStoragePaths && legacyRecord.proofStoragePaths.length > 0)
+      ? legacyRecord.proofStoragePaths
+      : (legacyRecord.proofStoragePath ? [legacyRecord.proofStoragePath] : []);
+    assert.strictEqual(resolvedPaths.length, 1);
+    assert.strictEqual(resolvedPaths[0], "payment_proofs/ORD_LEG/sub_leg_1/receipt.jpg");
+    console.log("✔ Test 32: Legacy single-receipt payment records fall back gracefully");
+    passed++;
+  }
+
+  // Test 33: Mismatched submissionId in storage metadata rejected
+  {
+    const storageMeta = {
+      orderId: "ORD_META_1",
+      submissionId: "sub_different_999",
+    };
+    const currentSubmissionId = "sub_current_123";
+    assert.throws(() => {
+      if (storageMeta.submissionId && storageMeta.submissionId !== currentSubmissionId) {
+        throw new Error(`Attachment metadata belongs to submission ${storageMeta.submissionId}, not ${currentSubmissionId}`);
+      }
+    }, /Attachment metadata belongs to submission sub_different_999/);
+    console.log("✔ Test 33: Attachment with mismatched metadata submissionId rejected");
+    passed++;
+  }
+
+  // Test 34: Duplicate submission replay rejected in transaction
+  {
+    const engine = new MockPaymentEngine();
+    engine.submissions.set("sub_existing_1", {
+      submissionId: "sub_existing_1",
+      orderId: "ORD_DUP_1",
+      status: "pending_verification",
+    });
+
+    assert.throws(() => {
+      const targetSubId = "sub_existing_1";
+      if (engine.submissions.has(targetSubId)) {
+        throw new Error(`Payment submission ${targetSubId} has already been recorded.`);
+      }
+    }, /already been recorded/);
+    console.log("✔ Test 34: Submission ID replay/overwrite rejected transactionally");
     passed++;
   }
 

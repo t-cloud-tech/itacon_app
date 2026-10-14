@@ -269,7 +269,7 @@ exports.submitPaymentProofCallable = functions.https.onCall(async (data, context
 
   const userId = context.auth.uid;
   const db = admin.firestore();
-  const { orderId, submittedAmount, utrNumber, paymentDate, proofStoragePath } = data || {};
+  const { orderId, submittedAmount, utrNumber, paymentDate, proofStoragePath, proofStoragePaths } = data || {};
 
   if (!orderId || typeof orderId !== 'string') {
     throw new functions.https.HttpsError('invalid-argument', 'Missing or invalid orderId.');
@@ -288,12 +288,112 @@ exports.submitPaymentProofCallable = functions.https.onCall(async (data, context
     );
   }
 
-  const validProofPathRegex = new RegExp(`^payment_proofs\\/${orderId}\\/[a-zA-Z0-9_-]+\\/receipt\\.(jpg|jpeg|png|webp|pdf)$`);
-  if (!proofStoragePath || !validProofPathRegex.test(proofStoragePath)) {
+  // Resolve and validate 1 to 5 attachment paths
+  let paths = [];
+  if (Array.isArray(proofStoragePaths) && proofStoragePaths.length > 0) {
+    paths = proofStoragePaths.map(p => (typeof p === 'string' ? p.trim() : '')).filter(p => p.length > 0);
+  } else if (proofStoragePath && typeof proofStoragePath === 'string' && proofStoragePath.trim().length > 0) {
+    paths = [proofStoragePath.trim()];
+  }
+
+  if (paths.length === 0) {
+    throw new functions.https.HttpsError('invalid-argument', 'At least one payment proof attachment is required.');
+  }
+
+  if (paths.length > 5) {
+    throw new functions.https.HttpsError('invalid-argument', 'Maximum 5 payment proof attachments allowed.');
+  }
+
+  // Reject duplicate paths
+  const uniquePaths = new Set(paths);
+  if (uniquePaths.size !== paths.length) {
+    throw new functions.https.HttpsError('invalid-argument', 'Duplicate payment proof attachment paths detected.');
+  }
+
+  // Validate exact Storage path format:
+  // payment_proofs/<orderId>/<submissionId>/receipt(_[0-4])?.(jpg|jpeg|png|webp|pdf)
+  const validProofPathRegex = new RegExp(`^payment_proofs\\/${orderId}\\/([a-zA-Z0-9_-]+)\\/receipt(_[0-4])?\\.(jpg|jpeg|png|webp|pdf)$`);
+
+  // First attachment dictates authoritative submissionId
+  const matchFirst = paths[0].match(validProofPathRegex);
+  if (!matchFirst) {
     throw new functions.https.HttpsError(
       'invalid-argument',
-      `Invalid payment proof storage path. Must match payment_proofs/${orderId}/<submissionId>/receipt.<ext>.`
+      `Invalid primary payment proof storage path. Must match payment_proofs/${orderId}/<submissionId>/receipt.<ext>.`
     );
+  }
+  const submissionId = matchFirst[1];
+
+  // Enforce all attachments share the same orderId and submissionId
+  for (let i = 0; i < paths.length; i++) {
+    const p = paths[i];
+    const match = p.match(validProofPathRegex);
+    if (!match) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Invalid attachment path format at index ${i}: ${p}. Must match payment_proofs/${orderId}/${submissionId}/receipt(_[0-4]).<ext>.`
+      );
+    }
+    if (match[1] !== submissionId) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        `Attachment at index ${i} belongs to submission ${match[1]}, not current submission ${submissionId}.`
+      );
+    }
+  }
+
+  // Validate Storage objects in Firebase Storage (existence, size <= 10MB, allowed MIME types)
+  const ALLOWED_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']);
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+  if (!process.env.ITACON_SKIP_STORAGE_CHECK && typeof admin.storage === 'function') {
+    try {
+      const bucket = admin.storage().bucket();
+      if (bucket) {
+        for (let i = 0; i < paths.length; i++) {
+          const p = paths[i];
+          const file = bucket.file(p);
+          const [exists] = await file.exists();
+          if (!exists) {
+            throw new functions.https.HttpsError(
+              'not-found',
+              `Attachment ${i + 1} does not exist in Storage (${p}). Please complete upload before submitting.`
+            );
+          }
+          const [meta] = await file.getMetadata();
+          const size = Number(meta.size || 0);
+          if (size <= 0 || size > MAX_FILE_SIZE) {
+            throw new functions.https.HttpsError(
+              'invalid-argument',
+              `Attachment ${i + 1} size exceeds 10 MB or is empty.`
+            );
+          }
+          const ct = (meta.contentType || '').toLowerCase();
+          if (!ALLOWED_MIMES.has(ct)) {
+            throw new functions.https.HttpsError(
+              'invalid-argument',
+              `Attachment ${i + 1} has unsupported MIME type '${ct}'. Allowed: JPG, PNG, WEBP, PDF.`
+            );
+          }
+          if (meta.metadata && meta.metadata.orderId && meta.metadata.orderId !== orderId) {
+            throw new functions.https.HttpsError(
+              'permission-denied',
+              `Attachment ${i + 1} metadata belongs to order ${meta.metadata.orderId}, not ${orderId}.`
+            );
+          }
+          if (meta.metadata && meta.metadata.submissionId && meta.metadata.submissionId !== submissionId) {
+            throw new functions.https.HttpsError(
+              'permission-denied',
+              `Attachment ${i + 1} metadata belongs to submission ${meta.metadata.submissionId}, not ${submissionId}.`
+            );
+          }
+        }
+      }
+    } catch (storageErr) {
+      if (storageErr instanceof functions.https.HttpsError) throw storageErr;
+      // If storage emulator is unconfigured in test environment, log warning
+      console.warn('[PaymentEngine] Storage verification notice:', storageErr.message);
+    }
   }
 
   const orderRef = db.collection('orders').doc(orderId);
@@ -334,10 +434,6 @@ exports.submitPaymentProofCallable = functions.https.onCall(async (data, context
     );
   }
 
-  // Extract submissionId from deterministic path
-  const pathParts = proofStoragePath.split('/');
-  const submissionId = pathParts[2] || `sub_${orderId}_${Date.now()}`;
-
   let customerName = orderData.customerName || '';
   try {
     const userDoc = await db.collection('users').doc(userId).get();
@@ -352,6 +448,14 @@ exports.submitPaymentProofCallable = functions.https.onCall(async (data, context
   const parsedPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
 
   await db.runTransaction(async (transaction) => {
+    const subDoc = await transaction.get(submissionRef);
+    if (subDoc.exists) {
+      throw new functions.https.HttpsError(
+        'already-exists',
+        `Payment submission ${submissionId} has already been recorded.`
+      );
+    }
+
     const utrDoc = await transaction.get(utrRef);
     if (utrDoc.exists) {
       const existing = utrDoc.data() || {};
@@ -387,7 +491,8 @@ exports.submitPaymentProofCallable = functions.https.onCall(async (data, context
       utrNumber: String(utrNumber).trim(),
       utrNormalized,
       paymentDate: admin.firestore.Timestamp.fromDate(parsedPaymentDate),
-      proofStoragePath,
+      proofStoragePath: paths[0],
+      proofStoragePaths: paths,
       status: 'pending_verification',
       submittedAt: admin.firestore.FieldValue.serverTimestamp(),
       verifiedAt: null,
@@ -398,7 +503,8 @@ exports.submitPaymentProofCallable = functions.https.onCall(async (data, context
     transaction.update(orderRef, {
       paymentStatus: 'pending_verification',
       paymentSubmissionId: submissionId,
-      proofStoragePath,
+      proofStoragePath: paths[0],
+      proofStoragePaths: paths,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 

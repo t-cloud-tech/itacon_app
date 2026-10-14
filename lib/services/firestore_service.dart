@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_category.dart';
 import '../models/user_profile.dart';
+import '../utils/profile_validator.dart';
 import '../models/sales_person.dart';
 import '../models/product_category.dart';
 import '../models/tile_product.dart';
@@ -1781,6 +1782,27 @@ class FirestoreService {
       } catch (_) {}
     }
 
+    // Server-level validation: Ensure profile meets all mandatory ordering criteria
+    try {
+      final profile = await getUserProfile(userId);
+      if (profile != null) {
+        final eligibility = ProfileOrderingValidator.validate(profile);
+        if (!eligibility.isEligible) {
+          throw Exception(
+            'Cannot submit order: customer profile is incomplete (${eligibility.allIssues.join(", ")}).',
+          );
+        }
+      } else if (resolvedName.isEmpty || (resolvedPhone == null || resolvedPhone.isEmpty) || deliveryAddress.trim().isEmpty) {
+        throw Exception(
+          'Cannot submit order: customer profile information is missing.',
+        );
+      }
+    } catch (e) {
+      if (e.toString().contains('Cannot submit order:')) {
+        rethrow;
+      }
+    }
+
     int computedBoxes = 0;
     final pendingItems = items.map((i) {
       computedBoxes += i.quantityBoxes;
@@ -2055,12 +2077,17 @@ class FirestoreService {
     required String utrNumber,
     required DateTime paymentDate,
     required String proofStoragePath,
+    List<String> proofStoragePaths = const [],
   }) async {
     final cleanUtr = utrNumber.trim();
     final normalizedUtr = PaymentSubmission.normalizeUtr(cleanUtr);
     if (normalizedUtr.length < 6) {
       throw Exception('Please enter a valid Transaction/UTR reference (minimum 6 characters).');
     }
+
+    final resolvedPaths = proofStoragePaths.isNotEmpty
+        ? proofStoragePaths
+        : (proofStoragePath.isNotEmpty ? [proofStoragePath] : <String>[]);
 
     try {
       final HttpsCallable callable = _functions.httpsCallable('submitPaymentProofCallable');
@@ -2070,6 +2097,7 @@ class FirestoreService {
         'utrNumber': cleanUtr,
         'paymentDate': paymentDate.toIso8601String(),
         'proofStoragePath': proofStoragePath,
+        'proofStoragePaths': resolvedPaths,
       });
 
       final Map<String, dynamic> data = Map<String, dynamic>.from(result.data as Map);
@@ -2087,6 +2115,7 @@ class FirestoreService {
         utrNormalized: normalizedUtr,
         paymentDate: paymentDate,
         proofStoragePath: proofStoragePath,
+        proofStoragePaths: resolvedPaths,
         status: status,
         submittedAt: DateTime.now(),
       );

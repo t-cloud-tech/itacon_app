@@ -6,10 +6,171 @@ import '../services/pricing_service.dart';
 import '../widgets/order_summary_card.dart';
 import '../widgets/interactive_pressable.dart';
 import '../widgets/app_product_image.dart';
+import '../utils/profile_validator.dart';
 import 'checkout_screen.dart';
+import 'profile/edit_profile_screen.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
+
+  void _showIncompleteProfileDialog(
+    BuildContext context,
+    ProfileOrderingEligibility eligibility,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          title: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentOrange.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.assignment_late_outlined,
+                  size: 34,
+                  color: AppTheme.accentOrange,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Profile Completion Required',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'To place a purchase order, all mandatory business and delivery details must be completed in your profile:',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSubtle,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: eligibility.allIssues.map((field) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentOrange.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.circle, size: 7, color: AppTheme.accentOrange),
+                        const SizedBox(width: 6),
+                        Text(
+                          field,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryNavy,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryNavy.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.lock_clock_outlined, size: 16, color: AppTheme.primaryNavy),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Your cart items and quantities will be safely preserved.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textDark,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(dialogCtx),
+                    child: const Text(
+                      'REVIEW CART',
+                      style: TextStyle(
+                        color: AppTheme.textSubtle,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryNavy,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(dialogCtx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const EditProfileScreen(),
+                        ),
+                      );
+                    },
+                    child: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'COMPLETE PROFILE NOW',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showManualQuantityDialog(
     BuildContext context,
@@ -417,6 +578,12 @@ class CartScreen extends StatelessWidget {
                     showActionButton: true,
                     actionButtonText: 'PROCEED TO CHECKOUT →',
                     onActionButtonPressed: () {
+                      final eligibility = appState.orderingProfileEligibility;
+                      if (!eligibility.isEligible) {
+                        _showIncompleteProfileDialog(context, eligibility);
+                        return;
+                      }
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(

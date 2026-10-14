@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/payment_receipt_validator.dart';
 import '../theme/app_theme.dart';
 import '../models/tile_order.dart';
 import '../models/payment_config.dart';
@@ -39,8 +41,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _utrController = TextEditingController();
   DateTime _paymentDate = DateTime.now();
-  XFile? _selectedReceiptFile;
-  int? _receiptFileSize;
+  final List<ReceiptAttachmentItem> _selectedReceiptAttachments = [];
 
   @override
   void dispose() {
@@ -50,39 +51,107 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _handlePickReceipt() async {
+    if (_selectedReceiptAttachments.length >= PaymentReceiptValidator.maxAttachments) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Maximum 5 payment receipt attachments allowed per submission.'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+      return;
+    }
+
     try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 85,
+      final pickedFiles = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: PaymentReceiptValidator.allowedExtensions,
       );
-      if (picked != null) {
-        final length = await picked.length();
-        if (length > 10 * 1024 * 1024) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Receipt image exceeds maximum size of 10 MB.'),
-                backgroundColor: AppTheme.statusError,
+
+      if (pickedFiles.isNotEmpty) {
+        final List<ReceiptAttachmentItem> newValidItems = [];
+
+        for (final file in pickedFiles) {
+          if (_selectedReceiptAttachments.length + newValidItems.length >= PaymentReceiptValidator.maxAttachments) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Maximum 5 attachments reached. Extra files were ignored.'),
+                  backgroundColor: AppTheme.accentOrange,
+                ),
+              );
+            }
+            break;
+          }
+
+          Uint8List? bytes;
+          try {
+            bytes = await file.readAsBytes();
+          } catch (_) {
+            if (file.path != null && file.path!.isNotEmpty) {
+              bytes = await File(file.path!).readAsBytes();
+            }
+          }
+
+          final size = bytes?.length ?? file.lengthSync() ?? (await file.length()) ?? 0;
+
+          final validation = PaymentReceiptValidator.validate(
+            fileName: file.name,
+            fileSizeBytes: size,
+            bytes: bytes,
+          );
+
+          if (!validation.isValid) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${file.name}: ${validation.errorMessage ?? "Invalid file."}'),
+                  backgroundColor: AppTheme.statusError,
+                ),
+              );
+            }
+            continue;
+          }
+
+          final bool isDuplicate = _selectedReceiptAttachments.any((a) => a.name == file.name && a.sizeBytes == size) ||
+              newValidItems.any((a) => a.name == file.name && a.sizeBytes == size);
+
+          if (!isDuplicate) {
+            newValidItems.add(
+              ReceiptAttachmentItem(
+                name: file.name,
+                sizeBytes: size,
+                bytes: bytes,
+                path: file.path,
               ),
             );
           }
-          return;
         }
-        setState(() {
-          _selectedReceiptFile = picked;
-          _receiptFileSize = length;
-        });
+
+        if (newValidItems.isNotEmpty) {
+          setState(() {
+            _selectedReceiptAttachments.addAll(newValidItems);
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to select receipt image: $e'),
+            content: Text('Failed to select payment receipt: $e'),
             backgroundColor: AppTheme.statusError,
           ),
         );
       }
+    }
+  }
+
+  void _handleRemoveReceiptAt(int index) {
+    if (index >= 0 && index < _selectedReceiptAttachments.length) {
+      setState(() {
+        _selectedReceiptAttachments.removeAt(index);
+      });
     }
   }
 
@@ -120,13 +189,27 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       return;
     }
 
-    if (_selectedReceiptFile == null) {
+    if (_selectedReceiptAttachments.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a payment receipt or screenshot to upload.'),
+          content: Text('Please upload at least one payment receipt or screenshot.'),
           backgroundColor: AppTheme.statusError,
         ),
       );
+      return;
+    }
+
+    // Validate all attachments using PaymentReceiptValidator
+    final validation = PaymentReceiptValidator.validateAttachments(_selectedReceiptAttachments);
+    if (!validation.isValid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(validation.errorMessage ?? 'Invalid payment receipt file.'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
       return;
     }
 
@@ -137,44 +220,52 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final submissionId = 'sub_${order.id}_$timestamp';
 
-      // 2. Determine file extension
-      final name = _selectedReceiptFile!.name;
-      final ext = name.contains('.') ? name.split('.').last.toLowerCase() : 'jpg';
-      final allowedExts = ['jpeg', 'jpg', 'png', 'webp', 'pdf'];
-      final safeExt = allowedExts.contains(ext) ? ext : 'jpg';
+      final List<String> storagePaths = [];
 
-      // 3. Private upload to Firebase Storage with deterministic receipt name
-      final storagePath = 'payment_proofs/${order.id}/$submissionId/receipt.$safeExt';
-      final storageRef = FirebaseStorage.instance.ref().child(storagePath);
+      // 2. Upload all attachments (up to 5) to the single deterministic submission folder in Firebase Storage
+      for (int i = 0; i < _selectedReceiptAttachments.length; i++) {
+        final attachment = _selectedReceiptAttachments[i];
+        final safeExt = attachment.normalizedExtension;
+        final mimeType = attachment.contentType;
 
-      final fileBytes = await _selectedReceiptFile!.readAsBytes();
-      final mimeType = safeExt == 'pdf' ? 'application/pdf' : 'image/$safeExt';
+        // Deterministic filename: index 0 is receipt.<ext>, additional files are receipt_<i>.<ext>
+        // All attachments reside in the exact same submission directory: payment_proofs/<orderId>/<submissionId>/
+        final fileName = i == 0 ? 'receipt.$safeExt' : 'receipt_$i.$safeExt';
+        final storagePath = 'payment_proofs/${order.id}/$submissionId/$fileName';
+        storagePaths.add(storagePath);
 
-      await storageRef.putData(
-        fileBytes,
-        SettableMetadata(
-          contentType: mimeType,
-          customMetadata: {
-            'orderId': order.id,
-            'submissionId': submissionId,
-            'orderRef': order.orderReference,
-          },
-        ),
-      );
+        final storageRef = FirebaseStorage.instance.ref().child(storagePath);
+        final fileBytes = attachment.bytes ?? (attachment.path != null ? await File(attachment.path!).readAsBytes() : Uint8List(0));
 
-      // 4. Invoke secure callable via FirestoreService
+        await storageRef.putData(
+          fileBytes,
+          SettableMetadata(
+            contentType: mimeType,
+            customMetadata: {
+              'orderId': order.id,
+              'submissionId': submissionId,
+              'orderRef': order.orderReference,
+              'attachmentIndex': '$i',
+              'totalAttachments': '${_selectedReceiptAttachments.length}',
+              'fileName': attachment.name,
+            },
+          ),
+        );
+      }
+
+      // 3. Invoke secure callable via FirestoreService with all attachment paths
       await FirestoreService.instance.submitPaymentProof(
         orderId: order.id,
         submittedAmount: enteredAmount,
         utrNumber: rawUtr,
         paymentDate: _paymentDate,
-        proofStoragePath: storagePath,
+        proofStoragePath: storagePaths.first,
+        proofStoragePaths: storagePaths,
       );
 
       if (mounted) {
         setState(() {
-          _selectedReceiptFile = null;
-          _receiptFileSize = null;
+          _selectedReceiptAttachments.clear();
           _amountController.clear();
           _utrController.clear();
           _showResubmitForm = false;
@@ -1437,61 +1528,177 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               ),
               const SizedBox(height: 14),
 
-              // Receipt / Screenshot upload
-              const Text('Payment Receipt / Screenshot', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+              // Payment Receipt / Screenshot upload
+              const Text(
+                'Upload Payment Receipt / Screenshot',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+              ),
               const SizedBox(height: 6),
-              InkWell(
-                onTap: _handlePickReceipt,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: _selectedReceiptFile != null
-                        ? AppTheme.statusSuccess.withValues(alpha: 0.05)
-                        : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _selectedReceiptFile != null ? AppTheme.statusSuccess : AppTheme.borderSubtle,
-                      style: BorderStyle.solid,
+              if (_selectedReceiptAttachments.isEmpty)
+                InkWell(
+                  key: const Key('select_payment_receipt_button'),
+                  onTap: _handlePickReceipt,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppTheme.borderSubtle,
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.cloud_upload_outlined,
+                          color: AppTheme.primaryNavy,
+                          size: 26,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Upload Payment Receipt / Screenshot',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryNavy,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'PDF, JPG, PNG, WEBP — Max 10 MB each',
+                                style: TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
+                )
+              else
+                Container(
+                  key: const Key('selected_payment_receipt_card'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.statusSuccess.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.statusSuccess, width: 1.2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        _selectedReceiptFile != null ? Icons.check_circle_rounded : Icons.cloud_upload_outlined,
-                        color: _selectedReceiptFile != null ? AppTheme.statusSuccess : AppTheme.primaryNavy,
-                        size: 26,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _selectedReceiptFile != null
-                                  ? _selectedReceiptFile!.name
-                                  : 'Select Receipt Image (Max 10 MB)',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: _selectedReceiptFile != null ? AppTheme.statusSuccess : AppTheme.primaryNavy,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 18),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Attached Proof (${_selectedReceiptAttachments.length}/5)',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.primaryNavy,
+                                ),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ],
+                          ),
+                          if (_selectedReceiptAttachments.length < PaymentReceiptValidator.maxAttachments)
+                            TextButton.icon(
+                              key: const Key('add_more_receipts_button'),
+                              onPressed: _isSubmittingPayment ? null : _handlePickReceipt,
+                              icon: const Icon(Icons.add_circle_outline_rounded, size: 15, color: AppTheme.accentOrange),
+                              label: const Text(
+                                '+ Add More',
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.accentOrange),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
                             ),
-                            Text(
-                              _receiptFileSize != null
-                                  ? '${(_receiptFileSize! / (1024 * 1024)).toStringAsFixed(2)} MB • JPEG, PNG, WEBP'
-                                  : 'Supports JPEG, PNG, WEBP (Max 10 MB)',
-                              style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                        ],
+                      ),
+                      const Divider(height: 14),
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: _selectedReceiptAttachments.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          final item = _selectedReceiptAttachments[index];
+                          final isPdf = item.isPdf;
+                          final sizeMb = (item.sizeBytes / (1024 * 1024)).toStringAsFixed(2);
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.borderSubtle),
                             ),
-                          ],
-                        ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isPdf ? Icons.picture_as_pdf_rounded : Icons.image_rounded,
+                                  color: isPdf ? AppTheme.accentOrange : AppTheme.statusSuccess,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.textDark,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        '$sizeMb MB • ${isPdf ? "PDF Document" : "Image Proof"}',
+                                        style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  key: Key('remove_receipt_button_$index'),
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.statusError),
+                                  tooltip: 'Remove attachment',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: _isSubmittingPayment ? null : () => _handleRemoveReceiptAt(index),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'PDF, JPG, PNG, WEBP — Max 10 MB each',
+                        style: TextStyle(fontSize: 10, color: AppTheme.textSubtle),
                       ),
                     ],
                   ),
                 ),
-              ),
               const SizedBox(height: 20),
 
               // Submit Button

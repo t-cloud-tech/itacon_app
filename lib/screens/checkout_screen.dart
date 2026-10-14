@@ -11,7 +11,9 @@ import '../services/order_service.dart';
 import '../models/tile_order.dart';
 import '../widgets/order_summary_card.dart';
 import '../widgets/app_product_image.dart';
+import '../utils/profile_validator.dart';
 import 'order_details_screen.dart';
+import 'profile/edit_profile_screen.dart';
 
 
 
@@ -42,11 +44,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     final profile = AppStateService.instance.currentUserProfile;
-    _addressLineController.text = profile.address['line1']?.toString() ?? 'Plot No. 42, Industrial Ceramic Zone';
-    _cityController.text = profile.city.isNotEmpty ? profile.city : 'Morbi';
-    _stateController.text = profile.state.isNotEmpty ? profile.state : 'Gujarat';
-    _pincodeController.text = profile.pincode.isNotEmpty ? profile.pincode : '363642';
-    _gstController.text = profile.gstNumber.isNotEmpty ? profile.gstNumber : '24AAAAA0000A1Z5';
+    _addressLineController.text = (profile.address['line1'] ??
+            profile.address['addressLine'] ??
+            profile.address['street'] ??
+            '')
+        .toString();
+    _cityController.text = profile.city;
+    _stateController.text = profile.state;
+    _pincodeController.text = profile.pincode;
+    _gstController.text = profile.gstNumber;
   }
 
   @override
@@ -175,10 +181,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         if (_currentStep == 0) {
                           _changeStep(1);
                         } else if (_currentStep == 1) {
-                          if (_addressLineController.text.trim().isEmpty || _cityController.text.trim().isEmpty) {
+                          if (_addressLineController.text.trim().isEmpty ||
+                              _cityController.text.trim().isEmpty ||
+                              _stateController.text.trim().isEmpty ||
+                              _pincodeController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Please enter valid delivery address details.'),
+                                content: Text('Please enter complete delivery address (street address, city, state, PIN code).'),
                                 backgroundColor: AppTheme.statusWarning,
                               ),
                             );
@@ -929,9 +938,150 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  void _showIncompleteProfileDialog(
+    BuildContext context,
+    ProfileOrderingEligibility eligibility,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+        title: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.accentOrange.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.assignment_late_outlined,
+                size: 34,
+                color: AppTheme.accentOrange,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Profile Incomplete',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryNavy,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Cannot submit purchase order. The following mandatory profile information is missing or invalid:',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSubtle, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: eligibility.allIssues.map((field) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentOrange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.circle, size: 7, color: AppTheme.accentOrange),
+                      const SizedBox(width: 6),
+                      Text(
+                        field,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryNavy,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(color: AppTheme.textSubtle, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryNavy,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(dialogCtx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EditProfileScreen(),
+                      ),
+                    );
+                  },
+                  child: const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'COMPLETE PROFILE',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // Handle Order Placement
   void _handlePlaceOrder(AppStateService appState, UserProfile user) async {
     if (_isSubmitting) return;
+
+    // Validate authoritative profile fields
+    final latestProfile = appState.currentUserProfile;
+    final activeProfile = latestProfile.copyWith(
+      city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : latestProfile.city,
+      state: _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : latestProfile.state,
+      pincode: _pincodeController.text.trim().isNotEmpty ? _pincodeController.text.trim() : latestProfile.pincode,
+      gstNumber: _gstController.text.trim().isNotEmpty ? _gstController.text.trim() : latestProfile.gstNumber,
+      address: {
+        ...latestProfile.address,
+        if (_addressLineController.text.trim().isNotEmpty) 'line1': _addressLineController.text.trim(),
+      },
+    );
+
+    final eligibility = ProfileOrderingValidator.validate(activeProfile);
+    if (!eligibility.isEligible) {
+      _showIncompleteProfileDialog(context, eligibility);
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);

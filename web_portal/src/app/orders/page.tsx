@@ -52,7 +52,8 @@ export default function SalesOrdersPage() {
 
   // Proof Modal State
   const [viewingProof, setViewingProof] = useState<PaymentSubmissionRecord | null>(null);
-  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [selectedAttachmentIndex, setSelectedAttachmentIndex] = useState<number>(0);
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<number, string>>({});
   const [isLoadingProof, setIsLoadingProof] = useState(false);
 
   // Action Dialogs
@@ -222,16 +223,30 @@ export default function SalesOrdersPage() {
   // Open Proof Viewer Modal
   const handleViewProof = async (sub: PaymentSubmissionRecord) => {
     setViewingProof(sub);
-    setProofUrl(null);
+    setSelectedAttachmentIndex(0);
+    setAttachmentUrls({});
     setIsLoadingProof(true);
+
+    const paths: string[] = (sub.proofStoragePaths && sub.proofStoragePaths.length > 0)
+      ? sub.proofStoragePaths
+      : (sub.proofStoragePath ? [sub.proofStoragePath] : []);
+
     try {
-      if (sub.proofStoragePath) {
-        const fileRef = ref(storage, sub.proofStoragePath);
-        const url = await getDownloadURL(fileRef);
-        setProofUrl(url);
-      }
+      const urlsMap: Record<number, string> = {};
+      await Promise.all(
+        paths.map(async (path, index) => {
+          try {
+            const fileRef = ref(storage, path);
+            const url = await getDownloadURL(fileRef);
+            urlsMap[index] = url;
+          } catch (err) {
+            console.error(`Failed to load proof at index ${index} (${path}):`, err);
+          }
+        })
+      );
+      setAttachmentUrls(urlsMap);
     } catch (err) {
-      console.error("Failed to load proof storage URL:", err);
+      console.error("Failed to load proof storage URLs:", err);
     } finally {
       setIsLoadingProof(false);
     }
@@ -889,42 +904,105 @@ export default function SalesOrdersPage() {
                   </div>
                 </div>
 
-                {/* File Preview */}
-                <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center min-h-[300px] bg-slate-50/50">
-                  {isLoadingProof ? (
-                    <div className="flex flex-col items-center space-y-2 text-slate-400">
-                      <RefreshCw className="w-8 h-8 animate-spin text-[#0E274D]" />
-                      <span className="text-xs">Loading secure proof from private storage...</span>
-                    </div>
-                  ) : proofUrl ? (
-                    viewingProof.proofStoragePath?.toLowerCase().endsWith(".pdf") ? (
-                      <div className="text-center space-y-3">
-                        <FileText className="w-16 h-16 text-rose-500 mx-auto" />
-                        <p className="text-sm font-bold text-slate-800">PDF Payment Receipt</p>
-                        <a
-                          href={proofUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-[#0E274D] text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1"
-                        >
-                          <span>Open PDF in New Window</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
+                {/* Proof Attachments Selector and File Preview */}
+                {(() => {
+                  const paths: string[] = (viewingProof.proofStoragePaths && viewingProof.proofStoragePaths.length > 0)
+                    ? viewingProof.proofStoragePaths
+                    : (viewingProof.proofStoragePath ? [viewingProof.proofStoragePath] : []);
+                  const activePath = paths[selectedAttachmentIndex] || viewingProof.proofStoragePath || "";
+                  const activeUrl = attachmentUrls[selectedAttachmentIndex];
+                  const isPdf = activePath.toLowerCase().endsWith(".pdf");
+                  const fileName = activePath.split("/").pop() || "receipt";
+
+                  return (
+                    <div className="space-y-3">
+                      {paths.length > 1 && (
+                        <div className="space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-slate-700 flex items-center space-x-1.5">
+                              <Layers className="w-3.5 h-3.5 text-[#0E274D]" />
+                              <span>Payment Attachments ({paths.length} files)</span>
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              Viewing Receipt {selectedAttachmentIndex + 1} of {paths.length}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-2 overflow-x-auto pb-1 pt-0.5">
+                            {paths.map((p, idx) => {
+                              const itemIsPdf = p.toLowerCase().endsWith(".pdf");
+                              const isSelected = selectedAttachmentIndex === idx;
+                              const ext = p.split(".").pop()?.toUpperCase() || (itemIsPdf ? "PDF" : "IMG");
+
+                              return (
+                                <button
+                                  key={p + idx}
+                                  type="button"
+                                  onClick={() => setSelectedAttachmentIndex(idx)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer whitespace-nowrap border ${
+                                    isSelected
+                                      ? "bg-[#0E274D] text-white border-[#0E274D] shadow-xs ring-2 ring-[#0E274D]/20"
+                                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-100"
+                                  }`}
+                                >
+                                  {itemIsPdf ? (
+                                    <FileText className={`w-3.5 h-3.5 ${isSelected ? "text-amber-300" : "text-rose-500"}`} />
+                                  ) : (
+                                    <Eye className={`w-3.5 h-3.5 ${isSelected ? "text-emerald-300" : "text-emerald-600"}`} />
+                                  )}
+                                  <span>Receipt {idx + 1} ({ext})</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* File Preview */}
+                      <div className="border border-slate-200 rounded-xl p-4 flex flex-col items-center justify-center min-h-[300px] bg-slate-50/50">
+                        {isLoadingProof ? (
+                          <div className="flex flex-col items-center space-y-2 text-slate-400">
+                            <RefreshCw className="w-8 h-8 animate-spin text-[#0E274D]" />
+                            <span className="text-xs">Loading secure proof from private storage...</span>
+                          </div>
+                        ) : activeUrl ? (
+                          isPdf ? (
+                            <div className="text-center space-y-3 py-6">
+                              <FileText className="w-16 h-16 text-rose-500 mx-auto" />
+                              <div>
+                                <p className="text-sm font-bold text-slate-800">PDF Payment Receipt</p>
+                                <p className="text-xs text-slate-500 font-mono mt-0.5">{fileName}</p>
+                              </div>
+                              <a
+                                href={activeUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-4 py-2 bg-[#0E274D] text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1.5 hover:bg-[#0E274D]/90 shadow-sm"
+                              >
+                                <span>Open PDF in New Window</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center space-y-2">
+                              <img
+                                src={activeUrl}
+                                alt={`Bank Transfer Receipt - ${fileName}`}
+                                className="max-h-[450px] w-auto object-contain rounded-lg shadow-sm"
+                              />
+                              <span className="text-[11px] text-slate-500 font-mono">{fileName}</span>
+                            </div>
+                          )
+                        ) : (
+                          <div className="text-center text-slate-400 text-xs py-8">
+                            <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                            Proof document could not be loaded from storage.
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <img
-                        src={proofUrl}
-                        alt="Bank Transfer Receipt"
-                        className="max-h-[450px] w-auto object-contain rounded-lg shadow-sm"
-                      />
-                    )
-                  ) : (
-                    <div className="text-center text-slate-400 text-xs">
-                      <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                      Proof document could not be loaded from storage.
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Action Buttons in Modal Footer */}

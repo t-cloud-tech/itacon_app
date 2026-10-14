@@ -9,6 +9,7 @@ import 'firestore_service.dart';
 import 'pricing_service.dart';
 import 'user_demand_service.dart';
 import '../utils/tile_dimension_helper.dart';
+import '../utils/profile_validator.dart';
 
 /// Represents an item in the user's cart
 class CartItem {
@@ -300,6 +301,17 @@ class AppStateService extends ChangeNotifier {
   int get profileCompletionPercentage {
     return ((profileFilledFieldsCount / profileTotalFieldsCount) * 100).round().clamp(0, 100);
   }
+
+  /// Evaluates whether the current profile fulfills mandatory fields for ordering tile goods
+  ProfileOrderingEligibility get orderingProfileEligibility {
+    return ProfileOrderingValidator.validate(currentUserProfile);
+  }
+
+  /// Whether current profile is eligible to place orders
+  bool get isProfileEligibleForOrdering => orderingProfileEligibility.isEligible;
+
+  /// Returns missing mandatory ordering fields
+  List<String> get missingMandatoryOrderingFields => orderingProfileEligibility.missingFields;
 
   /// Returns list of pending details required to complete 100% profile
   List<Map<String, String>> get pendingProfileFields {

@@ -286,6 +286,7 @@ export interface PaymentSubmissionRecord {
   utrNormalized: string;
   paymentDate: string | any;
   proofStoragePath: string;
+  proofStoragePaths?: string[];
   status: "pending_verification" | "verified" | "rejected";
   submittedAt: string | any;
   verifiedAt?: string | any;

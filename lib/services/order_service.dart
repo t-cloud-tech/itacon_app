@@ -2,6 +2,7 @@ import '../models/tile_order.dart';
 import '../models/estimate.dart';
 import '../services/firestore_service.dart';
 import '../services/app_state_service.dart';
+import '../utils/profile_validator.dart';
 
 /// Service handling Order and Estimate submission with automatic logistics metrics
 class OrderService {
@@ -32,6 +33,20 @@ class OrderService {
     String? salespersonId,
     String paymentMethod = 'bank_transfer',
   }) async {
+    // -------------------------------------------------------------------------
+    // SERVICE-LEVEL PROFILE VALIDATION:
+    // Fetch authoritative latest profile record from Firestore before placing PO.
+    // Prevents client-side bypass or manipulated local state.
+    // -------------------------------------------------------------------------
+    final latestProfile = await _firestore.getUserProfile(userId);
+    final targetProfile = latestProfile ?? AppStateService.instance.currentUserProfile;
+    final eligibility = ProfileOrderingValidator.validate(targetProfile);
+    if (!eligibility.isEligible) {
+      throw Exception(
+        'Order submission blocked: Mandatory customer profile details are missing or invalid (${eligibility.allIssues.join(", ")}). Please complete your profile.',
+      );
+    }
+
     // Calculate total boxes and weight from items if not directly provided
     int boxes = totalBoxes ?? items.fold(0, (sum, i) => sum + i.quantity);
     double weightKg = totalWeightKg ?? (boxes * 28.0);

@@ -100,6 +100,65 @@ void main() {
       expect(revived.submittedAmount, equals(154200.0));
       expect(revived.utrNormalized, equals('20241029ABCD5678'));
       expect(revived.status, equals('pending_verification'));
+      expect(revived.proofStoragePaths, equals(['payment_proofs/ord_123/sub_test_001/receipt.jpg']));
+    });
+
+    test('PaymentSubmission supports up to 5 multi-attachments and preserves primary proofStoragePath', () {
+      final now = DateTime.now();
+      final paths = [
+        'payment_proofs/ord_multi/sub_m1/receipt.pdf',
+        'payment_proofs/ord_multi/sub_m1/receipt_1.jpg',
+        'payment_proofs/ord_multi/sub_m1/receipt_2.png',
+        'payment_proofs/ord_multi/sub_m1/receipt_3.webp',
+        'payment_proofs/ord_multi/sub_m1/receipt_4.pdf',
+      ];
+      final submission = PaymentSubmission(
+        submissionId: 'sub_m1',
+        orderId: 'ord_multi',
+        orderReference: 'ITC-PO-2026-MULTI',
+        customerId: 'cust_m',
+        expectedAmount: 250000.0,
+        submittedAmount: 250000.0,
+        utrNumber: 'MULTI12345678',
+        utrNormalized: 'MULTI12345678',
+        paymentDate: now,
+        proofStoragePath: paths.first,
+        proofStoragePaths: paths,
+        status: 'pending_verification',
+        submittedAt: now,
+      );
+
+      final map = submission.toMap();
+      expect(map['proofStoragePath'], equals(paths.first));
+      expect(map['proofStoragePaths'], equals(paths));
+
+      final revived = PaymentSubmission.fromMap(map, 'sub_m1');
+      expect(revived.proofStoragePath, equals(paths.first));
+      expect(revived.proofStoragePaths.length, equals(5));
+      expect(revived.proofStoragePaths, equals(paths));
+    });
+
+    test('PaymentSubmission deserialization falls back gracefully for legacy records without proofStoragePaths', () {
+      final now = DateTime.now();
+      final legacyMap = <String, dynamic>{
+        'submissionId': 'sub_leg_001',
+        'orderId': 'ord_leg_1',
+        'orderReference': 'ITC-PO-LEGACY',
+        'customerId': 'cust_leg',
+        'expectedAmount': 50000.0,
+        'submittedAmount': 50000.0,
+        'utrNumber': 'LEGACY123456',
+        'utrNormalized': 'LEGACY123456',
+        'paymentDate': now.toIso8601String(),
+        'proofStoragePath': 'payment_proofs/ord_leg_1/sub_leg_001/receipt.jpg',
+        // 'proofStoragePaths' is intentionally missing
+        'status': 'pending_verification',
+        'submittedAt': now.toIso8601String(),
+      };
+
+      final revived = PaymentSubmission.fromMap(legacyMap, 'sub_leg_001');
+      expect(revived.proofStoragePath, equals('payment_proofs/ord_leg_1/sub_leg_001/receipt.jpg'));
+      expect(revived.proofStoragePaths, equals(['payment_proofs/ord_leg_1/sub_leg_001/receipt.jpg']));
     });
 
     test('TileOrder getters correctly reflect payment lifecycle states', () {
