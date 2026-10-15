@@ -167,18 +167,14 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
   ).toFixed(1);
 
   const handleStatusClick = (key: OrderStatusKey) => {
-    if (role === "admin") {
-      if (key === "pending_rate") {
-        router.push("/quotations?tab=all&status=pending_approval");
-      } else if (key === "rate_quoted") {
-        router.push("/quotations?tab=all&status=sent_to_customer");
-      } else if (key === "confirmed") {
-        router.push("/quotations?tab=all&status=approved");
-      } else if (key === "rejected") {
-        router.push("/quotations?tab=all&status=rejected");
-      }
-    } else {
-      router.push(`/quotations?tab=status_orders&status=${key}`);
+    if (key === "pending_rate") {
+      router.push("/quotations?tab=pending_po");
+    } else if (key === "rate_quoted") {
+      router.push("/quotations?tab=all&status=sent_to_customer");
+    } else if (key === "confirmed") {
+      router.push("/quotations?tab=all&status=accepted");
+    } else if (key === "rejected") {
+      router.push("/quotations?tab=all&status=rejected");
     }
   };
 
@@ -199,7 +195,7 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Click <span className="font-semibold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 cursor-pointer" onClick={() => handleStatusClick("pending_rate")}>Awaiting Quote</span> to view all PO orders &amp; assigned salespersons on Quotation Page
+                Click <span className="font-semibold text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 cursor-pointer" onClick={() => handleStatusClick("pending_rate")}>Awaiting Quote</span> to view incoming client PO orders on Quotation Page
               </p>
             </div>
           </div>
@@ -378,10 +374,10 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
         </div>
 
         <Link
-          href={role === "admin" ? "/quotations?tab=all" : "/quotations?tab=status_orders&status=pending_rate"}
+          href="/quotations?tab=all"
           className="font-bold text-[#E66A23] hover:text-[#D95D16] flex items-center space-x-1 transition-colors"
         >
-          <span>{role === "admin" ? "Open Generated Quotations Tab" : "Open Salesperson Quotes Tab"}</span>
+          <span>Open Generated Quotations Tab</span>
           <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
