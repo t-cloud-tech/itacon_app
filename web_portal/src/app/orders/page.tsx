@@ -1256,18 +1256,10 @@ function SalesOrdersContent() {
                     filteredOrders.map((ord) => (
                       <tr key={ord.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-5">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-bold text-[#0E274D] block">{ord.orderNumber}</span>
-                            {(Boolean(ord.quotationNumber) || Boolean(ord.quotationId)) && (
-                              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-[9px] uppercase tracking-wider" title={`Converted from quotation ${ord.quotationNumber || ord.quotationId}`}>
-                                Quotation Converted
-                              </span>
-                            )}
-                          </div>
+                          <span className="font-bold text-[#0E274D] block">{ord.orderNumber}</span>
                           {(Boolean(ord.quotationNumber) || Boolean(ord.poNumber)) && (
-                            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500 font-medium">
+                            <div className="flex flex-col mt-0.5 text-[11px] text-slate-500 font-medium space-y-0.5">
                               {ord.quotationNumber && <span className="font-semibold text-slate-700">Quote: {ord.quotationNumber}</span>}
-                              {ord.quotationNumber && ord.poNumber && <span>•</span>}
                               {ord.poNumber && <span>PO: {ord.poNumber}</span>}
                             </div>
                           )}
@@ -1303,21 +1295,14 @@ function SalesOrdersContent() {
                         </td>
 
                         <td className="py-4 px-5">
-                          <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold capitalize border ${
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold capitalize border ${
                             ord.paymentStatus === "paid"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : ord.paymentStatus === "partial"
                               ? "bg-amber-50 text-amber-700 border-amber-200"
                               : "bg-rose-50 text-rose-700 border-rose-200"
                           }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${
-                              ord.paymentStatus === "paid"
-                                ? "bg-emerald-500"
-                                : ord.paymentStatus === "partial"
-                                ? "bg-amber-500"
-                                : "bg-rose-500"
-                            }`} />
-                            <span>{ord.paymentStatus === "paid" ? "Paid" : ord.paymentStatus === "partial" ? "Partial" : "Unpaid"}</span>
+                            {ord.paymentStatus === "paid" ? "Paid" : ord.paymentStatus === "partial" ? "Partial" : "Unpaid"}
                           </span>
                         </td>
 
