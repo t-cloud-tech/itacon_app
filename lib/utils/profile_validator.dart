@@ -110,6 +110,7 @@ class ProfileOrderingValidator {
     final street = (profile.address['line1'] ??
             profile.address['addressLine'] ??
             profile.address['street'] ??
+            profile.address['address'] ??
             '')
         .toString()
         .trim();
@@ -118,26 +119,53 @@ class ProfileOrderingValidator {
     }
 
     // 7. City
-    final city = profile.city.trim();
+    final city = profile.city.trim().isNotEmpty
+        ? profile.city.trim()
+        : (profile.address['city'] ?? profile.address['district'] ?? '')
+            .toString()
+            .trim();
     if (city.isEmpty) {
       missing.add('City');
     }
 
     // 8. State
-    final state = profile.state.trim();
+    final state = profile.state.trim().isNotEmpty
+        ? profile.state.trim()
+        : (profile.address['state'] ?? profile.address['stateCode'] ?? '')
+            .toString()
+            .trim();
     if (state.isEmpty) {
       missing.add('State');
     }
 
     // 9. Valid 6-digit PIN code
-    final pincode = profile.pincode.trim();
+    final pincode = profile.pincode.trim().isNotEmpty
+        ? profile.pincode.trim()
+        : (profile.address['pincode'] ??
+                profile.address['postalCode'] ??
+                profile.address['pin'] ??
+                '')
+            .toString()
+            .trim();
     if (pincode.isEmpty) {
       missing.add('PIN Code');
     } else if (!_pincodeRegex.hasMatch(pincode)) {
       invalid.add('Valid 6-digit PIN Code');
     }
 
-    // 10. GSTIN validation:
+    // 10. Account status check
+    final status = profile.status.trim().toLowerCase();
+    if (status.isNotEmpty &&
+        (status == 'blocked' ||
+            status == 'inactive' ||
+            status == 'suspended' ||
+            status == 'pending' ||
+            status == 'rejected' ||
+            status == 'pending_salesperson_verification')) {
+      invalid.add('Active Account Status');
+    }
+
+    // 11. GSTIN validation:
     // Follow confirmed ITACON business policy:
     // Do NOT automatically require GSTIN solely because the customer is a wholesaler, dealer, or trader.
     // If GSTIN is provided, validate its 15-character format.

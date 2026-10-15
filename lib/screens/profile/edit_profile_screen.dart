@@ -12,7 +12,8 @@ import '../../widgets/app_avatar_image.dart';
 /// Full-Screen Edit Profile featuring Keyboard Overflow Fix, Avatar Picker,
 /// and Showroom/Store Display Showcase Gallery.
 class EditProfileScreen extends StatefulWidget {
-  const EditProfileScreen({super.key});
+  final FirestoreService? firestoreService;
+  const EditProfileScreen({super.key, this.firestoreService});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -20,7 +21,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final AppStateService _appState = AppStateService.instance;
-  final FirestoreService _firestoreService = FirestoreService.instance;
+  late final FirestoreService _firestoreService;
 
   late TextEditingController _nameController;
   late TextEditingController _dobController;
@@ -59,6 +60,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _firestoreService = widget.firestoreService ?? FirestoreService.instance;
     final profile = _appState.currentUserProfile;
     _nameController = TextEditingController(text: profile.name);
     _dobController = TextEditingController(text: profile.dateOfBirth);
@@ -587,29 +589,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       'pincode': _pincodeController.text.trim(),
     };
 
-    // Update live AppStateService
-    _appState.updateUserProfileFields(
-      name: _nameController.text.trim(),
-      dateOfBirth: _dobController.text.trim(),
-      religion: _religionController.text.trim(),
-      email: normalizedEmail,
-      phone: _phoneController.text.trim(),
-      companyName: _companyController.text.trim(),
-      userCategory: _selectedCategory ?? '',
-      city: _cityController.text.trim(),
-      state: _stateController.text.trim(),
-      region: _selectedRegion,
-      pincode: _pincodeController.text.trim(),
-      gstNumber: _gstController.text.trim(),
-      profilePhotoUrl: _profilePhotoUrl,
-      showroomImages: _showroomImages,
-      address: updatedAddr,
-    );
-
-    // Save persistent local session
-    await UserSessionService.saveUserSession(_appState.currentUserProfile);
-
-    // Update Firestore database
+    // Update Firestore database first.
+    // AppStateService and UserSessionService are ONLY synchronized AFTER
+    // Firestore confirms persistence to prevent false 100% completion indications.
     try {
       await _firestoreService.updateUserProfileData(
         uid: profile.userId,
@@ -619,7 +601,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         phone: _phoneController.text.trim(),
         email: normalizedEmail,
         companyName: _companyController.text.trim(),
-        role: _selectedCategory ?? '',
+        role: profile.userCategory.isNotEmpty ? profile.userCategory : _selectedCategory,
+        updateRole: false,
         city: _cityController.text.trim(),
         state: _stateController.text.trim(),
         region: _selectedRegion,
@@ -630,26 +613,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         address: updatedAddr,
       );
 
-      await _firestoreService.createUserProfile(
-        uid: profile.userId,
-        phone: _phoneController.text.trim(),
-        name: _nameController.text.trim(),
-        religion: _religionController.text.trim(),
-        dateOfBirth: _dobController.text.trim(),
-        role: _selectedCategory ?? '',
-        email: normalizedEmail,
-        companyName: _companyController.text.trim(),
-        city: _cityController.text.trim(),
-        state: _stateController.text.trim(),
-        pincode: _pincodeController.text.trim(),
-        address: updatedAddr,
-        isVerified: true,
-      );
       await _firestoreService.updateUserRegionAndToken(
         profile.userId,
         region: _selectedRegion,
       );
-    } catch (_) {}
+
+      // Fetch the updated authoritative document from Firestore
+      final freshProfile = await _firestoreService.getUserProfile(profile.userId);
+      if (freshProfile == null) {
+        throw Exception('Failed to reload profile after saving.');
+      }
+
+      // Synchronize in-memory and local session ONLY after confirmed persistence
+      _appState.setCurrentUserProfile(freshProfile);
+      await UserSessionService.saveUserSession(freshProfile);
+    } catch (e) {
+      debugPrint('[EditProfileScreen] Error saving profile to Firestore: $e');
+      if (mounted) {
+        // Form field controllers are preserved so customer data is not lost
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save profile: $e'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+      return;
+    }
 
     setState(() => _isSaving = false);
 

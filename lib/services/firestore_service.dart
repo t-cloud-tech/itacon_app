@@ -508,6 +508,7 @@ class FirestoreService {
     String? countryCode,
     String? companyName,
     String? role,
+    bool updateRole = false,
     String? city,
     String? state,
     String? region,
@@ -551,32 +552,70 @@ class FirestoreService {
         updateData['rawPhone'] = phoneParts['nationalNumber']!;
       }
       if (companyName != null) updateData['companyName'] = companyName.trim();
-      if (role != null && role.isNotEmpty) {
-        updateData['userCategory'] = role;
-        updateData['role'] = role;
+
+      // Only write privileged role/userCategory fields if explicitly authorized
+      if (updateRole && role != null && role.isNotEmpty) {
+        updateData['userCategory'] = role.trim();
+        updateData['role'] = role.trim();
       }
-      if (city != null) updateData['city'] = city.trim();
-      if (state != null) updateData['state'] = state.trim();
+
+      // Bidirectional address normalization:
+      final resolvedCity = (city != null && city.trim().isNotEmpty)
+          ? city.trim()
+          : (address != null ? (address['city'] ?? address['district'] ?? '').toString().trim() : null);
+      if (resolvedCity != null && resolvedCity.isNotEmpty) {
+        updateData['city'] = resolvedCity;
+      }
+
+      final resolvedState = (state != null && state.trim().isNotEmpty)
+          ? state.trim()
+          : (address != null ? (address['state'] ?? address['stateCode'] ?? '').toString().trim() : null);
+      if (resolvedState != null && resolvedState.isNotEmpty) {
+        updateData['state'] = resolvedState;
+      }
+
+      final resolvedPincode = (pincode != null && pincode.trim().isNotEmpty)
+          ? pincode.trim()
+          : (address != null ? (address['pincode'] ?? address['postalCode'] ?? address['pin'] ?? '').toString().trim() : null);
+      if (resolvedPincode != null && resolvedPincode.isNotEmpty) {
+        updateData['pincode'] = resolvedPincode;
+      }
+
       if (region != null && region.isNotEmpty) updateData['region'] = region.trim();
-      if (pincode != null) updateData['pincode'] = pincode.trim();
       if (gstNumber != null) updateData['gstNumber'] = gstNumber.trim();
       if (profilePhotoUrl != null) {
         updateData['profilePhotoUrl'] = profilePhotoUrl;
         updateData['avatarUrl'] = profilePhotoUrl;
       }
       if (showroomImages != null) updateData['showroomImages'] = showroomImages;
-      if (address != null) updateData['address'] = address;
 
-      // 1. If role/category changed, atomically migrate category mirror:
-      //    a. Read old category from master users/{uid}
-      //    b. Delete old category mirror document (e.g. retailers/{uid})
-      //    c. Create new category mirror document (e.g. architects/{uid})
-      //    d. Update master profile users/{uid}.userCategory = newRole
-      if (role != null) {
-        final cleanRole = role.trim();
-        if (cleanRole.isEmpty) {
-          throw ArgumentError('Category cannot be empty.');
+      if (address != null) {
+        final Map<String, dynamic> canonicalAddress = Map<String, dynamic>.from(address);
+        final street = (canonicalAddress['line1'] ??
+                canonicalAddress['addressLine'] ??
+                canonicalAddress['street'] ??
+                canonicalAddress['address'] ??
+                '')
+            .toString()
+            .trim();
+        if (street.isNotEmpty) {
+          canonicalAddress['line1'] = street;
         }
+        if (resolvedCity != null && resolvedCity.isNotEmpty) {
+          canonicalAddress['city'] = resolvedCity;
+        }
+        if (resolvedState != null && resolvedState.isNotEmpty) {
+          canonicalAddress['state'] = resolvedState;
+        }
+        if (resolvedPincode != null && resolvedPincode.isNotEmpty) {
+          canonicalAddress['pincode'] = resolvedPincode;
+        }
+        updateData['address'] = canonicalAddress;
+      }
+
+      // If updating role and category changed, migrate category mirror atomically
+      if (updateRole && role != null && role.trim().isNotEmpty) {
+        final cleanRole = role.trim();
         final newCatCol = _getCategoryCollectionName(cleanRole);
 
         String? oldCatCol;
@@ -600,27 +639,40 @@ class FirestoreService {
         catUpdateData.remove('fcmTokenUpdatedAt');
         catUpdateData['userId'] = uid;
         catUpdateData['uid'] = uid;
-        catUpdateData['userCategory'] = role;
-        catUpdateData['categoryLabel'] = UserCategory.getLabel(role);
+        catUpdateData['userCategory'] = cleanRole;
+        catUpdateData['categoryLabel'] = UserCategory.getLabel(cleanRole);
 
         final batch = _db.batch();
-        // Delete old category mirror if category changed
         if (oldCatCol != null) {
           batch.delete(_db.collection(oldCatCol).doc(uid));
         }
-        // Write new category mirror
         batch.set(_db.collection(newCatCol).doc(uid), catUpdateData, SetOptions(merge: true));
-        // Update authoritative master users/{uid}
         batch.set(_usersRef.doc(uid), updateData, SetOptions(merge: true));
-
         await batch.commit();
       } else {
+        // Standard user update: update users/{uid} and mirror if category collection is known
         await _usersRef.doc(uid).set(updateData, SetOptions(merge: true));
+
+        // Mirror non-privileged updates to category collection if user has one
+        try {
+          final effectiveCat = (role != null && role.trim().isNotEmpty) ? role.trim() : null;
+          if (effectiveCat != null) {
+            final catCol = _getCategoryCollectionName(effectiveCat);
+            final catUpdateData = Map<String, dynamic>.from(updateData);
+            catUpdateData.remove('password');
+            catUpdateData.remove('passwordHash');
+            catUpdateData.remove('passwordSalt');
+            catUpdateData.remove('fcmToken');
+            catUpdateData.remove('fcmTokenUpdatedAt');
+            await _db.collection(catCol).doc(uid).set(catUpdateData, SetOptions(merge: true));
+          }
+        } catch (_) {}
       }
     } on ArgumentError {
       rethrow;
     } catch (e) {
-      // Graceful error handling in case offline/test mock
+      debugPrint('[FirestoreService] updateUserProfileData error: $e');
+      rethrow;
     }
   }
 

@@ -290,10 +290,31 @@ class AppStateService extends ChangeNotifier {
     if (p.email.trim().isNotEmpty) count++;
     if (p.companyName.trim().isNotEmpty) count++;
     if (p.gstNumber.trim().isNotEmpty) count++;
-    if (p.address.isNotEmpty) count++;
-    if (p.city.trim().isNotEmpty) count++;
-    if (p.state.trim().isNotEmpty) count++;
-    if (p.pincode.trim().isNotEmpty) count++;
+    final street = (p.address['line1'] ??
+            p.address['addressLine'] ??
+            p.address['street'] ??
+            p.address['address'] ??
+            '')
+        .toString()
+        .trim();
+    if (p.address.isNotEmpty || street.isNotEmpty) count++;
+    final city = p.city.trim().isNotEmpty
+        ? p.city.trim()
+        : (p.address['city'] ?? p.address['district'] ?? '').toString().trim();
+    if (city.isNotEmpty) count++;
+    final state = p.state.trim().isNotEmpty
+        ? p.state.trim()
+        : (p.address['state'] ?? p.address['stateCode'] ?? '').toString().trim();
+    if (state.isNotEmpty) count++;
+    final pincode = p.pincode.trim().isNotEmpty
+        ? p.pincode.trim()
+        : (p.address['pincode'] ??
+                p.address['postalCode'] ??
+                p.address['pin'] ??
+                '')
+            .toString()
+            .trim();
+    if (pincode.isNotEmpty) count++;
     return count;
   }
 
@@ -335,16 +356,37 @@ class AppStateService extends ChangeNotifier {
     if (p.companyName.trim().isEmpty) {
       pending.add({'title': 'Company / Firm Name', 'field': 'companyName', 'points': '9%'});
     }
-    if (p.address.isEmpty) {
+    final street = (p.address['line1'] ??
+            p.address['addressLine'] ??
+            p.address['street'] ??
+            p.address['address'] ??
+            '')
+        .toString()
+        .trim();
+    if (p.address.isEmpty && street.isEmpty) {
       pending.add({'title': 'Street Address', 'field': 'address', 'points': '9%'});
     }
-    if (p.city.trim().isEmpty) {
+    final city = p.city.trim().isNotEmpty
+        ? p.city.trim()
+        : (p.address['city'] ?? p.address['district'] ?? '').toString().trim();
+    if (city.isEmpty) {
       pending.add({'title': 'City', 'field': 'city', 'points': '9%'});
     }
-    if (p.state.trim().isEmpty) {
+    final state = p.state.trim().isNotEmpty
+        ? p.state.trim()
+        : (p.address['state'] ?? p.address['stateCode'] ?? '').toString().trim();
+    if (state.isEmpty) {
       pending.add({'title': 'State', 'field': 'state', 'points': '9%'});
     }
-    if (p.pincode.trim().isEmpty) {
+    final pincode = p.pincode.trim().isNotEmpty
+        ? p.pincode.trim()
+        : (p.address['pincode'] ??
+                p.address['postalCode'] ??
+                p.address['pin'] ??
+                '')
+            .toString()
+            .trim();
+    if (pincode.isEmpty) {
       pending.add({'title': 'PIN Code', 'field': 'pincode', 'points': '9%'});
     }
     if (p.gstNumber.trim().isEmpty) {

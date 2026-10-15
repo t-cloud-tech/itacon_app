@@ -7,11 +7,17 @@ import '../utils/profile_validator.dart';
 /// Service handling Order and Estimate submission with automatic logistics metrics
 class OrderService {
   static final OrderService instance = OrderService._internal();
-  OrderService._internal();
+  final FirestoreService _firestore;
 
-  factory OrderService() => instance;
+  OrderService._internal([FirestoreService? firestore])
+      : _firestore = firestore ?? FirestoreService.instance;
 
-  final FirestoreService _firestore = FirestoreService.instance;
+  factory OrderService({FirestoreService? firestore}) {
+    if (firestore != null) {
+      return OrderService._internal(firestore);
+    }
+    return instance;
+  }
 
   /// Submits a Purchase Order to Firestore with automatic tonnage & box count tracking
   Future<TileOrder> submitOrder({
@@ -41,6 +47,7 @@ class OrderService {
     final latestProfile = await _firestore.getUserProfile(userId);
     final targetProfile = latestProfile ?? AppStateService.instance.currentUserProfile;
     final eligibility = ProfileOrderingValidator.validate(targetProfile);
+
     if (!eligibility.isEligible) {
       throw Exception(
         'Order submission blocked: Mandatory customer profile details are missing or invalid (${eligibility.allIssues.join(", ")}). Please complete your profile.',

@@ -253,6 +253,7 @@ class TestSalespersonFirestoreService extends FirestoreService {
     String? countryCode,
     String? companyName,
     String? role,
+    bool updateRole = false,
     String? city,
     String? state,
     String? region,

@@ -1326,29 +1326,9 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                           'pincode': newPincode,
                         };
 
-                        // Update live AppStateService
-                        AppStateService.instance.updateUserProfileFields(
-                          name: newName.isNotEmpty ? newName : null,
-                          religion: newReligion,
-                          dateOfBirth: newDob,
-                          email: newEmail,
-                          phone: newPhone.isNotEmpty ? newPhone : null,
-                          companyName: newCompany,
-                          userCategory: _selectedCategory,
-                          city: newCity,
-                          state: newState,
-                          region: _selectedRegion,
-                          pincode: newPincode,
-                          gstNumber: newGst,
-                          address: updatedAddr,
-                        );
-
-                        // Save to persistent SharedPreferences session
-                        await UserSessionService.saveUserSession(
-                          AppStateService.instance.currentUserProfile,
-                        );
-
-                        // Update Firestore in background
+                        // Update Firestore database first.
+                        // AppStateService and UserSessionService are ONLY synchronized AFTER
+                        // Firestore confirms persistence to prevent false 100% completion indications.
                         try {
                           await FirestoreService.instance.updateUserProfileData(
                             uid: widget.profile.userId,
@@ -1356,44 +1336,48 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                             religion: newReligion,
                             dateOfBirth: newDob,
                             phone: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
-                            role: _selectedCategory,
+                            role: widget.profile.userCategory.isNotEmpty ? widget.profile.userCategory : _selectedCategory,
+                            updateRole: false,
                             email: newEmail,
                             companyName: newCompany,
                             city: newCity,
                             state: newState,
                             region: _selectedRegion,
                             pincode: newPincode,
+                            gstNumber: newGst,
                             address: updatedAddr,
-                          );
-                          await FirestoreService().createUserProfile(
-                            uid: widget.profile.userId,
-                            phone: newPhone.isNotEmpty ? newPhone : widget.profile.phone,
-                            name: newName.isNotEmpty ? newName : widget.profile.name,
-                            religion: newReligion,
-                            dateOfBirth: newDob,
-                            role: _selectedCategory,
-                            email: newEmail,
-                            companyName: newCompany,
-                            city: newCity,
-                            state: newState,
-                            pincode: newPincode,
-                            address: updatedAddr,
-                            isVerified: true,
                           );
                           await FirestoreService.instance.updateUserRegionAndToken(
                             widget.profile.userId,
                             region: _selectedRegion,
                           );
-                        } catch (_) {}
+                          final freshProfile = await FirestoreService.instance.getUserProfile(widget.profile.userId);
+                          if (freshProfile == null) {
+                            throw Exception('Failed to reload profile after saving.');
+                          }
 
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Profile details updated successfully!'),
-                              backgroundColor: AppTheme.primaryNavy,
-                            ),
-                          );
+                          AppStateService.instance.setCurrentUserProfile(freshProfile);
+                          await UserSessionService.saveUserSession(freshProfile);
+
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Profile details updated successfully!'),
+                                backgroundColor: AppTheme.primaryNavy,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('[ProfileScreen] Error updating profile: $e');
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Failed to save profile: $e'),
+                                backgroundColor: AppTheme.statusError,
+                              ),
+                            );
+                          }
                         }
                       },
                       child: const Text('Save Profile Changes'),

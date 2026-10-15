@@ -180,6 +180,20 @@ class UserProfile {
     final isDummyEmail = cleanEmail.startsWith('user_') && cleanEmail.endsWith('@itacon.com');
     final effectiveSpId = salesPersonId ?? assignedSalespersonId;
 
+    final canonicalAddress = Map<String, dynamic>.from(address);
+    if (!canonicalAddress.containsKey('line1') && canonicalAddress.containsKey('addressLine')) {
+      canonicalAddress['line1'] = canonicalAddress['addressLine'];
+    }
+    if (city.isNotEmpty && !canonicalAddress.containsKey('city')) {
+      canonicalAddress['city'] = city;
+    }
+    if (state.isNotEmpty && !canonicalAddress.containsKey('state')) {
+      canonicalAddress['state'] = state;
+    }
+    if (pincode.isNotEmpty && !canonicalAddress.containsKey('pincode')) {
+      canonicalAddress['pincode'] = pincode;
+    }
+
     return {
       'userId': userId,
       'uid': userId,
@@ -207,7 +221,7 @@ class UserProfile {
       'phoneVerified': phoneVerified,
       'emailVerified': emailVerified,
       'whatsappVerified': whatsappVerified,
-      'address': address,
+      'address': canonicalAddress,
       'city': city,
       'state': state,
       'stateCode': state.isNotEmpty && state.length >= 2 ? state.substring(0, 2).toUpperCase() : '',
@@ -232,20 +246,93 @@ class UserProfile {
   }
 
   factory UserProfile.fromMap(Map<String, dynamic> map, String docId) {
-    final rawEmail = (map['email'] as String?)?.trim() ?? '';
+    final rawEmail = (map['email'] as String?)?.trim() ??
+        (map['emailAddress'] as String?)?.trim() ??
+        (map['userEmail'] as String?)?.trim() ??
+        (map['mail'] as String?)?.trim() ??
+        '';
     final safeEmail = (rawEmail.startsWith('user_') && rawEmail.endsWith('@itacon.com')) ? '' : rawEmail;
     final resolvedSpId = map['salesPersonId'] ?? map['assignedSalespersonId'];
     final rawPhone = (map['phone'] != null && (map['phone'] as String).trim().isNotEmpty)
         ? (map['phone'] as String).trim()
-        : (map['phoneNumber'] as String?)?.trim() ?? '';
+        : ((map['phoneNumber'] as String?)?.trim().isNotEmpty == true
+            ? (map['phoneNumber'] as String).trim()
+            : (map['rawPhone'] as String?)?.trim() ?? '');
     final resolvedCountryCode = map['countryCode'] as String? ?? '+91';
+
+    // Robust Address Resolution:
+    // Handles address as Map or String, with bidirectional fallback between top-level and nested fields
+    Map<String, dynamic> parsedAddress = {};
+    if (map['address'] is Map) {
+      parsedAddress = Map<String, dynamic>.from(map['address'] as Map);
+    } else if (map['address'] is String && (map['address'] as String).trim().isNotEmpty) {
+      parsedAddress = {'line1': (map['address'] as String).trim()};
+    }
+
+    final addrLine1 = (parsedAddress['line1'] ??
+            parsedAddress['addressLine'] ??
+            parsedAddress['street'] ??
+            (parsedAddress['address'] is String ? parsedAddress['address'] : '') ??
+            '')
+        .toString()
+        .trim();
+    final rawLine1 = (map['line1'] ??
+            map['addressLine'] ??
+            map['street'] ??
+            (map['address'] is String ? map['address'] : '') ??
+            '')
+        .toString()
+        .trim();
+    final candidateLine1 = addrLine1.isNotEmpty ? addrLine1 : rawLine1;
+    final resolvedLine1 = candidateLine1 == '{}' ? '' : candidateLine1;
+
+    final rawCity = (map['city'] ?? '').toString().trim();
+    final resolvedCity = rawCity.isNotEmpty
+        ? rawCity
+        : (parsedAddress['city'] ?? parsedAddress['district'] ?? '').toString().trim();
+
+    final rawState = (map['state'] ?? map['stateCode'] ?? '').toString().trim();
+    final resolvedState = rawState.isNotEmpty
+        ? rawState
+        : (parsedAddress['state'] ?? parsedAddress['stateCode'] ?? '').toString().trim();
+
+    final rawPincode = (map['pincode'] ?? map['postalCode'] ?? map['pin'] ?? '').toString().trim();
+    final resolvedPincode = rawPincode.isNotEmpty
+        ? rawPincode
+        : (parsedAddress['pincode'] ??
+                parsedAddress['postalCode'] ??
+                parsedAddress['pin'] ??
+                '')
+            .toString()
+            .trim();
+
+    if (resolvedLine1.isNotEmpty) {
+      parsedAddress['line1'] = resolvedLine1;
+      parsedAddress['addressLine'] = resolvedLine1;
+    }
+    if (resolvedCity.isNotEmpty) {
+      parsedAddress['city'] = resolvedCity;
+    }
+    if (resolvedState.isNotEmpty) {
+      parsedAddress['state'] = resolvedState;
+    }
+    if (resolvedPincode.isNotEmpty) {
+      parsedAddress['pincode'] = resolvedPincode;
+    }
+
+    final resolvedCompany = (map['companyName'] ??
+            map['company'] ??
+            map['businessName'] ??
+            '')
+        .toString()
+        .trim();
 
     return UserProfile(
       userId: docId,
-      name: map['name'] ?? map['fullName'] ?? '',
-      religion: map['religion'] ?? '',
-      dateOfBirth: map['dateOfBirth'] ?? map['dob'] ?? '',
-      companyName: map['companyName'] ?? '',
+      name: (map['name'] ?? map['fullName'] ?? '').toString().trim(),
+      religion: (map['religion'] ?? '').toString().trim(),
+      dateOfBirth: (map['dateOfBirth'] ?? map['dob'] ?? '').toString().trim(),
+      companyName: resolvedCompany,
       phone: rawPhone,
       countryCode: resolvedCountryCode,
       email: safeEmail,
@@ -264,13 +351,13 @@ class UserProfile {
       phoneVerified: map['phoneVerified'] ?? map['isVerified'] ?? false,
       emailVerified: map['emailVerified'] ?? false,
       whatsappVerified: map['whatsappVerified'] ?? false,
-      address: Map<String, dynamic>.from(map['address'] ?? {}),
-      city: map['city'] ?? '',
-      state: map['state'] ?? map['stateCode'] ?? '',
+      address: parsedAddress,
+      city: resolvedCity,
+      state: resolvedState,
       region: map['region'] ?? 'West India (Gujarat/Maharashtra)',
       fcmToken: map['fcmToken'] as String?,
-      pincode: map['pincode'] ?? '',
-      gstNumber: map['gstNumber'] ?? map['gstin'] ?? '',
+      pincode: resolvedPincode,
+      gstNumber: (map['gstNumber'] ?? map['gstin'] ?? '').toString().trim(),
       avatarUrl: map['avatarUrl'] ?? map['profilePhotoUrl'] ?? '',
       profilePhotoUrl: map['profilePhotoUrl'] ?? map['avatarUrl'],
       showroomImages: List<String>.from(map['showroomImages'] ?? []),

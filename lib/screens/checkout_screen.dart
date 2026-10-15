@@ -14,6 +14,8 @@ import '../widgets/app_product_image.dart';
 import '../utils/profile_validator.dart';
 import 'order_details_screen.dart';
 import 'profile/edit_profile_screen.dart';
+import '../services/firestore_service.dart';
+import '../services/user_session_service.dart';
 
 
 
@@ -44,15 +46,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void initState() {
     super.initState();
     final profile = AppStateService.instance.currentUserProfile;
-    _addressLineController.text = (profile.address['line1'] ??
+    final street = (profile.address['line1'] ??
             profile.address['addressLine'] ??
             profile.address['street'] ??
+            profile.address['address'] ??
             '')
         .toString();
-    _cityController.text = profile.city;
-    _stateController.text = profile.state;
-    _pincodeController.text = profile.pincode;
+    final city = profile.city.isNotEmpty
+        ? profile.city
+        : (profile.address['city'] ?? profile.address['district'] ?? '').toString();
+    final state = profile.state.isNotEmpty
+        ? profile.state
+        : (profile.address['state'] ?? profile.address['stateCode'] ?? '').toString();
+    final pincode = profile.pincode.isNotEmpty
+        ? profile.pincode
+        : (profile.address['pincode'] ?? profile.address['postalCode'] ?? profile.address['pin'] ?? '').toString();
+
+    _addressLineController.text = street;
+    _cityController.text = city;
+    _stateController.text = state;
+    _pincodeController.text = pincode;
     _gstController.text = profile.gstNumber;
+
+    _refreshProfileIfPossible();
+  }
+
+  Future<void> _refreshProfileIfPossible() async {
+    try {
+      final uid = AppStateService.instance.currentUserProfile.userId;
+      if (uid.isNotEmpty) {
+        final fresh = await FirestoreService.instance.getUserProfile(uid);
+        if (fresh != null && mounted) {
+          AppStateService.instance.setCurrentUserProfile(fresh);
+          await UserSessionService.saveUserSession(fresh);
+          setState(() {});
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -901,18 +931,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.payment_rounded, size: 18, color: AppTheme.primaryNavy),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Payment Method', style: TextStyle(fontSize: 10, color: AppTheme.textSubtle)),
-                      Text(_selectedPaymentMethod, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                    ],
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.payment_rounded, size: 18, color: AppTheme.primaryNavy),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Payment Method', style: TextStyle(fontSize: 10, color: AppTheme.textSubtle)),
+                          Text(
+                            _selectedPaymentMethod,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               TextButton(
                 onPressed: () => setState(() => _currentStep = 2),
@@ -1063,29 +1101,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _handlePlaceOrder(AppStateService appState, UserProfile user) async {
     if (_isSubmitting) return;
 
-    // Validate authoritative profile fields
+    // Validate authoritative customer profile directly
     final latestProfile = appState.currentUserProfile;
-    final activeProfile = latestProfile.copyWith(
-      city: _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : latestProfile.city,
-      state: _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : latestProfile.state,
-      pincode: _pincodeController.text.trim().isNotEmpty ? _pincodeController.text.trim() : latestProfile.pincode,
-      gstNumber: _gstController.text.trim().isNotEmpty ? _gstController.text.trim() : latestProfile.gstNumber,
-      address: {
-        ...latestProfile.address,
-        if (_addressLineController.text.trim().isNotEmpty) 'line1': _addressLineController.text.trim(),
-      },
-    );
-
-    final eligibility = ProfileOrderingValidator.validate(activeProfile);
+    final eligibility = ProfileOrderingValidator.validate(latestProfile);
     if (!eligibility.isEligible) {
       _showIncompleteProfileDialog(context, eligibility);
+      return;
+    }
+
+    // Validate shipping & project site delivery destination
+    final siteStreet = _addressLineController.text.trim();
+    final siteCity = _cityController.text.trim();
+    final siteState = _stateController.text.trim();
+    final sitePincode = _pincodeController.text.trim();
+    if (siteStreet.isEmpty || siteCity.isEmpty || siteState.isEmpty || sitePincode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please provide a complete site delivery address.'),
+          backgroundColor: AppTheme.statusError,
+        ),
+      );
       return;
     }
 
     setState(() => _isSubmitting = true);
 
     final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);
-    final deliveryAddress = '${_addressLineController.text.trim()}, ${_cityController.text.trim()} - ${_pincodeController.text.trim()}, ${_stateController.text.trim()}';
+    final deliveryAddress = '$siteStreet, $siteCity - $sitePincode, $siteState';
 
     final effectiveUserId = user.userId.isNotEmpty
         ? user.userId
