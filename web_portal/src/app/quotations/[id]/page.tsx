@@ -6,9 +6,10 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Quotation } from "@/types";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
+import { BASELINE_QUOTATIONS } from "@/lib/baseline-quotations";
 import { 
   ArrowLeft, 
   Printer, 
@@ -36,29 +37,223 @@ export default function QuotationDetailPage() {
       setIsLoading(true);
       try {
         if (!quoteId) return;
-        const snap = await getDoc(doc(db, "quotations", quoteId));
-        if (snap.exists()) {
-          const qData = { id: snap.id, ...snap.data() } as Quotation;
-          if (qData.orderId) {
+
+        // Clean any prefixes if came from converted order id (po-conv-, quote-conv-, sub-conv-)
+        const cleanId = quoteId.replace(/^(po-conv-|quote-conv-|sub-conv-)/, "");
+
+        // 1. Try direct Firestore document in quotations
+        let foundQuote: Quotation | null = null;
+        try {
+          const snap = await getDoc(doc(db, "quotations", cleanId));
+          if (snap.exists()) {
+            foundQuote = { id: snap.id, ...snap.data() } as Quotation;
+          }
+        } catch (_) {}
+
+        // 2. If not found by doc id, query quotations collection by fields
+        if (!foundQuote) {
+          try {
+            const qCol = collection(db, "quotations");
+            const queries = [
+              query(qCol, where("quotationNumber", "==", cleanId)),
+              query(qCol, where("orderId", "==", cleanId)),
+              query(qCol, where("poNumber", "==", cleanId)),
+            ];
+            for (const qry of queries) {
+              const qSnap = await getDocs(qry);
+              if (!qSnap.empty) {
+                const d = qSnap.docs[0];
+                foundQuote = { id: d.id, ...d.data() } as Quotation;
+                break;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 3. Check baseline quotations
+        if (!foundQuote) {
+          const matchBaseline = BASELINE_QUOTATIONS.find(
+            b => b.id === cleanId || 
+                 b.id === quoteId || 
+                 b.quotationNumber?.toLowerCase() === cleanId.toLowerCase() || 
+                 b.orderId === cleanId || 
+                 b.poNumber?.toLowerCase() === cleanId.toLowerCase() ||
+                 (cleanId.startsWith("ORD-") && b.quotationNumber === cleanId.replace(/^ORD-/, "QT-"))
+          );
+          if (matchBaseline) {
+            foundQuote = { ...matchBaseline };
+          }
+        }
+
+        // 4. Check orders collection in Firestore
+        if (!foundQuote) {
+          try {
+            let oSnap = await getDoc(doc(db, "orders", cleanId));
+            if (!oSnap.exists() && cleanId !== quoteId) {
+              oSnap = await getDoc(doc(db, "orders", quoteId));
+            }
+            if (!oSnap.exists()) {
+              const oCol = collection(db, "orders");
+              const oQrys = [
+                query(oCol, where("poNumber", "==", cleanId)),
+                query(oCol, where("orderReference", "==", cleanId)),
+              ];
+              for (const oq of oQrys) {
+                const snapQ = await getDocs(oq);
+                if (!snapQ.empty) {
+                  oSnap = snapQ.docs[0] as any;
+                  break;
+                }
+              }
+            }
+
+            if (oSnap.exists()) {
+              const oData: any = oSnap.data();
+              if (oData.quotationId) {
+                try {
+                  const qDoc = await getDoc(doc(db, "quotations", oData.quotationId));
+                  if (qDoc.exists()) {
+                    foundQuote = { id: qDoc.id, ...qDoc.data() } as Quotation;
+                  }
+                } catch (_) {}
+              }
+
+              if (!foundQuote) {
+                foundQuote = {
+                  id: cleanId,
+                  quotationNumber: oData.quotationNumber || (oData.poNumber ? oData.poNumber.replace(/^ITC-PO-/, "QT-") : `QT-${cleanId}`),
+                  orderId: oSnap.id,
+                  poNumber: oData.poNumber || cleanId,
+                  customerId: oData.userId || oData.customerId || "cust-1",
+                  customerName: oData.companyName || oData.customerName || "Customer",
+                  customerPhone: oData.customerPhone || "N/A",
+                  salespersonId: oData.salesPersonId || user?.userId || "sp-1",
+                  salespersonName: oData.salespersonName || user?.name || "Senior Sales Executive",
+                  status: oData.status === "confirmed" ? ("accepted" as any) : oData.status === "rejected" ? "rejected" : "approved",
+                  items: oData.items?.map((it: any) => ({
+                    productId: it.productId || "prod-1",
+                    productName: it.productName || "Ceramic Tile",
+                    sku: it.sku || "ITA-TILE",
+                    size: it.size || "600x1200 mm",
+                    quantityBoxes: it.quantityBoxes || 100,
+                    sqftPerBox: it.sqftPerBox || 15.5,
+                    totalSqft: it.totalSqft || it.quantitySqFt || 1550,
+                    weightKg: it.weightKg || 2000,
+                    unitPrice: it.unitPrice || it.basePrice || 500,
+                    discountPercent: it.discountPercent || 0,
+                    effectivePrice: it.effectivePrice || it.unitPrice || it.basePrice || 500,
+                    lineTotal: it.lineTotal || ((it.quantityBoxes || 100) * (it.basePrice || 500)),
+                  })) || [],
+                  subtotal: oData.subtotal || oData.totalAmount || 100000,
+                  discountTotal: oData.discountTotal || 0,
+                  taxPercent: 18,
+                  taxAmount: oData.taxAmount || 18000,
+                  shippingCharge: oData.shippingCharge || 0,
+                  grandTotal: oData.grandTotal || oData.totalAmount || 118000,
+                  totalBoxes: oData.totalBoxes || 100,
+                  totalWeightTons: oData.totalWeightTons || 2,
+                  paymentTerms: oData.paymentTerms || "Advance / Bank Transfer",
+                  validityDays: 15,
+                  expiryDate: "2026-10-31",
+                  requiresSpecialApproval: false,
+                  approvalStatus: "approved",
+                  createdAt: oData.createdAt || new Date().toISOString(),
+                  updatedAt: oData.updatedAt || new Date().toISOString(),
+                };
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 5. Check salesOrders collection in Firestore
+        if (!foundQuote) {
+          try {
+            let sSnap = await getDoc(doc(db, "salesOrders", cleanId));
+            if (!sSnap.exists() && cleanId !== quoteId) {
+              sSnap = await getDoc(doc(db, "salesOrders", quoteId));
+            }
+            if (!sSnap.exists()) {
+              const sCol = collection(db, "salesOrders");
+              const sQrys = [
+                query(sCol, where("orderNumber", "==", cleanId)),
+                query(sCol, where("poNumber", "==", cleanId)),
+              ];
+              for (const sq of sQrys) {
+                const snapQ = await getDocs(sq);
+                if (!snapQ.empty) {
+                  sSnap = snapQ.docs[0] as any;
+                  break;
+                }
+              }
+            }
+
+            if (sSnap.exists()) {
+              const sData: any = sSnap.data();
+              if (sData.quotationId) {
+                try {
+                  const qDoc = await getDoc(doc(db, "quotations", sData.quotationId));
+                  if (qDoc.exists()) {
+                    foundQuote = { id: qDoc.id, ...qDoc.data() } as Quotation;
+                  }
+                } catch (_) {}
+              }
+
+              if (!foundQuote) {
+                foundQuote = {
+                  id: cleanId,
+                  quotationNumber: sData.quotationNumber || (sData.poNumber ? sData.poNumber.replace(/^ITC-PO-/, "QT-") : sData.orderNumber ? sData.orderNumber.replace(/^ORD-/, "QT-") : `QT-${cleanId}`),
+                  orderId: sData.orderId || sSnap.id,
+                  poNumber: sData.poNumber,
+                  customerId: sData.customerId || "cust-1",
+                  customerName: sData.customerName || "Customer",
+                  customerPhone: sData.customerPhone || "N/A",
+                  salespersonId: sData.salespersonId || user?.userId || "sp-1",
+                  salespersonName: sData.salespersonName || user?.name || "Senior Sales Executive",
+                  status: sData.status === "confirmed" ? ("accepted" as any) : "approved",
+                  items: sData.items || [],
+                  subtotal: sData.subtotal || sData.grandTotal || 100000,
+                  discountTotal: 0,
+                  taxPercent: 18,
+                  taxAmount: sData.taxAmount || 0,
+                  shippingCharge: 0,
+                  grandTotal: sData.grandTotal || 100000,
+                  totalBoxes: sData.totalBoxes || 100,
+                  totalWeightTons: sData.totalWeightTons || 2,
+                  paymentTerms: sData.paymentTerms || "Advance / Bank Transfer",
+                  validityDays: 15,
+                  expiryDate: "2026-10-31",
+                  requiresSpecialApproval: false,
+                  approvalStatus: "approved",
+                  createdAt: sData.createdAt || new Date().toISOString(),
+                  updatedAt: sData.updatedAt || new Date().toISOString(),
+                };
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 6. Check order status sync if orderId is attached
+        if (foundQuote) {
+          if (foundQuote.orderId) {
             try {
-              const oSnap = await getDoc(doc(db, "orders", qData.orderId));
+              const oSnap = await getDoc(doc(db, "orders", foundQuote.orderId));
               if (oSnap.exists()) {
                 const oData = oSnap.data();
                 if (oData.status === "confirmed" || oData.status === "rejected") {
-                  qData.status = oData.status === "confirmed" ? ("accepted" as any) : "rejected";
-                  qData.changedByRole = oData.changedByRole || "customer";
-                  qData.rejectedBy = oData.rejectedBy || (oData.status === "rejected" ? "Customer" : undefined);
-                  qData.rejectionReason = oData.rejectionReason;
+                  foundQuote.status = oData.status === "confirmed" ? ("accepted" as any) : "rejected";
+                  foundQuote.changedByRole = oData.changedByRole || "customer";
+                  foundQuote.rejectedBy = oData.rejectedBy || (oData.status === "rejected" ? "Customer" : undefined);
+                  foundQuote.rejectionReason = oData.rejectionReason;
                 }
               }
             } catch (_) {}
           }
-          setQuote(qData);
+          setQuote(foundQuote);
         } else {
           // Fallback baseline quotation
           setQuote({
             id: quoteId,
-            quotationNumber: "QT-2026-104",
+            quotationNumber: cleanId.startsWith("ORD-") ? cleanId.replace(/^ORD-/, "QT-") : `QT-${cleanId}`,
             customerId: "cust-1",
             customerName: "Gujarat Ceramics & Tiles",
             customerPhone: "98250 99881",

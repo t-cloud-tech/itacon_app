@@ -615,6 +615,53 @@ function SalesOrdersContent() {
     p => p.status === "pending_verification"
   ).length;
 
+  // Helper to resolve the quotation detail link for an order in Factory Sales Orders
+  const getOrderQuotationLink = (ord: SalesOrder) => {
+    if (ord.quotationId) return `/quotations/${ord.quotationId}`;
+
+    const matchedQuote = acceptedQuotations.find(q =>
+      (ord.orderId && (q.id === ord.orderId || q.orderId === ord.orderId)) ||
+      (ord.quotationNumber && q.quotationNumber && q.quotationNumber.toLowerCase() === ord.quotationNumber.toLowerCase()) ||
+      (ord.poNumber && q.poNumber && q.poNumber.toLowerCase() === ord.poNumber.toLowerCase()) ||
+      (ord.orderNumber && (q.quotationNumber === ord.orderNumber.replace(/^ORD-/, "QT-") || q.orderId === ord.id))
+    );
+    if (matchedQuote) return `/quotations/${matchedQuote.id}`;
+
+    const matchedPO = clientPOs.find(p =>
+      (ord.orderId && p.id === ord.orderId) ||
+      (ord.poNumber && p.poNumber && p.poNumber.toLowerCase() === ord.poNumber.toLowerCase()) ||
+      (ord.quotationNumber && p.quotationNumber && p.quotationNumber.toLowerCase() === ord.quotationNumber.toLowerCase())
+    );
+    if (matchedPO?.quotationId) return `/quotations/${matchedPO.quotationId}`;
+    if (matchedPO?.id) return `/quotations/${matchedPO.id}`;
+
+    const fallbackKey = ord.quotationNumber || ord.poNumber || ord.orderNumber || ord.orderId || ord.id;
+    return `/quotations/${fallbackKey}`;
+  };
+
+  // Helper to resolve the quotation detail link for a payment submission in Payment Verification
+  const getPaymentQuotationLink = (sub: PaymentSubmissionRecord) => {
+    const subRef = (sub.orderReference || sub.orderId || "").trim();
+
+    const matchedQuote = acceptedQuotations.find(q =>
+      (sub.orderId && (q.id === sub.orderId || q.orderId === sub.orderId)) ||
+      (q.quotationNumber && subRef && q.quotationNumber.toLowerCase() === subRef.toLowerCase()) ||
+      (q.poNumber && subRef && q.poNumber.toLowerCase() === subRef.toLowerCase())
+    );
+    if (matchedQuote) return `/quotations/${matchedQuote.id}`;
+
+    const matchedPO = clientPOs.find(p =>
+      (sub.orderId && p.id === sub.orderId) ||
+      (p.poNumber && subRef && p.poNumber.toLowerCase() === subRef.toLowerCase()) ||
+      (p.quotationNumber && subRef && p.quotationNumber.toLowerCase() === subRef.toLowerCase())
+    );
+    if (matchedPO?.quotationId) return `/quotations/${matchedPO.quotationId}`;
+    if (matchedPO?.id) return `/quotations/${matchedPO.id}`;
+
+    const fallbackKey = sub.orderId || subRef || sub.id;
+    return `/quotations/${fallbackKey}`;
+  };
+
   // Open Proof Viewer Modal
   const handleViewProof = async (sub: PaymentSubmissionRecord) => {
     setViewingProof(sub);
@@ -1035,11 +1082,34 @@ function SalesOrdersContent() {
                     filteredOrders.map((ord) => (
                       <tr key={ord.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-5">
-                          <span className="font-bold text-[#0E274D] block">{ord.orderNumber}</span>
+                          <Link
+                            href={getOrderQuotationLink(ord)}
+                            className="font-bold text-[#0E274D] hover:underline hover:text-[#E66A23] inline-flex items-center space-x-1.5 transition-colors group cursor-pointer"
+                            title="View Quotation Details"
+                          >
+                            <span>{ord.orderNumber}</span>
+                            <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-[#E66A23] transition-colors" />
+                          </Link>
                           {(Boolean(ord.quotationNumber) || Boolean(ord.poNumber)) && (
                             <div className="flex flex-col mt-0.5 text-[11px] text-slate-500 font-medium space-y-0.5">
-                              {ord.quotationNumber && <span className="font-semibold text-slate-700">Quote: {ord.quotationNumber}</span>}
-                              {ord.poNumber && <span>PO: {ord.poNumber}</span>}
+                              {ord.quotationNumber && (
+                                <Link
+                                  href={getOrderQuotationLink(ord)}
+                                  className="font-semibold text-slate-700 hover:text-[#0E274D] hover:underline"
+                                  title="View Quotation Details"
+                                >
+                                  Quote: {ord.quotationNumber}
+                                </Link>
+                              )}
+                              {ord.poNumber && (
+                                <Link
+                                  href={getOrderQuotationLink(ord)}
+                                  className="hover:text-[#0E274D] hover:underline"
+                                  title="View Quotation Details"
+                                >
+                                  PO: {ord.poNumber}
+                                </Link>
+                              )}
                             </div>
                           )}
                           <span className="text-xs text-slate-400 block mt-0.5">
@@ -1135,8 +1205,15 @@ function SalesOrdersContent() {
                       filteredPayments.map((sub) => (
                         <tr key={sub.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-4 px-5">
-                            <span className="font-bold text-[#0E274D] block">{sub.orderReference || sub.orderId}</span>
-                            <span className="text-xs text-slate-400">
+                            <Link
+                              href={getPaymentQuotationLink(sub)}
+                              className="font-bold text-[#0E274D] hover:underline hover:text-[#E66A23] inline-flex items-center space-x-1.5 transition-colors group cursor-pointer"
+                              title="View Quotation Details"
+                            >
+                              <span>{sub.orderReference || sub.orderId}</span>
+                              <ExternalLink className="w-3 h-3 text-slate-400 group-hover:text-[#E66A23] transition-colors" />
+                            </Link>
+                            <span className="text-xs text-slate-400 block mt-0.5">
                               Sub ID: {sub.id.substring(0, 12)}...
                             </span>
                           </td>
@@ -1176,48 +1253,50 @@ function SalesOrdersContent() {
                             </span>
                           </td>
 
-                          <td className="py-4 px-5 text-right space-x-2 whitespace-nowrap">
-                            <button
-                              onClick={() => handleViewProof(sub)}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold inline-flex items-center space-x-1 transition-all cursor-pointer"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>View Proof</span>
-                            </button>
-
-                            {sub.status === "verified" && (
+                          <td className="py-4 px-5 text-right whitespace-nowrap">
+                            <div className="flex flex-col items-end gap-1.5">
                               <button
-                                onClick={() => handleDownloadPaidPo(sub.orderId)}
-                                disabled={downloadingPaidPoId === sub.orderId}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
+                                onClick={() => handleViewProof(sub)}
+                                className="w-32 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold inline-flex items-center justify-center space-x-1 transition-all cursor-pointer"
                               >
-                                <FileText className="w-3.5 h-3.5" />
-                                <span>{downloadingPaidPoId === sub.orderId ? "Opening..." : "Paid PO (PDF)"}</span>
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>View Proof</span>
                               </button>
-                            )}
 
-                            {sub.status === "pending_verification" && (
-                              <>
+                              {sub.status === "verified" && (
                                 <button
-                                  onClick={() => setVerifyingSub(sub)}
-                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
+                                  onClick={() => handleDownloadPaidPo(sub.orderId)}
+                                  disabled={downloadingPaidPoId === sub.orderId}
+                                  className="w-32 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center justify-center space-x-1 shadow-sm transition-all cursor-pointer"
                                 >
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Verify</span>
+                                  <FileText className="w-3.5 h-3.5" />
+                                  <span>{downloadingPaidPoId === sub.orderId ? "Opening..." : "Paid PO (PDF)"}</span>
                                 </button>
+                              )}
 
-                                <button
-                                  onClick={() => {
-                                    setRejectingSub(sub);
-                                    setRejectionReason("");
-                                  }}
-                                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold inline-flex items-center space-x-1 transition-all cursor-pointer"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                  <span>Reject</span>
-                                </button>
-                              </>
-                            )}
+                              {sub.status === "pending_verification" && (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => setVerifyingSub(sub)}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Verify</span>
+                                  </button>
+
+                                  <button
+                                    onClick={() => {
+                                      setRejectingSub(sub);
+                                      setRejectionReason("");
+                                    }}
+                                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg text-xs font-bold inline-flex items-center space-x-1 transition-all cursor-pointer"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" />
+                                    <span>Reject</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))
