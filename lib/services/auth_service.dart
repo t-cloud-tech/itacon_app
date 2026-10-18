@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -25,15 +26,19 @@ class DuplicateAccountException implements Exception {
 
 class AuthService {
   final FirebaseAuth? _customAuth;
+  final FirebaseFunctions? _customFunctions;
   final FirestoreService _firestoreService;
 
   AuthService({
     FirebaseAuth? auth,
     FirestoreService? firestoreService,
+    FirebaseFunctions? functions,
   })  : _customAuth = auth,
+        _customFunctions = functions,
         _firestoreService = firestoreService ?? FirestoreService();
 
   FirebaseAuth get _auth => _customAuth ?? FirebaseAuth.instance;
+  FirebaseFunctions get _functions => _customFunctions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   User? get currentUser {
     try {
@@ -1070,6 +1075,78 @@ class AuthService {
   }
 
   // ============================================================
+  // CUSTOMER USERNAME + PASSWORD LOGIN (SECURE CLOUD FUNCTION)
+  // ============================================================
+
+  /// Authenticates an ITACON customer using Username and Password via secure Cloud Function
+  /// and establishes a genuine Firebase Authentication session using the returned custom token.
+  Future<void> loginCustomerWithUsernamePassword({
+    required String username,
+    required String password,
+    String? referralCode,
+  }) async {
+    final cleanUsername = username.trim();
+    if (cleanUsername.isEmpty) {
+      throw Exception('Please enter your username.');
+    }
+    if (password.trim().isEmpty) {
+      throw Exception('Please enter your password.');
+    }
+
+    isPendingSecondaryValidation.value = true;
+
+    try {
+      final HttpsCallable callable = _functions.httpsCallable('verifyCustomerCredentials');
+      final HttpsCallableResult result = await callable.call<Map<String, dynamic>>({
+        'username': cleanUsername,
+        'password': password.trim(),
+      });
+
+      final data = Map<String, dynamic>.from(result.data as Map);
+      final customToken = data['customToken'] as String?;
+
+      if (customToken == null || customToken.isEmpty) {
+        throw Exception('Authentication failed. Please check your credentials.');
+      }
+
+      // Establish authenticated Firebase Auth session via Custom Token
+      final userCredential = await _auth.signInWithCustomToken(customToken);
+      final firebaseUser = userCredential.user;
+      if (firebaseUser == null) {
+        throw Exception('Failed to initialize authenticated session.');
+      }
+
+      final uid = firebaseUser.uid;
+      _lastRegisteredUid = uid;
+
+      // Hydrate customer profile
+      final userMap = await _firestoreService.getUserDocument(uid);
+      if (userMap != null) {
+        final profile = UserProfile.fromMap(userMap, uid);
+        await UserSessionService.saveUserSession(profile);
+        AppStateService.instance.setCurrentUserProfile(profile);
+      }
+
+      // Referral code linking (if provided)
+      if (referralCode != null && referralCode.trim().isNotEmpty) {
+        await verifyAndLinkReferralCode(
+          referralCode.trim(),
+          clientName: userMap?['name'] ?? cleanUsername,
+          clientPhone: userMap?['phone'] ?? '',
+        );
+      }
+
+      isPendingSecondaryValidation.value = false;
+    } on FirebaseFunctionsException catch (e) {
+      isPendingSecondaryValidation.value = false;
+      throw Exception(e.message ?? 'Invalid username or password. Please check your credentials and try again.');
+    } catch (e) {
+      isPendingSecondaryValidation.value = false;
+      rethrow;
+    }
+  }
+
+  // ============================================================
   // EXISTING PASSWORD LOGIN
   // ============================================================
 
@@ -1112,6 +1189,16 @@ class AuthService {
         smsCode: smsCode,
         password: password,
         username: user,
+        referralCode: referralCode,
+      );
+      return;
+    }
+
+    // If username and password are provided without OTP, perform customer username/password login
+    if (username != null && username.trim().isNotEmpty) {
+      await loginCustomerWithUsernamePassword(
+        username: username.trim(),
+        password: password,
         referralCode: referralCode,
       );
       return;

@@ -8,9 +8,12 @@ import '../services/auth_service.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_session_service.dart';
+import '../services/app_state_service.dart';
+import '../models/user_profile.dart';
 import '../widgets/interactive_pressable.dart';
 import 'referral_gate_screen.dart';
 import 'main_navigation_screen.dart';
+import 'auth_gate.dart';
 import 'auth/forgot_password_screen.dart';
 
 enum AuthViewMode { choice, login, signup }
@@ -41,82 +44,12 @@ class _AuthScreenState extends State<AuthScreen> {
   final _loginPasswordController = TextEditingController();
   final _loginReferralCodeController = TextEditingController();
 
-  String _loginE164Phone = '';
   String _regE164Phone = '';
 
   final _loginFormKey = GlobalKey<FormState>();
 
-  // Login Step & OTP state
+  // Login Step
   int _loginStep = 1;
-  bool _loginOtpSent = false;
-  bool _isLoginSendingOtp = false;
-
-  void _requestLoginOtp() async {
-    if (_isLoginSendingOtp) return;
-    final rawPhone = _loginPhoneController.text.trim();
-
-    if (rawPhone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid mobile number.'),
-        ),
-      );
-      return;
-    }
-
-    final formattedPhone = _loginE164Phone.isNotEmpty
-        ? _loginE164Phone
-        : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
-
-    setState(() => _isLoginSendingOtp = true);
-
-    await _authService.sendOtp(
-      phoneNumber: formattedPhone,
-
-      // IMPORTANT:
-      // On first request this is null.
-      // On Resend this contains Firebase's resend token.
-      forceResendingToken: _resendToken,
-
-      onCodeSent: (verId, resendToken) {
-        if (!mounted) return;
-
-        setState(() {
-          _verificationId = verId;
-          _resendToken = resendToken;
-          _loginOtpSent = true;
-          _isLoginSendingOtp = false;
-
-          // Remove the previous OTP from the input field.
-          _loginOtpController.clear();
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'OTP sent successfully! Please check your SMS.',
-            ),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      },
-
-      onAutoRetrievalTimeout: (verId) {
-        if (!mounted) return;
-        _verificationId = verId;
-      },
-
-      onError: (err) {
-        if (!mounted) return;
-
-        setState(() => _isLoginSendingOtp = false);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(err)),
-        );
-      },
-    );
-  }
 
   // Registration Controllers
   final _regFullNameController = TextEditingController();
@@ -148,8 +81,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _viewMode = widget.initialMode;
     _loginStep = 1;
     _signupStep = 1;
-    _loginOtpSent = false;
-    _isLoginSendingOtp = false;
     _otpSent = false;
     _isRegSendingOtp = false;
     _isLoading = false;
@@ -599,36 +530,57 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!_loginFormKey.currentState!.validate()) return;
 
     if (_loginStep == 1) {
-      if (!_loginOtpSent || _loginOtpController.text.trim().isEmpty) {
+      final username = _loginUsernameController.text.trim();
+      final password = _loginPasswordController.text.trim();
+
+      if (username.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please request and enter the 6-digit OTP code sent to your mobile.')),
-        );
-        return;
-      }
-      if (_loginOtpController.text.trim().length < 6) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter the complete 6-digit OTP code.')),
+          const SnackBar(content: Text('Please enter your username.')),
         );
         return;
       }
 
-      // Verify OTP + username/password credentials directly on Step 1
+      if (password.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your password.')),
+        );
+        return;
+      }
+
+      // Verify customer username/password credentials directly on Step 1
       setState(() => _isLoading = true);
       try {
-        final rawPhone = _loginPhoneController.text.trim();
-        final formattedPhone = _loginE164Phone.isNotEmpty
-            ? _loginE164Phone
-            : (rawPhone.startsWith('+') ? rawPhone : '+91$rawPhone');
-
-        await _authService.loginWithPhoneOtpAndCredentials(
-          phoneNumber: formattedPhone,
-          verificationId: _verificationId ?? '',
-          smsCode: _loginOtpController.text.trim(),
-          password: _loginPasswordController.text.trim(),
-          username: _loginUsernameController.text.trim(),
+        await _authService.loginCustomerWithUsernamePassword(
+          username: username,
+          password: password,
         );
 
-        // Only transition to Step 2 (Customer Referral Code) if credentials are valid!
+        final currentProfile = AppStateService.instance.hasSessionProfile
+            ? AppStateService.instance.currentUserProfile
+            : null;
+
+        final bool alreadyHasSalesperson = currentProfile != null &&
+            ((currentProfile.salesPersonId != null && currentProfile.salesPersonId!.trim().isNotEmpty) ||
+             (currentProfile.assignedSalespersonId != null && currentProfile.assignedSalespersonId!.trim().isNotEmpty));
+
+        if (alreadyHasSalesperson) {
+          // Customers who completed referral verification enter app directly without redundant prompt
+          await NotificationService.saveCurrentUserToken();
+          setState(() => _isLoading = false);
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
+          );
+
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+          );
+          return;
+        }
+
+        // Only transition to Step 2 (Customer Referral Code) if salesperson verification is pending!
         setState(() {
           _isLoading = false;
           _loginStep = 2;
@@ -647,7 +599,7 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    // Step 2: Final Submission (Optional Customer Referral Code linking + Direct Access)
+    // Step 2: Final Submission (Optional Customer Referral Code linking + Referral Gate Routing)
     final referralInput = _loginReferralCodeController.text.trim();
 
     setState(() => _isLoading = true);
@@ -661,15 +613,22 @@ class _AuthScreenState extends State<AuthScreen> {
       }
 
       final uid = _authService.currentUser?.uid ?? _authService.currentUid;
+      UserProfile? profile;
       if (uid != null && uid.isNotEmpty) {
-        final profile = await _firestoreService.getUserProfile(uid);
+        profile = await _firestoreService.getUserProfile(uid);
         if (profile != null) {
           await UserSessionService.saveUserSession(profile);
+          AppStateService.instance.setCurrentUserProfile(profile);
         }
         if (profile == null ||
             profile.salesPersonId == null ||
             profile.salesPersonId!.isEmpty) {
           await _authService.autoAssignSalesperson(targetUserId: uid);
+          profile = await _firestoreService.getUserProfile(uid);
+          if (profile != null) {
+            await UserSessionService.saveUserSession(profile);
+            AppStateService.instance.setCurrentUserProfile(profile);
+          }
         }
       }
 
@@ -678,15 +637,24 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
-      );
+      final bool stillRequiresReferral = profile != null &&
+          AuthGate.requiresSalespersonCompletion(profile);
 
-      // DIRECT ACCESS TO APP HOME SCREEN FOR ALL SIGN-IN USERS
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-      );
+      if (stillRequiresReferral) {
+        // Customer requiring referral verification cannot bypass ReferralGateScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -950,7 +918,7 @@ class _AuthScreenState extends State<AuthScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
         children: [
-          _buildLoginTimelineStep(stepNumber: 1, label: 'Account & OTP'),
+          _buildLoginTimelineStep(stepNumber: 1, label: 'Account'),
           Expanded(child: _buildTimelineDashedLine(isPassed: _loginStep > 1)),
           _buildLoginTimelineStep(stepNumber: 2, label: 'Referral Code'),
         ],
@@ -1028,130 +996,16 @@ class _AuthScreenState extends State<AuthScreen> {
         children: [
           const SizedBox(height: 4),
           // Username
-          _buildFieldLabel('Username'),
+          _buildFieldLabel('Username *'),
           _buildCustomInputField(
             controller: _loginUsernameController,
             hintText: 'Enter Username',
             prefixIcon: Icons.person_outline_rounded,
+            validator: (v) => v == null || v.trim().isEmpty
+                ? 'Please enter your username'
+                : null,
           ),
-          const SizedBox(height: 12),
-
-          // Mobile Number + OTP Button
-          _buildFieldLabel('Mobile Number *'),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: IntlPhoneField(
-                  controller: _loginPhoneController,
-                  initialCountryCode: 'IN',
-                  showCountryFlag: true,
-                  showDropdownIcon: true,
-                  dropdownIconPosition: IconPosition.trailing,
-                  dropdownIcon: const Icon(Icons.arrow_drop_down_rounded,
-                      color: AppTheme.primaryNavy, size: 20),
-                  flagsButtonMargin: const EdgeInsets.only(left: 6),
-                  disableLengthCheck: false,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textDark,
-                      fontWeight: FontWeight.w500),
-                  dropdownTextStyle: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textDark,
-                      fontWeight: FontWeight.w600),
-                  decoration: InputDecoration(
-                    hintText: 'Enter Mobile Number',
-                    hintStyle: TextStyle(
-                        fontSize: 12, color: Colors.grey.shade400),
-                    fillColor: Colors.grey.shade50,
-                    filled: true,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 8),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                          color: AppTheme.primaryNavy, width: 2),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: Colors.red, width: 1),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: Colors.red, width: 2),
-                    ),
-                  ),
-                  onChanged: (phone) {
-                    setState(() {
-                      _loginE164Phone = phone.completeNumber;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(
-                height: 48,
-                child: AppPressable(
-                  onTap: (_isLoading || _isLoginSendingOtp)
-                      ? null
-                      : _requestLoginOtp,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: _isLoginSendingOtp
-                          ? const Color(0xFF1B365D).withValues(alpha: 0.5)
-                          : const Color(0xFF1B365D),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: _isLoginSendingOtp
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(
-                            _loginOtpSent ? 'Resend' : 'Send OTP',
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // OTP Field if sent
-          if (_loginOtpSent) ...[
-            _buildFieldLabel('Enter 6-Digit OTP *'),
-            _buildCustomInputField(
-              controller: _loginOtpController,
-              hintText: '• • • • • •',
-              prefixIcon: Icons.pin_outlined,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              validator: (v) => v == null || v.trim().length < 6
-                  ? 'Enter 6-digit OTP'
-                  : null,
-            ),
-            const SizedBox(height: 12),
-          ],
+          const SizedBox(height: 14),
 
           // Password
           _buildFieldLabel('Password *'),
@@ -1183,9 +1037,7 @@ class _AuthScreenState extends State<AuthScreen> {
               onTap: () async {
                 final prefill = _loginUsernameController.text.trim().isNotEmpty
                     ? _loginUsernameController.text.trim()
-                    : (_loginPhoneController.text.trim().isNotEmpty
-                        ? _loginPhoneController.text.trim()
-                        : null);
+                    : null;
                 final resetPhone = await ForgotPasswordScreen.showAsBottomSheet(
                   context,
                   initialPhone: prefill,
@@ -1193,7 +1045,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 if (resetPhone != null && resetPhone.isNotEmpty && mounted) {
                   setState(() {
                     _loginUsernameController.text = resetPhone;
-                    _loginPhoneController.text = resetPhone;
                     _loginPasswordController.clear();
                   });
                 }

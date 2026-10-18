@@ -307,16 +307,15 @@ void main() {
       final passField = find.widgetWithText(TextFormField, 'Enter your password');
 
       expect(usernameField, findsOneWidget);
-      expect(phoneField, findsOneWidget);
+      // Mobile Number is removed from login screen
+      expect(phoneField, findsNothing);
       expect(passField, findsOneWidget);
 
       await tester.enterText(usernameField, 'itacon_user');
-      await tester.enterText(phoneField, '9123456780');
       await tester.enterText(passField, 'Login@Pass1');
       await tester.pumpAndSettle();
 
       expect(tester.widget<TextFormField>(usernameField).controller?.text, equals('itacon_user'));
-      expect(tester.widget<TextFormField>(phoneField).controller?.text, equals('9123456780'));
       expect(tester.widget<TextFormField>(passField).controller?.text, equals('Login@Pass1'));
     });
 

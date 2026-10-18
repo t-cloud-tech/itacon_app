@@ -45,6 +45,10 @@ exports.rejectPaymentCallable = rejectPaymentCallable;
 const { verifyStaffCredentials } = require('./staffAuthEngine');
 exports.verifyStaffCredentials = verifyStaffCredentials;
 
+// Secure Customer Authentication for Flutter Mobile App
+const { verifyCustomerCredentials } = require('./customerAuthEngine');
+exports.verifyCustomerCredentials = verifyCustomerCredentials;
+
 // Official Paid Purchase Order PDF Generation & Secure Download Callables
 const {
   generatePaidPurchaseOrderPdf,

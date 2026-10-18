@@ -69,6 +69,7 @@ class FirestoreService {
 
   FirebaseFirestore get _db => _customDb ?? FirebaseFirestore.instance;
   FirebaseFunctions get _functions => _customFunctions ?? FirebaseFunctions.instanceFor(region: 'us-central1');
+  FirebaseFunctions get functions => _functions;
 
   // ===========================================================================
   // COLLECTION REFERENCES (Matching Official PDF Schema)
@@ -483,6 +484,7 @@ class FirestoreService {
       final updateData = {
         'passwordHash': passwordHash,
         'passwordSalt': passwordSalt,
+        'passwordAlgorithm': 'sha256',
         'passwordUpdatedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
