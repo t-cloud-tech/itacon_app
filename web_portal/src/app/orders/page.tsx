@@ -10,7 +10,7 @@ import { collection, query, where, getDocs, orderBy, onSnapshot, doc, updateDoc 
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { SalesOrder, OrderStatus, PaymentSubmissionRecord, Quotation } from "@/types";
-import { subscribeAllOrders, ClientOrderPO, getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
+import { subscribeAllOrders, ClientOrderPO, getPOStatusLabel } from "@/lib/order-service";
 import {
   Truck,
   Search,
@@ -26,7 +26,6 @@ import {
   ShieldCheck,
   RefreshCw,
   FileSpreadsheet,
-  Smartphone,
   Layers,
   ShoppingBag,
   ArrowRight,
@@ -40,8 +39,8 @@ function SalesOrdersContent() {
   const tabParam = searchParams.get("tab");
   const searchParam = searchParams.get("search");
 
-  const [activeTab, setActiveTab] = useState<"client_pos" | "sales_orders" | "payments">(
-    tabParam === "sales_orders" ? "sales_orders" : tabParam === "payments" ? "payments" : "client_pos"
+  const [activeTab, setActiveTab] = useState<"sales_orders" | "payments">(
+    tabParam === "payments" ? "payments" : "sales_orders"
   );
 
   // Orders State
@@ -52,16 +51,13 @@ function SalesOrdersContent() {
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState(searchParam || "");
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
-  const [isLoadingPOs, setIsLoadingPOs] = useState(true);
 
   // Sync tab & search when URL parameters change
   useEffect(() => {
-    if (tabParam === "sales_orders") {
-      setActiveTab("sales_orders");
-    } else if (tabParam === "payments") {
+    if (tabParam === "payments") {
       setActiveTab("payments");
-    } else if (tabParam === "client_pos") {
-      setActiveTab("client_pos");
+    } else if (tabParam === "sales_orders") {
+      setActiveTab("sales_orders");
     }
     if (searchParam) {
       setSearchTerm(searchParam);
@@ -92,10 +88,8 @@ function SalesOrdersContent() {
 
   // 1. Live real-time subscription to mobile app Client POs in orders collection
   useEffect(() => {
-    setIsLoadingPOs(true);
     const unsubPOs = subscribeAllOrders(user, salesperson, role, (livePOs) => {
       setClientPOs(livePOs);
-      setIsLoadingPOs(false);
     });
 
     return () => unsubPOs();
@@ -587,26 +581,6 @@ function SalesOrdersContent() {
     }
   }, [user, role]);
 
-  // Filtered Client POs
-  const filteredClientPOs = clientPOs.filter(po => {
-    const matchesSearch =
-      po.poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.companyName.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "pending_rate" && (po.status === "pending_rate" || po.status === "submitted" || po.status === "pending_quote")) ||
-      (statusFilter === "pending_admin_approval" && po.status === "pending_admin_approval" && po.adminApprovalStatus !== "approved" && po.adminApprovalStatus !== "rejected") ||
-      (statusFilter === "pending_salesperson_review" && (po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released"))) ||
-      (statusFilter === "admin_rejected" && (po.adminApprovalStatus === "rejected" || (po.status === "pending_salesperson_review" && po.salespersonApprovalStatus === "action_required_revision"))) ||
-      (statusFilter === "rate_quoted" && (po.status === "rate_quoted" || (po as any).status === "sent_to_customer")) ||
-      (statusFilter === "confirmed" && po.status === "confirmed") ||
-      (statusFilter === "rejected" && (po.status === "rejected" || (po as any).status === "declined")) ||
-      po.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
 
   // Filtered Orders
   const filteredOrders = allFactorySalesOrders.filter(o => {
@@ -889,8 +863,8 @@ function SalesOrdersContent() {
 
   return (
     <DashboardShell
-      title="Orders & Client PO Requests"
-      subtitle="Live purchase orders from customer mobile app, factory sales orders, and bank transfer payment reconciliation"
+      title="Sales Orders"
+      subtitle="Factory sales orders and bank transfer payment reconciliation"
     >
       <div className="space-y-6 max-w-7xl mx-auto">
         {/* Global Alert Messages */}
@@ -916,22 +890,6 @@ function SalesOrdersContent() {
         {/* Navigation Tabs Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-3">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => { setActiveTab("client_pos"); setStatusFilter("all"); setOrderPaymentFilter("all"); setSearchTerm(""); }}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${
-                activeTab === "client_pos"
-                  ? "bg-[#0E274D] text-white shadow-sm"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                }`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Client POs (Mobile App)</span>
-              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "client_pos" ? "bg-orange-500 text-white" : "bg-orange-100 text-orange-800"
-                }`}>
-                {clientPOs.length}
-              </span>
-            </button>
-
             <button
               onClick={() => { setActiveTab("sales_orders"); setStatusFilter("all"); setOrderPaymentFilter("all"); setSearchTerm(""); }}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 cursor-pointer ${
@@ -984,11 +942,9 @@ function SalesOrdersContent() {
               <input
                 type="text"
                 placeholder={
-                  activeTab === "client_pos"
-                    ? "Search client name, company or PO#..."
-                    : activeTab === "sales_orders"
-                      ? "Search order # or customer..."
-                      : "Search PO #, customer, or UTR..."
+                  activeTab === "sales_orders"
+                    ? "Search order # or customer..."
+                    : "Search PO #, customer, or UTR..."
                 }
                 value={activeTab === "payments" ? paymentSearch : searchTerm}
                 onChange={(e) => {
@@ -1004,23 +960,6 @@ function SalesOrdersContent() {
           </div>
 
           <div className="flex items-center space-x-3">
-            {activeTab === "client_pos" && (
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-              >
-                <option value="all">All PO Statuses</option>
-                <option value="pending_rate">Awaiting Quote</option>
-                <option value="pending_admin_approval">Awaiting Admin Approval</option>
-                <option value="pending_salesperson_review">Admin Approved - Sales Action Required</option>
-                <option value="admin_rejected">Admin Rejected - Sales Action Required</option>
-                <option value="rate_quoted">Sent to Customer</option>
-                <option value="confirmed">Accepted by Customer</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            )}
-
             {activeTab === "sales_orders" && (
               <div className="flex flex-wrap items-center gap-2">
                 <select
@@ -1062,166 +1001,6 @@ function SalesOrdersContent() {
             )}
           </div>
         </div>
-
-        {/* VIEW 1: LIVE CLIENT PURCHASE ORDERS (FROM MOBILE APP) */}
-        {activeTab === "client_pos" && (
-          <div className="space-y-4">
-            {isLoadingPOs ? (
-              <div className="p-12 text-center card-luxury">
-                <div className="w-8 h-8 border-2 border-slate-300 border-t-[#0E274D] rounded-full animate-spin mx-auto mb-3" />
-                <p className="text-xs text-slate-500">Connecting to real-time mobile app order feed...</p>
-              </div>
-            ) : filteredClientPOs.length === 0 ? (
-              <div className="p-12 text-center card-luxury space-y-3">
-                <Smartphone className="w-12 h-12 text-slate-300 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-700">No Client Orders Found</h4>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  When your clients submit purchase orders through the ITACON app, they will appear here in real time.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredClientPOs.map((po) => (
-                  <div
-                    key={po.id}
-                    className="card-luxury p-5 flex flex-col md:flex-row md:items-center justify-between gap-5 hover:border-[#0E274D]/30 transition-all"
-                  >
-                    <div className="space-y-2.5 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-extrabold text-sm text-[#0E274D]">{po.poNumber}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold uppercase tracking-wider">
-                          Mobile App PO
-                        </span>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getPOStatusBadgeClass(
-                          po.status,
-                          {
-                            adminApprovalStatus: po.adminApprovalStatus,
-                            salespersonApprovalStatus: po.salespersonApprovalStatus,
-                            changedByRole: po.changedByRole,
-                            rejectedBy: po.rejectedBy,
-                            pricePerSqft: po.pricePerSqft,
-                            adminApprovalRequired: po.adminApprovalRequired,
-                            isOrder: true,
-                          }
-                        )}`}>
-                          {getPOStatusLabel(po.status, {
-                            adminApprovalStatus: po.adminApprovalStatus,
-                            salespersonApprovalStatus: po.salespersonApprovalStatus,
-                            changedByRole: po.changedByRole,
-                            rejectedBy: po.rejectedBy,
-                            pricePerSqft: po.pricePerSqft,
-                            adminApprovalRequired: po.adminApprovalRequired,
-                            isOrder: true,
-                          })}
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          {new Date(po.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                        </span>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
-                        <div className="font-semibold text-slate-900">
-                          Customer: <span className="text-[#0E274D] font-bold">{po.companyName || po.customerName}</span>
-                          {po.customerPhone && <span className="text-slate-500 ml-1.5 font-normal">({po.customerPhone})</span>}
-                        </div>
-                        <div className="text-slate-600 flex items-center space-x-1">
-                          <Layers className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{po.totalBoxes} Boxes ({po.totalWeightTons} Tons)</span>
-                        </div>
-                      </div>
-
-                      {/* Items pill preview */}
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Requested Tile Items:</div>
-                        <div className="space-y-1">
-                          {po.items.map((it, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-xs text-slate-800">
-                              <div className="flex items-center space-x-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#E66A23]" />
-                                <span className="font-medium text-slate-900">{it.productName}</span>
-                                <span className="text-slate-400 font-mono text-[11px]">{it.size}</span>
-                              </div>
-                              <div className="font-bold text-[#0E274D] bg-white px-2 py-0.5 rounded border border-slate-200 text-[11px]">
-                                {it.quantityBoxes} Boxes • {it.quantitySqFt} sqft
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row md:flex-col items-end justify-center gap-2.5 shrink-0 border-t md:border-t-0 pt-3 md:pt-0">
-                      {po.status === "pending_rate" ? (
-                        <Link
-                          href={`/quotations/new?orderId=${po.id}&poNumber=${po.poNumber}&customerId=${po.userId}&name=${encodeURIComponent(po.companyName || po.customerName)}`}
-                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all"
-                        >
-                          <FileSpreadsheet className="w-4 h-4" />
-                          <span>Quote Rates &amp; Discount &rarr;</span>
-                        </Link>
-                      ) : po.status === "pending_admin_approval" ? (
-                        <Link
-                          href="/approvals"
-                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-                        >
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Awaiting Admin Approval (&lt; ₹26.50)</span>
-                        </Link>
-                      ) : po.status === "pending_salesperson_review" || (po.adminApprovalStatus === "approved" && po.salespersonApprovalStatus !== "released") ? (
-                        <Link
-                          href="/approvals"
-                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Admin Approved - Sales Action Required &rarr;</span>
-                        </Link>
-                      ) : po.adminApprovalStatus === "rejected" ? (
-                        <Link
-                          href={`/quotations/new?orderId=${po.id}&poNumber=${po.poNumber}&customerId=${po.userId}&name=${encodeURIComponent(po.companyName || po.customerName)}&revise=true`}
-                          className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
-                        >
-                          <FileSpreadsheet className="w-3.5 h-3.5" />
-                          <span>Admin Rejected - Sales Action Required &rarr;</span>
-                        </Link>
-                      ) : (
-                        <div className="flex flex-col gap-1.5 w-full md:w-auto">
-                          <Link
-                            href={`/quotations/${po.quotationId || po.id}`}
-                            className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition-colors"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            <span>View Quoted Rates</span>
-                          </Link>
-                          {po.paymentStatus === "paid" && (
-                            <button
-                              onClick={() => handleDownloadPaidPo(po.id, po.paidPoDocumentPath)}
-                              disabled={downloadingPaidPoId === po.id}
-                              className="w-full md:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>{downloadingPaidPoId === po.id ? "Opening..." : "Paid PO (PDF)"}</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      <span className="text-[11px] text-slate-400 text-center">
-                        {po.status === "pending_rate"
-                          ? "Quantities locked to PO"
-                          : po.status === "pending_admin_approval"
-                            ? "Awaiting Admin Approval"
-                            : po.adminApprovalStatus === "approved"
-                            ? "Admin Approved - Sales Action Required"
-                            : po.adminApprovalStatus === "rejected"
-                            ? "Admin Rejected - Sales Action Required"
-                            : "Sent to Customer"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* VIEW 2: FACTORY SALES ORDERS */}
         {activeTab === "sales_orders" && (
