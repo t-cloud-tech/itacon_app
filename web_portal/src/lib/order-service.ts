@@ -75,6 +75,10 @@ export interface ClientOrderPO {
   paidPoDocumentPath?: string;
   paidPoStatus?: string;
   paidPoGeneratedAt?: string;
+  totalAmount?: number;
+  grandTotal?: number;
+  subtotal?: number;
+  salespersonName?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -640,6 +644,18 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
     paidPoGeneratedAt: data.paidPoGeneratedAt?.seconds
       ? new Date(data.paidPoGeneratedAt.seconds * 1000).toISOString()
       : (typeof data.paidPoGeneratedAt === "string" ? data.paidPoGeneratedAt : undefined),
+    totalAmount: Number(
+      data.totalAmount ||
+      data.grandTotal ||
+      items.reduce((s, it) => s + (Number(it.lineTotal) || (Number(it.basePrice || it.unitPrice || 0) * Number(it.quantityBoxes || 0))), 0)
+    ),
+    grandTotal: Number(
+      data.grandTotal ||
+      data.totalAmount ||
+      items.reduce((s, it) => s + (Number(it.lineTotal) || (Number(it.basePrice || it.unitPrice || 0) * Number(it.quantityBoxes || 0))), 0)
+    ),
+    subtotal: Number(data.subtotal || data.totalAmount || data.grandTotal || 0),
+    salespersonName: data.salespersonName || "",
     createdAt: data.createdAt?.seconds 
       ? new Date(data.createdAt.seconds * 1000).toISOString()
       : (typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString()),
