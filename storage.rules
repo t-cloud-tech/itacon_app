@@ -7,12 +7,36 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isStaff() {
+    function isAdminOrManager() {
       return isAuthenticated() && (
-        request.auth.token.admin == true ||
-        request.auth.token.role == 'admin' ||
-        request.auth.token.role == 'manager'
+        (('admin' in request.auth.token) && request.auth.token.admin == true) ||
+        (('role' in request.auth.token) && request.auth.token.role in ['admin', 'manager']) ||
+        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) && (
+          (('role' in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager']) ||
+          (('userCategory' in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager'])
+        ))
       );
+    }
+
+    function isStaff() {
+      return isAdminOrManager();
+    }
+
+    function isOwnerProfilePhoto(fileName) {
+      return fileName.matches('^' + request.auth.uid + '(_.*)?\\.(jpg|jpeg|png|webp)$');
+    }
+
+    function isValidProfilePhotoSize() {
+      return request.resource.size <= 5 * 1024 * 1024; // 5 MB maximum
+    }
+
+    function isValidProfilePhotoMimeType() {
+      return request.resource.contentType.matches('image/jpeg') ||
+             request.resource.contentType.matches('image/jpg') ||
+             request.resource.contentType.matches('image/png') ||
+             request.resource.contentType.matches('image/webp');
     }
 
     function isValidReceiptMimeType() {
@@ -39,9 +63,31 @@ service firebase.storage {
     }
 
     // User profile photos uploaded from ITACON app
-    match /user_profiles/{allPaths=**} {
+    // Stored under user_profiles/{fileName}
+    match /user_profiles/{fileName} {
+      // 1. Existing profile photos remain readable for all app users
       allow read: if true;
-      allow write: if isAuthenticated();
+
+      // 2. Profile photo creation and updates (owner or admin/manager):
+      //    - Must be authenticated
+      //    - Allowed for photo owner or authorized admin/manager
+      //    - ALL uploads (including admin/manager) must strictly comply with:
+      //        * Max file size: 5 MB
+      //        * Supported image MIME types: image/jpeg, image/jpg, image/png, image/webp
+      allow create, update: if isAuthenticated() &&
+        isValidProfilePhotoSize() &&
+        isValidProfilePhotoMimeType() &&
+        (isAdminOrManager() || isOwnerProfilePhoto(fileName));
+
+      // 3. Profile photo deletion (owner-only or admin/manager):
+      //    - Customer can delete their own photo (or admin/manager)
+      //    - Customer cannot delete another user's photo
+      //    - Note: In Firebase Storage rules, request.resource is null on delete operations,
+      //      so size and MIME validations must NOT be checked on delete!
+      allow delete: if isAuthenticated() && (
+        isAdminOrManager() ||
+        isOwnerProfilePhoto(fileName)
+      );
     }
 
     // SECURE PRIVATE PAYMENT PROOFS
@@ -52,8 +98,10 @@ service firebase.storage {
       // Read access: owner of the order, assigned salesperson, or admin/manager
       allow read: if isAuthenticated() && (
         isStaff() ||
-        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
-        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid
+        (('userId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid) ||
+        (('salesPersonId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid)
       );
 
       // Create access:
@@ -62,7 +110,8 @@ service firebase.storage {
       // 3. File size must be <= 10 MB
       // 4. Approved MIME types only (JPEG, PNG, WEBP, PDF)
       allow create: if isAuthenticated() &&
-        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid &&
+        (('userId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid) &&
         isDeterministicReceiptName(fileName) &&
         isValidReceiptSize() &&
         isValidReceiptMimeType();
@@ -72,6 +121,31 @@ service firebase.storage {
 
       // Audit trail protection: customer can NEVER delete proof once uploaded
       allow delete: if false;
+    }
+
+    // SECURE OFFICIAL PURCHASE ORDERS
+    // 1. Confirmed PO estimate: purchase_orders/{fileName} (public read for legacy / confirmed PO)
+    match /purchase_orders/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 2. Official Paid PO: purchase_orders/{orderId}/{fileName}
+    //    Private access: strictly restricted to owning customer or authorized staff (admin/manager or assigned salesperson).
+    match /purchase_orders/{orderId}/{fileName} {
+      allow read: if isAuthenticated() && (
+        isAdminOrManager() ||
+        (('userId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid) ||
+        (('customerId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.customerId == request.auth.uid) ||
+        (('salesPersonId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid) ||
+        (('salespersonId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid)
+      );
+      // Strictly no client-side create, overwrite or delete: trusted Cloud Functions only!
+      allow write: if false;
     }
 
     // Deny all other access by default

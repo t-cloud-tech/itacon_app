@@ -35,6 +35,10 @@ class AppAvatarImage extends StatelessWidget {
 
     // 1. Base64 Data URI or raw base64 string
     if (clean.startsWith('data:image') || (clean.startsWith('data:') && clean.contains('base64,'))) {
+      // Memory safety guard: Reject oversized base64 data (>500KB) to prevent UI thread freezing and OOM
+      if (clean.length > 500000) {
+        return fallback;
+      }
       try {
         final commaIdx = clean.indexOf(',');
         final base64String = commaIdx != -1 ? clean.substring(commaIdx + 1) : clean;

@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../utils/payment_receipt_validator.dart';
 import '../theme/app_theme.dart';
@@ -386,6 +388,127 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     }
   }
 
+  Future<void> _handleDownloadPaidPo(TileOrder order) async {
+    // 1. Authoritative verification check
+    final bool isAuthoritativelyPaid = (order.paymentStatus?.toLowerCase() == 'paid' || order.isPaid) &&
+        ((order.paidAmount != null && order.paidAmount! > 0) ||
+         (order.paymentId != null && order.paymentId!.isNotEmpty) ||
+         order.paidAt != null ||
+         order.status.toLowerCase() == 'processing' ||
+         order.status.toLowerCase() == 'completed');
+
+    if (!isAuthoritativelyPaid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Payment verification is required before downloading the Paid PO.'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 2. Customer authorization check - ensure customer can only access their own PO
+    String currentUserId = '';
+    try {
+      currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    } catch (_) {}
+    if (currentUserId.isEmpty) {
+      currentUserId = AppStateService.instance.currentUserProfile.userId;
+    }
+
+    final bool isOwner = currentUserId.isNotEmpty &&
+        (order.userId == currentUserId || order.customerId == currentUserId);
+    final String userRole = AppStateService.instance.currentUserProfile.role.toLowerCase();
+    final bool isStaffUser = userRole == 'admin' || userRole == 'manager' || userRole == 'salesperson' || userRole == 'staff';
+
+    if (!isOwner && !isStaffUser && currentUserId.isNotEmpty && order.userId.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access Denied: You may only download PO documents for your own account.'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 3. Document Preparation State Checks
+    if (order.isPaidPoFailed) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Paid PO generation encountered an issue. Please contact your salesperson or try again shortly.'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (order.isPaidPoGenerating || (order.paidPoDocumentPath == null || order.paidPoDocumentPath!.isEmpty)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your Paid PO is being prepared. Please try again shortly.'),
+            backgroundColor: AppTheme.accentOrange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 4. Secure Retrieval via Signed URL / Private Storage
+    try {
+      String downloadUrl = '';
+
+      // Request authorized 15-minute short-lived signed URL strictly from backend Cloud Function
+      try {
+        final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
+            .httpsCallable('getPaidPoDownloadUrlCallable');
+        final res = await callable.call({'orderId': order.id});
+        if (res.data != null && res.data['downloadUrl'] != null) {
+          downloadUrl = res.data['downloadUrl'].toString();
+        }
+      } catch (fnErr) {
+        debugPrint('[OrderDetailsScreen] Error retrieving authorized signed download URL: $fnErr');
+      }
+
+      if (downloadUrl.isNotEmpty) {
+        final uri = Uri.parse(downloadUrl);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Unable to open PDF document URL.')),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your Paid PO is being prepared. Please try again shortly.'),
+              backgroundColor: AppTheme.accentOrange,
+            ),
+          );
+        }
+      }
+    } catch (err) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download Paid PO: $err'),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<TileOrder?>(
@@ -453,16 +576,35 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           );
         }
 
-        final bool isPendingAdminApproval = order.status == 'pending_admin_approval' ||
-            order.status == 'pending_manager_approval' ||
+        final bool isPaymentPaid = order.isPaid || order.paymentStatus?.toLowerCase() == 'paid';
+        final bool isPaymentPending = order.isPaymentPendingVerification || order.paymentStatus?.toLowerCase() == 'pending_verification';
+        final bool isPaymentRejected = order.isPaymentRejected || order.paymentStatus?.toLowerCase() == 'rejected';
+
+        final String sLower = order.status.toLowerCase();
+        final String dsLower = order.dispatchStatus.toLowerCase();
+
+        final bool isDeliveredOrCompleted = sLower == 'completed' || sLower == 'delivered' || dsLower == 'delivered';
+        final bool isDispatched = sLower == 'dispatched' || dsLower == 'dispatched';
+        final bool isOrderRejected = sLower == 'rejected' || sLower == 'declined' || sLower == 'cancelled';
+
+        final bool isPendingAdminApproval = !isPaymentPaid && !isPaymentPending && !isDeliveredOrCompleted && (
+            sLower == 'pending_admin_approval' ||
+            sLower == 'pending_manager_approval' ||
             order.priceApprovalStatus == 'pending_manager_approval' ||
-            order.priceApprovalStatus == 'pending_admin_approval';
-        final bool isPendingRate = order.isPendingQuoteStage;
-        final bool isRateQuoted = order.isRateQuotedStage;
-        final bool isConfirmed = order.isConfirmedStage;
-        final bool isRejected = order.status == 'rejected' ||
-            order.status == 'declined' ||
-            order.status == 'cancelled';
+            order.priceApprovalStatus == 'pending_admin_approval');
+
+        final bool isPendingSalesReview = !isPaymentPaid && !isPaymentPending && !isDeliveredOrCompleted &&
+            (sLower == 'pending_salesperson_review');
+
+        final bool isRateQuoted = !isPaymentPaid && !isPaymentPending && !isDeliveredOrCompleted && !isPendingAdminApproval && !isPendingSalesReview &&
+            (order.isRateQuotedStage || sLower == 'rate_quoted' || sLower == 'quoted' || sLower == 'rates_quoted' || sLower == 'sent_to_customer');
+
+        final bool isConfirmedOrder = isPaymentPaid || isPaymentPending || isPaymentRejected || isDeliveredOrCompleted || isDispatched ||
+            order.isConfirmedStage || sLower == 'confirmed' || sLower == 'approved' || sLower == 'user_confirmed' || sLower == 'processing';
+
+        final bool isPendingRate = !isPaymentPaid && !isPaymentPending && !isPaymentRejected && !isDeliveredOrCompleted && !isDispatched &&
+            !isRateQuoted && !isOrderRejected && !isConfirmedOrder &&
+            (order.isPendingQuoteStage || sLower == 'pending_rate' || sLower == 'awaiting_quote' || sLower.isEmpty);
 
         return Scaffold(
           backgroundColor: AppTheme.backgroundColor,
@@ -508,7 +650,20 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ],
 
                   // Top Status Alert Banner
-                  _buildStatusBanner(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
+                  _buildStatusBanner(
+                    order,
+                    isPendingRate: isPendingRate,
+                    isPendingAdminApproval: isPendingAdminApproval,
+                    isPendingSalesReview: isPendingSalesReview,
+                    isRateQuoted: isRateQuoted,
+                    isConfirmed: isConfirmedOrder,
+                    isRejected: isOrderRejected,
+                    isPaymentPaid: isPaymentPaid,
+                    isPaymentPending: isPaymentPending,
+                    isPaymentRejected: isPaymentRejected,
+                    isDeliveredOrCompleted: isDeliveredOrCompleted,
+                    isDispatched: isDispatched,
+                  ),
                   const SizedBox(height: 16),
 
                   // Order Summary Header Card
@@ -535,7 +690,19 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   ],
 
                   // Dynamic Action Block at Bottom
-                  _buildDynamicActionBlock(order, isPendingRate, isPendingAdminApproval, isRateQuoted, isConfirmed, isRejected),
+                  _buildDynamicActionBlock(
+                    order,
+                    isPendingRate: isPendingRate,
+                    isPendingAdminApproval: isPendingAdminApproval,
+                    isPendingSalesReview: isPendingSalesReview,
+                    isRateQuoted: isRateQuoted,
+                    isConfirmed: isConfirmedOrder,
+                    isRejected: isOrderRejected,
+                    isPaymentPaid: isPaymentPaid,
+                    isPaymentPending: isPaymentPending,
+                    isPaymentRejected: isPaymentRejected,
+                    isDeliveredOrCompleted: isDeliveredOrCompleted,
+                  ),
                 ],
               ),
             ),
@@ -546,73 +713,120 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildStatusBanner(
-    TileOrder order,
-    bool isPendingRate,
-    bool isPendingAdminApproval,
-    bool isRateQuoted,
-    bool isConfirmed,
-    bool isRejected,
-  ) {
-    Color bannerBg = AppTheme.primaryNavy.withValues(alpha: 0.1);
-    Color bannerBorder = AppTheme.primaryNavy;
-    IconData bannerIcon = Icons.hourglass_top_rounded;
-    String bannerTitle = 'Rate Approval in Progress';
-    String bannerDesc = 'Your assigned salesperson is currently quoting today\'s factory rates.';
+    TileOrder order, {
+    bool? isPendingRate,
+    bool? isPendingAdminApproval,
+    bool? isPendingSalesReview,
+    bool? isRateQuoted,
+    bool? isConfirmed,
+    bool? isRejected,
+    bool? isPaymentPaid,
+    bool? isPaymentPending,
+    bool? isPaymentRejected,
+    bool? isDeliveredOrCompleted,
+    bool? isDispatched,
+  }) {
+    final sLower = order.status.toLowerCase();
+    final dsLower = order.dispatchStatus.toLowerCase();
 
-    final bool isPendingSalesReview = order.status == 'pending_salesperson_review';
+    final bool resolvedPaymentPaid = isPaymentPaid ?? (order.isPaid || order.paymentStatus?.toLowerCase() == 'paid');
+    final bool resolvedPaymentPending = isPaymentPending ?? (order.isPaymentPendingVerification || order.paymentStatus?.toLowerCase() == 'pending_verification');
+    final bool resolvedPaymentRejected = isPaymentRejected ?? (order.isPaymentRejected || order.paymentStatus?.toLowerCase() == 'rejected');
 
-    if (isPendingAdminApproval) {
-      bannerBg = const Color(0xFFFEF3C7);
-      bannerBorder = const Color(0xFFD97706);
-      bannerIcon = Icons.hourglass_bottom_rounded;
-      bannerTitle = 'Awaiting Admin Confirmation';
-      bannerDesc = 'Your salesperson has quoted special rates (< ₹26.50/sq.ft). This Purchase Order is awaiting head-office Admin confirmation before it can be confirmed.';
-    } else if (isPendingSalesReview) {
-      bannerBg = const Color(0xFFFEF3C7);
-      bannerBorder = const Color(0xFFD97706);
-      bannerIcon = Icons.rate_review_rounded;
-      bannerTitle = 'Under Salesperson Review';
-      bannerDesc = 'Admin confirmation has been processed. Your assigned salesperson is reviewing the rate details and will release the quote to your app shortly.';
-    } else if (isRateQuoted) {
-      bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
-      bannerBorder = AppTheme.accentOrange;
-      bannerIcon = Icons.mark_email_unread_rounded;
-      bannerTitle = "Today's Quoted Rates Received";
-      bannerDesc = 'Please review today\'s quoted rates and confirm to finalize your Purchase Order.';
-    } else if (isConfirmed) {
-      if (order.isPaymentPendingVerification) {
-        bannerBg = AppTheme.primaryNavy.withValues(alpha: 0.12);
-        bannerBorder = AppTheme.primaryNavy;
-        bannerIcon = Icons.pending_actions_rounded;
-        bannerTitle = 'Payment Verification in Progress';
-        bannerDesc = 'Your bank transfer details have been submitted and are being verified by our accounts team.';
-      } else if (order.isPaymentRejected) {
-        bannerBg = AppTheme.statusError.withValues(alpha: 0.12);
-        bannerBorder = AppTheme.statusError;
-        bannerIcon = Icons.error_outline_rounded;
-        bannerTitle = 'Payment Verification Failed';
-        bannerDesc = (order.rejectionReason != null && order.rejectionReason!.isNotEmpty)
-            ? 'Reason: ${order.rejectionReason}'
-            : 'Payment verification failed. Please review the details and resubmit proof.';
-      } else if (order.paymentStatus == 'paid') {
-        bannerBg = AppTheme.statusSuccess.withValues(alpha: 0.12);
-        bannerBorder = AppTheme.statusSuccess;
-        bannerIcon = Icons.verified_rounded;
-        bannerTitle = 'Payment Verified & Confirmed';
-        bannerDesc = 'Payment of ₹${(order.paidAmount ?? order.totalAmount).toStringAsFixed(2)} verified. Factory processing in progress.';
-      } else {
-        bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
-        bannerBorder = AppTheme.accentOrange;
-        bannerIcon = Icons.account_balance_wallet_outlined;
-        bannerTitle = 'Payment Required (PO Approved)';
-        bannerDesc = 'Please complete the bank transfer below to proceed with order dispatch.';
-      }
-    } else if (isRejected) {
+    final bool resolvedDeliveredOrCompleted = isDeliveredOrCompleted ?? (sLower == 'completed' || sLower == 'delivered' || dsLower == 'delivered');
+    final bool resolvedDispatched = isDispatched ?? (sLower == 'dispatched' || dsLower == 'dispatched');
+    final bool resolvedOrderRejected = isRejected ?? (sLower == 'rejected' || sLower == 'declined' || sLower == 'cancelled');
+
+    final bool resolvedPendingAdminApproval = isPendingAdminApproval ?? (!resolvedPaymentPaid && !resolvedPaymentPending && !resolvedDeliveredOrCompleted && (
+        sLower == 'pending_admin_approval' ||
+        sLower == 'pending_manager_approval' ||
+        order.priceApprovalStatus == 'pending_manager_approval' ||
+        order.priceApprovalStatus == 'pending_admin_approval'));
+
+    final bool resolvedPendingSalesReview = isPendingSalesReview ?? (!resolvedPaymentPaid && !resolvedPaymentPending && !resolvedDeliveredOrCompleted &&
+        (sLower == 'pending_salesperson_review'));
+
+    final bool resolvedRateQuoted = isRateQuoted ?? (!resolvedPaymentPaid && !resolvedPaymentPending && !resolvedDeliveredOrCompleted &&
+        (order.isRateQuotedStage || sLower == 'rate_quoted' || sLower == 'quoted' || sLower == 'rates_quoted' || sLower == 'sent_to_customer'));
+
+    final bool resolvedConfirmed = isConfirmed ?? (
+        resolvedPaymentPaid || resolvedPaymentPending || resolvedPaymentRejected || resolvedDeliveredOrCompleted || resolvedDispatched ||
+        order.isConfirmedStage || sLower == 'confirmed' || sLower == 'approved' || sLower == 'user_confirmed' || sLower == 'processing');
+
+    Color bannerBg;
+    Color bannerBorder;
+    IconData bannerIcon;
+    String bannerTitle;
+    String bannerDesc;
+
+    if (resolvedDeliveredOrCompleted) {
+      bannerBg = AppTheme.statusSuccess.withValues(alpha: 0.12);
+      bannerBorder = AppTheme.statusSuccess;
+      bannerIcon = Icons.task_alt_rounded;
+      bannerTitle = 'Order Completed';
+      bannerDesc = 'This order has been fulfilled, delivered, and payment has been verified.';
+    } else if (resolvedDispatched) {
+      bannerBg = Colors.teal.withValues(alpha: 0.12);
+      bannerBorder = Colors.teal;
+      bannerIcon = Icons.local_shipping_rounded;
+      bannerTitle = 'Order Dispatched';
+      bannerDesc = 'Your order has been dispatched from our Morbi factory works and is on its way.';
+    } else if (resolvedPaymentPaid) {
+      bannerBg = AppTheme.statusSuccess.withValues(alpha: 0.12);
+      bannerBorder = AppTheme.statusSuccess;
+      bannerIcon = Icons.verified_rounded;
+      bannerTitle = 'Payment Completed — In Production';
+      bannerDesc = 'Your payment has been verified and your order is being processed.';
+    } else if (resolvedPaymentPending) {
+      bannerBg = AppTheme.primaryNavy.withValues(alpha: 0.12);
+      bannerBorder = AppTheme.primaryNavy;
+      bannerIcon = Icons.pending_actions_rounded;
+      bannerTitle = 'Payment Verification in Progress';
+      bannerDesc = 'Your bank transfer details have been submitted and are being verified by our accounts team.';
+    } else if (resolvedPaymentRejected) {
+      bannerBg = AppTheme.statusError.withValues(alpha: 0.12);
+      bannerBorder = AppTheme.statusError;
+      bannerIcon = Icons.error_outline_rounded;
+      bannerTitle = 'Payment Verification Failed';
+      bannerDesc = (order.rejectionReason != null && order.rejectionReason!.isNotEmpty)
+          ? 'Reason: ${order.rejectionReason}'
+          : 'Payment verification failed. Please review the details and resubmit proof.';
+    } else if (resolvedOrderRejected) {
       bannerBg = AppTheme.statusError.withValues(alpha: 0.12);
       bannerBorder = AppTheme.statusError;
       bannerIcon = Icons.cancel_rounded;
       bannerTitle = 'Quotation Estimate Declined';
       bannerDesc = 'You have declined today\'s quoted rates for this Purchase Order.';
+    } else if (resolvedPendingAdminApproval) {
+      bannerBg = const Color(0xFFFEF3C7);
+      bannerBorder = const Color(0xFFD97706);
+      bannerIcon = Icons.hourglass_bottom_rounded;
+      bannerTitle = 'Awaiting Admin Confirmation';
+      bannerDesc = 'Your salesperson has quoted special rates (< ₹26.50/sq.ft). This Purchase Order is awaiting head-office Admin confirmation before it can be confirmed.';
+    } else if (resolvedPendingSalesReview) {
+      bannerBg = const Color(0xFFFEF3C7);
+      bannerBorder = const Color(0xFFD97706);
+      bannerIcon = Icons.rate_review_rounded;
+      bannerTitle = 'Under Salesperson Review';
+      bannerDesc = 'Admin confirmation has been processed. Your assigned salesperson is reviewing the rate details and will release the quote to your app shortly.';
+    } else if (resolvedRateQuoted) {
+      bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
+      bannerBorder = AppTheme.accentOrange;
+      bannerIcon = Icons.mark_email_unread_rounded;
+      bannerTitle = "Today's Quoted Rates Received";
+      bannerDesc = 'Please review today\'s quoted rates and confirm to finalize your Purchase Order.';
+    } else if (resolvedConfirmed) {
+      bannerBg = AppTheme.accentOrange.withValues(alpha: 0.12);
+      bannerBorder = AppTheme.accentOrange;
+      bannerIcon = Icons.account_balance_wallet_outlined;
+      bannerTitle = 'Payment Required (PO Approved)';
+      bannerDesc = 'Please complete the bank transfer below to proceed with order dispatch.';
+    } else {
+      bannerBg = AppTheme.primaryNavy.withValues(alpha: 0.1);
+      bannerBorder = AppTheme.primaryNavy;
+      bannerIcon = Icons.hourglass_top_rounded;
+      bannerTitle = 'Rate Approval in Progress';
+      bannerDesc = 'Your assigned salesperson is currently quoting today\'s factory rates.';
     }
 
     return Container(
@@ -680,9 +894,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                'Date: $createdDateStr',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+              Flexible(
+                child: Text(
+                  'Date: $createdDateStr',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+                  textAlign: TextAlign.right,
+                ),
               ),
             ],
           ),
@@ -916,14 +1133,51 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildDynamicActionBlock(
-    TileOrder order,
-    bool isPendingRate,
-    bool isPendingAdminApproval,
-    bool isRateQuoted,
-    bool isConfirmed,
-    bool isRejected,
-  ) {
-    if (isPendingRate) {
+    TileOrder order, {
+    bool? isPendingRate,
+    bool? isPendingAdminApproval,
+    bool? isPendingSalesReview,
+    bool? isRateQuoted,
+    bool? isConfirmed,
+    bool? isRejected,
+    bool? isPaymentPaid,
+    bool? isPaymentPending,
+    bool? isPaymentRejected,
+    bool? isDeliveredOrCompleted,
+  }) {
+    final sLower = order.status.toLowerCase();
+    final dsLower = order.dispatchStatus.toLowerCase();
+
+    final bool resolvedPaymentPaid = isPaymentPaid ?? (order.isPaid || order.paymentStatus?.toLowerCase() == 'paid');
+    final bool resolvedPaymentPending = isPaymentPending ?? (order.isPaymentPendingVerification || order.paymentStatus?.toLowerCase() == 'pending_verification');
+    final bool resolvedPaymentRejected = isPaymentRejected ?? (order.isPaymentRejected || order.paymentStatus?.toLowerCase() == 'rejected');
+
+    final bool resolvedDeliveredOrCompleted = isDeliveredOrCompleted ?? (sLower == 'completed' || sLower == 'delivered' || dsLower == 'delivered');
+    final bool resolvedDispatched = sLower == 'dispatched' || dsLower == 'dispatched';
+    final bool resolvedOrderRejected = isRejected ?? (sLower == 'rejected' || sLower == 'declined' || sLower == 'cancelled');
+
+    final bool resolvedPendingAdminApproval = isPendingAdminApproval ?? (!resolvedPaymentPaid && !resolvedPaymentPending && !resolvedDeliveredOrCompleted && (
+        sLower == 'pending_admin_approval' ||
+        sLower == 'pending_manager_approval' ||
+        order.priceApprovalStatus == 'pending_manager_approval' ||
+        order.priceApprovalStatus == 'pending_admin_approval'));
+
+    final bool resolvedPendingSalesReview = isPendingSalesReview ?? (!resolvedPaymentPaid && !resolvedPaymentPending && !resolvedDeliveredOrCompleted &&
+        (sLower == 'pending_salesperson_review'));
+
+    final bool resolvedRateQuoted = isRateQuoted ?? (!resolvedPaymentPaid && !resolvedPaymentPending && !resolvedDeliveredOrCompleted &&
+        (order.isRateQuotedStage || sLower == 'rate_quoted' || sLower == 'quoted' || sLower == 'rates_quoted' || sLower == 'sent_to_customer'));
+
+    final bool resolvedConfirmed = isConfirmed ?? (
+        resolvedPaymentPaid || resolvedPaymentPending || resolvedPaymentRejected || resolvedDeliveredOrCompleted || resolvedDispatched ||
+        order.isConfirmedStage || sLower == 'confirmed' || sLower == 'approved' || sLower == 'user_confirmed' || sLower == 'processing');
+
+    final bool resolvedPendingRate = isPendingRate ?? (
+        !resolvedPaymentPaid && !resolvedPaymentPending && !resolvedPaymentRejected && !resolvedDeliveredOrCompleted && !resolvedDispatched &&
+        !resolvedRateQuoted && !resolvedOrderRejected && !resolvedConfirmed &&
+        (order.isPendingQuoteStage || sLower == 'pending_rate' || sLower == 'awaiting_quote' || sLower.isEmpty));
+
+    if (resolvedPendingRate) {
       final bool isPriceApproval = order.status == 'pending_manager_approval' || order.priceApprovalStatus == 'pending_manager_approval';
       return Container(
         width: double.infinity,
@@ -943,8 +1197,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       );
     }
 
-    if (isPendingAdminApproval || order.status == 'pending_salesperson_review') {
-      final bool isReviewDone = order.status == 'pending_salesperson_review';
+    if (resolvedPendingAdminApproval || resolvedPendingSalesReview) {
+      final bool isReviewDone = resolvedPendingSalesReview;
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -978,7 +1232,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       );
     }
 
-    if (isRateQuoted) {
+    if (resolvedRateQuoted) {
       return Column(
         children: [
           Container(
@@ -1046,35 +1300,57 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       );
     }
 
-    if (isConfirmed) {
+    if (resolvedConfirmed) {
+      final String pillLabel;
+      final Color pillColor;
+      if (resolvedDeliveredOrCompleted) {
+        pillLabel = 'Order Completed';
+        pillColor = AppTheme.statusSuccess;
+      } else if (resolvedPaymentPaid) {
+        pillLabel = 'In Production';
+        pillColor = AppTheme.statusSuccess;
+      } else if (resolvedPaymentPending) {
+        pillLabel = 'Payment Verification in Progress';
+        pillColor = AppTheme.primaryNavy;
+      } else if (resolvedPaymentRejected) {
+        pillLabel = 'Payment Verification Failed';
+        pillColor = AppTheme.statusError;
+      } else {
+        pillLabel = 'PO Approved';
+        pillColor = AppTheme.statusSuccess;
+      }
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Builder(
-            builder: (context) {
-              final bool isPaymentComplete = order.isPaid ||
-                  order.paymentStatus?.toLowerCase() == 'paid' ||
-                  order.paymentStatus?.toLowerCase() == 'payment_verified';
-              return Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.statusSuccess.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: pillColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  resolvedPaymentRejected
+                      ? Icons.error_outline_rounded
+                      : (resolvedPaymentPending ? Icons.hourglass_top_rounded : Icons.check_circle_rounded),
+                  color: pillColor,
+                  size: 20,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.check_circle_rounded, color: AppTheme.statusSuccess, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      isPaymentComplete ? 'Confirmed' : 'PO Approved',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.statusSuccess),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    pillLabel,
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: pillColor),
+                  ),
                 ),
-              );
-            },
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -1086,15 +1362,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               icon: const Icon(Icons.picture_as_pdf_rounded, color: Colors.white, size: 20),
-              label: const Text(
-                'Download Official PO (PDF)',
-                style: TextStyle(
+              label: Text(
+                resolvedPaymentPaid ? 'Download Paid PO (PDF)' : 'Download Official PO (PDF)',
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 0.5,
                 ),
               ),
-              onPressed: () => _handleDownloadPdf(order.poDocumentUrl),
+              onPressed: resolvedPaymentPaid
+                  ? () => _handleDownloadPaidPo(order)
+                  : () => _handleDownloadPdf(order.poDocumentUrl),
             ),
           ),
           const SizedBox(height: 20),
@@ -1103,19 +1381,47 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       );
     }
 
+    if (resolvedOrderRejected) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.statusError.withValues(alpha: 0.3)),
+        ),
+        child: const Column(
+          children: [
+            Icon(Icons.cancel_outlined, color: AppTheme.statusError, size: 28),
+            SizedBox(height: 8),
+            Text(
+              'Quotation Estimate Declined',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.statusError),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'This Purchase Order estimate has been declined. Please reach out to your assigned salesperson if you would like to request a new quotation.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container();
   }
 
   Widget _buildPaymentSection(TileOrder order) {
-    if (order.paymentStatus == 'paid') {
+    if (order.isPaid || order.paymentStatus?.toLowerCase() == 'paid' || order.status.toLowerCase() == 'completed' || order.status.toLowerCase() == 'delivered') {
       return _buildPaidSuccessCard(order);
     }
 
-    if (order.isPaymentPendingVerification) {
+    if (order.isPaymentPendingVerification || order.paymentStatus?.toLowerCase() == 'pending_verification') {
       return _buildPendingVerificationCard(order);
     }
 
-    if (order.isPaymentRejected && !_showResubmitForm) {
+    if ((order.isPaymentRejected || order.paymentStatus?.toLowerCase() == 'rejected') && !_showResubmitForm) {
       return _buildRejectedCard(order);
     }
 
@@ -1138,13 +1444,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.verified_rounded, color: AppTheme.statusSuccess, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'PAYMENT VERIFIED & RECEIVED',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.statusSuccess),
+              const Icon(Icons.verified_rounded, color: AppTheme.statusSuccess, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'PAYMENT VERIFIED & RECEIVED',
+                  softWrap: true,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.statusSuccess),
+                ),
               ),
             ],
           ),
@@ -1174,13 +1483,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.hourglass_empty_rounded, color: AppTheme.primaryNavy, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'PAYMENT VERIFICATION IN PROGRESS',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+              const Icon(Icons.hourglass_empty_rounded, color: AppTheme.primaryNavy, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'PAYMENT VERIFICATION IN PROGRESS',
+                  softWrap: true,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                ),
               ),
             ],
           ),
@@ -1188,7 +1500,17 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           _buildDetailRow('Expected / Submitted Amount', '₹${order.totalAmount.toStringAsFixed(2)}', isBold: true),
           _buildDetailRow('Payment Method', 'Bank Transfer (NEFT / RTGS / IMPS)'),
           if (order.paymentSubmissionId != null)
-            _buildDetailRow('Submission Ref', order.paymentSubmissionId!),
+            _buildDetailRow(
+              'Submission Ref',
+              order.paymentSubmissionId!,
+              isCopyable: true,
+              onCopy: () {
+                Clipboard.setData(ClipboardData(text: order.paymentSubmissionId!));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Submission reference copied to clipboard')),
+                );
+              },
+            ),
           const Divider(height: 20),
           const Text(
             "We've received your payment details. Our accounts team will verify the bank credit.",
@@ -1216,13 +1538,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.cancel_outlined, color: AppTheme.statusError, size: 24),
-              SizedBox(width: 8),
-              Text(
-                'PAYMENT VERIFICATION FAILED',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.statusError),
+              const Icon(Icons.cancel_outlined, color: AppTheme.statusError, size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'PAYMENT VERIFICATION FAILED',
+                  softWrap: true,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.statusError),
+                ),
               ),
             ],
           ),
@@ -1452,7 +1777,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Expected Amount (Read-only):', style: TextStyle(fontSize: 12, color: AppTheme.textSubtle)),
+                    const Expanded(
+                      child: Text('Expected Amount (Read-only):', style: TextStyle(fontSize: 12, color: AppTheme.textSubtle)),
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       '₹${order.totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppTheme.primaryNavy),
@@ -1730,22 +2058,55 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    bool isBold = false,
+    bool isCopyable = false,
+    VoidCallback? onCopy,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle)),
-          Flexible(
+          Expanded(
+            flex: 5,
             child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-                color: AppTheme.textDark,
-              ),
+              label,
+              style: const TextStyle(fontSize: 12, color: AppTheme.textSubtle),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 6,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: SelectableText(
+                    value,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                ),
+                if (isCopyable && onCopy != null) ...[
+                  const SizedBox(width: 6),
+                  InkWell(
+                    onTap: onCopy,
+                    borderRadius: BorderRadius.circular(4),
+                    child: const Padding(
+                      padding: EdgeInsets.all(2),
+                      child: Icon(Icons.copy_rounded, size: 14, color: AppTheme.primaryNavy),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

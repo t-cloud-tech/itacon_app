@@ -115,7 +115,11 @@ class UserSessionService {
     await prefs.setString(_keyUserPincode, profile.pincode);
     await prefs.setString(_keyUserGst, profile.gstNumber);
     await prefs.setString(_keyUserAddressJson, jsonEncode(profile.address));
-    if (profile.profilePhotoUrl != null && profile.profilePhotoUrl!.isNotEmpty) {
+    // Safety: Never persist multi-megabyte base64 strings or temporary file paths to SharedPreferences
+    if (profile.profilePhotoUrl != null &&
+        profile.profilePhotoUrl!.isNotEmpty &&
+        !profile.profilePhotoUrl!.startsWith('data:') &&
+        profile.profilePhotoUrl!.length < 2048) {
       await prefs.setString(_keyProfilePhotoUrl, profile.profilePhotoUrl!);
     } else {
       await prefs.remove(_keyProfilePhotoUrl);
@@ -225,7 +229,14 @@ class UserSessionService {
     final state = prefs.getString(_keyUserState) ?? '';
     final pincode = prefs.getString(_keyUserPincode) ?? '';
     final gstNumber = prefs.getString(_keyUserGst) ?? '';
-    final profilePhotoUrl = prefs.getString(_keyProfilePhotoUrl);
+    final rawPhotoUrl = prefs.getString(_keyProfilePhotoUrl);
+    String? profilePhotoUrl = rawPhotoUrl;
+    // Guard against startup crash loop from legacy multi-megabyte base64 strings in SharedPreferences
+    if (profilePhotoUrl != null &&
+        (profilePhotoUrl.startsWith('data:') || profilePhotoUrl.length > 2048)) {
+      profilePhotoUrl = null;
+      await prefs.remove(_keyProfilePhotoUrl);
+    }
     final avatarUrl = prefs.getString(_keyAvatarUrl) ?? '';
     List<String> showroomImages = [];
     final rawShowroom = prefs.getString(_keyShowroomImagesJson);

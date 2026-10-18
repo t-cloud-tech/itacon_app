@@ -7,12 +7,20 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    function isStaff() {
+    function isAdminOrManager() {
       return isAuthenticated() && (
         request.auth.token.admin == true ||
         request.auth.token.role == 'admin' ||
-        request.auth.token.role == 'manager'
+        request.auth.token.role == 'manager' ||
+        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) && (
+          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager'] ||
+          firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager']
+        ))
       );
+    }
+
+    function isStaff() {
+      return isAdminOrManager();
     }
 
     function isValidReceiptMimeType() {
@@ -28,7 +36,7 @@ service firebase.storage {
     }
 
     function isDeterministicReceiptName(fileName) {
-      return fileName.matches('receipt\\.(jpg|jpeg|png|webp|pdf)');
+      return fileName.matches('receipt(_[0-4])?\\.(jpg|jpeg|png|webp|pdf)');
     }
 
     // ITACON Product catalog images (tiles, mockups, adhesives)
@@ -72,6 +80,27 @@ service firebase.storage {
 
       // Audit trail protection: customer can NEVER delete proof once uploaded
       allow delete: if false;
+    }
+
+    // SECURE OFFICIAL PURCHASE ORDERS
+    // 1. Confirmed PO estimate: purchase_orders/{fileName} (public read for legacy / confirmed PO)
+    match /purchase_orders/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // 2. Official Paid PO: purchase_orders/{orderId}/{fileName}
+    //    Private access: strictly restricted to owning customer or authorized staff (admin/manager or assigned salesperson).
+    match /purchase_orders/{orderId}/{fileName} {
+      allow read: if isAuthenticated() && (
+        isAdminOrManager() ||
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid ||
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.customerId == request.auth.uid ||
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid ||
+        firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid
+      );
+      // Strictly no client-side create, overwrite or delete: trusted Cloud Functions only!
+      allow write: if false;
     }
 
     // Deny all other access by default

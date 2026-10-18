@@ -443,6 +443,94 @@ describe('SECTION 2: FIRESTORE RULES VERIFICATION FOR CUSTOMER REGISTRATION', fu
     );
   });
 
+  it('20. Deny: Customer cannot inject backend Paid PO fields during order creation (DENY)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('users').doc(TEST_UID).set({
+        userId: TEST_UID,
+        status: 'active',
+        isVerified: true,
+        phoneVerified: true,
+      });
+    });
+
+    const db = asUser(TEST_UID);
+    const validOrder = {
+      userId: TEST_UID,
+      customerId: TEST_UID,
+      status: 'pending_rate',
+      paymentStatus: 'unpaid',
+      deliveryAddress: '101 Industrial Estate, Morbi',
+    };
+
+    // Attempt to inject paidPoStatus
+    await assertFails(
+      db.collection('orders').doc('ORD_HACK_1').set({
+        ...validOrder,
+        paidPoStatus: 'ready',
+      })
+    );
+
+    // Attempt to inject paidPoError
+    await assertFails(
+      db.collection('orders').doc('ORD_HACK_2').set({
+        ...validOrder,
+        paidPoError: 'Simulated failure',
+      })
+    );
+
+    // Attempt to inject paidPoDocumentPath
+    await assertFails(
+      db.collection('orders').doc('ORD_HACK_3').set({
+        ...validOrder,
+        paidPoDocumentPath: 'purchase_orders/ORD_HACK_3/paid_po.pdf',
+      })
+    );
+
+    // Attempt to inject paidPoGenerationAttemptId
+    await assertFails(
+      db.collection('orders').doc('ORD_HACK_4').set({
+        ...validOrder,
+        paidPoGenerationAttemptId: 'gen_hacked_123',
+      })
+    );
+  });
+
+  it('21. Deny: Client or staff cannot mutate Paid PO fields on order update (DENY)', async () => {
+    const ORDER_ID = 'ORD_EXISTING_101';
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('orders').doc(ORDER_ID).set({
+        userId: TEST_UID,
+        customerId: TEST_UID,
+        salesPersonId: 'SP_STAFF_1',
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        paidPoStatus: 'generating',
+        totalAmount: 50000,
+      });
+    });
+
+    const db = asUser(TEST_UID);
+    // Customer cannot modify paidPoStatus
+    await assertFails(
+      db.collection('orders').doc(ORDER_ID).update({
+        paidPoStatus: 'ready',
+      })
+    );
+
+    const staffDb = testEnv.authenticatedContext('SP_STAFF_1', { role: 'salesperson' }).firestore();
+    // Assigned salesperson cannot mutate paidPoDocumentPath or paidPoError
+    await assertFails(
+      staffDb.collection('orders').doc(ORDER_ID).update({
+        paidPoDocumentPath: 'purchase_orders/ORD_EXISTING_101/paid_po.pdf',
+      })
+    );
+    await assertFails(
+      staffDb.collection('orders').doc(ORDER_ID).update({
+        paidPoError: 'Hacked error',
+      })
+    );
+  });
+
 });
 
 

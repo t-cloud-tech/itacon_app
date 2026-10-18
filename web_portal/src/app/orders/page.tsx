@@ -64,6 +64,7 @@ export default function SalesOrdersPage() {
   const [isRejecting, setIsRejecting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [downloadingPaidPoId, setDownloadingPaidPoId] = useState<string | null>(null);
 
   // 1. Live real-time subscription to mobile app Client POs in orders collection
   useEffect(() => {
@@ -315,6 +316,34 @@ export default function SalesOrdersPage() {
       setActionError(err.message || "Failed to reject payment.");
     } finally {
       setIsRejecting(false);
+    }
+  };
+
+  // Secure Paid PO PDF Download for Authorized Staff
+  const handleDownloadPaidPo = async (orderId: string, poDocumentPath?: string) => {
+    setDownloadingPaidPoId(orderId);
+    setActionError(null);
+    try {
+      let downloadUrl = "";
+      try {
+        const res: any = await invokeCallable("getPaidPoDownloadUrlCallable", { orderId }, "us-central1");
+        if (res.data?.downloadUrl) {
+          downloadUrl = res.data.downloadUrl;
+        }
+      } catch (err: any) {
+        console.error("Failed to retrieve authorized signed URL:", err);
+      }
+
+      if (downloadUrl) {
+        window.open(downloadUrl, "_blank", "noopener,noreferrer");
+      } else {
+        setActionError("The Paid PO document is currently being prepared by the billing system. Please try again shortly.");
+      }
+    } catch (err: any) {
+      console.error("Failed to download Paid PO:", err);
+      setActionError(err.message || "Failed to download Paid PO document.");
+    } finally {
+      setDownloadingPaidPoId(null);
     }
   };
 
@@ -630,13 +659,25 @@ export default function SalesOrdersPage() {
                           <span>Admin Rejected - Sales Action Required &rarr;</span>
                         </Link>
                       ) : (
-                        <Link
-                          href={`/quotations/${po.quotationId || ""}`}
-                          className="w-full md:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View Quoted Rates</span>
-                        </Link>
+                        <div className="flex flex-col gap-1.5 w-full md:w-auto">
+                          <Link
+                            href={`/quotations/${po.quotationId || po.id}`}
+                            className="w-full md:w-auto inline-flex items-center justify-center space-x-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View Quoted Rates</span>
+                          </Link>
+                          {po.paymentStatus === "paid" && (
+                            <button
+                              onClick={() => handleDownloadPaidPo(po.id, po.paidPoDocumentPath)}
+                              disabled={downloadingPaidPoId === po.id}
+                              className="w-full md:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>{downloadingPaidPoId === po.id ? "Opening..." : "Paid PO (PDF)"}</span>
+                            </button>
+                          )}
+                        </div>
                       )}
                       <span className="text-[11px] text-slate-400 text-center">
                         {po.status === "pending_rate"
@@ -831,6 +872,17 @@ export default function SalesOrdersPage() {
                               <span>View Proof</span>
                             </button>
 
+                            {sub.status === "verified" && (
+                              <button
+                                onClick={() => handleDownloadPaidPo(sub.orderId)}
+                                disabled={downloadingPaidPoId === sub.orderId}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1 shadow-sm transition-all cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>{downloadingPaidPoId === sub.orderId ? "Opening..." : "Paid PO (PDF)"}</span>
+                              </button>
+                            )}
+
                             {sub.status === "pending_verification" && (
                               <>
                                 <button
@@ -1013,6 +1065,17 @@ export default function SalesOrdersPage() {
                 >
                   Close
                 </button>
+
+                {viewingProof.status === "verified" && (
+                  <button
+                    onClick={() => handleDownloadPaidPo(viewingProof.orderId)}
+                    disabled={downloadingPaidPoId === viewingProof.orderId}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>{downloadingPaidPoId === viewingProof.orderId ? "Opening..." : "Download Paid PO (PDF)"}</span>
+                  </button>
+                )}
 
                 {viewingProof.status === "pending_verification" && (
                   <div className="flex items-center space-x-2">

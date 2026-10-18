@@ -234,6 +234,18 @@ service cloud.firestore {
              ('referredBy' in data);
     }
 
+    // Deny documents that inject backend-only Paid PO generator metadata
+    function hasPaidPoFields(data) {
+      return ('paidPoStatus' in data && data.paidPoStatus != null) ||
+             ('paidPoDocumentPath' in data && data.paidPoDocumentPath != null) ||
+             ('paidPoGeneratedAt' in data && data.paidPoGeneratedAt != null) ||
+             ('paidPoGeneratingStartedAt' in data && data.paidPoGeneratingStartedAt != null) ||
+             ('paidPoGenerationAttemptId' in data && data.paidPoGenerationAttemptId != null) ||
+             ('paidPoRetryCount' in data && data.paidPoRetryCount != null) ||
+             ('paidPoLastRetryAt' in data && data.paidPoLastRetryAt != null) ||
+             ('paidPoError' in data && data.paidPoError != null);
+    }
+
     // =========================================================================
     // USERS COLLECTION
     // =========================================================================
@@ -292,7 +304,7 @@ service cloud.firestore {
         isStaff()
       );
 
-      allow create: if isAuthenticated() && (
+      allow create: if isAuthenticated() && !hasPaidPoFields(request.resource.data) && (
         ((request.resource.data.userId == request.auth.uid ||
           request.resource.data.customerId == request.auth.uid) &&
          isCustomerProfileOrderReady(request.auth.uid) &&
@@ -314,7 +326,7 @@ service cloud.firestore {
 
       allow update: if isAuthenticated() && (
         ((isAdminOrManager() || isStaff() || isAssignedSalespersonForOrder(resource.data)) &&
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy']) &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['paidAmount', 'paidAt', 'paymentId', 'verifiedAt', 'verifiedBy', 'paidPoDocumentPath', 'paidPoStatus', 'paidPoGeneratedAt', 'paidPoError', 'paidPoGeneratingStartedAt', 'paidPoGenerationAttemptId', 'paidPoRetryCount', 'paidPoLastRetryAt']) &&
          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['paymentStatus']) || request.resource.data.paymentStatus != 'paid')) ||
         ((resource.data.userId == request.auth.uid || resource.data.customerId == request.auth.uid) &&
          (resource.data.status == 'rate_quoted' || resource.data.status == 'sent_to_customer') &&

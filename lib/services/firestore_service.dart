@@ -554,9 +554,12 @@ class FirestoreService {
       if (companyName != null) updateData['companyName'] = companyName.trim();
 
       // Only write privileged role/userCategory fields if explicitly authorized
-      if (updateRole && role != null && role.isNotEmpty) {
-        updateData['userCategory'] = role.trim();
-        updateData['role'] = role.trim();
+      if (role != null) {
+        getCategoryCollectionName(role);
+        if (updateRole && role.isNotEmpty) {
+          updateData['userCategory'] = role.trim();
+          updateData['role'] = role.trim();
+        }
       }
 
       // Bidirectional address normalization:
@@ -1247,23 +1250,26 @@ class FirestoreService {
     String? clientCategory,
   }) async {
     try {
-      final clientDoc = await getUserProfile(clientId);
+      final checks = await Future.wait([
+        getUserProfile(clientId),
+        _salesPersonsRef.doc(salespersonId).get(),
+        _db.collection('Manual_salesperson_assign').doc(clientId).get(),
+        _db.collection('Auto_Assign_User').doc(clientId).get(),
+        _db.collection('client_assignments').where('clientId', isEqualTo: clientId).limit(1).get(),
+        _usersRef.doc(clientId).get(),
+      ]);
 
-      final spDoc = await _salesPersonsRef.doc(salespersonId).get();
+      final clientDoc = checks[0] as UserProfile?;
+      final spDoc = checks[1] as DocumentSnapshot<Map<String, dynamic>>;
       final spData = spDoc.data();
       final spReferralCode = spData?['referralCode'] ?? defaultSalespersonReferralCode;
       final spName = spData?['name'] ?? spData?['fullName'] ?? defaultSalespersonName;
       final spPhone = spData?['phone'] ?? spData?['phoneNumber'] ?? defaultSalespersonPhone;
 
-      final existingManualSnap = await _db.collection('Manual_salesperson_assign').doc(clientId).get();
-      final existingAutoSnap = await _db.collection('Auto_Assign_User').doc(clientId).get();
-      final existingAssignSnap = await _db
-          .collection('client_assignments')
-          .where('clientId', isEqualTo: clientId)
-          .limit(1)
-          .get();
-
-      final rawUserDoc = await _usersRef.doc(clientId).get();
+      final existingManualSnap = checks[2] as DocumentSnapshot;
+      final existingAutoSnap = checks[3] as DocumentSnapshot;
+      final existingAssignSnap = checks[4] as QuerySnapshot<Map<String, dynamic>>;
+      final rawUserDoc = checks[5] as DocumentSnapshot<Map<String, dynamic>>;
       final rawData = rawUserDoc.data();
       final currentAssignedSp = clientDoc?.salesPersonId ??
           rawData?['salesPersonId'] ??

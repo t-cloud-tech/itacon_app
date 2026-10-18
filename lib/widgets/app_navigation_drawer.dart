@@ -1,14 +1,11 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
 import '../models/user_profile.dart';
 import '../services/user_session_service.dart';
+import '../services/profile_photo_service.dart';
 import '../screens/product_listing_screen.dart';
 import '../screens/categories_screen.dart';
 import '../screens/cart_screen.dart';
@@ -263,12 +260,17 @@ class AppNavigationDrawer extends StatelessWidget {
                                     color: Colors.white,
                                   ),
                                 ),
-                                Text(
-                                  '$filledCount / $totalCount data profile is filled in',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white.withValues(alpha: 0.85),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '$filledCount / $totalCount data profile is filled in',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.end,
                                   ),
                                 ),
                               ],
@@ -585,85 +587,6 @@ class AppNavigationDrawer extends StatelessWidget {
     );
   }
 
-  Future<bool?> _requestGalleryPermission(BuildContext context) async {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          contentPadding: const EdgeInsets.all(22),
-          title: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.perm_media_rounded,
-                  size: 34,
-                  color: AppTheme.primaryNavy,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Allow "ITACON Granito" to Access Your Photos?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryNavy,
-                ),
-              ),
-            ],
-          ),
-          content: const Text(
-            'ITACON Granito requires photo library access so you can select and set your personal profile picture directly from your device gallery.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSubtle,
-              height: 1.4,
-            ),
-          ),
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text(
-                "Don't Allow",
-                style: TextStyle(
-                  color: AppTheme.textSubtle,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryNavy,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text(
-                'Allow Access',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _showProfilePhotoOptions(BuildContext context, UserProfile profile) async {
     final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
@@ -792,82 +715,10 @@ class AppNavigationDrawer extends StatelessWidget {
   }
 
   Future<void> _pickProfilePhoto(BuildContext context, ImageSource source) async {
-    if (source == ImageSource.gallery) {
-      final granted = await _requestGalleryPermission(context);
-      if (granted != true) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Gallery permission denied. Access is required to select photos.'),
-              backgroundColor: AppTheme.accentOrange,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    try {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(source: source, imageQuality: 85);
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-
-        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: photoData);
-        final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: photoData);
-        UserSessionService.saveUserSession(updated);
-
-        if (updated.userId.isNotEmpty) {
-          FirestoreService().updateUserProfileData(
-            uid: updated.userId,
-            profilePhotoUrl: photoData,
-          );
-          _tryUploadToFirebaseStorage(bytes, updated.userId);
-        }
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile photo updated successfully!'),
-              backgroundColor: AppTheme.primaryNavy,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      const fallbackUrl = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
-      AppStateService.instance.updateUserProfileFields(profilePhotoUrl: fallbackUrl);
-      final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: fallbackUrl);
-      UserSessionService.saveUserSession(updated);
-    }
-  }
-
-  Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
-    if (userId.isEmpty) return;
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('user_profiles')
-          .child('${userId}_photo.jpg');
-      final uploadTask = await storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-      if (downloadUrl.isNotEmpty) {
-        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: downloadUrl);
-        final withUrl = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: downloadUrl);
-        await UserSessionService.saveUserSession(withUrl);
-        await FirestoreService().updateUserProfileData(
-          uid: userId,
-          profilePhotoUrl: downloadUrl,
-        );
-      }
-    } catch (e) {
-      debugPrint('Optional Firebase Storage upload note: $e');
-    }
+    await ProfilePhotoService.pickAndUploadProfilePhoto(
+      context: context,
+      source: source,
+    );
   }
 
   void _removeProfilePhoto(BuildContext context) {

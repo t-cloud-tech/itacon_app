@@ -1,12 +1,11 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../../theme/app_theme.dart';
 import '../../services/app_state_service.dart';
 import '../../services/firestore_service.dart';
 import '../../services/user_session_service.dart';
+import '../../services/profile_photo_service.dart';
 import '../../widgets/app_avatar_image.dart';
 
 /// Full-Screen Edit Profile featuring Keyboard Overflow Fix, Avatar Picker,
@@ -60,6 +59,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ProfilePhotoService.retrieveAndHandleLostData(context);
+      }
+    });
     _firestoreService = widget.firestoreService ?? FirestoreService.instance;
     final profile = _appState.currentUserProfile;
     _nameController = TextEditingController(text: profile.name);
@@ -339,49 +343,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
 
-    try {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(source: source, imageQuality: 85);
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        _applyNewProfilePhoto(photoData);
-        _tryUploadToFirebaseStorage(bytes, _appState.currentUserProfile.userId);
-      }
-    } catch (e) {
-      // Fallback sample photo for emulator/web
-      _applyNewProfilePhoto('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80');
-    }
-  }
+    if (!mounted) return;
+    final downloadUrl = await ProfilePhotoService.pickAndUploadProfilePhoto(
+      context: context,
+      source: source,
+    );
 
-  Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
-    if (userId.isEmpty) return;
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('user_profiles')
-          .child('${userId}_photo.jpg');
-      final uploadTask = await storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-      if (downloadUrl.isNotEmpty) {
-        if (mounted) {
-          setState(() {
-            _profilePhotoUrl = downloadUrl;
-          });
-        }
-        _appState.updateUserProfileFields(profilePhotoUrl: downloadUrl);
-        final withUrl = _appState.currentUserProfile.copyWith(profilePhotoUrl: downloadUrl);
-        await UserSessionService.saveUserSession(withUrl);
-        await _firestoreService.updateUserProfileData(
-          uid: userId,
-          profilePhotoUrl: downloadUrl,
-        );
-      }
-    } catch (e) {
-      debugPrint('Optional Firebase Storage upload note: $e');
+    if (downloadUrl != null && mounted) {
+      _applyNewProfilePhoto(downloadUrl);
     }
   }
 
@@ -505,7 +474,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80,
+      );
       if (image != null) {
         final bytes = await image.readAsBytes();
         final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
@@ -795,14 +769,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Showroom & Store Display Showcase',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryNavy,
+                  const Expanded(
+                    child: Text(
+                      'Showroom & Store Display Showcase',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryNavy,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(

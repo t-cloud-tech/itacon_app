@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../models/product_enums.dart';
 import '../models/tile_product.dart';
-import '../services/product_catalog_service.dart';
 
 /// Multi-Select Filter Criteria supporting Sets for Surfaces, Sizes, Colours, Spaces, and Collections.
 class ProductFilterCriteria {
@@ -72,6 +71,65 @@ class ProductFilterCriteria {
     return count;
   }
 
+  /// Evaluates whether product matches a single color option
+  static bool matchesColour(TileProduct p, String selectedCol) {
+    final sCol = selectedCol.toLowerCase().trim();
+    final pBase = p.baseColour.toLowerCase().trim();
+    final pCol = p.color.toLowerCase().trim();
+
+    if (pBase == sCol || pCol == sCol) return true;
+
+    if (sCol == 'white') {
+      return pBase.contains('white') || pBase.contains('statuario') || pCol.contains('white');
+    }
+    if (sCol == 'grey') {
+      return pBase.contains('grey') || pBase.contains('grery') || pCol.contains('grey');
+    }
+    if (sCol == 'beige') {
+      return pBase.contains('beige') || pBase.contains('taupe') || pCol.contains('beige');
+    }
+    if (sCol == 'brown') {
+      return pBase.contains('brown') || pCol.contains('brown');
+    }
+    if (sCol == 'blue') {
+      return pBase.contains('blue') || pCol.contains('blue');
+    }
+    if (sCol == 'aqua') {
+      return pBase.contains('aqua') || pCol.contains('aqua');
+    }
+    if (sCol == 'crema') {
+      return pBase.contains('crem') || pCol.contains('crem');
+    }
+    if (sCol == 'bianco') {
+      return pBase.contains('bianco') || pCol.contains('bianco');
+    }
+    if (sCol == 'ivory') {
+      return pBase.contains('ivory') || pCol.contains('ivory');
+    }
+
+    return pBase.contains(sCol) || sCol.contains(pBase) || pCol.contains(sCol);
+  }
+
+  /// Evaluates whether product matches a single collection option
+  static bool matchesCollection(TileProduct p, String selectedCol) {
+    final sCol = selectedCol.toLowerCase().trim();
+    final pCol = p.collection.toLowerCase().trim();
+    final pPat = p.pattern.toLowerCase().trim();
+
+    if (pCol == sCol || pPat == sCol) return true;
+
+    // Flexible sub-matching e.g. "Endless" or "Random" or "Décor"
+    if (sCol.contains('endless') && (pCol.contains('endless') || pPat.contains('endless'))) return true;
+    if (sCol.contains('random') && (pCol.contains('random') || pPat.contains('random'))) return true;
+    if (sCol.contains('décor') || sCol.contains('decor')) {
+      return pCol.contains('décor') || pCol.contains('decor') || pPat.contains('décor') || pPat.contains('decor');
+    }
+    if (sCol.contains('plain') && (pCol.contains('plain') || pPat.contains('plain'))) return true;
+    if (sCol.contains('marble') && (pCol.contains('marble') || pPat.contains('marble'))) return true;
+
+    return pCol.contains(sCol) || sCol.contains(pCol) || pPat.contains(sCol);
+  }
+
   /// Checks if a tile product matches this filter criteria
   bool matches(TileProduct p) {
     // 1. Spaces Multi-Select
@@ -89,67 +147,16 @@ class ProductFilterCriteria {
 
     // 3. Base Colours Multi-Select
     if (selectedBaseColours.isNotEmpty) {
-      final matchesColour = selectedBaseColours.any((selectedCol) {
-        final sCol = selectedCol.toLowerCase().trim();
-        final pBase = p.baseColour.toLowerCase().trim();
-        final pCol = p.color.toLowerCase().trim();
-
-        if (pBase == sCol || pCol == sCol) return true;
-
-        if (sCol == 'white') {
-          return pBase.contains('white') || pBase.contains('statuario') || pCol.contains('white');
-        }
-        if (sCol == 'grey') {
-          return pBase.contains('grey') || pBase.contains('grery') || pCol.contains('grey');
-        }
-        if (sCol == 'beige') {
-          return pBase.contains('beige') || pBase.contains('taupe') || pCol.contains('beige');
-        }
-        if (sCol == 'brown') {
-          return pBase.contains('brown') || pCol.contains('brown');
-        }
-        if (sCol == 'blue') {
-          return pBase.contains('blue') || pCol.contains('blue');
-        }
-        if (sCol == 'aqua') {
-          return pBase.contains('aqua') || pCol.contains('aqua');
-        }
-        if (sCol == 'crema') {
-          return pBase.contains('crem') || pCol.contains('crem');
-        }
-        if (sCol == 'bianco') {
-          return pBase.contains('bianco') || pCol.contains('bianco');
-        }
-        if (sCol == 'ivory') {
-          return pBase.contains('ivory') || pCol.contains('ivory');
-        }
-
-        return pBase.contains(sCol) || sCol.contains(pBase) || pCol.contains(sCol);
-      });
-      if (!matchesColour) return false;
+      final matchesCol = selectedBaseColours.any((selectedCol) =>
+          matchesColour(p, selectedCol));
+      if (!matchesCol) return false;
     }
 
     // 4. Collections / Design Multi-Select
     if (selectedCollections.isNotEmpty) {
-      final matchesCollection = selectedCollections.any((selectedCol) {
-        final sCol = selectedCol.toLowerCase().trim();
-        final pCol = p.collection.toLowerCase().trim();
-        final pPat = p.pattern.toLowerCase().trim();
-
-        if (pCol == sCol || pPat == sCol) return true;
-
-        // Flexible sub-matching e.g. "Endless" or "Random" or "Décor"
-        if (sCol.contains('endless') && (pCol.contains('endless') || pPat.contains('endless'))) return true;
-        if (sCol.contains('random') && (pCol.contains('random') || pPat.contains('random'))) return true;
-        if (sCol.contains('décor') || sCol.contains('decor')) {
-          return pCol.contains('décor') || pCol.contains('decor') || pPat.contains('décor') || pPat.contains('decor');
-        }
-        if (sCol.contains('plain') && (pCol.contains('plain') || pPat.contains('plain'))) return true;
-        if (sCol.contains('marble') && (pCol.contains('marble') || pPat.contains('marble'))) return true;
-
-        return pCol.contains(sCol) || sCol.contains(pCol) || pPat.contains(sCol);
-      });
-      if (!matchesCollection) return false;
+      final matchesColl = selectedCollections.any((selectedCol) =>
+          matchesCollection(p, selectedCol));
+      if (!matchesColl) return false;
     }
 
     // 5. Product Type Segment
@@ -191,6 +198,8 @@ class ProductFilterBottomSheet extends StatefulWidget {
   final ValueChanged<ProductFilterCriteria> onApplyFilter;
   final List<TileProduct>? allProducts;
   final String? searchQuery;
+  final bool isLoading;
+  final String? errorMessage;
 
   const ProductFilterBottomSheet({
     super.key,
@@ -198,6 +207,8 @@ class ProductFilterBottomSheet extends StatefulWidget {
     required this.onApplyFilter,
     this.allProducts,
     this.searchQuery,
+    this.isLoading = false,
+    this.errorMessage,
   });
 
   @override
@@ -235,6 +246,151 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
     });
   }
 
+  /// Canonical active products deduplicated by unique identity.
+  /// Uses the EXACT dataset from the visible catalog (widget.allProducts).
+  /// Never silently substitutes static fallbacks when empty or loading.
+  List<TileProduct> get _canonicalActiveProducts {
+    final rawList = widget.allProducts ?? const <TileProduct>[];
+
+    final seenIds = <String>{};
+    final uniqueActive = <TileProduct>[];
+
+    for (final p in rawList) {
+      if (!p.isActive) continue;
+
+      final id = p.id.isNotEmpty ? p.id : (p.productId.isNotEmpty ? p.productId : p.sku);
+      if (id.isNotEmpty && seenIds.contains(id)) continue;
+      if (id.isNotEmpty) seenIds.add(id);
+
+      uniqueActive.add(p);
+    }
+
+    return uniqueActive;
+  }
+
+  bool _matchesSearchQuery(TileProduct p, String query) {
+    final q = query.toLowerCase().trim();
+    if (q.isEmpty) return true;
+
+    final matchName = p.name.toLowerCase().contains(q);
+    final matchSize = p.size.toLowerCase().contains(q);
+    final matchSurface = p.surface.toLowerCase().contains(q);
+    final matchFinish = p.finish.toLowerCase().contains(q);
+    final matchColor = p.color.toLowerCase().contains(q);
+    final matchCollection = p.collection.toLowerCase().contains(q);
+    final matchType = p.productType.toLowerCase().contains(q);
+
+    return matchName ||
+        matchSize ||
+        matchSurface ||
+        matchFinish ||
+        matchColor ||
+        matchCollection ||
+        matchType;
+  }
+
+  /// Checks if product satisfies search query and all criteria EXCEPT the specified facet
+  bool _matchesCriteriaExcept({
+    required TileProduct product,
+    bool checkProductType = true,
+    bool checkSurfaces = true,
+    bool checkSizes = true,
+    bool checkBaseColours = true,
+    bool checkSpaces = true,
+    bool checkCollections = true,
+  }) {
+    if (widget.searchQuery != null && widget.searchQuery!.trim().isNotEmpty) {
+      if (!_matchesSearchQuery(product, widget.searchQuery!)) return false;
+    }
+
+    if (checkProductType &&
+        _productType != 'All' &&
+        _productType.isNotEmpty &&
+        product.productType != _productType) {
+      return false;
+    }
+
+    if (checkSurfaces &&
+        _selectedSurfaces.isNotEmpty &&
+        !_selectedSurfaces.contains(product.surface) &&
+        !_selectedSurfaces.contains(product.finish)) {
+      return false;
+    }
+
+    if (checkSizes &&
+        _selectedSizes.isNotEmpty &&
+        !_selectedSizes.contains(product.size)) {
+      return false;
+    }
+
+    if (checkBaseColours && _selectedBaseColours.isNotEmpty) {
+      final matchesColour = _selectedBaseColours.any((selectedCol) =>
+          ProductFilterCriteria.matchesColour(product, selectedCol));
+      if (!matchesColour) return false;
+    }
+
+    if (checkSpaces &&
+        _selectedSpaces.isNotEmpty &&
+        !product.spaces.any((sp) => _selectedSpaces.contains(sp))) {
+      return false;
+    }
+
+    if (checkCollections && _selectedCollections.isNotEmpty) {
+      final matchesColl = _selectedCollections.any((selectedCol) =>
+          ProductFilterCriteria.matchesCollection(product, selectedCol));
+      if (!matchesColl) return false;
+    }
+
+    return true;
+  }
+
+  // --- Dynamic Filter Availability Calculations ---
+
+  bool _isProductTypeAvailable(String type) {
+    if (type == 'All') {
+      return _canonicalActiveProducts.any((p) =>
+          _matchesCriteriaExcept(product: p, checkProductType: false));
+    }
+    return _canonicalActiveProducts.any((p) =>
+        p.productType == type &&
+        _matchesCriteriaExcept(product: p, checkProductType: false));
+  }
+
+  bool _isSurfaceAvailable(String surface) {
+    if (_selectedSurfaces.contains(surface)) return true;
+    return _canonicalActiveProducts.any((p) =>
+        (p.surface == surface || p.finish == surface) &&
+        _matchesCriteriaExcept(product: p, checkSurfaces: false));
+  }
+
+  bool _isSizeAvailable(String size) {
+    if (_selectedSizes.contains(size)) return true;
+    return _canonicalActiveProducts.any((p) =>
+        p.size == size &&
+        _matchesCriteriaExcept(product: p, checkSizes: false));
+  }
+
+  bool _isBaseColourAvailable(String colour) {
+    if (_selectedBaseColours.contains(colour)) return true;
+    return _canonicalActiveProducts.any((p) =>
+        ProductFilterCriteria.matchesColour(p, colour) &&
+        _matchesCriteriaExcept(product: p, checkBaseColours: false));
+  }
+
+  bool _isSpaceAvailable(String space) {
+    if (_selectedSpaces.contains(space)) return true;
+    return _canonicalActiveProducts.any((p) =>
+        p.spaces.contains(space) &&
+        _matchesCriteriaExcept(product: p, checkSpaces: false));
+  }
+
+  bool _isCollectionAvailable(String collection) {
+    if (_selectedCollections.contains(collection)) return true;
+    return _canonicalActiveProducts.any((p) =>
+        ProductFilterCriteria.matchesCollection(p, collection) &&
+        _matchesCriteriaExcept(product: p, checkCollections: false));
+  }
+
   int _getMatchingTileCount() {
     final criteria = ProductFilterCriteria(
       selectedSpaces: _selectedSpaces,
@@ -244,30 +400,10 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
       selectedProductType: _productType,
       selectedSizes: _selectedSizes,
     );
-    final sourceList = widget.allProducts ??
-        ProductCatalogService.allCatalogProducts
-            .where((p) => !p.isAdhesive)
-            .toList();
 
-    return sourceList.where((p) {
+    return _canonicalActiveProducts.where((p) {
       if (widget.searchQuery != null && widget.searchQuery!.trim().isNotEmpty) {
-        final query = widget.searchQuery!.toLowerCase().trim();
-        final matchName = p.name.toLowerCase().contains(query);
-        final matchSize = p.size.toLowerCase().contains(query);
-        final matchSurface = p.surface.toLowerCase().contains(query);
-        final matchFinish = p.finish.toLowerCase().contains(query);
-        final matchColor = p.color.toLowerCase().contains(query);
-        final matchCollection = p.collection.toLowerCase().contains(query);
-        final matchType = p.productType.toLowerCase().contains(query);
-        if (!matchName &&
-            !matchSize &&
-            !matchSurface &&
-            !matchFinish &&
-            !matchColor &&
-            !matchCollection &&
-            !matchType) {
-          return false;
-        }
+        if (!_matchesSearchQuery(p, widget.searchQuery!)) return false;
       }
       return criteria.matches(p);
     }).length;
@@ -416,23 +552,74 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
             color: const Color(0xFFF4F7FC),
             child: Row(
               children: [
-                Icon(
-                  matchingCount > 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-                  size: 16,
-                  color: matchingCount > 0 ? AppTheme.accentOrange : AppTheme.textSubtle,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  matchingCount == 1
-                      ? '1 tile found'
-                      : '$matchingCount tiles found',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.primaryNavy,
+                if (widget.isLoading) ...[
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryNavy),
                   ),
-                ),
-                if (activeTotal > 0) ...[
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Loading available tiles...',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                ] else if (widget.errorMessage != null && _canonicalActiveProducts.isEmpty) ...[
+                  const Icon(
+                    Icons.wifi_off_rounded,
+                    size: 16,
+                    color: AppTheme.accentOrange,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Offline (${widget.errorMessage})',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.accentOrange,
+                      ),
+                    ),
+                  ),
+                ] else if (_canonicalActiveProducts.isEmpty) ...[
+                  const Icon(
+                    Icons.inbox_outlined,
+                    size: 16,
+                    color: AppTheme.textSubtle,
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    '0 tiles in catalog',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textSubtle,
+                    ),
+                  ),
+                ] else ...[
+                  Icon(
+                    matchingCount > 0 ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    size: 16,
+                    color: matchingCount > 0 ? AppTheme.accentOrange : AppTheme.textSubtle,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    matchingCount == 1
+                        ? '1 tile found'
+                        : '$matchingCount tiles found',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                ],
+                if (!widget.isLoading && activeTotal > 0) ...[
                   const Spacer(),
                   Text(
                     '$activeTotal filter${activeTotal == 1 ? "" : "s"} applied',
@@ -460,30 +647,47 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                   Row(
                     children: ['All', 'Vitrified', 'Ceramic'].map((type) {
                       final isSelected = _productType == type;
+                      final isAvailable = _isProductTypeAvailable(type);
+                      final isEnabled = isSelected || isAvailable;
+
                       return Expanded(
-                        child: GestureDetector(
-                          onTap: () => setState(() => _productType = type),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppTheme.primaryNavy
-                                  : Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
+                        child: Semantics(
+                          enabled: isEnabled,
+                          button: true,
+                          selected: isSelected,
+                          label: '$type product type${!isEnabled ? ", unavailable" : ""}',
+                          child: GestureDetector(
+                            onTap: isEnabled ? () => setState(() => _productType = type) : null,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
                                 color: isSelected
                                     ? AppTheme.primaryNavy
-                                    : AppTheme.borderSubtle,
+                                    : (isAvailable
+                                        ? Colors.grey.shade100
+                                        : Colors.grey.shade100.withValues(alpha: 0.6)),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppTheme.primaryNavy
+                                      : (isAvailable
+                                          ? AppTheme.borderSubtle
+                                          : Colors.grey.shade300),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              type,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: isSelected ? Colors.white : AppTheme.textDark,
+                              child: Text(
+                                type,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : (isAvailable
+                                          ? AppTheme.textDark
+                                          : Colors.grey.shade400),
+                                ),
                               ),
                             ),
                           ),
@@ -501,36 +705,53 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                     runSpacing: 8,
                     children: ProductEnums.surfaces.map((surf) {
                       final selected = _selectedSurfaces.contains(surf);
-                      return FilterChip(
-                        showCheckmark: true,
-                        checkmarkColor: Colors.white,
-                        avatar: selected
-                            ? null
-                            : const Icon(Icons.auto_awesome_rounded, size: 14, color: AppTheme.primaryNavy),
-                        label: Text(surf),
-                        selected: selected,
-                        selectedColor: AppTheme.primaryNavy,
-                        backgroundColor: Colors.grey.shade100,
-                        labelStyle: TextStyle(
-                          color: selected ? Colors.white : AppTheme.textDark,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: selected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                      final isAvailable = _isSurfaceAvailable(surf);
+                      final isEnabled = selected || isAvailable;
+
+                      return Semantics(
+                        enabled: isEnabled,
+                        child: FilterChip(
+                          showCheckmark: true,
+                          checkmarkColor: Colors.white,
+                          avatar: selected
+                              ? null
+                              : Icon(
+                                  Icons.auto_awesome_rounded,
+                                  size: 14,
+                                  color: isAvailable ? AppTheme.primaryNavy : Colors.grey.shade400,
+                                ),
+                          label: Text(surf),
+                          selected: selected,
+                          selectedColor: AppTheme.primaryNavy,
+                          backgroundColor: Colors.grey.shade100,
+                          disabledColor: Colors.grey.shade100.withValues(alpha: 0.6),
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : (isAvailable ? AppTheme.textDark : Colors.grey.shade400),
+                            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 12,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppTheme.primaryNavy
+                                  : (isAvailable ? AppTheme.borderSubtle : Colors.grey.shade300),
+                            ),
+                          ),
+                          onSelected: isEnabled
+                              ? (val) {
+                                  setState(() {
+                                    if (val) {
+                                      _selectedSurfaces.add(surf);
+                                    } else {
+                                      _selectedSurfaces.remove(surf);
+                                    }
+                                  });
+                                }
+                              : null,
                         ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _selectedSurfaces.add(surf);
-                            } else {
-                              _selectedSurfaces.remove(surf);
-                            }
-                          });
-                        },
                       );
                     }).toList(),
                   ),
@@ -545,33 +766,46 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                     children: ProductEnums.sizes.map((szMap) {
                       final szLabel = szMap['label'] as String;
                       final selected = _selectedSizes.contains(szLabel);
-                      return FilterChip(
-                        showCheckmark: true,
-                        checkmarkColor: Colors.white,
-                        label: Text(szLabel),
-                        selected: selected,
-                        selectedColor: AppTheme.accentOrange,
-                        backgroundColor: Colors.grey.shade100,
-                        labelStyle: TextStyle(
-                          color: selected ? Colors.white : AppTheme.textDark,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: selected ? AppTheme.accentOrange : AppTheme.borderSubtle,
+                      final isAvailable = _isSizeAvailable(szLabel);
+                      final isEnabled = selected || isAvailable;
+
+                      return Semantics(
+                        enabled: isEnabled,
+                        child: FilterChip(
+                          showCheckmark: true,
+                          checkmarkColor: Colors.white,
+                          label: Text(szLabel),
+                          selected: selected,
+                          selectedColor: AppTheme.accentOrange,
+                          backgroundColor: Colors.grey.shade100,
+                          disabledColor: Colors.grey.shade100.withValues(alpha: 0.6),
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : (isAvailable ? AppTheme.textDark : Colors.grey.shade400),
+                            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 12,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppTheme.accentOrange
+                                  : (isAvailable ? AppTheme.borderSubtle : Colors.grey.shade300),
+                            ),
+                          ),
+                          onSelected: isEnabled
+                              ? (val) {
+                                  setState(() {
+                                    if (val) {
+                                      _selectedSizes.add(szLabel);
+                                    } else {
+                                      _selectedSizes.remove(szLabel);
+                                    }
+                                  });
+                                }
+                              : null,
                         ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _selectedSizes.add(szLabel);
-                            } else {
-                              _selectedSizes.remove(szLabel);
-                            }
-                          });
-                        },
                       );
                     }).toList(),
                   ),
@@ -585,45 +819,65 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                     runSpacing: 8,
                     children: ProductEnums.baseColours.map((col) {
                       final selected = _selectedBaseColours.contains(col);
+                      final isAvailable = _isBaseColourAvailable(col);
+                      final isEnabled = selected || isAvailable;
                       final dotColor = _getColorForBaseName(col);
-                      return FilterChip(
-                        showCheckmark: selected,
-                        checkmarkColor: selected && (col == 'White' || col == 'Bianco' || col == 'Ivory' || col == 'Crema')
-                            ? AppTheme.primaryNavy
-                            : Colors.white,
-                        avatar: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: dotColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.grey.shade400, width: 1),
+
+                      return Semantics(
+                        enabled: isEnabled,
+                        child: FilterChip(
+                          showCheckmark: selected,
+                          checkmarkColor: selected &&
+                                  (col == 'White' ||
+                                      col == 'Bianco' ||
+                                      col == 'Ivory' ||
+                                      col == 'Crema')
+                              ? AppTheme.primaryNavy
+                              : Colors.white,
+                          avatar: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: isAvailable ? dotColor : dotColor.withValues(alpha: 0.35),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: isAvailable ? Colors.grey.shade400 : Colors.grey.shade300,
+                                width: 1,
+                              ),
+                            ),
                           ),
-                        ),
-                        label: Text(col),
-                        selected: selected,
-                        selectedColor: AppTheme.primaryNavy,
-                        backgroundColor: Colors.grey.shade100,
-                        labelStyle: TextStyle(
-                          color: selected ? Colors.white : AppTheme.textDark,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: selected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                          label: Text(col),
+                          selected: selected,
+                          selectedColor: AppTheme.primaryNavy,
+                          backgroundColor: Colors.grey.shade100,
+                          disabledColor: Colors.grey.shade100.withValues(alpha: 0.6),
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : (isAvailable ? AppTheme.textDark : Colors.grey.shade400),
+                            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 12,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppTheme.primaryNavy
+                                  : (isAvailable ? AppTheme.borderSubtle : Colors.grey.shade300),
+                            ),
+                          ),
+                          onSelected: isEnabled
+                              ? (val) {
+                                  setState(() {
+                                    if (val) {
+                                      _selectedBaseColours.add(col);
+                                    } else {
+                                      _selectedBaseColours.remove(col);
+                                    }
+                                  });
+                                }
+                              : null,
                         ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _selectedBaseColours.add(col);
-                            } else {
-                              _selectedBaseColours.remove(col);
-                            }
-                          });
-                        },
                       );
                     }).toList(),
                   ),
@@ -637,33 +891,46 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                     runSpacing: 8,
                     children: ProductEnums.spaces.map((sp) {
                       final selected = _selectedSpaces.contains(sp);
-                      return FilterChip(
-                        showCheckmark: true,
-                        checkmarkColor: Colors.white,
-                        label: Text(sp),
-                        selected: selected,
-                        selectedColor: AppTheme.primaryNavy,
-                        backgroundColor: Colors.grey.shade100,
-                        labelStyle: TextStyle(
-                          color: selected ? Colors.white : AppTheme.textDark,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: selected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                      final isAvailable = _isSpaceAvailable(sp);
+                      final isEnabled = selected || isAvailable;
+
+                      return Semantics(
+                        enabled: isEnabled,
+                        child: FilterChip(
+                          showCheckmark: true,
+                          checkmarkColor: Colors.white,
+                          label: Text(sp),
+                          selected: selected,
+                          selectedColor: AppTheme.primaryNavy,
+                          backgroundColor: Colors.grey.shade100,
+                          disabledColor: Colors.grey.shade100.withValues(alpha: 0.6),
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : (isAvailable ? AppTheme.textDark : Colors.grey.shade400),
+                            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 12,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppTheme.primaryNavy
+                                  : (isAvailable ? AppTheme.borderSubtle : Colors.grey.shade300),
+                            ),
+                          ),
+                          onSelected: isEnabled
+                              ? (val) {
+                                  setState(() {
+                                    if (val) {
+                                      _selectedSpaces.add(sp);
+                                    } else {
+                                      _selectedSpaces.remove(sp);
+                                    }
+                                  });
+                                }
+                              : null,
                         ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _selectedSpaces.add(sp);
-                            } else {
-                              _selectedSpaces.remove(sp);
-                            }
-                          });
-                        },
                       );
                     }).toList(),
                   ),
@@ -677,33 +944,46 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                     runSpacing: 8,
                     children: ProductEnums.collections.map((coll) {
                       final selected = _selectedCollections.contains(coll);
-                      return FilterChip(
-                        showCheckmark: true,
-                        checkmarkColor: Colors.white,
-                        label: Text(coll),
-                        selected: selected,
-                        selectedColor: AppTheme.primaryNavy,
-                        backgroundColor: Colors.grey.shade100,
-                        labelStyle: TextStyle(
-                          color: selected ? Colors.white : AppTheme.textDark,
-                          fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: selected ? AppTheme.primaryNavy : AppTheme.borderSubtle,
+                      final isAvailable = _isCollectionAvailable(coll);
+                      final isEnabled = selected || isAvailable;
+
+                      return Semantics(
+                        enabled: isEnabled,
+                        child: FilterChip(
+                          showCheckmark: true,
+                          checkmarkColor: Colors.white,
+                          label: Text(coll),
+                          selected: selected,
+                          selectedColor: AppTheme.primaryNavy,
+                          backgroundColor: Colors.grey.shade100,
+                          disabledColor: Colors.grey.shade100.withValues(alpha: 0.6),
+                          labelStyle: TextStyle(
+                            color: selected
+                                ? Colors.white
+                                : (isAvailable ? AppTheme.textDark : Colors.grey.shade400),
+                            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                            fontSize: 12,
                           ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(
+                              color: selected
+                                  ? AppTheme.primaryNavy
+                                  : (isAvailable ? AppTheme.borderSubtle : Colors.grey.shade300),
+                            ),
+                          ),
+                          onSelected: isEnabled
+                              ? (val) {
+                                  setState(() {
+                                    if (val) {
+                                      _selectedCollections.add(coll);
+                                    } else {
+                                      _selectedCollections.remove(coll);
+                                    }
+                                  });
+                                }
+                              : null,
                         ),
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _selectedCollections.add(coll);
-                            } else {
-                              _selectedCollections.remove(coll);
-                            }
-                          });
-                        },
                       );
                     }).toList(),
                   ),
@@ -749,23 +1029,27 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: () {
-                        widget.onApplyFilter(
-                          ProductFilterCriteria(
-                            selectedSpaces: _selectedSpaces,
-                            selectedSurfaces: _selectedSurfaces,
-                            selectedBaseColours: _selectedBaseColours,
-                            selectedCollections: _selectedCollections,
-                            selectedProductType: _productType,
-                            selectedSizes: _selectedSizes,
-                          ),
-                        );
-                        Navigator.pop(context);
-                      },
+                      onPressed: widget.isLoading
+                          ? null
+                          : () {
+                              widget.onApplyFilter(
+                                ProductFilterCriteria(
+                                  selectedSpaces: _selectedSpaces,
+                                  selectedSurfaces: _selectedSurfaces,
+                                  selectedBaseColours: _selectedBaseColours,
+                                  selectedCollections: _selectedCollections,
+                                  selectedProductType: _productType,
+                                  selectedSizes: _selectedSizes,
+                                ),
+                              );
+                              Navigator.pop(context);
+                            },
                       child: Text(
-                        matchingCount > 0
-                            ? 'Show $matchingCount ${matchingCount == 1 ? "Tile" : "Tiles"}'
-                            : 'No Tiles Found (0)',
+                        widget.isLoading
+                            ? 'Loading...'
+                            : matchingCount > 0
+                                ? 'Show $matchingCount ${matchingCount == 1 ? "Tile" : "Tiles"}'
+                                : 'No Tiles Found (0)',
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -786,13 +1070,17 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
   Widget _buildSectionTitle(String title, int count) {
     return Row(
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.primaryNavy,
-            letterSpacing: 0.3,
+        Flexible(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryNavy,
+              letterSpacing: 0.3,
+            ),
           ),
         ),
         if (count > 0) ...[
@@ -817,4 +1105,3 @@ class _ProductFilterBottomSheetState extends State<ProductFilterBottomSheet> {
     );
   }
 }
-

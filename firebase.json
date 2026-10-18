@@ -28,6 +28,7 @@
     }
   },
   "storage": {
+    "bucket": "itacon-app.firebasestorage.app",
     "rules": "storage.rules"
   },
   "flutter": {

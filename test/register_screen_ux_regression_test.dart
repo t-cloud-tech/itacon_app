@@ -32,7 +32,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final nameField = find.widgetWithText(TextFormField, 'e.g., Ramesh Kumar Patel');
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
 
       expect(nameField, findsOneWidget);
       expect(phoneField, findsOneWidget);
@@ -64,36 +64,36 @@ void main() {
       await tester.pumpAndSettle();
 
       final nameField = find.widgetWithText(TextFormField, 'e.g., Ramesh Kumar Patel');
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
       final passField = find.widgetWithText(TextFormField, 'Create password (e.g. Itacon@2026)');
       final confirmField = find.widgetWithText(TextFormField, 'Confirm your password');
 
       // 1. Focus Name
       await tester.tap(nameField);
       await tester.pumpAndSettle();
-      final nameTextField = tester.widget<TextField>(find.descendant(of: nameField, matching: find.byType(TextField)));
-      expect(nameTextField.focusNode?.hasFocus, isTrue);
+      final nameEditable = tester.widget<EditableText>(find.descendant(of: nameField, matching: find.byType(EditableText)));
+      expect(nameEditable.focusNode.hasFocus, isTrue);
 
       // 2. Focus Phone
-      await tester.tap(phoneField);
+      await tester.tap(find.descendant(of: phoneField, matching: find.byType(EditableText)));
       await tester.pumpAndSettle();
-      final phoneTextField = tester.widget<TextField>(find.descendant(of: phoneField, matching: find.byType(TextField)));
-      expect(nameTextField.focusNode?.hasFocus, isFalse);
-      expect(phoneTextField.focusNode?.hasFocus, isTrue);
+      final phoneEditable = tester.widget<EditableText>(find.descendant(of: phoneField, matching: find.byType(EditableText)));
+      expect(nameEditable.focusNode.hasFocus, isFalse);
+      expect(phoneEditable.focusNode.hasFocus, isTrue);
 
       // 3. Focus Password
       await tester.tap(passField);
       await tester.pumpAndSettle();
-      final passTextField = tester.widget<TextField>(find.descendant(of: passField, matching: find.byType(TextField)));
-      expect(phoneTextField.focusNode?.hasFocus, isFalse);
-      expect(passTextField.focusNode?.hasFocus, isTrue);
+      final passEditable = tester.widget<EditableText>(find.descendant(of: passField, matching: find.byType(EditableText)));
+      expect(phoneEditable.focusNode.hasFocus, isFalse);
+      expect(passEditable.focusNode.hasFocus, isTrue);
 
       // 4. Focus Confirm Password
       await tester.tap(confirmField);
       await tester.pumpAndSettle();
-      final confirmTextField = tester.widget<TextField>(find.descendant(of: confirmField, matching: find.byType(TextField)));
-      expect(passTextField.focusNode?.hasFocus, isFalse);
-      expect(confirmTextField.focusNode?.hasFocus, isTrue);
+      final confirmEditable = tester.widget<EditableText>(find.descendant(of: confirmField, matching: find.byType(EditableText)));
+      expect(passEditable.focusNode.hasFocus, isFalse);
+      expect(confirmEditable.focusNode.hasFocus, isTrue);
     });
 
     testWidgets('C. Toggle Password visibility: Retains entered text and focus', (WidgetTester tester) async {
@@ -166,7 +166,7 @@ void main() {
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();
 
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
       await tester.enterText(phoneField, '98765'); // Only 5 digits
       await tester.pumpAndSettle();
 
@@ -187,7 +187,7 @@ void main() {
       await tester.pumpWidget(buildTestableWidget());
       await tester.pumpAndSettle();
 
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
       await tester.enterText(phoneField, '9876543210');
       await tester.pumpAndSettle();
 
@@ -236,7 +236,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final nameField = find.widgetWithText(TextFormField, 'e.g., Ramesh Kumar Patel');
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
       final passField = find.widgetWithText(TextFormField, 'Create password (e.g. Itacon@2026)');
       final confirmField = find.widgetWithText(TextFormField, 'Confirm your password');
 
@@ -260,7 +260,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final nameField = find.widgetWithText(TextFormField, 'e.g., Ramesh Kumar Patel');
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
 
       await tester.enterText(nameField, 'Vikram Bhai Patel');
       await tester.enterText(phoneField, '9825012345');
@@ -303,7 +303,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final usernameField = find.widgetWithText(TextFormField, 'Enter Username');
-      final phoneField = find.widgetWithText(TextFormField, 'Mobile Number');
+      final phoneField = find.widgetWithText(TextFormField, 'Enter Mobile Number');
       final passField = find.widgetWithText(TextFormField, 'Enter your password');
 
       expect(usernameField, findsOneWidget);

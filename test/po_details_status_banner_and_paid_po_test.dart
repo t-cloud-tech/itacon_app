@@ -1,0 +1,490 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:itacon_app/models/tile_order.dart';
+import 'package:itacon_app/models/user_profile.dart';
+import 'package:itacon_app/screens/order_details_screen.dart';
+import 'package:itacon_app/screens/orders_screen.dart';
+import 'package:itacon_app/services/app_state_service.dart';
+
+void main() {
+  setUp(() {
+      AppStateService.instance.setCurrentUserProfile(
+      const UserProfile(
+        userId: 'USER_CUST_100',
+        name: 'Suresh Patel',
+        phone: '+919876543210',
+        companyName: 'Patel Ceramics',
+        email: 'suresh@patelceramics.com',
+        userCategory: 'Dealer',
+        role: 'customer',
+      ),
+    );
+  });
+
+  Widget createTestOrderDetailsWidget(TileOrder order) {
+    final streamController = StreamController<TileOrder?>.broadcast();
+    return MaterialApp(
+      home: OrderDetailsScreen(
+        key: ValueKey(order.id),
+        orderId: order.id,
+        initialOrder: order,
+        orderStream: streamController.stream,
+      ),
+    );
+  }
+
+  group('PO Details Status Banner & Paid PO Download Tests', () {
+    testWidgets('1. Rate approval pending order displays rate-approval notification', (WidgetTester tester) async {
+      final order = TileOrder(
+        id: 'ORDER_PENDING_01',
+        orderReference: 'ITC-PO-2026-P01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'pending_rate',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Please quote today rates',
+        items: const [
+          OrderItem(
+            productId: 'TILE_01',
+            productName: 'Armani Gold 600x1200',
+            size: '600x1200',
+            surface: 'High Gloss',
+            quantity: 50,
+            quantityBoxes: 50,
+            quantitySqFt: 775.0,
+            moq: 10,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(order));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rate Approval in Progress'), findsAtLeast(1));
+      expect(find.text("Your assigned salesperson is currently quoting today's factory rates."), findsOneWidget);
+      expect(find.text('Payment Completed — In Production'), findsNothing);
+      expect(find.text('Download Paid PO (PDF)'), findsNothing);
+    });
+
+    testWidgets('2. Rates quoted order displays quoted-rates notification and finalize buttons', (WidgetTester tester) async {
+      final order = TileOrder(
+        id: 'ORDER_QUOTED_01',
+        orderReference: 'ITC-PO-2026-Q01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'rate_quoted',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Quoted',
+        subtotal: 50000.0,
+        discount: 2000.0,
+        taxAmount: 8640.0,
+        totalAmount: 56640.0,
+        items: const [
+          OrderItem(
+            productId: 'TILE_01',
+            productName: 'Armani Gold 600x1200',
+            size: '600x1200',
+            surface: 'High Gloss',
+            quantity: 50,
+            quantityBoxes: 50,
+            quantitySqFt: 775.0,
+            moq: 10,
+            unitPrice: 64.516,
+            lineTotal: 50000.0,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(order));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Today's Quoted Rates Received"), findsOneWidget);
+      expect(find.text("Please review today's quoted rates and confirm to finalize your Purchase Order."), findsOneWidget);
+      expect(find.text("I agree with today's quoted rates and terms for this Purchase Order."), findsOneWidget);
+      expect(find.text('Confirm & Finalize Order →'), findsOneWidget);
+      expect(find.text('Reject Estimate'), findsOneWidget);
+      expect(find.text('Payment Completed — In Production'), findsNothing);
+    });
+
+    testWidgets('3. Payment verification pending order displays verification banner', (WidgetTester tester) async {
+      final order = TileOrder(
+        id: 'ORDER_PENDING_PAY_01',
+        orderReference: 'ITC-PO-2026-PAY01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'confirmed',
+        paymentStatus: 'pending_verification',
+        paymentSubmissionId: 'SUB_REF_9981',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Transferred via NEFT',
+        subtotal: 50000.0,
+        totalAmount: 59000.0,
+        items: const [],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(order));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payment Verification in Progress'), findsAtLeast(1));
+      expect(find.text('Your bank transfer details have been submitted and are being verified by our accounts team.'), findsOneWidget);
+      expect(find.text('PAYMENT VERIFICATION IN PROGRESS'), findsOneWidget);
+      expect(find.text('SUB_REF_9981'), findsOneWidget);
+      expect(find.text('Rate Approval in Progress'), findsNothing);
+    });
+
+    testWidgets('4. Paid order in production displays Payment Completed — In Production and Download Paid PO', (WidgetTester tester) async {
+      final now = DateTime.now();
+      final paidOrder = TileOrder(
+        id: 'ORDER_PAID_01',
+        orderReference: 'ITC-PO-2026-PROD01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'processing',
+        paymentStatus: 'paid',
+        paidAmount: 59000.0,
+        paymentId: 'HDFC_UTR_99887766',
+        paidAt: now,
+        poDocumentUrl: 'https://storage.googleapis.com/itacon/purchase_orders/ORDER_PAID_01.pdf',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Paid in full',
+        subtotal: 50000.0,
+        taxAmount: 9000.0,
+        totalAmount: 59000.0,
+        items: const [
+          OrderItem(
+            productId: 'TILE_01',
+            productName: 'Armani Gold 600x1200',
+            size: '600x1200',
+            surface: 'High Gloss',
+            quantity: 50,
+            quantityBoxes: 50,
+            quantitySqFt: 775.0,
+            moq: 10,
+            unitPrice: 64.516,
+            lineTotal: 50000.0,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(paidOrder));
+      await tester.pumpAndSettle();
+
+      // Top status alert banner MUST display Payment Completed — In Production
+      expect(find.text('Payment Completed — In Production'), findsOneWidget);
+      expect(find.text('Your payment has been verified and your order is being processed.'), findsOneWidget);
+
+      // Must NOT display Rate Approval in Progress
+      expect(find.text('Rate Approval in Progress'), findsNothing);
+
+      // Status pill displays In Production
+      expect(find.text('In Production'), findsOneWidget);
+
+      // Paid PO PDF download action MUST be visible
+      expect(find.text('Download Paid PO (PDF)'), findsOneWidget);
+
+      // Payment verified card MUST be rendered with details
+      expect(find.text('PAYMENT VERIFIED & RECEIVED'), findsOneWidget);
+      expect(find.text('HDFC_UTR_99887766'), findsOneWidget);
+      expect(find.text('₹59000.00'), findsAtLeast(1));
+    });
+
+    testWidgets('5. Completed paid order displays Order Completed notification', (WidgetTester tester) async {
+      final now = DateTime.now();
+      final completedOrder = TileOrder(
+        id: 'ORDER_COMPLETED_01',
+        orderReference: 'ITC-PO-2026-DONE01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'completed',
+        paymentStatus: 'paid',
+        paidAmount: 85000.0,
+        paymentId: 'SBI_UTR_55443322',
+        paidAt: now,
+        poDocumentUrl: 'https://storage.googleapis.com/itacon/purchase_orders/ORDER_COMPLETED_01.pdf',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Surat, Gujarat'},
+        transportRequired: true,
+        remarks: 'Delivered',
+        subtotal: 72033.9,
+        taxAmount: 12966.1,
+        totalAmount: 85000.0,
+        items: const [],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(completedOrder));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Order Completed'), findsAtLeast(1));
+      expect(find.text('This order has been fulfilled, delivered, and payment has been verified.'), findsOneWidget);
+      expect(find.text('Rate Approval in Progress'), findsNothing);
+      expect(find.text('Download Paid PO (PDF)'), findsOneWidget);
+    });
+
+    testWidgets('6. Rejected payment displays Payment Verification Failed with rejection reason', (WidgetTester tester) async {
+      final rejectedPaymentOrder = TileOrder(
+        id: 'ORDER_REJ_01',
+        orderReference: 'ITC-PO-2026-REJ01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'confirmed',
+        paymentStatus: 'rejected',
+        rejectionReason: 'UTR reference not found in bank ledger statement',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: '',
+        subtotal: 40000.0,
+        totalAmount: 47200.0,
+        items: const [],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(rejectedPaymentOrder));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payment Verification Failed'), findsAtLeast(1));
+      expect(find.text('Reason: UTR reference not found in bank ledger statement'), findsAtLeast(1));
+      expect(find.text('RESUBMIT PAYMENT PROOF'), findsOneWidget);
+      expect(find.text('Rate Approval in Progress'), findsNothing);
+    });
+
+    testWidgets('7. Legacy orders with missing status fields resolve correctly and do not crash', (WidgetTester tester) async {
+      // Legacy order with empty status but payment marked paid
+      final legacyPaidOrder = TileOrder.fromMap(
+        const {
+          'id': 'LEGACY_PAID_01',
+          'orderReference': 'ITC-PO-2025-LEG01',
+          'userId': 'USER_CUST_100',
+          'customerName': 'Patel Ceramics',
+          'userCategory': 'Dealer',
+          'status': '', // Empty status
+          'paymentStatus': 'paid',
+          'paidAmount': 35000.0,
+          'paymentId': 'LEGACY_UTR_001',
+          'totalAmount': 35000.0,
+        },
+        'LEGACY_PAID_01',
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(legacyPaidOrder));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payment Completed — In Production'), findsOneWidget);
+      expect(find.text('Rate Approval in Progress'), findsNothing);
+      expect(find.text('Download Paid PO (PDF)'), findsOneWidget);
+
+      // Legacy order with completely missing payment fields and no status safely defaults to rate approval without crashing
+      final legacyPendingOrder = TileOrder.fromMap(
+        const {
+          'id': 'LEGACY_UNSET_02',
+          'orderReference': 'ITC-PO-2025-LEG02',
+          'userId': 'USER_CUST_100',
+          'userCategory': 'Dealer',
+          'status': '',
+        },
+        'LEGACY_UNSET_02',
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(legacyPendingOrder));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rate Approval in Progress'), findsAtLeast(1));
+    });
+
+    testWidgets('8. Security check: Customer can only access their own paid PO', (WidgetTester tester) async {
+      // Order belongs to USER_OTHER_999
+      final otherCustomerPaidOrder = TileOrder(
+        id: 'ORDER_OTHER_01',
+        orderReference: 'ITC-PO-2026-OTH01',
+        userId: 'USER_OTHER_999',
+        customerName: 'Other Ceramics',
+        userCategory: 'Dealer',
+        status: 'processing',
+        paymentStatus: 'paid',
+        paidAmount: 50000.0,
+        paymentId: 'UTR_SECRET_999',
+        poDocumentUrl: 'https://storage.googleapis.com/itacon/purchase_orders/ORDER_OTHER_01.pdf',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi'},
+        transportRequired: true,
+        remarks: '',
+        items: const [],
+      );
+
+      // Current app state user is USER_CUST_100
+        AppStateService.instance.setCurrentUserProfile(
+        const UserProfile(
+          userId: 'USER_CUST_100',
+          name: 'Suresh Patel',
+          phone: '+919876543210',
+          companyName: 'Patel Ceramics',
+          email: 'suresh@patelceramics.com',
+          userCategory: 'Dealer',
+          role: 'customer',
+        ),
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(otherCustomerPaidOrder));
+      await tester.pumpAndSettle();
+
+      // Tap Download Paid PO
+      await tester.ensureVisible(find.text('Download Paid PO (PDF)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download Paid PO (PDF)'));
+      await tester.pumpAndSettle();
+
+      // Security SnackBar MUST appear denying access
+      expect(find.text('Access Denied: You may only download PO documents for your own account.'), findsOneWidget);
+    });
+
+    testWidgets('9. Existing My Orders → History navigation works correctly for paid orders', (WidgetTester tester) async {
+      final now = DateTime.now();
+      final streamController = StreamController<List<TileOrder>>.broadcast();
+
+      final paidOrder = TileOrder(
+        id: 'ORDER_HIST_01',
+        orderReference: 'ITC-PO-2026-HIST01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'processing',
+        paymentStatus: 'paid',
+        paidAmount: 75000.0,
+        paymentId: 'AXIS_UTR_112233',
+        paidAt: now,
+        poDocumentUrl: 'https://storage.googleapis.com/itacon/purchase_orders/ORDER_HIST_01.pdf',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Paid order in factory history',
+        subtotal: 63559.3,
+        taxAmount: 11440.7,
+        totalAmount: 75000.0,
+        items: const [
+          OrderItem(
+            productId: 'TILE_01',
+            productName: 'Royal Black Marble 600x1200',
+            size: '600x1200',
+            surface: 'High Gloss',
+            quantity: 60,
+            quantityBoxes: 60,
+            quantitySqFt: 930.0,
+            moq: 10,
+            unitPrice: 68.34,
+            lineTotal: 63559.3,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OrdersScreen(
+            ordersStream: streamController.stream,
+          ),
+        ),
+      );
+
+      streamController.add([paidOrder]);
+      await tester.pumpAndSettle();
+
+      // Tab 0 is History: paidOrder MUST appear in History
+      expect(find.text('ITC-PO-2026-HIST01'), findsOneWidget);
+      expect(find.text('VIEW PO DETAILS'), findsOneWidget);
+
+      // Tap VIEW PO DETAILS to navigate to OrderDetailsScreen
+      await tester.tap(find.text('VIEW PO DETAILS'));
+      await tester.pumpAndSettle();
+
+      // Destination screen is open
+      expect(find.byType(OrderDetailsScreen), findsOneWidget);
+      expect(find.text('PO Details (ITC-PO-2026-HIST01)'), findsOneWidget);
+
+      // Verify the banner on PO Details says Payment Completed — In Production, NOT Rate Approval in Progress
+      expect(find.text('Payment Completed — In Production'), findsOneWidget);
+      expect(find.text('Rate Approval in Progress'), findsNothing);
+      expect(find.text('Download Paid PO (PDF)'), findsOneWidget);
+
+      await streamController.close();
+    });
+
+    testWidgets('10. When Paid PO is generating, tapping Download shows preparation notice', (WidgetTester tester) async {
+      final generatingOrder = TileOrder(
+        id: 'ORDER_GEN_01',
+        orderReference: 'ITC-PO-2026-GEN01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'processing',
+        paymentStatus: 'paid',
+        paidAmount: 50000.0,
+        paymentId: 'UTR_GEN_123',
+        paidPoStatus: 'generating',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Generating Paid PO',
+        items: const [],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(generatingOrder));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Download Paid PO (PDF)'), findsOneWidget);
+      await tester.ensureVisible(find.text('Download Paid PO (PDF)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download Paid PO (PDF)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Your Paid PO is being prepared. Please try again shortly.'), findsOneWidget);
+    });
+
+    test('11. TileOrder correctly serializes and deserializes Paid PO fields', () {
+      final now = DateTime.now();
+      final order = TileOrder(
+        id: 'ORD_TEST_SER_01',
+        orderReference: 'ITC-PO-2026-SER01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'processing',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Serialization test',
+        items: const [],
+        paymentStatus: 'paid',
+        paidPoDocumentPath: 'purchase_orders/ORD_TEST_SER_01/paid_po.pdf',
+        paidPoStatus: 'ready',
+        paidPoGeneratedAt: now,
+      );
+
+      expect(order.isPaidPoReady, isTrue);
+      expect(order.isPaidPoGenerating, isFalse);
+      expect(order.isPaidPoFailed, isFalse);
+
+      final map = order.toMap();
+      expect(map['paidPoDocumentPath'], 'purchase_orders/ORD_TEST_SER_01/paid_po.pdf');
+      expect(map['paidPoStatus'], 'ready');
+
+      final deserialized = TileOrder.fromMap(map, 'ORD_TEST_SER_01');
+      expect(deserialized.paidPoDocumentPath, 'purchase_orders/ORD_TEST_SER_01/paid_po.pdf');
+      expect(deserialized.paidPoStatus, 'ready');
+      expect(deserialized.isPaidPoReady, isTrue);
+    });
+  });
+}
+

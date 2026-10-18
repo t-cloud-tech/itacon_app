@@ -244,6 +244,9 @@ class TileOrder {
   final DateTime? confirmedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? paidPoDocumentPath; // Private Storage path: purchase_orders/{orderId}/paid_po.pdf
+  final String? paidPoStatus; // 'generating', 'ready', 'failed'
+  final DateTime? paidPoGeneratedAt;
 
   const TileOrder({
     required this.id,
@@ -291,6 +294,9 @@ class TileOrder {
     this.confirmedAt,
     this.createdAt,
     this.updatedAt,
+    this.paidPoDocumentPath,
+    this.paidPoStatus,
+    this.paidPoGeneratedAt,
   })  : taxAmount = taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18),
         totalAmount = totalAmount ?? (subtotal - discount + (taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18))),
         orderId = orderId ?? id;
@@ -300,6 +306,11 @@ class TileOrder {
   bool get isPaymentDue => isConfirmedStage && (paymentStatus == 'payment_due' || (status == 'confirmed' && (paymentStatus == null || paymentStatus == 'payment_due')));
   bool get isPaymentPendingVerification => paymentStatus == 'pending_verification';
   bool get isPaymentRejected => paymentStatus == 'rejected';
+
+  /// Official Paid PO Document State Getters
+  bool get isPaidPoReady => paidPoStatus == 'ready' && (paidPoDocumentPath != null && paidPoDocumentPath!.isNotEmpty);
+  bool get isPaidPoGenerating => paidPoStatus == 'generating' || (isPaid && (paidPoDocumentPath == null || paidPoDocumentPath!.isEmpty) && paidPoStatus != 'failed');
+  bool get isPaidPoFailed => paidPoStatus == 'failed';
 
   /// Whether this order has completed its business lifecycle or was declined/cancelled (History tab)
   bool get isHistoryStage {
@@ -423,6 +434,9 @@ class TileOrder {
       if (deliveredAt != null) 'deliveredAt': Timestamp.fromDate(deliveredAt!),
       'rateQuotedAt': rateQuotedAt != null ? Timestamp.fromDate(rateQuotedAt!) : null,
       'confirmedAt': confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
+      if (paidPoDocumentPath != null) 'paidPoDocumentPath': paidPoDocumentPath,
+      if (paidPoStatus != null) 'paidPoStatus': paidPoStatus,
+      if (paidPoGeneratedAt != null) 'paidPoGeneratedAt': Timestamp.fromDate(paidPoGeneratedAt!),
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -569,6 +583,12 @@ class TileOrder {
     final pAt = map['paidAt'] is Timestamp ? (map['paidAt'] as Timestamp).toDate() : null;
     final dAt = map['deliveredAt'] is Timestamp ? (map['deliveredAt'] as Timestamp).toDate() : null;
 
+    final pPoPath = map['paidPoDocumentPath']?.toString();
+    final pPoStatus = map['paidPoStatus']?.toString();
+    final pPoGenAt = map['paidPoGeneratedAt'] is Timestamp
+        ? (map['paidPoGeneratedAt'] as Timestamp).toDate()
+        : map['paidPoGeneratedAt'] is String ? DateTime.tryParse(map['paidPoGeneratedAt']) : null;
+
     return TileOrder(
       id: docId,
       orderId: oId,
@@ -623,6 +643,9 @@ class TileOrder {
       updatedAt: map['updatedAt'] is Timestamp
           ? (map['updatedAt'] as Timestamp).toDate()
           : map['updatedAt'] is String ? DateTime.tryParse(map['updatedAt']) : null,
+      paidPoDocumentPath: pPoPath,
+      paidPoStatus: pPoStatus,
+      paidPoGeneratedAt: pPoGenAt,
     );
   }
 
@@ -672,6 +695,9 @@ class TileOrder {
     DateTime? confirmedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? paidPoDocumentPath,
+    String? paidPoStatus,
+    DateTime? paidPoGeneratedAt,
   }) {
     return TileOrder(
       id: id ?? this.id,
@@ -719,6 +745,9 @@ class TileOrder {
       confirmedAt: confirmedAt ?? this.confirmedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      paidPoDocumentPath: paidPoDocumentPath ?? this.paidPoDocumentPath,
+      paidPoStatus: paidPoStatus ?? this.paidPoStatus,
+      paidPoGeneratedAt: paidPoGeneratedAt ?? this.paidPoGeneratedAt,
     );
   }
 }

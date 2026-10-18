@@ -1,15 +1,13 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../theme/app_theme.dart';
 import '../widgets/interactive_pressable.dart';
 import '../widgets/app_avatar_image.dart';
 import '../services/app_state_service.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
+import '../services/profile_photo_service.dart';
 import '../models/user_profile.dart';
 import '../widgets/profile_tier_card.dart';
 import 'orders_screen.dart';
@@ -250,67 +248,11 @@ class ProfileScreen extends StatelessWidget {
       }
     }
 
-    try {
-      final picker = ImagePicker();
-      final image = await picker.pickImage(source: source, imageQuality: 85);
-      if (image != null) {
-        final bytes = await image.readAsBytes();
-        final photoData = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-
-        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: photoData);
-        final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: photoData);
-        UserSessionService.saveUserSession(updated);
-
-        if (updated.userId.isNotEmpty) {
-          FirestoreService().updateUserProfileData(
-            uid: updated.userId,
-            profilePhotoUrl: photoData,
-          );
-          _tryUploadToFirebaseStorage(bytes, updated.userId);
-        }
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile photo updated successfully!'),
-              backgroundColor: AppTheme.primaryNavy,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      const fallbackUrl = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80';
-      AppStateService.instance.updateUserProfileFields(profilePhotoUrl: fallbackUrl);
-      final updated = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: fallbackUrl);
-      UserSessionService.saveUserSession(updated);
-    }
-  }
-
-  static Future<void> _tryUploadToFirebaseStorage(Uint8List bytes, String userId) async {
-    if (userId.isEmpty) return;
-    try {
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('user_profiles')
-          .child('${userId}_photo.jpg');
-      final uploadTask = await storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-      if (downloadUrl.isNotEmpty) {
-        AppStateService.instance.updateUserProfileFields(profilePhotoUrl: downloadUrl);
-        final withUrl = AppStateService.instance.currentUserProfile.copyWith(profilePhotoUrl: downloadUrl);
-        await UserSessionService.saveUserSession(withUrl);
-        await FirestoreService().updateUserProfileData(
-          uid: userId,
-          profilePhotoUrl: downloadUrl,
-        );
-      }
-    } catch (e) {
-      debugPrint('Optional Firebase Storage upload note: $e');
-    }
+    if (!context.mounted) return;
+    await ProfilePhotoService.pickAndUploadProfilePhoto(
+      context: context,
+      source: source,
+    );
   }
 
   static void _removeProfilePhoto(BuildContext context) {
@@ -606,28 +548,34 @@ class ProfileScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  completionPct == 100
-                                      ? Icons.check_circle_rounded
-                                      : Icons.pie_chart_outline_rounded,
-                                  color: completionPct == 100
-                                      ? AppTheme.statusSuccess
-                                      : AppTheme.accentOrange,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Profile Completion',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryNavy,
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    completionPct == 100
+                                        ? Icons.check_circle_rounded
+                                        : Icons.pie_chart_outline_rounded,
+                                    color: completionPct == 100
+                                        ? AppTheme.statusSuccess
+                                        : AppTheme.accentOrange,
+                                    size: 22,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  const Flexible(
+                                    child: Text(
+                                      'Profile Completion',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primaryNavy,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
@@ -738,12 +686,15 @@ class ProfileScreen extends StatelessWidget {
                             children: [
                               Icon(Icons.verified_user_rounded, color: AppTheme.statusSuccess, size: 16),
                               SizedBox(width: 6),
-                              Text(
-                                'Great job! Your profile is 100% verified & complete.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.statusSuccess,
-                                  fontWeight: FontWeight.w600,
+                              Expanded(
+                                child: Text(
+                                  'Great job! Your profile is 100% verified & complete.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.statusSuccess,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  softWrap: true,
                                 ),
                               ),
                             ],
@@ -763,10 +714,6 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         _buildTile(Icons.person_outline_rounded, 'My Profile & Details', () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-                        }),
-                        const Divider(height: 1, color: AppTheme.borderSubtle),
-                        _buildTile(Icons.location_on_outlined, 'Delivery Addresses', () {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),

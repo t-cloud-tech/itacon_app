@@ -12,15 +12,13 @@ const env = {
   PATH: `${JAVA_HOME}\\bin;${process.env.PATH}`,
 };
 
-const proc = spawn(FIREBASE_CMD, [
-  'emulators:exec',
-  '--only', 'firestore,storage',
-  'npx mocha --timeout 45000 test/storage_rules_audit.test.js'
+const proc = spawn('cmd.exe', [
+  '/c',
+  'firebase emulators:exec --only firestore,storage "npx mocha test/storage_rules_audit.test.js"'
 ], {
   cwd: path.resolve(__dirname, '..'),
   env: env,
   stdio: 'inherit',
-  shell: true,
 });
 
 proc.on('close', (code) => {

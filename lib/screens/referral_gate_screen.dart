@@ -138,6 +138,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
   }
 
   void _verifyManualCode() async {
+    if (_isLoading) return;
     final code = _codeController.text.trim();
     if (code.isEmpty) {
       setState(() => _error = 'Please enter a referral code.');
@@ -147,11 +148,17 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
       _isLoading = true;
       _error = null;
     });
-    bool success = await _authService.verifyAndLinkReferralCode(code);
-    setState(() => _isLoading = false);
 
-    if (success) {
-      if (mounted) {
+    final stopwatch = Stopwatch()..start();
+    try {
+      bool success = await _authService.verifyAndLinkReferralCode(code);
+      stopwatch.stop();
+      debugPrint('[PERF] Manual referral code verification completed in ${stopwatch.elapsedMilliseconds}ms with success=$success');
+
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Referral Code Verified! Access Granted.')),
         );
@@ -159,20 +166,34 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
           context,
           MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
+      } else {
+        setState(() => _error = 'Invalid or inactive salesperson code.');
       }
-    } else {
-      setState(() => _error = 'Invalid or inactive salesperson code.');
+    } catch (e) {
+      stopwatch.stop();
+      debugPrint('[PERF] Referral verification error after ${stopwatch.elapsedMilliseconds}ms: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Verification failed. Please check network and try again.';
+        });
+      }
     }
   }
 
   void _executeAutoAssign() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
+    final stopwatch = Stopwatch()..start();
     try {
       final details = await _authService.autoAssignSalespersonDetails();
+      stopwatch.stop();
+      debugPrint('[PERF] Auto-assign details fetched in ${stopwatch.elapsedMilliseconds}ms');
+
       final refCode = details['referralCode'] ?? FirestoreService.defaultSalespersonReferralCode;
       final spName = details['name'] ?? FirestoreService.defaultSalespersonName;
       final spPhone = details['phone'] ?? FirestoreService.defaultSalespersonPhone;
@@ -190,6 +211,8 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
         );
       }
     } catch (e) {
+      stopwatch.stop();
+      debugPrint('[PERF] Auto-assign failed in ${stopwatch.elapsedMilliseconds}ms: $e');
       if (mounted) {
         setState(() {
           _codeController.text = FirestoreService.defaultSalespersonReferralCode;
@@ -303,10 +326,19 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
                               borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: _isLoading ? null : _verifyManualCode,
-                        child: const Text('Verify Code & Unlock',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text('Verify Code & Unlock',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],

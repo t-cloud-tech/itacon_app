@@ -68,6 +68,12 @@ export interface ClientOrderPO {
   rejectedBy?: string;
   rejectionReason?: string;
   changedByRole?: string;
+  paymentStatus?: string;
+  paidAmount?: number;
+  paymentId?: string;
+  paidPoDocumentPath?: string;
+  paidPoStatus?: string;
+  paidPoGeneratedAt?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -625,6 +631,14 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
     rejectedBy: data.rejectedBy,
     rejectionReason: data.rejectionReason,
     changedByRole: data.changedByRole,
+    paymentStatus: data.paymentStatus,
+    paidAmount: typeof data.paidAmount === "number" ? data.paidAmount : undefined,
+    paymentId: data.paymentId,
+    paidPoDocumentPath: data.paidPoDocumentPath,
+    paidPoStatus: data.paidPoStatus,
+    paidPoGeneratedAt: data.paidPoGeneratedAt?.seconds
+      ? new Date(data.paidPoGeneratedAt.seconds * 1000).toISOString()
+      : (typeof data.paidPoGeneratedAt === "string" ? data.paidPoGeneratedAt : undefined),
     createdAt: data.createdAt?.seconds 
       ? new Date(data.createdAt.seconds * 1000).toISOString()
       : (typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString()),

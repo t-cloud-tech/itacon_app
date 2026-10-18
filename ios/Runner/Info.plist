@@ -75,5 +75,11 @@
             </array>
         </dict>
     </array>
+	<key>NSCameraUsageDescription</key>
+	<string>ITACON Granito requires camera access to capture your profile picture and photograph payment receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ITACON Granito requires photo library access to choose your profile picture and upload payment proofs.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ITACON Granito requires access to save purchase orders and generated documents to your photo library.</string>
 </dict>
 </plist>

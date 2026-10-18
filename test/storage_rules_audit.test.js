@@ -65,6 +65,13 @@ describe('ITACON Firebase Storage Rules Pre-Deployment Security Audit', () => {
         userId: MANAGER_UID,
         role: 'manager',
       });
+
+      // Seed Paid PO document in Storage
+      const storage = ctx.storage();
+      const paidPoRef = storage.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+      await paidPoRef.put(Buffer.from('%PDF-1.4 mock paid po document content'), {
+        contentType: 'application/pdf',
+      });
     });
   });
 
@@ -214,5 +221,52 @@ describe('ITACON Firebase Storage Rules Pre-Deployment Security Audit', () => {
       })
     );
     await assertSucceeds(legacyRef.getDownloadURL());
+  });
+
+  // 9. Paid PO Private Document Access Controls: purchase_orders/{orderId}/{fileName}
+  it('ALLOW: Customer Alice can download her own Paid PO document', async () => {
+    const storageAlice = testEnv.authenticatedContext(CUSTOMER_ALICE_UID).storage();
+    const paidPoRef = storageAlice.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertSucceeds(paidPoRef.getDownloadURL());
+  });
+
+  it('DENY: Customer Bob cannot download Alice\'s Paid PO document (Customer Isolation)', async () => {
+    const storageBob = testEnv.authenticatedContext(CUSTOMER_BOB_UID).storage();
+    const paidPoRef = storageBob.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertFails(paidPoRef.getDownloadURL());
+  });
+
+  it('ALLOW: Assigned salesperson can download Paid PO document', async () => {
+    const storageRaj = testEnv.authenticatedContext(ASSIGNED_SALESPERSON_UID).storage();
+    const paidPoRef = storageRaj.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertSucceeds(paidPoRef.getDownloadURL());
+  });
+
+  it('DENY: Unassigned salesperson cannot download Alice\'s Paid PO document', async () => {
+    const storageSam = testEnv.authenticatedContext(UNASSIGNED_SALESPERSON_UID).storage();
+    const paidPoRef = storageSam.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertFails(paidPoRef.getDownloadURL());
+  });
+
+  it('ALLOW: Manager can download Paid PO document', async () => {
+    const storagePriya = testEnv.authenticatedContext(MANAGER_UID).storage();
+    const paidPoRef = storagePriya.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertSucceeds(paidPoRef.getDownloadURL());
+  });
+
+  it('DENY: Client write to purchase_orders/{orderId}/{fileName} is strictly forbidden', async () => {
+    const storageAlice = testEnv.authenticatedContext(CUSTOMER_ALICE_UID).storage();
+    const paidPoRef = storageAlice.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertFails(
+      paidPoRef.put(Buffer.from('unauthorized forged paid po pdf content'), {
+        contentType: 'application/pdf',
+      })
+    );
+  });
+
+  it('DENY: Unauthenticated user cannot read Paid PO document', async () => {
+    const storageUnauth = testEnv.unauthenticatedContext().storage();
+    const paidPoRef = storageUnauth.ref(`purchase_orders/${ORDER_ALICE_ID}/paid_po.pdf`);
+    await assertFails(paidPoRef.getDownloadURL());
   });
 });

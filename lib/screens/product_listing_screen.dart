@@ -182,6 +182,8 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         initialFilter: _activeFilter,
         allProducts: _allProducts,
         searchQuery: _searchQuery,
+        isLoading: _isLoading,
+        errorMessage: _errorMessage,
         onApplyFilter: (newFilter) {
           setState(() {
             _activeFilter = newFilter;

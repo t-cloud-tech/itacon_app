@@ -1274,17 +1274,28 @@ class AuthService {
       return false;
     }
 
+    final stopwatch = Stopwatch()..start();
+
+    UserProfile? existingUser;
     if (uid != null && uid.isNotEmpty) {
-      final existingUser = await _firestoreService.getUserProfile(uid);
+      final cachedProfile = AppStateService.instance.currentUserProfile;
+      if (cachedProfile.userId == uid && cachedProfile.userId.isNotEmpty) {
+        existingUser = cachedProfile;
+      } else {
+        existingUser = await _firestoreService.getUserProfile(uid);
+      }
       final existingSpId = existingUser?.salesPersonId;
 
       if (existingSpId != null && existingSpId.isNotEmpty) {
         final existingCode = existingUser?.salespersonReferralCode?.trim().toUpperCase();
         if (existingCode != null && existingCode == code.toUpperCase()) {
           // Idempotent: client is already assigned to this salesperson
+          stopwatch.stop();
+          debugPrint('[AuthService] verifyAndLinkReferralCode (idempotent match) finished in ${stopwatch.elapsedMilliseconds}ms');
           return true;
         }
         // Strict 1-to-many rule: preserve existing legitimate assignment; reject unauthorized reassignment
+        stopwatch.stop();
         debugPrint('verifyAndLinkReferralCode: User is already assigned to salesperson $existingSpId. Reassignment prohibited.');
         return false;
       }
@@ -1293,7 +1304,8 @@ class AuthService {
     final spProfile = await _firestoreService.verifySalespersonReferralCode(code);
 
     if (spProfile == null) {
-      // Code is invalid or does not belong to any active salesperson
+      stopwatch.stop();
+      debugPrint('[AuthService] verifyAndLinkReferralCode (not found/inactive) finished in ${stopwatch.elapsedMilliseconds}ms');
       return false;
     }
 
@@ -1304,6 +1316,7 @@ class AuthService {
     final spCode = spProfile['referralCode']?.toString() ?? code.toUpperCase();
 
     if (spId == null || spId.isEmpty) {
+      stopwatch.stop();
       return false;
     }
 
@@ -1311,43 +1324,56 @@ class AuthService {
     final spPhone = spProfile['phone']?.toString() ?? spProfile['phoneNumber']?.toString() ?? '+919876543210';
 
     if (uid != null && uid.isNotEmpty) {
-      await _firestoreService.updateUserSalespersonAssignment(
-        uid: uid,
-        salespersonId: spId,
-        salespersonName: spName,
-        salespersonPhone: spPhone,
-        salespersonReferralCode: spCode,
-      );
+      final resolvedName = clientName ?? existingUser?.name;
+      final resolvedPhone = clientPhone ?? existingUser?.phone;
+      final resolvedCompany = companyName ?? existingUser?.companyName;
+      final resolvedCategory = clientCategory ?? existingUser?.userCategory;
 
-      await _firestoreService.saveCustomerReferralCode(
-        userId: uid,
-        referralCode: spCode,
-        userName: clientName,
-        userPhone: clientPhone,
-        userCategory: clientCategory,
-      );
+      await Future.wait([
+        _firestoreService.updateUserSalespersonAssignment(
+          uid: uid,
+          salespersonId: spId,
+          salespersonName: spName,
+          salespersonPhone: spPhone,
+          salespersonReferralCode: spCode,
+        ),
+        _firestoreService.saveCustomerReferralCode(
+          userId: uid,
+          referralCode: spCode,
+          userName: resolvedName,
+          userPhone: resolvedPhone,
+          userCategory: resolvedCategory,
+        ),
+      ]);
 
       try {
         await _firestoreService.executeAtomicClientAssignment(
           clientId: uid,
           salespersonId: spId,
           assignmentType: 'manual_referral',
-          clientName: clientName,
-          clientPhone: clientPhone,
-          companyName: companyName,
-          clientCategory: clientCategory,
+          clientName: resolvedName,
+          clientPhone: resolvedPhone,
+          companyName: resolvedCompany,
+          clientCategory: resolvedCategory,
         );
       } catch (e) {
         debugPrint('executeAtomicClientAssignment warning: $e');
       }
 
-      final updatedProfile = await _firestoreService.getUserProfile(uid);
-      if (updatedProfile != null) {
-        AppStateService.instance.setCurrentUserProfile(updatedProfile);
-        await UserSessionService.saveUserSession(updatedProfile);
-      }
+      final updatedProfile = (existingUser ?? AppStateService.instance.currentUserProfile).copyWith(
+        salesPersonId: spId,
+        assignedSalespersonId: spId,
+        salespersonName: spName,
+        salespersonPhone: spPhone,
+        salespersonReferralCode: spCode,
+        status: 'active',
+      );
+      AppStateService.instance.setCurrentUserProfile(updatedProfile);
+      await UserSessionService.saveUserSession(updatedProfile);
     }
 
+    stopwatch.stop();
+    debugPrint('[AuthService] verifyAndLinkReferralCode success finished in ${stopwatch.elapsedMilliseconds}ms');
     return true;
   }
 

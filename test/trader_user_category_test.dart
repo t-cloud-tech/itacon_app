@@ -7,6 +7,55 @@ import 'package:itacon_app/services/firestore_service.dart';
 import 'package:itacon_app/services/app_state_service.dart';
 import 'package:itacon_app/screens/profile/edit_profile_screen.dart';
 
+class MockTraderFirestoreService extends FirestoreService {
+  final Map<String, dynamic> _userDb = {};
+
+  @override
+  Future<void> updateUserProfileData({
+    required String uid,
+    String? name,
+    String? fullName,
+    String? religion,
+    String? dateOfBirth,
+    String? email,
+    String? phone,
+    String? phoneNumber,
+    String? countryCode,
+    String? companyName,
+    String? role,
+    bool updateRole = false,
+    String? city,
+    String? state,
+    String? region,
+    String? pincode,
+    String? gstNumber,
+    String? profilePhotoUrl,
+    List<String>? showroomImages,
+    Map<String, dynamic>? address,
+  }) async {
+    _userDb['userId'] = uid;
+    if (name != null) _userDb['name'] = name;
+    if (role != null) {
+      _userDb['userCategory'] = role;
+      _userDb['role'] = role;
+    }
+  }
+
+  @override
+  Future<void> updateUserRegionAndToken(
+    String userId, {
+    String? region,
+    String? fcmToken,
+  }) async {
+    if (region != null) _userDb['region'] = region;
+  }
+
+  @override
+  Future<UserProfile?> getUserProfile(String userId) async {
+    return UserProfile.fromMap(_userDb, userId);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -154,8 +203,10 @@ void main() {
       AppStateService.instance.setCurrentUserProfile(emptyProfile);
 
       await tester.pumpWidget(
-        const MaterialApp(
-          home: EditProfileScreen(),
+        MaterialApp(
+          home: EditProfileScreen(
+            firestoreService: MockTraderFirestoreService(),
+          ),
         ),
       );
       await tester.pumpAndSettle();

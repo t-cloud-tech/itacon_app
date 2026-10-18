@@ -370,70 +370,30 @@ void main() {
   });
 
   group('MANDATORY SALESPERSON CODE REGISTRATION & SECURITY TESTS', () {
-    test('1. Empty salesperson code blocks registration with explicit message', () async {
-      expect(
-        () => authService.registerUser(
-          name: 'New Customer',
-          phoneNumber: '+919876543210',
-          categoryId: 'dealer',
-          password: 'Password123!',
-          verificationId: 'v_id_1',
-          smsCode: '123456',
-          referralCode: '',
-        ),
-        throwsA(predicate((e) => e.toString().contains('Please enter your salesperson code'))),
-      );
+    test('1. Empty salesperson code blocks referral verification with explicit failure', () async {
+      final success = await authService.verifyAndLinkReferralCode('');
+      expect(success, isFalse);
     });
 
-    test('2. Invalid code blocks registration', () async {
-      expect(
-        () => authService.registerUser(
-          name: 'New Customer',
-          phoneNumber: '+919876543210',
-          categoryId: 'dealer',
-          password: 'Password123!',
-          verificationId: 'v_id_1',
-          smsCode: '123456',
-          referralCode: 'INVALID_XYZ_999',
-        ),
-        throwsA(predicate((e) => e.toString().contains('Invalid or inactive salesperson code'))),
-      );
+    test('2. Invalid code blocks referral verification', () async {
+      final success = await authService.verifyAndLinkReferralCode('INVALID_XYZ_999');
+      expect(success, isFalse);
     });
 
-    test('3. Inactive code blocks registration', () async {
-      expect(
-        () => authService.registerUser(
-          name: 'New Customer',
-          phoneNumber: '+919876543210',
-          categoryId: 'dealer',
-          password: 'Password123!',
-          verificationId: 'v_id_1',
-          smsCode: '123456',
-          referralCode: 'LEGACY_SP001_INACTIVE',
-        ),
-        throwsA(predicate((e) => e.toString().contains('Invalid or inactive salesperson code'))),
-      );
+    test('3. Inactive code blocks referral verification', () async {
+      final success = await authService.verifyAndLinkReferralCode('LEGACY_SP001_INACTIVE');
+      expect(success, isFalse);
     });
 
-    test('4. Legacy inactive salespersons (SP_001, SP_002, SP_003, SP_3210) block registration', () async {
+    test('4. Legacy inactive salespersons (SP_001, SP_002, SP_003, SP_3210) block referral verification', () async {
       for (final legacyCode in [
         'LEGACY_SP001_INACTIVE',
         'LEGACY_SP002_INACTIVE',
         'LEGACY_SP003_INACTIVE',
         'LEGACY_SP3210_INACTIVE'
       ]) {
-        expect(
-          () => authService.registerUser(
-            name: 'New Customer',
-            phoneNumber: '+919876543210',
-            categoryId: 'dealer',
-            password: 'Password123!',
-            verificationId: 'v_id_1',
-            smsCode: '123456',
-            referralCode: legacyCode,
-          ),
-          throwsA(predicate((e) => e.toString().contains('Invalid or inactive salesperson code'))),
-        );
+        final success = await authService.verifyAndLinkReferralCode(legacyCode);
+        expect(success, isFalse);
       }
     });
 
@@ -521,15 +481,19 @@ void main() {
         referralCode: 'SALES101',
       );
 
-      await authService.registerUser(
-        name: 'Idempotent Customer',
-        phoneNumber: '+919876543210',
-        categoryId: 'dealer',
-        password: 'Password123!',
-        verificationId: 'v_id_2',
-        smsCode: '123456',
-        referralCode: 'SALES101',
-      );
+      try {
+        await authService.registerUser(
+          name: 'Idempotent Customer',
+          phoneNumber: '+919876543210',
+          categoryId: 'dealer',
+          password: 'Password123!',
+          verificationId: 'v_id_2',
+          smsCode: '123456',
+          referralCode: 'SALES101',
+        );
+      } catch (e) {
+        expect(e, isA<DuplicateAccountException>());
+      }
 
       expect(mockFirestore.usersCollection.length, equals(1));
     });
@@ -552,18 +516,8 @@ void main() {
       mockFirestore.salesPersonsDb['WNSahNXK9GQrGoiIEmD4QBvAeim1']!['isActive'] = false;
       mockFirestore.salesPersonsDb['WNSahNXK9GQrGoiIEmD4QBvAeim1']!['status'] = 'inactive';
 
-      expect(
-        () => authService.registerUser(
-          name: 'Customer',
-          phoneNumber: '+919876543210',
-          categoryId: 'dealer',
-          password: 'Password123!',
-          verificationId: 'v_id_1',
-          smsCode: '123456',
-          referralCode: 'SALES101',
-        ),
-        throwsA(predicate((e) => e.toString().contains('Invalid or inactive salesperson code'))),
-      );
+      final success = await authService.verifyAndLinkReferralCode('SALES101');
+      expect(success, isFalse);
     });
 
     test('14. Customer profile stores correct salesperson UID (WNSahNXK9GQrGoiIEmD4QBvAeim1)', () async {
@@ -627,19 +581,20 @@ void main() {
     });
 
     test('18. No auto-assignment occurs when code is empty', () async {
-      try {
-        await authService.registerUser(
-          name: 'No Auto Assign Customer',
-          phoneNumber: '+919876543210',
-          categoryId: 'dealer',
-          password: 'Password123!',
-          verificationId: 'v_id_1',
-          smsCode: '123456',
-          referralCode: '',
-        );
-      } catch (_) {}
+      await authService.registerUser(
+        name: 'No Auto Assign Customer',
+        phoneNumber: '+919876543210',
+        categoryId: 'dealer',
+        password: 'Password123!',
+        verificationId: 'v_id_1',
+        smsCode: '123456',
+        referralCode: '',
+      );
 
-      expect(mockFirestore.usersCollection.containsKey(testUid), isFalse);
+      final doc = mockFirestore.usersCollection[testUid];
+      expect(doc, isNotNull);
+      expect(doc!['salesPersonId'], isNull);
+      expect(doc['assignedSalespersonId'], isNull);
     });
 
     test('19. No round-robin signup assignment occurs', () async {
@@ -658,19 +613,20 @@ void main() {
     });
 
     test('20. No fallback assignment occurs when lookup fails', () async {
-      try {
-        await authService.registerUser(
-          name: 'No Fallback Customer',
-          phoneNumber: '+919876543210',
-          categoryId: 'dealer',
-          password: 'Password123!',
-          verificationId: 'v_id_1',
-          smsCode: '123456',
-          referralCode: 'FAIL_LOOKUP_CODE',
-        );
-      } catch (_) {}
+      await authService.registerUser(
+        name: 'No Fallback Customer',
+        phoneNumber: '+919876543210',
+        categoryId: 'dealer',
+        password: 'Password123!',
+        verificationId: 'v_id_1',
+        smsCode: '123456',
+        referralCode: 'FAIL_LOOKUP_CODE',
+      );
 
-      expect(mockFirestore.usersCollection.containsKey(testUid), isFalse);
+      final doc = mockFirestore.usersCollection[testUid];
+      expect(doc, isNotNull);
+      expect(doc!['salesPersonId'], isNull);
+      expect(doc['assignedSalespersonId'], isNull);
     });
 
     testWidgets('21. OTP-authenticated incomplete user without profile or salesperson cannot reach Home', (tester) async {
@@ -731,8 +687,8 @@ void main() {
 
       expect(find.text('AUTHENTICATED_HOME_SCREEN'), findsNothing);
       expect(find.byType(MainNavigationScreen), findsNothing);
-      expect(find.byType(AuthScreen), findsOneWidget);
-      expect(find.byType(ReferralGateScreen), findsNothing);
+      expect(find.byType(ReferralGateScreen), findsOneWidget);
+      expect(find.byType(AuthScreen), findsNothing);
 
       await authStreamController.close();
     });
@@ -821,12 +777,11 @@ void main() {
       // Verify Account step fields exist
       expect(find.text('Full Name (First, Middle & Surname) *'), findsOneWidget);
       expect(find.text('Mobile Number *'), findsOneWidget);
-      expect(find.text('User Category *'), findsOneWidget);
       expect(find.text('Confirm Password *'), findsOneWidget);
       expect(find.text('Continue'), findsOneWidget);
 
-      // Verify NO Personal step indicator or removed optional fields on signup
-      expect(find.text('Personal'), findsNothing);
+      // Verify NO Personal step fields on Step 1, and NO salesperson code field on signup
+      expect(find.text('User Category *'), findsNothing);
       expect(find.text('Company / Firm Name (Optional)'), findsNothing);
       expect(find.text('Date of Birth (Optional)'), findsNothing);
       expect(find.text('Salesperson Code *'), findsNothing);
@@ -886,8 +841,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('AUTHENTICATED_HOME_SCREEN'), findsNothing);
-      expect(find.byType(AuthScreen), findsOneWidget);
-      expect(find.byType(ReferralGateScreen), findsNothing);
+      expect(find.byType(ReferralGateScreen), findsOneWidget);
+      expect(find.byType(AuthScreen), findsNothing);
 
       await authStreamController.close();
     });
@@ -1572,8 +1527,7 @@ void main() {
       authStream.add(MockAuthUser(uid: testUid));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AuthScreen), findsOneWidget);
-      expect(find.byType(ReferralGateScreen), findsNothing);
+      expect(find.byType(ReferralGateScreen), findsOneWidget);
       expect(find.text('HOME_SCREEN'), findsNothing);
       await authStream.close();
     });

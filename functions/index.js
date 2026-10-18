@@ -45,4 +45,15 @@ exports.rejectPaymentCallable = rejectPaymentCallable;
 const { verifyStaffCredentials } = require('./staffAuthEngine');
 exports.verifyStaffCredentials = verifyStaffCredentials;
 
+// Official Paid Purchase Order PDF Generation & Secure Download Callables
+const {
+  generatePaidPurchaseOrderPdf,
+  retryPaidPoGenerationCallable,
+  getPaidPoDownloadUrlCallable,
+} = require('./generatePaidPurchaseOrderPdf');
+
+exports.generatePaidPurchaseOrderPdf = generatePaidPurchaseOrderPdf;
+exports.retryPaidPoGenerationCallable = retryPaidPoGenerationCallable;
+exports.getPaidPoDownloadUrlCallable = getPaidPoDownloadUrlCallable;
+
 
