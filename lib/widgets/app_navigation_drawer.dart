@@ -15,6 +15,7 @@ import '../screens/profile_screen.dart';
 import '../screens/profile/edit_profile_screen.dart';
 import '../screens/refer_and_earn_screen.dart';
 import '../screens/loyalty_benefits_screen.dart';
+import '../screens/business_defaulter_lookup_screen.dart';
 import 'app_avatar_image.dart';
 
 /// Luxury Side Navigation Drawer for ITACON GRANITO
@@ -483,6 +484,28 @@ class AppNavigationDrawer extends StatelessWidget {
                         });
                       },
                     ),
+                    if (['salesperson', 'manager', 'admin', 'super_admin']
+                        .contains(user.role.toLowerCase().trim())) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Divider(color: AppTheme.borderSubtle),
+                      ),
+                      _buildDrawerItem(
+                        icon: Icons.verified_user_rounded,
+                        title: 'Check Business Defaulter',
+                        subtitle: 'Credit & Defaulter Registry',
+                        onTap: () {
+                          _safeCloseDrawerAndNavigate(context, () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const BusinessDefaulterLookupScreen(),
+                              ),
+                            );
+                          });
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),

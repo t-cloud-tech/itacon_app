@@ -60,4 +60,9 @@ exports.generatePaidPurchaseOrderPdf = generatePaidPurchaseOrderPdf;
 exports.retryPaidPoGenerationCallable = retryPaidPoGenerationCallable;
 exports.getPaidPoDownloadUrlCallable = getPaidPoDownloadUrlCallable;
 
+// Secure Business Defaulters Verification API Proxy
+const { checkBusinessDefaulterCallable } = require('./businessDefaultersEngine');
+exports.checkBusinessDefaulterCallable = checkBusinessDefaulterCallable;
+
+
 

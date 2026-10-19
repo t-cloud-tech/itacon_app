@@ -17,6 +17,7 @@ import 'contract_rates_screen.dart';
 import 'profile/edit_profile_screen.dart';
 import 'refer_and_earn_screen.dart';
 import 'loyalty_benefits_screen.dart';
+import 'business_defaulter_lookup_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final VoidCallback? onBackToHome;
@@ -744,6 +745,22 @@ class ProfileScreen extends StatelessWidget {
                         _buildTile(Icons.headset_mic_outlined, 'Help & Support', () {}),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.info_outline_rounded, 'About Us', () {}),
+                        if (['salesperson', 'manager', 'admin', 'super_admin']
+                            .contains(profile.role.toLowerCase().trim())) ...[
+                          const Divider(height: 1, color: AppTheme.borderSubtle),
+                          _buildTile(
+                            Icons.verified_user_rounded,
+                            'Check Business Defaulter',
+                            () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const BusinessDefaulterLookupScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(
                           Icons.logout_rounded,
