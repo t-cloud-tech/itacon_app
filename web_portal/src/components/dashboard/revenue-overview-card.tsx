@@ -534,14 +534,16 @@ export function RevenueOverviewCard({
       });
     });
 
-    // D. Baseline realistic orders to guarantee full chronological depth
-    const baselines = getBaselineTransactions(new Date());
-    baselines.forEach((b) => {
-      addRecord(b);
-    });
+    // D. Baseline realistic orders: only for admin empty-state preview, never for salespeople
+    if (role === "admin" && list.length === 0) {
+      const baselines = getBaselineTransactions(new Date());
+      baselines.forEach((b) => {
+        addRecord(b);
+      });
+    }
 
     return list;
-  }, [orders, quotations, salesOrders]);
+  }, [orders, quotations, salesOrders, role]);
 
   // 2. Filter transactions based on Role:
   // - Salesperson: strictly his/her own data

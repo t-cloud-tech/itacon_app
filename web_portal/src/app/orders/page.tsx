@@ -101,14 +101,22 @@ function SalesOrdersContent() {
     const refCol = collection(db, "salesOrders");
     let qSales = query(refCol);
 
-    if (role === "salesperson" && user?.userId) {
-      qSales = query(refCol, where("salespersonId", "==", user.userId));
-    }
+    const myIds = new Set<string>();
+    if (user?.userId) myIds.add(user.userId.trim());
+    if (user?.salesPersonId) myIds.add(user.salesPersonId.trim());
+    if (salesperson?.salesPersonId) myIds.add(salesperson.salesPersonId.trim());
+    if (salesperson?.employeeId) myIds.add(salesperson.employeeId.trim());
 
     const unsubSalesOrders = onSnapshot(
       qSales,
       (snap) => {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SalesOrder));
+        let list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SalesOrder));
+        if (role === "salesperson") {
+          list = list.filter(o => {
+            const spId = (o.salespersonId || (o as any).salesPersonId || "").trim();
+            return myIds.has(spId);
+          });
+        }
         list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         setOrders(list);
         setIsLoadingOrders(false);
@@ -121,16 +129,18 @@ function SalesOrdersContent() {
 
     // Also listen to quotations in real-time matching the quotations/page.tsx query
     const quotesRef = collection(db, "quotations");
-    let qQuotes = query(quotesRef);
-
-    if (role === "salesperson" && user?.userId) {
-      qQuotes = query(quotesRef, where("salespersonId", "==", user.userId));
-    }
+    const qQuotes = query(quotesRef);
 
     const unsubQuotes = onSnapshot(
       qQuotes,
       (snap) => {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Quotation));
+        let list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Quotation));
+        if (role === "salesperson") {
+          list = list.filter(q => {
+            const spId = (q.salespersonId || (q as any).salesPersonId || "").trim();
+            return myIds.has(spId);
+          });
+        }
         setAcceptedQuotations(list);
       },
       (err) => {
@@ -142,7 +152,7 @@ function SalesOrdersContent() {
       unsubSalesOrders();
       unsubQuotes();
     };
-  }, [user, role]);
+  }, [user, salesperson, role]);
 
   // Helper to dynamically resolve payment status based on live payment verification submissions
   const resolveOrderPaymentStatus = (
@@ -504,8 +514,8 @@ function SalesOrdersContent() {
       }
     });
 
-    // 3. Fallback sample demo orders if list is completely empty
-    if (list.length === 0 && !isLoadingOrders) {
+    // 3. Fallback sample demo orders ONLY for admin when database is completely empty
+    if (role === "admin" && list.length === 0 && !isLoadingOrders) {
       list.push(
         {
           id: "ord-1",
@@ -549,7 +559,7 @@ function SalesOrdersContent() {
     }
 
     return list;
-  }, [orders, acceptedQuotations, clientPOs, paymentSubmissions, user?.userId, isLoadingOrders]);
+  }, [orders, acceptedQuotations, clientPOs, paymentSubmissions, user?.userId, isLoadingOrders, role]);
 
   // 3. Fetch Payment Submissions in Real-Time
   useEffect(() => {

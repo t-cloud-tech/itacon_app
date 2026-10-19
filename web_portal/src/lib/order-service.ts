@@ -663,7 +663,8 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
 }
 
 /**
- * Checks if an order belongs to the given salesperson or admin
+ * Checks if an order belongs strictly to the given salesperson or admin.
+ * ZERO data leakage between salespersons.
  */
 export function shouldIncludeOrderForSalesperson(
   order: ClientOrderPO,
@@ -674,24 +675,57 @@ export function shouldIncludeOrderForSalesperson(
 ): boolean {
   if (role === "admin") return true;
 
-  const spId = (salesperson?.salesPersonId || user?.salesPersonId || user?.userId || "").trim();
-  const orderSpId = (order.salesPersonId || "").trim();
+  // For salesperson role, if identity is not yet available, do not leak any orders
+  if (!user && !salesperson) return false;
 
-  // 1. Direct match on salesperson ID or user ID
-  if (spId && (orderSpId === spId || orderSpId === user?.userId)) {
+  const myIdentifiers = new Set<string>();
+  if (user?.userId) myIdentifiers.add(user.userId.trim());
+  if (user?.salesPersonId) myIdentifiers.add(user.salesPersonId.trim());
+  if (salesperson?.salesPersonId) myIdentifiers.add(salesperson.salesPersonId.trim());
+  if (salesperson?.employeeId) myIdentifiers.add(salesperson.employeeId.trim());
+
+  const myRefCode = (salesperson?.referralCode || user?.referralCode || "").trim().toUpperCase();
+  const myName = (salesperson?.name || user?.name || "").trim().toLowerCase();
+
+  const o = order as any;
+  const orderSpIdentifiers = [
+    order.salesPersonId,
+    o.salespersonId,
+    o.assignedSalespersonId,
+    o.salesPersonUid,
+    o.salespersonUid,
+    o.spId,
+    o.salespersonEmployeeId,
+  ]
+    .filter(Boolean)
+    .map((s: any) => s.toString().trim());
+
+  // 1. Direct match on any salesperson identifier or user UID
+  for (const id of orderSpIdentifiers) {
+    if (myIdentifiers.has(id)) {
+      return true;
+    }
+  }
+
+  // 2. Referral code match (strict: exclude quotationNumber)
+  const orderRefCode = (o.referralCode || o.salespersonReferralCode || o.refCode || "").toString().trim().toUpperCase();
+  if (myRefCode && orderRefCode && myRefCode === orderRefCode) {
     return true;
   }
 
-  // 2. Customer ID matches one of the salesperson's allocated customers
-  if (allocatedCustomerIds && order.userId && allocatedCustomerIds.has(order.userId)) {
+  // 3. Customer ID matches one of the salesperson's allocated customers
+  const orderCustId = (order.userId || o.customerId || o.clientUid || o.clientId || "").toString().trim();
+  if (allocatedCustomerIds && orderCustId && allocatedCustomerIds.has(orderCustId)) {
     return true;
   }
 
-  // 3. Fallback: unassigned orders (no salesperson explicitly tagged yet)
-  if (!orderSpId) {
+  // 4. Exact salesperson name match
+  const orderSpName = (o.salespersonName || o.salesPersonName || "").toString().trim().toLowerCase();
+  if (myName && orderSpName && (orderSpName === myName || (myName.length >= 4 && orderSpName.includes(myName)))) {
     return true;
   }
 
+  // Strictly exclude anyone else's or unallocated orders for this salesperson
   return false;
 }
 
@@ -706,55 +740,72 @@ export function subscribeClientPORequests(
   callback: (orders: ClientOrderPO[]) => void
 ): () => void {
   let allocatedIds = new Set<string>();
+  let latestDocs: any[] = [];
+  let isUnsubscribed = false;
+
+  const emitPOs = () => {
+    if (isUnsubscribed) return;
+    const ordersList: ClientOrderPO[] = [];
+
+    latestDocs.forEach((d) => {
+      const order = parseClientOrderDoc(d);
+      const isPending = 
+        order.status === "pending_rate" || 
+        order.status === "submitted" || 
+        order.status === "pending_quote" || 
+        order.status === "pending_admin_approval";
+      if (!isPending) return;
+
+      if (shouldIncludeOrderForSalesperson(order, user, salesperson, role, allocatedIds)) {
+        ordersList.push(order);
+      }
+    });
+
+    // Sort newest orders first
+    ordersList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Only admins see baseline sample PO if database is completely empty
+    if (role === "admin" && ordersList.length === 0) {
+      ordersList.push(SAMPLE_CLIENT_PO);
+    }
+
+    callback(ordersList);
+  };
 
   // Fetch allocated customers in background for accurate fallback mapping
-  fetchLiveCustomers(user, salesperson, role)
-    .then((custs) => {
-      allocatedIds = new Set(custs.map((c) => c.id));
-    })
-    .catch(() => {});
+  if (role === "salesperson") {
+    fetchLiveCustomers(user, salesperson, role)
+      .then((custs) => {
+        allocatedIds = new Set(custs.map((c) => c.id));
+        if (latestDocs.length > 0) {
+          emitPOs();
+        }
+      })
+      .catch(() => {});
+  }
 
   const ordersRef = collection(db, "orders");
 
   const unsubscribe = onSnapshot(
     ordersRef,
     (snapshot) => {
-      const ordersList: ClientOrderPO[] = [];
-
-      snapshot.docs.forEach((d) => {
-        const order = parseClientOrderDoc(d);
-        const isPending = 
-          order.status === "pending_rate" || 
-          order.status === "submitted" || 
-          order.status === "pending_quote" || 
-          order.status === "pending_admin_approval";
-        if (!isPending) return;
-
-        if (shouldIncludeOrderForSalesperson(order, user, salesperson, role, allocatedIds)) {
-          ordersList.push(order);
-        }
-      });
-
-      // Sort newest orders first
-      ordersList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      if (ordersList.length === 0) {
-        ordersList.push(SAMPLE_CLIENT_PO);
-      }
-
-      callback(ordersList);
+      latestDocs = snapshot.docs;
+      emitPOs();
     },
     (err) => {
       console.warn("Real-time onSnapshot orders subscription error:", err);
-      callback([SAMPLE_CLIENT_PO]);
+      callback(role === "admin" ? [SAMPLE_CLIENT_PO] : []);
     }
   );
 
-  return unsubscribe;
+  return () => {
+    isUnsubscribed = true;
+    unsubscribe();
+  };
 }
 
 /**
- * Subscribes to ALL real-time orders (for the Orders page)
+ * Subscribes to ALL real-time orders (for the Orders page and Orders by Status card)
  */
 export function subscribeAllOrders(
   user: UserProfile | null,
@@ -762,26 +813,54 @@ export function subscribeAllOrders(
   role: UserRole | null,
   callback: (orders: ClientOrderPO[]) => void
 ): () => void {
+  let allocatedIds = new Set<string>();
+  let latestDocs: any[] = [];
+  let isUnsubscribed = false;
+
+  const emitOrders = () => {
+    if (isUnsubscribed) return;
+    const allOrders: ClientOrderPO[] = [];
+
+    latestDocs.forEach((d) => {
+      const order = parseClientOrderDoc(d);
+      if (role === "admin" || shouldIncludeOrderForSalesperson(order, user, salesperson, role, allocatedIds)) {
+        allOrders.push(order);
+      }
+    });
+
+    allOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    callback(allOrders);
+  };
+
+  if (role === "salesperson") {
+    fetchLiveCustomers(user, salesperson, role)
+      .then((custs) => {
+        allocatedIds = new Set(custs.map((c) => c.id));
+        if (latestDocs.length > 0) {
+          emitOrders();
+        }
+      })
+      .catch(() => {});
+  }
+
   const ordersRef = collection(db, "orders");
 
-  return onSnapshot(
+  const unsubscribe = onSnapshot(
     ordersRef,
     (snapshot) => {
-      const allOrders: ClientOrderPO[] = [];
-      snapshot.docs.forEach((d) => {
-        const order = parseClientOrderDoc(d);
-        if (role === "admin" || shouldIncludeOrderForSalesperson(order, user, salesperson, role)) {
-          allOrders.push(order);
-        }
-      });
-
-      allOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      callback(allOrders);
+      latestDocs = snapshot.docs;
+      emitOrders();
     },
     (err) => {
       console.warn("Real-time all orders subscription error:", err);
+      callback([]);
     }
   );
+
+  return () => {
+    isUnsubscribed = true;
+    unsubscribe();
+  };
 }
 
 /**

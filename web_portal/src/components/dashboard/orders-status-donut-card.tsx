@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { 
   ClientOrderPO, 
-  SAMPLE_CLIENT_ORDERS 
+  SAMPLE_CLIENT_ORDERS,
+  shouldIncludeOrderForSalesperson
 } from "@/lib/order-service";
 import { useAuth } from "@/lib/auth-context";
 
@@ -39,21 +40,31 @@ interface OrdersStatusDonutCardProps {
 
 export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProps) {
   const router = useRouter();
-  const { role } = useAuth();
+  const { user, salesperson, role } = useAuth();
   const [hoveredKey, setHoveredKey] = useState<OrderStatusKey | null>(null);
 
-  // Merge live orders with baseline sample orders so counts match across dashboard and quotations tab
+  // Pure real-time orders: strictly enforce salesperson isolation and zero mock data
   const allMergedOrders = useMemo(() => {
-    const list: ClientOrderPO[] = [...(orders || [])];
-    SAMPLE_CLIENT_ORDERS.forEach((sample) => {
-      if (!list.some((o) => o.id === sample.id || (o.poNumber && o.poNumber === sample.poNumber))) {
-        list.push(sample);
-      }
-    });
-    return list;
-  }, [orders]);
+    let list: ClientOrderPO[] = [...(orders || [])];
 
-  // Compute live counts across the merged dataset
+    if (role === "salesperson") {
+      // Strictly guarantee that only this salesperson's orders are included
+      list = list.filter((o) => shouldIncludeOrderForSalesperson(o, user, salesperson, role));
+      return list;
+    }
+
+    if (role === "admin" && list.length === 0) {
+      // Only for admin when database is completely empty: fallback to sample preview
+      SAMPLE_CLIENT_ORDERS.forEach((sample) => {
+        if (!list.some((o) => o.id === sample.id || (o.poNumber && o.poNumber === sample.poNumber))) {
+          list.push(sample);
+        }
+      });
+    }
+    return list;
+  }, [orders, role, user, salesperson]);
+
+  // Compute pure live counts across the dataset (no artificial padding)
   const statusData = useMemo(() => {
     let pendingRate = 0;
     let rateQuoted = 0;
@@ -62,21 +73,21 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
 
     allMergedOrders.forEach((o) => {
       const s = (o.status || "").toLowerCase();
-      if (s === "pending_rate" || s === "submitted" || s === "pending_quote" || s === "pending_admin_approval") {
+      if (s === "pending_rate" || s === "submitted" || s === "pending_quote" || s === "pending_admin_approval" || s === "awaiting_quote" || s === "pending_salesperson_review") {
         pendingRate++;
-      } else if (s === "rate_quoted") {
+      } else if (s === "rate_quoted" || s === "sent_to_customer") {
         rateQuoted++;
-      } else if (s === "confirmed" || s === "approved" || s === "dispatched" || s === "delivered") {
+      } else if (s === "confirmed" || s === "approved" || s === "dispatched" || s === "delivered" || s === "accepted" || s === "in_production") {
         confirmed++;
-      } else if (s === "rejected" || s === "cancelled") {
+      } else if (s === "rejected" || s === "cancelled" || s === "declined") {
         rejected++;
       }
     });
 
-    const prCount = Math.max(pendingRate, 5);
-    const rqCount = Math.max(rateQuoted, 1);
-    const cfCount = Math.max(confirmed, 1);
-    const rjCount = Math.max(rejected, 1);
+    const prCount = pendingRate;
+    const rqCount = rateQuoted;
+    const cfCount = confirmed;
+    const rjCount = rejected;
 
     const items: StatusItem[] = [
       {
@@ -157,14 +168,10 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
 
   const activeHoverItem = hoveredKey ? donutSegments.find((s) => s.key === hoveredKey) : null;
 
-  const winRate = ((items.find((i) => i.key === "confirmed")?.count || 0) /
-    Math.max(
-      (items.find((i) => i.key === "confirmed")?.count || 0) +
-        (items.find((i) => i.key === "rejected")?.count || 0),
-      1
-    ) *
-    100
-  ).toFixed(1);
+  const confirmedCount = items.find((i) => i.key === "confirmed")?.count || 0;
+  const rejectedCount = items.find((i) => i.key === "rejected")?.count || 0;
+  const closedDeals = confirmedCount + rejectedCount;
+  const winRate = closedDeals > 0 ? ((confirmedCount / closedDeals) * 100).toFixed(1) : "0.0";
 
   const handleStatusClick = (key: OrderStatusKey) => {
     if (key === "pending_rate") {
@@ -268,6 +275,16 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
                     style={{ color: activeHoverItem.color, backgroundColor: `${activeHoverItem.color}18` }}
                   >
                     {activeHoverItem.percent}%
+                  </div>
+                </div>
+              ) : total === 0 ? (
+                <div>
+                  <div className="text-2xl font-black text-slate-400 leading-none">0</div>
+                  <div className="text-[11px] font-bold text-slate-400 mt-1 uppercase tracking-wider">
+                    Total
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                    No Orders
                   </div>
                 </div>
               ) : (

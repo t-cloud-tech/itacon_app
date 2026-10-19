@@ -61,19 +61,30 @@ export default function DashboardPage() {
       setAllOrders(liveOrders);
     });
 
+    const myIds = new Set<string>();
+    if (user?.userId) myIds.add(user.userId.trim());
+    if (user?.salesPersonId) myIds.add(user.salesPersonId.trim());
+    if (salesperson?.salesPersonId) myIds.add(salesperson.salesPersonId.trim());
+    if (salesperson?.employeeId) myIds.add(salesperson.employeeId.trim());
+
     // 3. Real-time live quotations listener (for dynamic revenue telemetry)
     const quotesRef = collection(db, "quotations");
-    let qQuotes = query(quotesRef, orderBy("createdAt", "desc"));
-    if (role === "salesperson" && user?.userId) {
-      qQuotes = query(quotesRef, where("salespersonId", "==", user.userId));
-    }
     const unsubQuotes = onSnapshot(
-      qQuotes,
+      quotesRef,
       (snap) => {
-        const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        let list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (role === "salesperson") {
+          list = list.filter((q: any) => {
+            const qSpId = (q.salespersonId || q.salesPersonId || "").trim();
+            return myIds.has(qSpId);
+          });
+        }
         setAllQuotations(list);
         if (list.length > 0) {
+          list.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setRecentQuotes(list.slice(0, 5));
+        } else {
+          setRecentQuotes([]);
         }
       },
       (err) => {
@@ -83,14 +94,16 @@ export default function DashboardPage() {
 
     // 4. Real-time live salesOrders listener
     const salesOrdersRef = collection(db, "salesOrders");
-    let qSales = query(salesOrdersRef);
-    if (role === "salesperson" && user?.userId) {
-      qSales = query(salesOrdersRef, where("salespersonId", "==", user.userId));
-    }
     const unsubSalesOrders = onSnapshot(
-      qSales,
+      salesOrdersRef,
       (snap) => {
-        const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        let list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (role === "salesperson") {
+          list = list.filter((so: any) => {
+            const spId = (so.salespersonId || so.salesPersonId || "").trim();
+            return myIds.has(spId);
+          });
+        }
         setAllSalesOrders(list);
       },
       (err) => {
@@ -101,11 +114,13 @@ export default function DashboardPage() {
     async function fetchDashboardData() {
       setIsLoading(true);
       try {
-        // Initial quotations fallback fetch if collection empty
-        const quoteSnap = await getDocs(query(collection(db, "quotations"), limit(5)));
-        if (!quoteSnap.empty) {
-          const quotesList = quoteSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setRecentQuotes(quotesList);
+        // Initial quotations fetch if admin
+        if (role === "admin") {
+          const quoteSnap = await getDocs(query(collection(db, "quotations"), limit(5)));
+          if (!quoteSnap.empty) {
+            const quotesList = quoteSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setRecentQuotes(quotesList);
+          }
         }
 
         // Fetch pending approvals
@@ -126,10 +141,10 @@ export default function DashboardPage() {
         // Set baseline stats
         setStats((prev) => ({
           ...prev,
-          activeLeads: 12,
-          openOpportunities: 8,
+          activeLeads: role === "admin" ? 12 : 0,
+          openOpportunities: role === "admin" ? 8 : 0,
           pendingApprovals: attentionItems.length,
-          followUpsDueToday: 3,
+          followUpsDueToday: role === "admin" ? 3 : 0,
         }));
 
         setNeedsAttention(attentionItems);
@@ -137,68 +152,73 @@ export default function DashboardPage() {
         console.warn("Using baseline dashboard data while Firestore collections populate:", err);
         setStats((prev) => ({
           ...prev,
-          activeLeads: 8,
-          openOpportunities: 6,
-          pendingApprovals: 2,
-          followUpsDueToday: 3,
+          activeLeads: role === "admin" ? 8 : 0,
+          openOpportunities: role === "admin" ? 6 : 0,
+          pendingApprovals: role === "admin" ? 2 : 0,
+          followUpsDueToday: role === "admin" ? 3 : 0,
         }));
 
-        setNeedsAttention([
-          {
-            id: "att-1",
-            type: "approval",
-            title: "Quotation #QT-2026-089 exceeds 15% discount limit",
-            detail: "Apex Ceramics — Special project pricing pending admin signoff",
-            time: "1 hour ago",
-            urgency: "high",
-          },
-          {
-            id: "att-2",
-            type: "lead",
-            title: "New 3D Tile Design Request from Customer App",
-            detail: "Rajesh Marble & Granite requested mockups for 600x1200 Glazed Vitrified Tiles",
-            time: "3 hours ago",
-            urgency: "medium",
-          },
-          {
-            id: "att-3",
-            type: "followup",
-            title: "Site Visit & Tile Sample Handover Scheduled",
-            detail: "Metro Residency Project — Contact: Vikram Patel (98250 12345)",
-            time: "Today, 3:30 PM",
-            urgency: "medium",
-          }
-        ]);
+        if (role === "admin") {
+          setNeedsAttention([
+            {
+              id: "att-1",
+              type: "approval",
+              title: "Quotation #QT-2026-089 exceeds 15% discount limit",
+              detail: "Apex Ceramics — Special project pricing pending admin signoff",
+              time: "1 hour ago",
+              urgency: "high",
+            },
+            {
+              id: "att-2",
+              type: "lead",
+              title: "New 3D Tile Design Request from Customer App",
+              detail: "Rajesh Marble & Granite requested mockups for 600x1200 Glazed Vitrified Tiles",
+              time: "3 hours ago",
+              urgency: "medium",
+            },
+            {
+              id: "att-3",
+              type: "followup",
+              title: "Site Visit & Tile Sample Handover Scheduled",
+              detail: "Metro Residency Project — Contact: Vikram Patel (98250 12345)",
+              time: "Today, 3:30 PM",
+              urgency: "medium",
+            }
+          ]);
 
-        setRecentQuotes([
-          {
-            id: "qt-1",
-            quotationNumber: "QT-2026-104",
-            customerName: "Gujarat Ceramics & sanitary",
-            grandTotal: 345000,
-            status: "approved",
-            totalBoxes: 450,
-            createdAt: "Today",
-          },
-          {
-            id: "qt-2",
-            quotationNumber: "QT-2026-103",
-            customerName: "Apex Builders & Infra",
-            grandTotal: 890000,
-            status: "pending_approval",
-            totalBoxes: 1200,
-            createdAt: "Yesterday",
-          },
-          {
-            id: "qt-3",
-            quotationNumber: "QT-2026-102",
-            customerName: "Shreeji Tile Studio",
-            grandTotal: 175000,
-            status: "sent_to_customer",
-            totalBoxes: 220,
-            createdAt: "2 days ago",
-          },
-        ]);
+          setRecentQuotes([
+            {
+              id: "qt-1",
+              quotationNumber: "QT-2026-104",
+              customerName: "Gujarat Ceramics & sanitary",
+              grandTotal: 345000,
+              status: "approved",
+              totalBoxes: 450,
+              createdAt: "Today",
+            },
+            {
+              id: "qt-2",
+              quotationNumber: "QT-2026-103",
+              customerName: "Apex Builders & Infra",
+              grandTotal: 890000,
+              status: "pending_approval",
+              totalBoxes: 1200,
+              createdAt: "Yesterday",
+            },
+            {
+              id: "qt-3",
+              quotationNumber: "QT-2026-102",
+              customerName: "Shreeji Tile Studio",
+              grandTotal: 175000,
+              status: "sent_to_customer",
+              totalBoxes: 220,
+              createdAt: "2 days ago",
+            },
+          ]);
+        } else {
+          setNeedsAttention([]);
+          setRecentQuotes([]);
+        }
       } finally {
         setIsLoading(false);
       }

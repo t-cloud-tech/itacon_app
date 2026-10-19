@@ -121,26 +121,30 @@ function QuotationsContent() {
     };
   }, [user, salesperson, role]);
 
-  // Merge all orders with baseline sample orders
+  // Merge all orders with baseline sample orders (ONLY for admin when database is empty)
   const allMergedOrders = useMemo(() => {
     const list: ClientOrderPO[] = [...(allOrders || [])];
-    SAMPLE_CLIENT_ORDERS.forEach((sample) => {
-      if (!list.some((o) => o.id === sample.id || (o.poNumber && o.poNumber === sample.poNumber))) {
-        list.push(sample);
-      }
-    });
+    if (role === "admin" && list.length === 0) {
+      SAMPLE_CLIENT_ORDERS.forEach((sample) => {
+        if (!list.some((o) => o.id === sample.id || (o.poNumber && o.poNumber === sample.poNumber))) {
+          list.push(sample);
+        }
+      });
+    }
     return list;
-  }, [allOrders]);
+  }, [allOrders, role]);
 
-  // Merge live quotations with baseline quotations from all salespersons and quoted orders
+  // Merge live quotations with baseline quotations (ONLY for admin fallback preview)
   const mergedQuotations = useMemo(() => {
     const list: Quotation[] = [...quotations];
 
-    BASELINE_QUOTATIONS.forEach((sample) => {
-      if (!list.some((q) => q.id === sample.id || (q.quotationNumber && q.quotationNumber === sample.quotationNumber))) {
-        list.push(sample);
-      }
-    });
+    if (role === "admin" && list.length === 0) {
+      BASELINE_QUOTATIONS.forEach((sample) => {
+        if (!list.some((q) => q.id === sample.id || (q.quotationNumber && q.quotationNumber === sample.quotationNumber))) {
+          list.push(sample);
+        }
+      });
+    }
 
     // In admin role: ensure all orders where rates were quoted/confirmed/rejected across salespersons appear
     allMergedOrders.forEach((o) => {
@@ -252,13 +256,21 @@ function QuotationsContent() {
   // Filtered quotations for the Generated Quotations table
   const filteredQuotations = useMemo(() => {
     return mergedQuotations.filter((q) => {
-      // In salesperson role: only show quotations belonging to this salesperson
-      if (role === "salesperson" && user?.userId) {
-        const spId = salesperson?.salesPersonId || user.userId;
+      // In salesperson role: strictly only show quotations belonging to this salesperson
+      if (role === "salesperson") {
+        const myIds = new Set<string>();
+        if (user?.userId) myIds.add(user.userId.trim());
+        if (user?.salesPersonId) myIds.add(user.salesPersonId.trim());
+        if (salesperson?.salesPersonId) myIds.add(salesperson.salesPersonId.trim());
+        if (salesperson?.employeeId) myIds.add(salesperson.employeeId.trim());
+
+        const qSpId = (q.salespersonId || (q as any).salesPersonId || "").trim();
+        const qSpName = (q.salespersonName || "").trim().toLowerCase();
+        const myName = (salesperson?.name || user?.name || "").trim().toLowerCase();
+
         const isMatch =
-          q.salespersonId === user.userId ||
-          q.salespersonId === spId ||
-          (user.name && (q.salespersonName || "").toLowerCase().includes(user.name.toLowerCase()));
+          myIds.has(qSpId) ||
+          (myName && qSpName && (qSpName === myName || (myName.length >= 4 && qSpName.includes(myName))));
         if (!isMatch) return false;
       }
       // In admin role: SHOW ALL generated quotations across all salespersons and admin!
