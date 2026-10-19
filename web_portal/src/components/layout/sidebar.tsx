@@ -15,6 +15,7 @@ import {
   FileSpreadsheet, 
   CheckSquare, 
   Truck, 
+  UserCog,
   LogOut,
   ChevronRight
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Salespersons", href: "/salespersons", icon: UserCog, adminOnly: true },
   { name: "Leads", href: "/leads", icon: UserCheck },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Opportunities", href: "/opportunities", icon: Target },
@@ -84,7 +86,9 @@ export function Sidebar() {
 
         {/* Navigation Items */}
         <nav className="mt-6 px-3 space-y-1">
-          {navItems.map((item) => {
+          {navItems
+            .filter((item) => !item.adminOnly || role === "admin")
+            .map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
 
