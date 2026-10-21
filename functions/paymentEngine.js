@@ -643,9 +643,20 @@ exports.verifyPaymentCallable = functions.https.onCall(async (data, context) => 
       paidAmount: subData.expectedAmount,
       paidAt: admin.firestore.FieldValue.serverTimestamp(),
       paymentId: subData.utrNumber,
-      status: 'processing',
+      status: 'confirmed',
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    if (orderData.quotationId) {
+      try {
+        const quoteRef = db.collection('quotations').doc(orderData.quotationId);
+        transaction.update(quoteRef, {
+          status: 'confirm_order',
+          paymentStatus: 'paid',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
 
     const histRef = orderRef.collection('orderStatusHistory').doc();
     transaction.set(histRef, {
@@ -657,6 +668,34 @@ exports.verifyPaymentCallable = functions.https.onCall(async (data, context) => 
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
+
+  // 2b. Sync matching salesOrder and quotation documents in background
+  try {
+    const qCol = db.collection('quotations');
+    const qSnap = await qCol.where('orderId', '==', resolvedOrderId).get();
+    if (!qSnap.empty) {
+      for (const d of qSnap.docs) {
+        await d.ref.update({
+          status: 'confirm_order',
+          paymentStatus: 'paid',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+    const soCol = db.collection('salesOrders');
+    const soSnap = await soCol.where('orderId', '==', resolvedOrderId).get();
+    if (!soSnap.empty) {
+      for (const d of soSnap.docs) {
+        await d.ref.update({
+          status: 'confirmed',
+          paymentStatus: 'paid',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+    }
+  } catch (syncErr) {
+    console.warn('[PaymentEngine] Error syncing salesOrders or quotations:', syncErr);
+  }
 
   // 3. Send Notification to Customer
   try {

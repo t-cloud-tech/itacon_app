@@ -7,7 +7,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { Quotation } from "@/types";
+import { Quotation, SalesOrder } from "@/types";
 import { 
   subscribeClientPORequests, 
   subscribeAllOrders, 
@@ -49,6 +49,7 @@ function QuotationsContent() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [poRequests, setPoRequests] = useState<ClientOrderPO[]>([]);
   const [allOrders, setAllOrders] = useState<ClientOrderPO[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "pending_po">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,10 +115,23 @@ function QuotationsContent() {
       setAllOrders(liveOrders);
     });
 
+    // 4. Real-time live sales orders listener
+    const unsubSalesOrders = onSnapshot(
+      collection(db, "salesOrders"),
+      (snap) => {
+        const list = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as SalesOrder));
+        setSalesOrders(list);
+      },
+      (err) => {
+        console.warn("Real-time sales orders warning in quotations:", err);
+      }
+    );
+
     return () => {
       unsubQuotes();
       unsubPOs();
       unsubAllOrders();
+      unsubSalesOrders();
     };
   }, [user, salesperson, role]);
 
@@ -136,7 +150,43 @@ function QuotationsContent() {
 
   // Merge live quotations with baseline quotations (ONLY for admin fallback preview)
   const mergedQuotations = useMemo(() => {
-    const list: Quotation[] = [...quotations];
+    // 1. Process base quotations and check if linked sales order or mobile order is paid
+    const list: Quotation[] = quotations.map((q) => {
+      const matchingSO = salesOrders.find(
+        (so) =>
+          (q.id && (so.quotationId === q.id || so.id === q.id || so.orderId === q.id)) ||
+          (q.orderId && (so.orderId === q.orderId || so.id === q.orderId)) ||
+          (q.quotationNumber && (so.quotationNumber === q.quotationNumber || so.orderNumber === q.quotationNumber.replace(/^QT-/, "ORD-"))) ||
+          (q.poNumber && (so.poNumber === q.poNumber || so.orderNumber === q.poNumber.replace(/^ITC-PO-/, "ORD-")))
+      );
+
+      const matchingOrder = allMergedOrders.find(
+        (o) =>
+          (q.orderId && o.id === q.orderId) ||
+          (q.id && o.quotationId === q.id) ||
+          (q.quotationNumber && (o.quotationNumber === q.quotationNumber || o.poNumber === q.quotationNumber.replace(/^QT-/, "ITC-PO-"))) ||
+          (q.poNumber && o.poNumber === q.poNumber)
+      );
+
+      const isPaid =
+        (q as any).paymentStatus === "paid" ||
+        q.status === ("confirm_order" as any) ||
+        (q.status as string) === "paid" ||
+        matchingSO?.paymentStatus === "paid" ||
+        (matchingSO?.status as string) === "paid" ||
+        (matchingOrder?.paymentStatus || "").toLowerCase() === "paid" ||
+        ((matchingOrder?.status as string) || "").toLowerCase() === "paid";
+
+      if (isPaid) {
+        return {
+          ...q,
+          status: "confirm_order" as any,
+          paymentStatus: "paid",
+        };
+      }
+
+      return q;
+    });
 
     if (role === "admin" && list.length === 0) {
       BASELINE_QUOTATIONS.forEach((sample) => {
@@ -149,12 +199,28 @@ function QuotationsContent() {
     // In admin role: ensure all orders where rates were quoted/confirmed/rejected across salespersons appear
     allMergedOrders.forEach((o) => {
       const s = (o.status || "").toLowerCase();
-      if (s === "rate_quoted" || s === "confirmed" || s === "approved" || s === "rejected" || s === "pending_admin_approval" || s === "pending_salesperson_review") {
+      const isOrderPaid = s === "paid" || (o.paymentStatus || "").toLowerCase() === "paid";
+      const matchingSO = salesOrders.find(
+        (so) =>
+          (so.orderId && so.orderId === o.id) ||
+          (so.poNumber && o.poNumber && so.poNumber === o.poNumber) ||
+          (so.quotationNumber && o.quotationNumber && so.quotationNumber === o.quotationNumber)
+      );
+      const isPaid = isOrderPaid || matchingSO?.paymentStatus === "paid" || (matchingSO?.status as string) === "paid";
+
+      if (s === "rate_quoted" || s === "confirmed" || s === "approved" || s === "rejected" || s === "pending_admin_approval" || s === "pending_salesperson_review" || s === "paid" || isPaid) {
         const quoteNum = o.quotationNumber || `QT-${o.poNumber ? o.poNumber.replace(/^ITC-PO-/, "") : o.id.slice(-4)}`;
         const existingIdx = list.findIndex((q) => q.orderId === o.id || (o.quotationId && q.id === o.quotationId) || (quoteNum && q.quotationNumber === quoteNum) || (o.poNumber && q.poNumber === o.poNumber));
 
         if (existingIdx >= 0) {
-          if (s === "confirmed") {
+          if (isPaid) {
+            list[existingIdx] = {
+              ...list[existingIdx],
+              status: "confirm_order" as any,
+              paymentStatus: "paid",
+              changedByRole: "customer",
+            };
+          } else if (s === "confirmed") {
             list[existingIdx] = {
               ...list[existingIdx],
               status: "accepted",
@@ -180,7 +246,8 @@ function QuotationsContent() {
           }, 0) || 50000;
 
           let quoteStatus: any = "pending_approval";
-          if (s === "confirmed") quoteStatus = "accepted";
+          if (isPaid) quoteStatus = "confirm_order";
+          else if (s === "confirmed") quoteStatus = "accepted";
           else if (s === "approved") quoteStatus = "approved";
           else if (s === "rate_quoted") quoteStatus = "sent_to_customer";
           else if (s === "rejected") quoteStatus = "rejected";
@@ -200,6 +267,7 @@ function QuotationsContent() {
             salespersonId: o.salesPersonId || "sp-1",
             salespersonName: spName,
             status: quoteStatus,
+            paymentStatus: isPaid ? "paid" : (o.paymentStatus || undefined),
             approvalStatus: (o.adminApprovalStatus as any) || (quoteStatus === "approved" ? "approved" : "pending"),
             adminApprovalStatus: o.adminApprovalStatus,
             salespersonApprovalStatus: o.salespersonApprovalStatus,
@@ -251,7 +319,7 @@ function QuotationsContent() {
     });
 
     return list;
-  }, [quotations, allMergedOrders, salesPersonsMap]);
+  }, [quotations, allMergedOrders, salesOrders, salesPersonsMap]);
 
   // Filtered quotations for the Generated Quotations table
   const filteredQuotations = useMemo(() => {
@@ -287,7 +355,8 @@ function QuotationsContent() {
         (statusFilter === "approved" && ((q.status === "approved" && ((q.pricePerSqft !== undefined && q.pricePerSqft < 26.50) || q.requiresSpecialApproval)) || (q as any).adminApprovalStatus === "approved" || (q as any).approvalStatus === "approved" || q.status === "pending_salesperson_review")) ||
         (statusFilter === "admin_rejected" && ((q as any).adminApprovalStatus === "rejected" || (q as any).approvalStatus === "rejected" || (q.status === "pending_salesperson_review" && (q as any).adminApprovalStatus === "rejected"))) ||
         (statusFilter === "sent_to_customer" && (q.status === "sent_to_customer" || q.status === "rate_quoted")) ||
-        (statusFilter === "accepted" && q.status === "accepted") ||
+        (statusFilter === "confirm_order" && (q.status === "confirm_order" || q.status === ("confirm order" as any) || q.status === "accepted" || (q as any).paymentStatus === "paid")) ||
+        (statusFilter === "accepted" && (q.status === "accepted" || q.status === "confirm_order" || (q as any).paymentStatus === "paid")) ||
         (statusFilter === "rejected_customer" && q.status === "rejected" && (q as any).changedByRole === "customer") ||
         (statusFilter === "rejected_salesperson" && (q.status === "declined" || (q as any).salespersonApprovalStatus === "cancelled" || ((q as any).changedByRole === "salesperson" && (q as any).approvalStatus !== "rejected" && (q as any).adminApprovalStatus !== "rejected"))) ||
         (statusFilter === "rejected" && (q.status === "declined" || q.status === "rejected")) ||
@@ -418,6 +487,7 @@ function QuotationsContent() {
                 className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
               >
                 <option value="all">All Statuses</option>
+                <option value="confirm_order">Confirm Order (Paid)</option>
                 <option value="pending_approval">Awaiting Admin Approval</option>
                 <option value="approved">Admin Approved - Sales Action Required</option>
                 <option value="admin_rejected">Admin Rejected - Sales Action Required</option>
@@ -666,6 +736,8 @@ function QuotationsContent() {
                                 pricePerSqft: q.pricePerSqft,
                                 rateThreshold: q.rateThreshold,
                                 requiresSpecialApproval: q.requiresSpecialApproval,
+                                paymentStatus: (q as any).paymentStatus,
+                                isPaid: (q as any).paymentStatus === "paid" || q.status === ("confirm_order" as any),
                               }
                             )}`}
                           >
@@ -679,6 +751,8 @@ function QuotationsContent() {
                                 pricePerSqft: q.pricePerSqft,
                                 rateThreshold: q.rateThreshold,
                                 requiresSpecialApproval: q.requiresSpecialApproval,
+                                paymentStatus: (q as any).paymentStatus,
+                                isPaid: (q as any).paymentStatus === "paid" || q.status === ("confirm_order" as any),
                               })}
                             </span>
                           </span>

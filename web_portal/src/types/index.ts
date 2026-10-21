@@ -153,6 +153,9 @@ export type QuotationStatus =
   | "rate_quoted"
   | "sent_to_customer" 
   | "accepted" 
+  | "confirmed"
+  | "confirm_order"
+  | "paid"
   | "rejected" 
   | "declined" 
   | "expired";
@@ -169,6 +172,7 @@ export interface Quotation {
   salespersonId: string;
   salespersonName: string;
   status: QuotationStatus;
+  paymentStatus?: "unpaid" | "partial" | "paid" | string;
   items: QuotationItem[];
   subtotal: number;
   discountTotal: number;
@@ -234,7 +238,7 @@ export interface ApprovalRequest {
   salespersonRevisionNotes?: string;
 }
 
-export type OrderStatus = "draft" | "submitted" | "confirmed" | "in_production" | "dispatched" | "delivered" | "cancelled";
+export type OrderStatus = "draft" | "submitted" | "confirmed" | "in_production" | "dispatched" | "delivered" | "cancelled" | "paid";
 
 export interface SalesOrder {
   id: string;

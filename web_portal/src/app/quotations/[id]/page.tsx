@@ -232,22 +232,45 @@ export default function QuotationDetailPage() {
           } catch (_) {}
         }
 
-        // 6. Check order status sync if orderId is attached
+        // 6. Check order status sync if orderId is attached or if salesOrder is paid
         if (foundQuote) {
-          if (foundQuote.orderId) {
-            try {
+          try {
+            // Check matching orders collection
+            if (foundQuote.orderId) {
               const oSnap = await getDoc(doc(db, "orders", foundQuote.orderId));
               if (oSnap.exists()) {
                 const oData = oSnap.data();
-                if (oData.status === "confirmed" || oData.status === "rejected") {
+                const isOrderPaid = (oData.paymentStatus || "").toLowerCase() === "paid" || oData.status === "paid";
+                if (isOrderPaid) {
+                  foundQuote.status = "confirm_order" as any;
+                  foundQuote.paymentStatus = "paid";
+                } else if (oData.status === "confirmed" || oData.status === "rejected") {
                   foundQuote.status = oData.status === "confirmed" ? ("accepted" as any) : "rejected";
                   foundQuote.changedByRole = oData.changedByRole || "customer";
                   foundQuote.rejectedBy = oData.rejectedBy || (oData.status === "rejected" ? "Customer" : undefined);
                   foundQuote.rejectionReason = oData.rejectionReason;
                 }
               }
-            } catch (_) {}
-          }
+            }
+
+            // Check matching salesOrders collection
+            const sCol = collection(db, "salesOrders");
+            const sQueries = [
+              query(sCol, where("quotationId", "==", foundQuote.id)),
+              query(sCol, where("quotationNumber", "==", foundQuote.quotationNumber)),
+            ];
+            for (const sq of sQueries) {
+              const sSnap = await getDocs(sq);
+              if (!sSnap.empty) {
+                const sData = sSnap.docs[0].data();
+                if ((sData.paymentStatus || "").toLowerCase() === "paid" || sData.status === "paid") {
+                  foundQuote.status = "confirm_order" as any;
+                  foundQuote.paymentStatus = "paid";
+                  break;
+                }
+              }
+            }
+          } catch (_) {}
           setQuote(foundQuote);
         } else {
           // Fallback baseline quotation
@@ -390,7 +413,7 @@ export default function QuotationDetailPage() {
               </button>
             )}
 
-            {quote.status === "accepted" && (
+            {(quote.status === "accepted" || quote.status === "confirm_order" || (quote as any).paymentStatus === "paid") && (
               <Link
                 href={`/orders?tab=sales_orders&search=${encodeURIComponent(quote.quotationNumber || quote.poNumber || "")}`}
                 className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
@@ -434,6 +457,8 @@ export default function QuotationDetailPage() {
                   pricePerSqft: quote.pricePerSqft,
                   rateThreshold: quote.rateThreshold,
                   requiresSpecialApproval: quote.requiresSpecialApproval,
+                  paymentStatus: (quote as any).paymentStatus,
+                  isPaid: (quote as any).paymentStatus === "paid" || quote.status === ("confirm_order" as any),
                 })}`}>
                   {getPOStatusLabel(quote.status, {
                     adminApprovalStatus: (quote as any).adminApprovalStatus || quote.approvalStatus,
@@ -441,6 +466,8 @@ export default function QuotationDetailPage() {
                     pricePerSqft: quote.pricePerSqft,
                     rateThreshold: quote.rateThreshold,
                     requiresSpecialApproval: quote.requiresSpecialApproval,
+                    paymentStatus: (quote as any).paymentStatus,
+                    isPaid: (quote as any).paymentStatus === "paid" || quote.status === ("confirm_order" as any),
                   })}
                 </span>
               </div>

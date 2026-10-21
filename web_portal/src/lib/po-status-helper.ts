@@ -36,6 +36,8 @@ export interface POStatusContext {
   rateThreshold?: number;
   requiresSpecialApproval?: boolean;
   adminApprovalRequired?: boolean;
+  paymentStatus?: string;
+  isPaid?: boolean;
 }
 
 /**
@@ -92,6 +94,22 @@ export function getPOStatusLabel(
 
   const s = status.toLowerCase().trim();
 
+  // 0. Paid status or explicit confirm_order check
+  const isPaid = Boolean(
+    context?.isPaid || 
+    (context?.paymentStatus || "").toLowerCase() === "paid" ||
+    s === "paid"
+  );
+
+  // When order gets paid as status in sales order tab the order in quotation tab must show status as "confirm order"
+  if (s === "confirm_order" || s === "confirm order" || s === "confirmed_order" || (isPaid && !context?.isOrder)) {
+    return "Confirm Order";
+  }
+
+  if (s === "paid") {
+    return context?.isOrder ? "Paid" : "Confirm Order";
+  }
+
   // Normalize admin decision status from adminApprovalStatus or approvalStatus
   const adminDecision = (context?.adminApprovalStatus || context?.approvalStatus || "").toLowerCase().trim();
 
@@ -107,10 +125,12 @@ export function getPOStatusLabel(
   }
 
   if (s === "accepted") {
+    if (isPaid) return "Confirm Order";
     return "Converted to Order";
   }
 
   if (s === "confirmed") {
+    if (isPaid || !context?.isOrder) return "Confirm Order";
     return "Accepted by Customer";
   }
 
@@ -221,10 +241,16 @@ export function getPOStatusBadgeClass(
       return "bg-emerald-50 text-emerald-800 border-emerald-200";
     case "Sent to Customer":
       return "bg-blue-50 text-blue-800 border-blue-200";
+    case "Confirm Order":
+    case "confirm order":
+    case "Confirmed Order":
+      return "bg-emerald-50 text-emerald-800 border-emerald-200";
     case "Converted to Order":
       return "bg-emerald-50 text-emerald-800 border-emerald-200";
     case "Accepted by Customer":
       return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    case "Paid":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
     case "Rejected by Customer":
     case "Rejected by Salesperson":
     case "Rejected":

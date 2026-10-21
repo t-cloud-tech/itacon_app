@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db, storage, functions, invokeCallable } from "@/lib/firebase";
-import { collection, query, where, getDocs, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, getDoc, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { SalesOrder, OrderStatus, PaymentSubmissionRecord, Quotation } from "@/types";
@@ -758,11 +758,42 @@ function SalesOrdersContent() {
           if (matchingSalesOrder) {
             await updateDoc(doc(db, "salesOrders", matchingSalesOrder.id), {
               paymentStatus: "paid",
+              status: "confirmed",
               updatedAt: new Date().toISOString(),
             });
           }
+
+          // Also sync any matching quotation in quotations collection to confirm_order
+          const qCol = collection(db, "quotations");
+          const targetQuoteId = matchingSalesOrder?.quotationId;
+          const targetQuoteNum = matchingSalesOrder?.quotationNumber || verifyingSub.orderReference;
+          if (targetQuoteId) {
+            try {
+              const qRef = doc(db, "quotations", targetQuoteId);
+              const qSnap = await getDoc(qRef);
+              if (qSnap.exists()) {
+                await updateDoc(qRef, {
+                  status: "confirm_order",
+                  paymentStatus: "paid",
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            } catch (_) {}
+          }
+          if (targetQuoteNum) {
+            try {
+              const qSnapNum = await getDocs(query(qCol, where("quotationNumber", "==", targetQuoteNum)));
+              if (!qSnapNum.empty) {
+                await updateDoc(qSnapNum.docs[0].ref, {
+                  status: "confirm_order",
+                  paymentStatus: "paid",
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            } catch (_) {}
+          }
         } catch (syncErr) {
-          console.warn("Could not sync salesOrders document:", syncErr);
+          console.warn("Could not sync salesOrders or quotations document:", syncErr);
         }
         setActionSuccess(`Payment of ₹${verifyingSub.submittedAmount.toLocaleString("en-IN")} verified successfully!`);
         setVerifyingSub(null);
