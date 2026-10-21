@@ -20,7 +20,7 @@ export function Topbar({ title = "Dashboard", subtitle = "Sales Activity & Quota
   const { user } = useAuth();
 
   return (
-    <header className="h-16 bg-white border-b border-[#E2E8F0] px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="h-16 bg-white border-b border-[#E2E8F0] px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs shrink-0">
       <div>
         <h1 className="text-lg font-bold text-[#0E274D] tracking-tight leading-none">{title}</h1>
         {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
