@@ -4,17 +4,17 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { 
-  Building2, 
-  LayoutDashboard, 
-  UserCheck, 
-  Users, 
-  Target, 
-  CalendarClock, 
-  Grid3X3, 
-  FileSpreadsheet, 
-  CheckSquare, 
-  Truck, 
+import {
+  Building2,
+  LayoutDashboard,
+  UserCheck,
+  Users,
+  Target,
+  CalendarClock,
+  Grid3X3,
+  FileSpreadsheet,
+  CheckSquare,
+  Truck,
   UserCog,
   LogOut,
   ChevronRight
@@ -54,7 +54,7 @@ export function Sidebar() {
             <Building2 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <div className="font-bold text-lg leading-tight tracking-tight text-white">ITACON</div>
+            <div className="font-bold text-lg leading-tight tracking-tight text-white whitespace-nowrap">ITACON GRANITO</div>
             <div className="text-[11px] font-medium text-orange-400 uppercase tracking-wider">
               {role === "admin" ? "Admin Portal" : "Salesperson Portal"}
             </div>
@@ -89,27 +89,26 @@ export function Sidebar() {
           {navItems
             .filter((item) => !item.adminOnly || role === "admin")
             .map((item) => {
-            const isActive = pathname === item.href;
-            const Icon = item.icon;
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center justify-between px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-[#E66A23] text-white shadow-md shadow-[#E66A23]/25"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
-                  <span>{item.name}</span>
-                </div>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80 shrink-0" />}
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center justify-between px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                      ? "bg-[#E66A23] text-white shadow-md shadow-[#E66A23]/25"
+                      : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400"}`} />
+                    <span>{item.name}</span>
+                  </div>
+                  {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80 shrink-0" />}
+                </Link>
+              );
+            })}
         </nav>
       </div>
 
