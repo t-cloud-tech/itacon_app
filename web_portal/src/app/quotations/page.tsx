@@ -432,13 +432,20 @@ function QuotationsContent() {
             {/* Tab 1: Generated Quotations (Shows all quotations in admin role) */}
             <button
               onClick={() => handleTabChange("all")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer ${
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-2 shrink-0 cursor-pointer ${
                 activeTab === "all"
-                  ? "bg-[#0E274D] text-white shadow-sm"
+                  ? "bg-[#E66A23] text-white shadow-sm"
                   : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
               }`}
             >
-              Generated Quotations ({filteredQuotations.length})
+              <span>Generated Quotations</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                  activeTab === "all" ? "bg-white text-[#E66A23]" : "bg-orange-100 text-orange-700"
+                }`}
+              >
+                {filteredQuotations.length}
+              </span>
             </button>
 
             {/* Tab 2: Incoming Client POs */}
@@ -460,11 +467,6 @@ function QuotationsContent() {
                 {poRequests.length}
               </span>
             </button>
-
-            <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Real-Time App Sync</span>
-            </div>
           </div>
 
           {/* Top Right Quick Actions: Search, Filter, Create Quote */}
