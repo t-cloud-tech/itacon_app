@@ -80,6 +80,10 @@ export interface Customer {
   creditLimit: number;
   paymentTerms: string;
   assignedSalespersonId: string;
+  salesPersonId?: string;
+  salespersonName?: string;
+  salespersonPhone?: string;
+  salespersonReferralCode?: string;
   status: "active" | "inactive" | "blocked";
   createdAt: string;
   updatedAt: string;

@@ -7,7 +7,12 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { fetchLiveCustomerById } from "@/lib/customer-service";
+import { 
+  fetchLiveCustomerById, 
+  fetchActiveSalespersonsList, 
+  updateCustomerAllocatedSalesperson,
+  AllocatedSalespersonInfo 
+} from "@/lib/customer-service";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { Customer } from "@/types";
 import { 
@@ -24,17 +29,31 @@ import {
   Smartphone, 
   CalendarClock,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  UserCheck,
+  UserPlus,
+  X,
+  Check,
+  AlertCircle
 } from "lucide-react";
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params?.id as string;
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<"quotations" | "opportunities" | "orders">("quotations");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Salesperson allocation modal state
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
+  const [salespersonsList, setSalespersonsList] = useState<AllocatedSalespersonInfo[]>([]);
+  const [selectedSpId, setSelectedSpId] = useState<string>("");
+  const [isLoadingSpList, setIsLoadingSpList] = useState(false);
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
+  const [actionErrorMsg, setActionErrorMsg] = useState<string | null>(null);
 
   // Mocked/fetched history
   const [quotations, setQuotations] = useState<any[]>([]);
@@ -91,6 +110,72 @@ export default function CustomerDetailPage() {
     fetchCustomerData();
   }, [customerId]);
 
+  // Open Reallocation modal for Admin
+  const handleOpenReassignModal = async () => {
+    setActionErrorMsg(null);
+    setIsReassignModalOpen(true);
+    setIsLoadingSpList(true);
+    try {
+      const list = await fetchActiveSalespersonsList();
+      setSalespersonsList(list);
+      // Preselect current salesperson if matching
+      const currentId = customer?.salesPersonId || customer?.assignedSalespersonId;
+      if (currentId && list.some(s => s.salesPersonId === currentId)) {
+        setSelectedSpId(currentId);
+      } else if (list.length > 0) {
+        setSelectedSpId(list[0].salesPersonId);
+      }
+    } catch (err) {
+      console.error("Failed to fetch salespersons list:", err);
+      setActionErrorMsg("Failed to load salespersons list.");
+    } finally {
+      setIsLoadingSpList(false);
+    }
+  };
+
+  // Confirm reallocation
+  const handleConfirmAssignment = async () => {
+    if (!customer || !selectedSpId) return;
+    const targetSp = salespersonsList.find(s => s.salesPersonId === selectedSpId);
+    if (!targetSp) {
+      setActionErrorMsg("Please choose a valid salesperson.");
+      return;
+    }
+
+    setIsSavingAssignment(true);
+    setActionErrorMsg(null);
+    try {
+      const res = await updateCustomerAllocatedSalesperson(customer.id, {
+        salesPersonId: targetSp.salesPersonId,
+        name: targetSp.name,
+        phone: targetSp.phone,
+        referralCode: targetSp.referralCode,
+      });
+
+      if (res.success) {
+        // Update local customer state immediately
+        setCustomer(prev => prev ? {
+          ...prev,
+          salesPersonId: targetSp.salesPersonId,
+          assignedSalespersonId: targetSp.salesPersonId,
+          salespersonName: targetSp.name,
+          salespersonPhone: targetSp.phone,
+          salespersonReferralCode: targetSp.referralCode,
+        } : null);
+
+        setActionSuccessMsg(`Successfully allocated ${targetSp.name} to ${customer.companyName}.`);
+        setIsReassignModalOpen(false);
+        setTimeout(() => setActionSuccessMsg(null), 5000);
+      } else {
+        setActionErrorMsg(res.error || "Failed to save allocation.");
+      }
+    } catch (err: any) {
+      setActionErrorMsg(err.message || "Failed to update allocation.");
+    } finally {
+      setIsSavingAssignment(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardShell title="Customer Profile">
@@ -134,6 +219,22 @@ export default function CustomerDetailPage() {
       subtitle={`Customer 360 View • ${customer.customerNumber}`}
     >
       <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Success Alert Banner */}
+        {actionSuccessMsg && (
+          <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold animate-fadeIn">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{actionSuccessMsg}</span>
+            </div>
+            <button
+              onClick={() => setActionSuccessMsg(null)}
+              className="text-emerald-600 hover:text-emerald-900 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <Link
             href="/customers"
@@ -168,9 +269,26 @@ export default function CustomerDetailPage() {
                     Active Account
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Primary Contact: <span className="font-semibold text-slate-700">{customer.name}</span> • GSTIN: <span className="font-mono text-slate-700">{customer.gstNumber || "Unregistered"}</span>
-                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
+                  <span>
+                    Primary Contact: <span className="font-semibold text-slate-700">{customer.name}</span>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    GSTIN: <span className="font-mono text-slate-700">{customer.gstNumber || "Unregistered"}</span>
+                  </span>
+                  <span>•</span>
+                  <span className="inline-flex items-center space-x-1 font-medium">
+                    <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
+                    <span>Allocated Salesperson:</span>
+                    <span className="font-semibold text-[#0E274D]">
+                      {customer.salespersonName || "Not Allocated"}
+                    </span>
+                    {customer.salespersonPhone && (
+                      <span className="text-slate-600 font-mono">({customer.salespersonPhone})</span>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -184,8 +302,9 @@ export default function CustomerDetailPage() {
             </div>
           </div>
 
-          {/* Key Metrics Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+          {/* Key Metrics Grid - 5 Column Layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 pt-6">
+            {/* 1. Credit Limit */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
               <span className="text-xs text-slate-500 font-medium">Credit Limit</span>
               <p className="text-lg font-bold text-[#0E274D] mt-0.5">
@@ -194,6 +313,7 @@ export default function CustomerDetailPage() {
               <p className="text-[11px] text-slate-500 mt-0.5">Terms: {customer.paymentTerms}</p>
             </div>
 
+            {/* 2. Contact Phone */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
               <span className="text-xs text-slate-500 font-medium">Contact Phone</span>
               <p className="text-sm font-bold text-slate-800 mt-0.5 flex items-center space-x-1.5">
@@ -203,6 +323,7 @@ export default function CustomerDetailPage() {
               <p className="text-[11px] text-slate-500 mt-0.5 truncate">{customer.email || "No email"}</p>
             </div>
 
+            {/* 3. Business Address */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80">
               <span className="text-xs text-slate-500 font-medium">Business Address</span>
               <p className="text-xs font-semibold text-slate-800 mt-0.5 truncate">
@@ -211,6 +332,55 @@ export default function CustomerDetailPage() {
               <p className="text-[11px] text-slate-500 mt-0.5">PIN: {customer.pincode || "380001"}</p>
             </div>
 
+            {/* 4. Allocated Salesperson Card (Name, Mobile No, Referral Code, Reassign Action) */}
+            <div className="p-3.5 rounded-xl bg-gradient-to-br from-blue-50/70 via-slate-50/50 to-orange-50/40 border border-blue-200/80 flex flex-col justify-between shadow-xs relative">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[#0E274D] font-bold flex items-center space-x-1.5">
+                  <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
+                  <span>Allocated Salesperson</span>
+                </span>
+                {customer.salespersonReferralCode && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0E274D]/10 text-[#0E274D] font-bold border border-[#0E274D]/15">
+                    {customer.salespersonReferralCode}
+                  </span>
+                )}
+              </div>
+
+              <div className="my-1.5">
+                <p className="text-sm font-bold text-slate-900 truncate">
+                  {customer.salespersonName || "Not Allocated"}
+                </p>
+                {customer.salespersonPhone ? (
+                  <p className="text-xs font-semibold text-slate-700 mt-0.5 flex items-center space-x-1">
+                    <Phone className="w-3 h-3 text-[#E66A23]" />
+                    <a
+                      href={`tel:${customer.salespersonPhone}`}
+                      className="text-[#E66A23] hover:underline hover:text-[#D95D16] transition-colors"
+                      title="Call Salesperson"
+                    >
+                      {customer.salespersonPhone}
+                    </a>
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-slate-400 mt-0.5">No contact number registered</p>
+                )}
+              </div>
+
+              {role === "admin" && (
+                <div className="pt-1.5 border-t border-slate-200/70 flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Admin Access</span>
+                  <button
+                    onClick={handleOpenReassignModal}
+                    className="text-[11px] font-bold text-[#0E274D] hover:text-[#E66A23] hover:underline inline-flex items-center space-x-1 cursor-pointer transition-colors"
+                  >
+                    <UserPlus className="w-3 h-3" />
+                    <span>{customer.salespersonName ? "Reallocate" : "Allocate Now"}</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 5. Mobile App Status */}
             <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 flex flex-col justify-between">
               <span className="text-xs text-emerald-800 font-medium">Mobile App Status</span>
               <p className="text-xs font-bold text-emerald-900 flex items-center space-x-1">
@@ -221,6 +391,128 @@ export default function CustomerDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Admin Salesperson Allocation / Reassignment Modal */}
+        {isReassignModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+            <div className="card-luxury w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-fadeIn">
+              <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#0E274D]/10 text-[#0E274D] flex items-center justify-center">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Allocate Salesperson</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Assign sales executive to {customer.companyName}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsReassignModalOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {actionErrorMsg && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{actionErrorMsg}</span>
+                  </div>
+                )}
+
+                {isLoadingSpList ? (
+                  <div className="py-8 text-center">
+                    <div className="w-7 h-7 border-2 border-[#0E274D]/20 border-t-[#0E274D] rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-xs text-slate-500">Loading active salespersons...</p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      Select Sales Executive:
+                    </label>
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {salespersonsList.map((sp) => {
+                        const isSelected = selectedSpId === sp.salesPersonId;
+                        return (
+                          <div
+                            key={sp.salesPersonId}
+                            onClick={() => setSelectedSpId(sp.salesPersonId)}
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between ${
+                              isSelected
+                                ? "bg-blue-50/80 border-[#0E274D] ring-2 ring-[#0E274D]/10"
+                                : "bg-white border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
+                                  isSelected
+                                    ? "bg-[#0E274D] text-white"
+                                    : "bg-slate-100 text-slate-700"
+                                }`}
+                              >
+                                {sp.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-slate-900">{sp.name}</p>
+                                <p className="text-[11px] text-slate-500 flex items-center space-x-1 mt-0.5">
+                                  <Phone className="w-3 h-3 text-slate-400" />
+                                  <span>{sp.phone || "No phone registered"}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                                {sp.referralCode || "SP"}
+                              </span>
+                              {isSelected && (
+                                <div className="mt-1 flex items-center justify-end text-xs font-bold text-[#0E274D]">
+                                  <Check className="w-3.5 h-3.5 mr-0.5" />
+                                  <span>Selected</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end space-x-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsReassignModalOpen(false)}
+                  disabled={isSavingAssignment}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200/80 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmAssignment}
+                  disabled={isSavingAssignment || !selectedSpId || isLoadingSpList}
+                  className="px-4 py-2 bg-[#0E274D] hover:bg-[#1A3A6D] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50 flex items-center space-x-1.5"
+                >
+                  {isSavingAssignment ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Confirm Allocation</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs Section */}
         <div className="space-y-4">

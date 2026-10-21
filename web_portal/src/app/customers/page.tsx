@@ -209,6 +209,7 @@ export default function CustomersPage() {
                     <th className="py-3.5 px-5">Customer / Firm</th>
                     <th className="py-3.5 px-5">Contact Details</th>
                     <th className="py-3.5 px-5">Category & Tier</th>
+                    <th className="py-3.5 px-5">Allocated Salesperson</th>
                     <th className="py-3.5 px-5">Credit Terms</th>
                     <th className="py-3.5 px-5">Location</th>
                     <th className="py-3.5 px-5 text-right">Actions</th>
@@ -255,6 +256,32 @@ export default function CustomersPage() {
                             Tier {c.priceTier}
                           </span>
                         </div>
+                      </td>
+
+                      <td className="py-4 px-5">
+                        {c.salespersonName ? (
+                          <div className="space-y-0.5">
+                            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
+                              <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
+                              <span>{c.salespersonName}</span>
+                            </div>
+                            {c.salespersonPhone && (
+                              <div className="flex items-center space-x-1 text-[11px] text-slate-600 font-medium">
+                                <Phone className="w-3 h-3 text-[#E66A23]" />
+                                <a href={`tel:${c.salespersonPhone}`} className="hover:text-[#E66A23] hover:underline">
+                                  {c.salespersonPhone}
+                                </a>
+                              </div>
+                            )}
+                            {c.salespersonReferralCode && (
+                              <span className="inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                                {c.salespersonReferralCode}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Not Allocated</span>
+                        )}
                       </td>
 
                       <td className="py-4 px-5">
