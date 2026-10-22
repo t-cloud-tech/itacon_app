@@ -6,17 +6,17 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { fetchLiveCustomers } from "@/lib/customer-service";
 import { Customer } from "@/types";
-import { 
-  Users, 
-  Search, 
-  Phone, 
-  MapPin, 
+import {
+  Users,
+  Search,
+  Phone,
+  MapPin,
   RefreshCw,
   Database,
   CheckCircle2,
   AlertCircle,
   Building,
-  UserCheck
+  UserCheck,
 } from "lucide-react";
 
 export default function CustomersPage() {
@@ -48,7 +48,7 @@ export default function CustomersPage() {
 
   const filteredCustomers = customers.filter(c => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       c.name.toLowerCase().includes(term) ||
       c.companyName.toLowerCase().includes(term) ||
       c.phone.includes(searchTerm) ||
@@ -259,29 +259,42 @@ export default function CustomersPage() {
                       </td>
 
                       <td className="py-4 px-5">
-                        {c.salespersonName ? (
-                          <div className="space-y-0.5">
-                            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
-                              <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
-                              <span>{c.salespersonName}</span>
-                            </div>
-                            {c.salespersonPhone && (
-                              <div className="flex items-center space-x-1 text-[11px] text-slate-600 font-medium">
-                                <Phone className="w-3 h-3 text-[#E66A23]" />
-                                <a href={`tel:${c.salespersonPhone}`} className="hover:text-[#E66A23] hover:underline">
-                                  {c.salespersonPhone}
-                                </a>
+                        {(() => {
+                          const isAllocated = Boolean(
+                            c.salespersonName &&
+                            c.salespersonName.trim() !== "" &&
+                            c.salespersonName.trim().toLowerCase() !== "not allocated" &&
+                            c.salespersonName.trim().toLowerCase() !== "unallocated" &&
+                            c.salespersonName.trim().toLowerCase() !== "none" &&
+                            (!c.name || c.salespersonName.trim().toLowerCase() !== c.name.trim().toLowerCase())
+                          );
+
+                          return isAllocated ? (
+                            <div className="space-y-0.5">
+                              <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
+                                <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
+                                <span>{c.salespersonName}</span>
                               </div>
-                            )}
-                            {c.salespersonReferralCode && (
-                              <span className="inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
-                                {c.salespersonReferralCode}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">Not Allocated</span>
-                        )}
+                              {c.salespersonPhone && (
+                                <div className="flex items-center space-x-1 text-[11px] text-slate-600 font-medium">
+                                  <Phone className="w-3 h-3 text-[#E66A23]" />
+                                  <a href={`tel:${c.salespersonPhone}`} className="hover:text-[#E66A23] hover:underline">
+                                    {c.salespersonPhone}
+                                  </a>
+                                </div>
+                              )}
+                              {c.salespersonReferralCode && (
+                                <span className="inline-block text-[10px] font-mono font-semibold px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200">
+                                  {c.salespersonReferralCode}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200/80 text-[11px] font-medium text-slate-500">
+                              <span>Not Allocated</span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       <td className="py-4 px-5">

@@ -7,31 +7,32 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
-import { 
-  fetchLiveCustomerById, 
-  fetchActiveSalespersonsList, 
+import {
+  fetchLiveCustomerById,
+  fetchActiveSalespersonsList,
   updateCustomerAllocatedSalesperson,
-  AllocatedSalespersonInfo 
+  AllocatedSalespersonInfo
 } from "@/lib/customer-service";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { Customer } from "@/types";
-import { 
-  ArrowLeft, 
-  Building2, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  CreditCard, 
-  FileSpreadsheet, 
-  Target, 
-  Truck, 
-  PlusCircle, 
-  Smartphone, 
+import {
+  ArrowLeft,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard,
+  FileSpreadsheet,
+  Target,
+  Truck,
+  PlusCircle,
+  Smartphone,
   CalendarClock,
   ShieldCheck,
   CheckCircle2,
   UserCheck,
   UserPlus,
+  UserX,
   X,
   Check,
   AlertCircle
@@ -43,6 +44,15 @@ export default function CustomerDetailPage() {
   const { user, role } = useAuth();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
+
+  const isAllocated = Boolean(
+    customer?.salespersonName &&
+    customer.salespersonName.trim() !== "" &&
+    customer.salespersonName.trim().toLowerCase() !== "not allocated" &&
+    customer.salespersonName.trim().toLowerCase() !== "unallocated" &&
+    customer.salespersonName.trim().toLowerCase() !== "none" &&
+    (!customer.name || customer.salespersonName.trim().toLowerCase() !== customer.name.trim().toLowerCase())
+  );
   const [activeTab, setActiveTab] = useState<"quotations" | "opportunities" | "orders">("quotations");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -279,12 +289,12 @@ export default function CustomerDetailPage() {
                   </span>
                   <span>•</span>
                   <span className="inline-flex items-center space-x-1 font-medium">
-                    <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
+                    <UserCheck className={`w-3.5 h-3.5 ${isAllocated ? "text-[#0E274D]" : "text-slate-400"}`} />
                     <span>Allocated Salesperson:</span>
-                    <span className="font-semibold text-[#0E274D]">
-                      {customer.salespersonName || "Not Allocated"}
+                    <span className={`font-semibold ${isAllocated ? "text-[#0E274D]" : "text-amber-800 bg-amber-50 px-2 py-0.5 rounded text-[11px] border border-amber-200"}`}>
+                      {isAllocated ? customer.salespersonName : "Not Allocated"}
                     </span>
-                    {customer.salespersonPhone && (
+                    {isAllocated && customer.salespersonPhone && (
                       <span className="text-slate-600 font-mono">({customer.salespersonPhone})</span>
                     )}
                   </span>
@@ -333,13 +343,16 @@ export default function CustomerDetailPage() {
             </div>
 
             {/* 4. Allocated Salesperson Card (Name, Mobile No, Referral Code, Reassign Action) */}
-            <div className="p-3.5 rounded-xl bg-gradient-to-br from-blue-50/70 via-slate-50/50 to-orange-50/40 border border-blue-200/80 flex flex-col justify-between shadow-xs relative">
+            <div className={`p-3.5 rounded-xl flex flex-col justify-between shadow-xs relative transition-all ${isAllocated
+                ? "bg-gradient-to-br from-blue-50/70 via-slate-50/50 to-orange-50/40 border border-blue-200/80"
+                : "bg-slate-50/90 border border-dashed border-amber-300/80"
+              }`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-[#0E274D] font-bold flex items-center space-x-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-[#0E274D]" />
+                  <UserCheck className={`w-3.5 h-3.5 ${isAllocated ? "text-[#0E274D]" : "text-slate-400"}`} />
                   <span>Allocated Salesperson</span>
                 </span>
-                {customer.salespersonReferralCode && (
+                {isAllocated && customer.salespersonReferralCode && (
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0E274D]/10 text-[#0E274D] font-bold border border-[#0E274D]/15">
                     {customer.salespersonReferralCode}
                   </span>
@@ -347,22 +360,33 @@ export default function CustomerDetailPage() {
               </div>
 
               <div className="my-1.5">
-                <p className="text-sm font-bold text-slate-900 truncate">
-                  {customer.salespersonName || "Not Allocated"}
-                </p>
-                {customer.salespersonPhone ? (
-                  <p className="text-xs font-semibold text-slate-700 mt-0.5 flex items-center space-x-1">
-                    <Phone className="w-3 h-3 text-[#E66A23]" />
-                    <a
-                      href={`tel:${customer.salespersonPhone}`}
-                      className="text-[#E66A23] hover:underline hover:text-[#D95D16] transition-colors"
-                      title="Call Salesperson"
-                    >
-                      {customer.salespersonPhone}
-                    </a>
-                  </p>
+                {isAllocated ? (
+                  <>
+                    <p className="text-sm font-bold text-slate-900 truncate">
+                      {customer.salespersonName}
+                    </p>
+                    {customer.salespersonPhone ? (
+                      <p className="text-xs font-semibold text-slate-700 mt-0.5 flex items-center space-x-1">
+                        <Phone className="w-3 h-3 text-[#E66A23]" />
+                        <a
+                          href={`tel:${customer.salespersonPhone}`}
+                          className="text-[#E66A23] hover:underline hover:text-[#D95D16] transition-colors"
+                          title="Call Salesperson"
+                        >
+                          {customer.salespersonPhone}
+                        </a>
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 mt-0.5">No contact number registered</p>
+                    )}
+                  </>
                 ) : (
-                  <p className="text-[11px] text-slate-400 mt-0.5">No contact number registered</p>
+                  <>
+                    <p className="text-sm font-bold text-amber-900 flex items-center space-x-1.5">
+                      <span>Not Allocated</span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">No salesperson assigned to this account</p>
+                  </>
                 )}
               </div>
 
@@ -374,7 +398,7 @@ export default function CustomerDetailPage() {
                     className="text-[11px] font-bold text-[#0E274D] hover:text-[#E66A23] hover:underline inline-flex items-center space-x-1 cursor-pointer transition-colors"
                   >
                     <UserPlus className="w-3 h-3" />
-                    <span>{customer.salespersonName ? "Reallocate" : "Allocate Now"}</span>
+                    <span>{isAllocated ? "Reallocate" : "Allocate Now"}</span>
                   </button>
                 </div>
               )}
@@ -439,19 +463,17 @@ export default function CustomerDetailPage() {
                           <div
                             key={sp.salesPersonId}
                             onClick={() => setSelectedSpId(sp.salesPersonId)}
-                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between ${
-                              isSelected
+                            className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between ${isSelected
                                 ? "bg-blue-50/80 border-[#0E274D] ring-2 ring-[#0E274D]/10"
                                 : "bg-white border-slate-200 hover:bg-slate-50"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center space-x-3">
                               <div
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
-                                  isSelected
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${isSelected
                                     ? "bg-[#0E274D] text-white"
                                     : "bg-slate-100 text-slate-700"
-                                }`}
+                                  }`}
                               >
                                 {sp.name.charAt(0).toUpperCase()}
                               </div>
@@ -519,31 +541,28 @@ export default function CustomerDetailPage() {
           <div className="flex border-b border-slate-200">
             <button
               onClick={() => setActiveTab("quotations")}
-              className={`py-3 px-5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
-                activeTab === "quotations"
+              className={`py-3 px-5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${activeTab === "quotations"
                   ? "border-[#E66A23] text-[#E66A23]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Quotations ({quotations.length})
             </button>
             <button
               onClick={() => setActiveTab("opportunities")}
-              className={`py-3 px-5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
-                activeTab === "opportunities"
+              className={`py-3 px-5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${activeTab === "opportunities"
                   ? "border-[#E66A23] text-[#E66A23]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Opportunities ({opportunities.length})
             </button>
             <button
               onClick={() => setActiveTab("orders")}
-              className={`py-3 px-5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
-                activeTab === "orders"
+              className={`py-3 px-5 text-sm font-semibold border-b-2 transition-all cursor-pointer ${activeTab === "orders"
                   ? "border-[#E66A23] text-[#E66A23]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Orders ({orders.length})
             </button>

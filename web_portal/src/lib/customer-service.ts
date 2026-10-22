@@ -83,6 +83,19 @@ export async function fetchLiveCustomers(
             updatedAtIso = data.updatedAt;
           }
 
+          const rawSalesName = (data.salespersonName || "").trim();
+          const rawSalesPhone = (data.salespersonPhone || "").trim();
+          const rawSalesRef = (data.salespersonReferralCode || "").trim().toUpperCase();
+          const rawAssignedSpId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
+
+          // Self-allocation detection (e.g. if customer was mistakenly set as their own salesperson)
+          const isSelf = 
+            (rawSalesName && rawName && rawSalesName.toLowerCase() === rawName.toLowerCase()) ||
+            (rawAssignedSpId && (rawAssignedSpId === d.id)) ||
+            (rawSalesPhone && phone && rawSalesPhone.replace(/\D/g, "") === phone.replace(/\D/g, ""));
+
+          const assignedSpId = isSelf ? "" : (rawAssignedSpId || (role === "admin" ? "" : spId));
+
           customersMap.set(d.id, {
             id: d.id,
             userId: d.id,
@@ -102,63 +115,77 @@ export async function fetchLiveCustomers(
             priceTier: tier as "A" | "B" | "C",
             creditLimit,
             paymentTerms,
-            assignedSalespersonId: data.assignedSalespersonId || data.salesPersonId || spId,
-            salesPersonId: data.salesPersonId || data.assignedSalespersonId || spId,
-            salespersonName: (data.salespersonName || "").trim(),
-            salespersonPhone: (data.salespersonPhone || "").trim(),
-            salespersonReferralCode: (data.salespersonReferralCode || "").trim().toUpperCase(),
+            assignedSalespersonId: assignedSpId,
+            salesPersonId: assignedSpId,
+            salespersonName: isSelf ? "" : rawSalesName,
+            salespersonPhone: isSelf ? "" : rawSalesPhone,
+            salespersonReferralCode: isSelf ? "" : rawSalesRef,
             status: data.status || "active",
             createdAt: createdAtIso,
             updatedAt: updatedAtIso,
           });
-        }
-      });
-    } catch (usersErr: any) {
-      console.warn("Could not fetch from 'users' collection (may require elevated staff claims):", usersErr?.message || usersErr);
-    }
-
-    // 2. Also check if any dedicated documents exist in 'customers' collection
-    try {
-      const custSnap = await getDocs(collection(db, "customers"));
-      custSnap.docs.forEach((d) => {
-        const data = d.data();
-        let isAllocated = false;
-
-        if (role === "admin") {
-          isAllocated = true;
-        } else {
-          const docSpId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
-          if (spId && (docSpId === spId || (user?.userId && docSpId === user.userId))) {
-            isAllocated = true;
           }
-        }
+        });
+      } catch (usersErr: any) {
+        console.warn("Could not fetch from 'users' collection (may require elevated staff claims):", usersErr?.message || usersErr);
+      }
 
-        if (isAllocated && !customersMap.has(d.id)) {
-          customersMap.set(d.id, {
-            id: d.id,
-            userId: d.id,
-            customerNumber: data.customerNumber || `CUST-${d.id.slice(-6).toUpperCase()}`,
-            name: data.name || "Customer",
-            companyName: data.companyName || data.name || "Partner",
-            phone: data.phone || "",
-            email: data.email || "",
-            city: data.city || "Gujarat",
-            state: data.state || "Gujarat",
-            category: data.category || "Dealer",
-            priceTier: data.priceTier || "B",
-            creditLimit: Number(data.creditLimit) || 1000000,
-            paymentTerms: data.paymentTerms || "30 Days",
-            assignedSalespersonId: data.assignedSalespersonId || spId,
-            salesPersonId: data.salesPersonId || data.assignedSalespersonId || spId,
-            salespersonName: (data.salespersonName || "").trim(),
-            salespersonPhone: (data.salespersonPhone || "").trim(),
-            salespersonReferralCode: (data.salespersonReferralCode || "").trim().toUpperCase(),
-            status: data.status || "active",
-            createdAt: data.createdAt || new Date().toISOString(),
-            updatedAt: data.updatedAt || new Date().toISOString(),
-          } as Customer);
-        }
-      });
+      // 2. Also check if any dedicated documents exist in 'customers' collection
+      try {
+        const custSnap = await getDocs(collection(db, "customers"));
+        custSnap.docs.forEach((d) => {
+          const data = d.data();
+          let isAllocated = false;
+
+          if (role === "admin") {
+            isAllocated = true;
+          } else {
+            const docSpId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
+            if (spId && (docSpId === spId || (user?.userId && docSpId === user.userId))) {
+              isAllocated = true;
+            }
+          }
+
+          if (isAllocated && !customersMap.has(d.id)) {
+            const rawCustName = (data.name || "Customer").trim();
+            const rawCustPhone = (data.phone || "").trim();
+            const rawSalesName = (data.salespersonName || "").trim();
+            const rawSalesPhone = (data.salespersonPhone || "").trim();
+            const rawSalesRef = (data.salespersonReferralCode || "").trim().toUpperCase();
+            const rawAssignedSpId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
+
+            const isSelf = 
+              (rawSalesName && rawCustName && rawSalesName.toLowerCase() === rawCustName.toLowerCase()) ||
+              (rawAssignedSpId && rawAssignedSpId === d.id) ||
+              (rawSalesPhone && rawCustPhone && rawSalesPhone.replace(/\D/g, "") === rawCustPhone.replace(/\D/g, ""));
+
+            const assignedSpId = isSelf ? "" : (rawAssignedSpId || (role === "admin" ? "" : spId));
+
+            customersMap.set(d.id, {
+              id: d.id,
+              userId: d.id,
+              customerNumber: data.customerNumber || `CUST-${d.id.slice(-6).toUpperCase()}`,
+              name: rawCustName,
+              companyName: data.companyName || data.name || "Partner",
+              phone: rawCustPhone,
+              email: data.email || "",
+              city: data.city || "Gujarat",
+              state: data.state || "Gujarat",
+              category: data.category || "Dealer",
+              priceTier: data.priceTier || "B",
+              creditLimit: Number(data.creditLimit) || 1000000,
+              paymentTerms: data.paymentTerms || "30 Days",
+              assignedSalespersonId: assignedSpId,
+              salesPersonId: assignedSpId,
+              salespersonName: isSelf ? "" : rawSalesName,
+              salespersonPhone: isSelf ? "" : rawSalesPhone,
+              salespersonReferralCode: isSelf ? "" : rawSalesRef,
+              status: data.status || "active",
+              createdAt: data.createdAt || new Date().toISOString(),
+              updatedAt: data.updatedAt || new Date().toISOString(),
+            } as Customer);
+          }
+        });
     } catch (_) {}
 
     return Array.from(customersMap.values());
@@ -227,19 +254,22 @@ export async function resolveSalespersonDetails(
       }
     } catch (_) {}
 
-    // 2. Try 'users' by doc ID
+    // 2. Try 'users' by doc ID (ONLY if user is a designated staff/salesperson)
     try {
       const uSnap = await getDoc(doc(db, "users", cleanSpId));
       if (uSnap.exists()) {
         const d = uSnap.data();
-        return {
-          salesPersonId: cleanSpId,
-          name: (d.name || d.fullName || "Salesperson").toString().trim(),
-          phone: (d.phone || d.phoneNumber || (cleanRefCode === "SALES101" ? "9876543210" : "")).toString().trim(),
-          referralCode: (d.referralCode || cleanRefCode || "").toString().trim().toUpperCase(),
-          employeeId: d.employeeId || "",
-          email: d.email || "",
-        };
+        const role = (d.role || d.userCategory || "").toLowerCase();
+        if (["salesperson", "admin", "manager", "staff"].includes(role)) {
+          return {
+            salesPersonId: cleanSpId,
+            name: (d.name || d.fullName || "Salesperson").toString().trim(),
+            phone: (d.phone || d.phoneNumber || (cleanRefCode === "SALES101" ? "9876543210" : "")).toString().trim(),
+            referralCode: (d.salespersonCode || d.referralCode || cleanRefCode || "").toString().trim().toUpperCase(),
+            employeeId: d.employeeId || "",
+            email: d.email || "",
+          };
+        }
       }
     } catch (_) {}
   }
@@ -270,19 +300,24 @@ export async function resolveSalespersonDetails(
       }
     } catch (_) {}
 
-    // 4. Try querying 'users' by referralCode
+    // 4. Try querying 'users' by referralCode (ONLY matching staff/salespersons!)
     try {
       const qSnap = await getDocs(query(collection(db, "users"), where("referralCode", "==", cleanRefCode)));
       if (!qSnap.empty) {
-        const d = qSnap.docs[0].data();
-        return {
-          salesPersonId: qSnap.docs[0].id,
-          name: (d.name || d.fullName || "Salesperson").toString().trim(),
-          phone: (d.phone || d.phoneNumber || (cleanRefCode === "SALES101" ? "9876543210" : "")).toString().trim(),
-          referralCode: cleanRefCode,
-          employeeId: d.employeeId || "",
-          email: d.email || "",
-        };
+        for (const docSnap of qSnap.docs) {
+          const d = docSnap.data();
+          const role = (d.role || d.userCategory || "").toLowerCase();
+          if (["salesperson", "admin", "manager", "staff"].includes(role)) {
+            return {
+              salesPersonId: docSnap.id,
+              name: (d.name || d.fullName || "Salesperson").toString().trim(),
+              phone: (d.phone || d.phoneNumber || (cleanRefCode === "SALES101" ? "9876543210" : "")).toString().trim(),
+              referralCode: cleanRefCode,
+              employeeId: d.employeeId || "",
+              email: d.email || "",
+            };
+          }
+        }
       }
     } catch (_) {}
   }
@@ -365,6 +400,7 @@ export async function fetchActiveSalespersonsList(): Promise<AllocatedSalesperso
 
 /**
  * Updates or reassigns the allocated salesperson for a customer in Firestore.
+ * Passing null or empty salesPersonId unallocates the customer.
  */
 export async function updateCustomerAllocatedSalesperson(
   customerId: string,
@@ -373,15 +409,22 @@ export async function updateCustomerAllocatedSalesperson(
     name: string;
     phone: string;
     referralCode: string;
-  }
+  } | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const payload = {
+    const payload = (salesperson && salesperson.salesPersonId) ? {
       assignedSalespersonId: salesperson.salesPersonId,
       salesPersonId: salesperson.salesPersonId,
       salespersonName: salesperson.name,
       salespersonPhone: salesperson.phone,
       salespersonReferralCode: salesperson.referralCode,
+      updatedAt: new Date().toISOString(),
+    } : {
+      assignedSalespersonId: "",
+      salesPersonId: "",
+      salespersonName: "",
+      salespersonPhone: "",
+      salespersonReferralCode: "",
       updatedAt: new Date().toISOString(),
     };
 
@@ -428,16 +471,31 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
 
         let salespersonName = (data.salespersonName || data.assignedSalespersonName || "").toString().trim();
         let salespersonPhone = (data.salespersonPhone || data.assignedSalespersonPhone || "").toString().trim();
-        let salespersonReferralCode = (data.salespersonReferralCode || data.referralCode || "").toString().trim().toUpperCase();
-        const assignedSalespersonId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
+        let salespersonReferralCode = (data.salespersonReferralCode || "").toString().trim().toUpperCase();
+        let assignedSalespersonId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
 
-        // If either name or phone is missing, resolve dynamically
+        // Check if customer was falsely self-allocated to themselves
+        const isSelf = 
+          (salespersonName && rawName && salespersonName.toLowerCase() === rawName.toLowerCase()) ||
+          (assignedSalespersonId && (assignedSalespersonId === userSnap.id || assignedSalespersonId === customerId)) ||
+          (salespersonPhone && phone && salespersonPhone.replace(/\D/g, "") === phone.replace(/\D/g, ""));
+
+        if (isSelf) {
+          salespersonName = "";
+          salespersonPhone = "";
+          salespersonReferralCode = "";
+          assignedSalespersonId = "";
+        }
+
+        // If either name or phone is missing, resolve dynamically ONLY IF assignedSalespersonId or salespersonReferralCode exists
         if ((!salespersonName || !salespersonPhone) && (assignedSalespersonId || salespersonReferralCode)) {
-          const resolved = await resolveSalespersonDetails(assignedSalespersonId, salespersonReferralCode);
-          if (resolved) {
-            if (!salespersonName) salespersonName = resolved.name;
-            if (!salespersonPhone) salespersonPhone = resolved.phone;
-            if (!salespersonReferralCode) salespersonReferralCode = resolved.referralCode;
+          if (assignedSalespersonId !== userSnap.id && assignedSalespersonId !== customerId) {
+            const resolved = await resolveSalespersonDetails(assignedSalespersonId, salespersonReferralCode);
+            if (resolved && resolved.salesPersonId !== userSnap.id && resolved.salesPersonId !== customerId) {
+              if (!salespersonName) salespersonName = resolved.name;
+              if (!salespersonPhone) salespersonPhone = resolved.phone;
+              if (!salespersonReferralCode) salespersonReferralCode = resolved.referralCode;
+            }
           }
         }
 
@@ -461,7 +519,7 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
           creditLimit: Number(data.creditLimit) || (category === "Wholesaler" ? 2500000 : 1000000),
           paymentTerms: data.paymentTerms || "30 Days",
           assignedSalespersonId: assignedSalespersonId || "",
-          salesPersonId: (data.salesPersonId || assignedSalespersonId || "").toString().trim(),
+          salesPersonId: assignedSalespersonId || "",
           salespersonName: salespersonName || undefined,
           salespersonPhone: salespersonPhone || undefined,
           salespersonReferralCode: salespersonReferralCode || undefined,
@@ -483,17 +541,33 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
       const custSnap = await getDoc(doc(db, "customers", customerId));
       if (custSnap.exists()) {
         const data = custSnap.data();
+        const rawName = (data.name || data.fullName || "").trim();
+        const phone = (data.phone || data.phoneNumber || "").trim();
         let salespersonName = (data.salespersonName || data.assignedSalespersonName || "").toString().trim();
         let salespersonPhone = (data.salespersonPhone || data.assignedSalespersonPhone || "").toString().trim();
-        let salespersonReferralCode = (data.salespersonReferralCode || data.referralCode || "").toString().trim().toUpperCase();
-        const assignedSalespersonId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
+        let salespersonReferralCode = (data.salespersonReferralCode || "").toString().trim().toUpperCase();
+        let assignedSalespersonId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
+
+        const isSelf = 
+          (salespersonName && rawName && salespersonName.toLowerCase() === rawName.toLowerCase()) ||
+          (assignedSalespersonId && (assignedSalespersonId === custSnap.id || assignedSalespersonId === customerId)) ||
+          (salespersonPhone && phone && salespersonPhone.replace(/\D/g, "") === phone.replace(/\D/g, ""));
+
+        if (isSelf) {
+          salespersonName = "";
+          salespersonPhone = "";
+          salespersonReferralCode = "";
+          assignedSalespersonId = "";
+        }
 
         if ((!salespersonName || !salespersonPhone) && (assignedSalespersonId || salespersonReferralCode)) {
-          const resolved = await resolveSalespersonDetails(assignedSalespersonId, salespersonReferralCode);
-          if (resolved) {
-            if (!salespersonName) salespersonName = resolved.name;
-            if (!salespersonPhone) salespersonPhone = resolved.phone;
-            if (!salespersonReferralCode) salespersonReferralCode = resolved.referralCode;
+          if (assignedSalespersonId !== custSnap.id && assignedSalespersonId !== customerId) {
+            const resolved = await resolveSalespersonDetails(assignedSalespersonId, salespersonReferralCode);
+            if (resolved && resolved.salesPersonId !== custSnap.id && resolved.salesPersonId !== customerId) {
+              if (!salespersonName) salespersonName = resolved.name;
+              if (!salespersonPhone) salespersonPhone = resolved.phone;
+              if (!salespersonReferralCode) salespersonReferralCode = resolved.referralCode;
+            }
           }
         }
 
@@ -501,7 +575,7 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
           id: custSnap.id, 
           ...data,
           assignedSalespersonId: assignedSalespersonId || "",
-          salesPersonId: (data.salesPersonId || assignedSalespersonId || "").toString().trim(),
+          salesPersonId: assignedSalespersonId || "",
           salespersonName: salespersonName || undefined,
           salespersonPhone: salespersonPhone || undefined,
           salespersonReferralCode: salespersonReferralCode || undefined,
