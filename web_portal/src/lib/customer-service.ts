@@ -27,8 +27,8 @@ export async function fetchLiveCustomers(
         const data = d.data();
         const userRole = (data.role || "").toLowerCase();
 
-        // Exclude staff accounts (salespersons and admins)
-        if (userRole === "salesperson" || userRole === "admin") return;
+        // Exclude all staff accounts (admins, managers, salespersons, designers)
+        if (["salesperson", "admin", "manager", "designer"].includes(userRole) || data.designerId) return;
 
         let isAllocated = false;
 
