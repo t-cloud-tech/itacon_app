@@ -116,7 +116,7 @@ class AdhesiveData {
       coverageSqFtPer20Kg: 55.0,
       availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 150.0,
+        '20 kg Bag': 200.0,
       },
       originalPrices: {
         '20 kg Bag': 190.0,
@@ -149,7 +149,7 @@ class AdhesiveData {
       coverageSqFtPer20Kg: 50.0,
       availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 185.0,
+        '20 kg Bag': 235.0,
       },
       originalPrices: {
         '20 kg Bag': 230.0,
@@ -182,7 +182,7 @@ class AdhesiveData {
       coverageSqFtPer20Kg: 45.0,
       availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 220.0,
+        '20 kg Bag': 270.0,
       },
       originalPrices: {
         '20 kg Bag': 275.0,
@@ -215,7 +215,7 @@ class AdhesiveData {
       coverageSqFtPer20Kg: 45.0,
       availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 310.0,
+        '20 kg Bag': 360.0,
       },
       originalPrices: {
         '20 kg Bag': 380.0,
@@ -248,7 +248,7 @@ class AdhesiveData {
       coverageSqFtPer20Kg: 40.0,
       availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 290.0,
+        '20 kg Bag': 340.0,
       },
       originalPrices: {
         '20 kg Bag': 360.0,
@@ -281,7 +281,7 @@ class AdhesiveData {
       coverageSqFtPer20Kg: 40.0,
       availableWeights: ['20 kg Bag'],
       weightPrices: {
-        '20 kg Bag': 380.0,
+        '20 kg Bag': 430.0,
       },
       originalPrices: {
         '20 kg Bag': 470.0,

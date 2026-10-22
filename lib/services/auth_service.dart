@@ -75,6 +75,45 @@ class AuthService {
     return 'ITA-$number';
   }
 
+  /// Normalizes customer referral codes:
+  /// 1. Trim, uppercase, remove spaces
+  /// 2. If matching /^ITA\d{6}$/ (e.g. "ITA554433"), converts to "ITA-554433"
+  static String normalizeCustomerReferralCode(String code) {
+    final clean = code.trim().toUpperCase().replaceAll(RegExp(r'\s+'), '');
+    if (RegExp(r'^ITA\d{6}$').hasMatch(clean)) {
+      return 'ITA-${clean.substring(3)}';
+    }
+    return clean;
+  }
+
+  /// Calls the asia-south1 verifyCustomerReferralCode Cloud Function.
+  /// Returns { 'valid': bool, 'reason': String? }
+  Future<Map<String, dynamic>> verifyCustomerReferralCode({
+    required String referralCode,
+    String? phoneNumber,
+  }) async {
+    final cleanCode = normalizeCustomerReferralCode(referralCode);
+    if (cleanCode.isEmpty) {
+      return {'valid': false, 'reason': 'invalid-format'};
+    }
+    try {
+      final callable = _functions.httpsCallable('verifyCustomerReferralCode');
+      final result = await callable.call({
+        'referralCode': cleanCode,
+        'phoneNumber': phoneNumber ?? '',
+      });
+      final data = Map<String, dynamic>.from(result.data as Map);
+      return {
+        'valid': data['valid'] == true,
+        'reason': data['reason']?.toString(),
+        'normalizedCode': cleanCode,
+      };
+    } catch (e) {
+      debugPrint('[AuthService] verifyCustomerReferralCode error: $e');
+      return {'valid': false, 'reason': 'not-found'};
+    }
+  }
+
   // ============================================================
   // PASSWORD HELPERS
   // ============================================================
@@ -1404,70 +1443,22 @@ class AuthService {
       }
     }
 
-    final spProfile = await _firestoreService.verifySalespersonReferralCode(code);
+    final callable = _functions.httpsCallable('verifyReferralCode');
+    final response = await callable.call({
+      'referralCode': code,
+      'autoAssign': false,
+    });
 
-    if (spProfile == null) {
-      stopwatch.stop();
-      debugPrint('[AuthService] verifyAndLinkReferralCode (not found/inactive) finished in ${stopwatch.elapsedMilliseconds}ms');
-      return false;
-    }
-
-    final spId = (spProfile['id'] ??
-            spProfile['salesPersonId'] ??
-            spProfile['salespersonId'])
-        ?.toString();
-    final spCode = spProfile['referralCode']?.toString() ?? code.toUpperCase();
-
-    if (spId == null || spId.isEmpty) {
-      stopwatch.stop();
-      return false;
-    }
-
-    final spName = spProfile['name']?.toString() ?? spProfile['fullName']?.toString() ?? 'Vraj Shah';
-    final spPhone = spProfile['phone']?.toString() ?? spProfile['phoneNumber']?.toString() ?? '+919876543210';
+    final resData = Map<String, dynamic>.from(response.data as Map);
+    final spId = resData['salespersonId']?.toString() ?? '';
+    final spName = resData['salespersonName']?.toString() ?? 'Sales Executive';
+    final spCode = resData['referralCode']?.toString() ?? code.toUpperCase();
 
     if (uid != null && uid.isNotEmpty) {
-      final resolvedName = clientName ?? existingUser?.name;
-      final resolvedPhone = clientPhone ?? existingUser?.phone;
-      final resolvedCompany = companyName ?? existingUser?.companyName;
-      final resolvedCategory = clientCategory ?? existingUser?.userCategory;
-
-      await Future.wait([
-        _firestoreService.updateUserSalespersonAssignment(
-          uid: uid,
-          salespersonId: spId,
-          salespersonName: spName,
-          salespersonPhone: spPhone,
-          salespersonReferralCode: spCode,
-        ),
-        _firestoreService.saveCustomerReferralCode(
-          userId: uid,
-          referralCode: spCode,
-          userName: resolvedName,
-          userPhone: resolvedPhone,
-          userCategory: resolvedCategory,
-        ),
-      ]);
-
-      try {
-        await _firestoreService.executeAtomicClientAssignment(
-          clientId: uid,
-          salespersonId: spId,
-          assignmentType: 'manual_referral',
-          clientName: resolvedName,
-          clientPhone: resolvedPhone,
-          companyName: resolvedCompany,
-          clientCategory: resolvedCategory,
-        );
-      } catch (e) {
-        debugPrint('executeAtomicClientAssignment warning: $e');
-      }
-
       final updatedProfile = (existingUser ?? AppStateService.instance.currentUserProfile).copyWith(
         salesPersonId: spId,
         assignedSalespersonId: spId,
         salespersonName: spName,
-        salespersonPhone: spPhone,
         salespersonReferralCode: spCode,
         status: 'active',
       );
@@ -1488,45 +1479,35 @@ class AuthService {
       autoAssignSalespersonDetails({
     String? targetUserId,
   }) async {
-    final uid =
-        targetUserId ?? currentUid;
+    final uid = targetUserId ?? currentUid;
 
-    String? name;
-    String? phone;
-    String? company;
-    String? category;
+    final callable = _functions.httpsCallable('autoAssignSalesperson');
+    final response = await callable.call();
+
+    final resData = Map<String, dynamic>.from(response.data as Map);
+    final spId = resData['salespersonId']?.toString() ?? FirestoreService.defaultSalespersonId;
+    final spName = resData['salespersonName']?.toString() ?? FirestoreService.defaultSalespersonName;
+    final spCode = resData['referralCode']?.toString() ?? FirestoreService.defaultSalespersonReferralCode;
 
     if (uid != null && uid.isNotEmpty) {
-      final profile =
-          await _firestoreService.getUserProfile(
-        uid,
+      final currentProfile = AppStateService.instance.currentUserProfile;
+      final updatedProfile = currentProfile.copyWith(
+        salesPersonId: spId,
+        assignedSalespersonId: spId,
+        salespersonName: spName,
+        salespersonReferralCode: spCode,
+        status: 'active',
       );
-
-      if (profile != null) {
-        name = profile.name;
-        phone = profile.phone;
-        company = profile.companyName;
-        category = profile.userCategory;
-      }
+      AppStateService.instance.setCurrentUserProfile(updatedProfile);
+      await UserSessionService.saveUserSession(updatedProfile);
     }
 
-    final result = await _firestoreService
-        .autoAssignSalespersonDetails(
-      userId: uid,
-      clientName: name,
-      clientPhone: phone,
-      companyName: company,
-      clientCategory: category,
-    );
-
-    if (uid != null && uid.isNotEmpty) {
-      final updatedProfile = await _firestoreService.getUserProfile(uid);
-      if (updatedProfile != null) {
-        await UserSessionService.saveUserSession(updatedProfile);
-      }
-    }
-
-    return result;
+    return {
+      'salespersonId': spId,
+      'referralCode': spCode,
+      'name': spName,
+      'phone': FirestoreService.defaultSalespersonPhone,
+    };
   }
 
   Future<String?> autoAssignSalesperson({

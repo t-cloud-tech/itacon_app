@@ -44,6 +44,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isSearchFocused = false;
+  List<TileProduct> _trendingProducts = [];
+  bool _isLoadingTrending = true;
 
   final List<_PopularChip> _popularChips = const [
     _PopularChip(
@@ -132,6 +134,25 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
     });
+    _loadTrendingProducts();
+  }
+
+  Future<void> _loadTrendingProducts() async {
+    try {
+      final tiles = await FirestoreService.instance.getTrendingTiles(limit: 4);
+      if (mounted) {
+        setState(() {
+          _trendingProducts = tiles;
+          _isLoadingTrending = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingTrending = false;
+        });
+      }
+    }
   }
 
   @override
@@ -190,75 +211,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
-  static final List<TileProduct> _featuredProducts = [
-    TileProduct(
-      id: 'PROD_6012_01',
-      name: 'Statuario Marble Vitrified',
-      size: '600x1200 mm',
-      surface: 'Glossy',
-      color: 'Bianco - Grey',
-      baseColour: 'Bianco - Grey',
-      pattern: 'Marble Veining',
-      basePrice: 120.0,
-      moq: 50,
-      stockStatus: 'available_now',
-      images: [
-        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80',
-      ],
-      finish: 'Glossy',
-      thickness: '9 mm',
-      productType: 'Vitrified',
-      tileCategory: 'Floor Tiles',
-      collection: 'Endless',
-      shape: 'rectangle',
-      aspectRatio: '0.5',
-    ),
-    TileProduct(
-      id: 'PROD_6060_01',
-      name: 'Nero Marquina Square Tile',
-      size: '600x600 mm',
-      surface: 'High Gloss',
-      color: 'Black',
-      baseColour: 'Black',
-      pattern: 'White Vein',
-      basePrice: 95.0,
-      moq: 40,
-      stockStatus: 'available_now',
-      images: [
-        'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=600&q=80',
-      ],
-      finish: 'High Gloss',
-      thickness: '9 mm',
-      productType: 'Vitrified',
-      tileCategory: 'Floor Tiles',
-      collection: 'Marbles',
-      shape: 'square',
-      aspectRatio: '1.0',
-    ),
-    TileProduct(
-      id: 'PROD_6012_02',
-      name: 'Royal Beige Carving Tile',
-      size: '600x1200 mm',
-      surface: 'Matt - Carving',
-      color: 'Beige - Brown',
-      baseColour: 'Beige - Brown',
-      pattern: 'Carved Texture',
-      basePrice: 135.0,
-      moq: 30,
-      stockStatus: 'available_now',
-      images: [
-        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
-      ],
-      finish: 'Matt - Carving',
-      thickness: '9 mm',
-      productType: 'Vitrified',
-      tileCategory: 'Floor Tiles',
-      collection: 'Terrazzo',
-      shape: 'rectangle',
-      aspectRatio: '0.5',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -558,219 +510,236 @@ class _HomeScreenState extends State<HomeScreen> {
             // Personalized Suggested For You (Based on Wishlist Demand & Repeated Searches)
             _buildSuggestedForYouSection(context, appState),
 
-            // Featured Best Sellers Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Trending Collection',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
-                    letterSpacing: -0.2,
+            // Trending Collection (Featured Tiles from Firestore)
+            if (_trendingProducts.isNotEmpty || _isLoadingTrending) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Trending Collection',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark,
+                      letterSpacing: -0.2,
+                    ),
                   ),
-                ),
-                AppPressable(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProductListingScreen()),
-                    );
-                  },
-                  scaleDown: 0.94,
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    child: Text(
-                      'View All →',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.accentOrange,
+                  AppPressable(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ProductListingScreen()),
+                      );
+                    },
+                    scaleDown: 0.94,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Text(
+                        'View All →',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.accentOrange,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Featured Products Grid with AppPressable
-            GridView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _featuredProducts.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: MediaQuery.of(context).size.width < 360
-                    ? 0.65
-                    : (MediaQuery.of(context).size.width < 400 ? 0.68 : 0.72),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                ],
               ),
-              itemBuilder: (context, index) {
-                final product = _featuredProducts[index];
-                return RepaintBoundary(
-                  child: AppPressable(
-                  onTap: () {
-                    StorageImageService.warmCache([
-                      product.frontCardImage,
-                      product.frontCardThumbnail,
-                      ...product.resolvedFaceImages,
-                      ...product.resolvedMockupImages,
-                      ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
-                      ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
-                    ]);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(product: product),
-                      ),
-                    );
-                  },
-                  scaleDown: 0.97,
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: AppTheme.luxuryCardDecoration,
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              AppProductImage(
-                                imagePath: product.frontCardThumbnail,
-                                originalPath: product.frontCardImage,
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.cover,
-                                imageRole: ImageRole.collectionThumbnail,
-                              ),
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: ListenableBuilder(
-                                  listenable: appState,
-                                  builder: (context, _) {
-                                    final isFav =
-                                        appState.isFavorite(product.id);
-                                    return AppPressable(
-                                      onTap: () => appState.toggleFavorite(product),
-                                      scaleDown: 0.84,
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: CircleAvatar(
-                                        radius: 14,
-                                        backgroundColor:
-                                            Colors.white.withValues(alpha: 0.92),
-                                        child: Icon(
-                                          isFav
-                                              ? Icons.favorite_rounded
-                                              : Icons.favorite_outline_rounded,
-                                          color: isFav
-                                              ? Colors.red
-                                              : AppTheme.primaryNavy,
-                                          size: 16,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+              const SizedBox(height: 14),
+
+              // Trending Products Grid with AppPressable
+              GridView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _isLoadingTrending && _trendingProducts.isEmpty ? 4 : _trendingProducts.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: MediaQuery.of(context).size.width < 360
+                      ? 0.65
+                      : (MediaQuery.of(context).size.width < 400 ? 0.68 : 0.72),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemBuilder: (context, index) {
+                  if (_isLoadingTrending && _trendingProducts.isEmpty) {
+                    return Container(
+                      decoration: AppTheme.luxuryCardDecoration,
+                      child: const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppTheme.accentOrange,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                product.name,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.textDark,
-                                  height: 1.15,
+                      ),
+                    );
+                  }
+                  final product = _trendingProducts[index];
+                  return RepaintBoundary(
+                    child: AppPressable(
+                    onTap: () {
+                      StorageImageService.warmCache([
+                        product.frontCardImage,
+                        product.frontCardThumbnail,
+                        ...product.resolvedFaceImages,
+                        ...product.resolvedMockupImages,
+                        ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+                        ...product.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+                      ]);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ProductDetailScreen(product: product),
+                        ),
+                      );
+                    },
+                    scaleDown: 0.97,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: AppTheme.luxuryCardDecoration,
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Stack(
+                              children: [
+                                AppProductImage(
+                                  imagePath: product.frontCardThumbnail,
+                                  originalPath: product.frontCardImage,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fit: BoxFit.cover,
+                                  imageRole: ImageRole.collectionThumbnail,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                product.size,
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: AppTheme.textSubtle,
-                                  height: 1.15,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      product.isAdhesive
-                                          ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                          : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppTheme.accentOrange,
-                                        height: 1.15,
-                                      ),
-                                    ),
-                                  ),
-                                  AppPressable(
-                                    onTap: () {
-                                      appState.addToCart(product);
-                                      AppNotificationUtils.showAddToCartSnackBar(
-                                        context,
-                                        productName: product.name,
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: ListenableBuilder(
+                                    listenable: appState,
+                                    builder: (context, _) {
+                                      final isFav =
+                                          appState.isFavorite(product.id);
+                                      return AppPressable(
+                                        onTap: () => appState.toggleFavorite(product),
+                                        scaleDown: 0.84,
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: CircleAvatar(
+                                          radius: 14,
+                                          backgroundColor:
+                                              Colors.white.withValues(alpha: 0.92),
+                                          child: Icon(
+                                            isFav
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_outline_rounded,
+                                            color: isFav
+                                                ? Colors.red
+                                                : AppTheme.primaryNavy,
+                                            size: 16,
+                                          ),
+                                        ),
                                       );
                                     },
-                                    scaleDown: 0.88,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(6),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryNavy,
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: AppTheme.primaryNavy
-                                                .withValues(alpha: 0.25),
-                                            blurRadius: 4,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: const Icon(
-                                        Icons.add_shopping_cart_rounded,
-                                        size: 15,
-                                        color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  product.name,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textDark,
+                                    height: 1.15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  product.size,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: AppTheme.textSubtle,
+                                    height: 1.15,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        product.isAdhesive
+                                            ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                            : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.accentOrange,
+                                          height: 1.15,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                    AppPressable(
+                                      onTap: () {
+                                        appState.addToCart(product);
+                                        AppNotificationUtils.showAddToCartSnackBar(
+                                          context,
+                                          productName: product.name,
+                                        );
+                                      },
+                                      scaleDown: 0.88,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryNavy,
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: AppTheme.primaryNavy
+                                                  .withValues(alpha: 0.25),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: const Icon(
+                                          Icons.add_shopping_cart_rounded,
+                                          size: 15,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-            ),
-            const SizedBox(height: 30),
+                );
+              },
+              ),
+              const SizedBox(height: 30),
+            ],
 
             // High-Bond Tile Adhesive Bags Section
             const AdhesiveSectionWidget(),

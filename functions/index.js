@@ -64,5 +64,24 @@ exports.getPaidPoDownloadUrlCallable = getPaidPoDownloadUrlCallable;
 const { checkBusinessDefaulterCallable } = require('./businessDefaultersEngine');
 exports.checkBusinessDefaulterCallable = checkBusinessDefaulterCallable;
 
+// Reliable Salesperson Client Sync Engine & Referral Verification (2nd Gen, region: asia-south1)
+const {
+  syncSalespersonOnClientCreated,
+  syncSalespersonOnClientUpdated,
+  syncSalespersonOnClientDeleted,
+  verifyReferralCode,
+  autoAssignSalesperson,
+  verifyCustomerReferralCode,
+  onSalesPersonWrite,
+} = require('./salespersonSyncEngine');
+
+exports.syncSalespersonOnClientCreated = syncSalespersonOnClientCreated;
+exports.syncSalespersonOnClientUpdated = syncSalespersonOnClientUpdated;
+exports.syncSalespersonOnClientDeleted = syncSalespersonOnClientDeleted;
+exports.verifyReferralCode = verifyReferralCode;
+exports.autoAssignSalesperson = autoAssignSalesperson;
+exports.verifyCustomerReferralCode = verifyCustomerReferralCode;
+exports.onSalesPersonWrite = onSalesPersonWrite;
+
 
 

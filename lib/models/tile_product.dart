@@ -52,6 +52,8 @@ class TileProduct {
   final List<String>? faceImages;
   final List<String>? mockupImages;
   final Map<String, dynamic> packingDetails;
+  final bool isTrending;
+  final int? trendingOrder;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -104,6 +106,8 @@ class TileProduct {
     this.faceImages,
     this.mockupImages,
     this.packingDetails = const {},
+    this.isTrending = false,
+    this.trendingOrder,
     this.createdAt,
     this.updatedAt,
   })  : productId = productId ?? id,
@@ -290,6 +294,8 @@ class TileProduct {
       if (faceImages != null) 'faceImages': faceImages,
       if (mockupImages != null) 'mockupImages': mockupImages,
       'packingDetails': packingDetails,
+      'isTrending': isTrending,
+      if (trendingOrder != null) 'trendingOrder': trendingOrder,
       if (createdAt != null) 'createdAt': createdAt!.toIso8601String(),
       if (updatedAt != null) 'updatedAt': updatedAt!.toIso8601String(),
     };
@@ -387,6 +393,8 @@ class TileProduct {
               'boxesPerPallet': 50,
               'piecesPerBox': 1,
             },
+      isTrending: map['isTrending'] == true,
+      trendingOrder: (map['trendingOrder'] as num?)?.toInt(),
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : (map['createdAt'] is String

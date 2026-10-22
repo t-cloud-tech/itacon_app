@@ -42,14 +42,10 @@ class _AuthScreenState extends State<AuthScreen> {
   final _loginPhoneController = TextEditingController();
   final _loginOtpController = TextEditingController();
   final _loginPasswordController = TextEditingController();
-  final _loginReferralCodeController = TextEditingController();
 
   String _regE164Phone = '';
 
   final _loginFormKey = GlobalKey<FormState>();
-
-  // Login Step
-  int _loginStep = 1;
 
   // Registration Controllers
   final _regFullNameController = TextEditingController();
@@ -59,6 +55,8 @@ class _AuthScreenState extends State<AuthScreen> {
   final _regOtpController = TextEditingController();
   final _regPasswordController = TextEditingController();
   final _regConfirmPasswordController = TextEditingController();
+  final _regCustomerReferralCodeController = TextEditingController();
+  String? _regCustomerReferralError;
 
   String? _selectedCategory;
 
@@ -79,7 +77,6 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
     _viewMode = widget.initialMode;
-    _loginStep = 1;
     _signupStep = 1;
     _otpSent = false;
     _isRegSendingOtp = false;
@@ -88,6 +85,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _resendToken = null;
     _regOtpCooldownSeconds = 0;
     _otpSessionCounter = 0;
+    _regCustomerReferralError = null;
   }
 
   @override
@@ -97,7 +95,6 @@ class _AuthScreenState extends State<AuthScreen> {
     _loginPhoneController.dispose();
     _loginOtpController.dispose();
     _loginPasswordController.dispose();
-    _loginReferralCodeController.dispose();
     _regFullNameController.dispose();
     _regCompanyNameController.dispose();
     _regDobController.dispose();
@@ -105,6 +102,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _regOtpController.dispose();
     _regPasswordController.dispose();
     _regConfirmPasswordController.dispose();
+    _regCustomerReferralCodeController.dispose();
     super.dispose();
   }
 
@@ -235,6 +233,32 @@ class _AuthScreenState extends State<AuthScreen> {
             ? _regPhoneController.text.trim()
             : '+91${_regPhoneController.text.trim()}');
 
+    final rawCustomerCode = _regCustomerReferralCodeController.text.trim();
+    String? normalizedCustomerCode;
+    if (rawCustomerCode.isNotEmpty) {
+      setState(() => _isLoading = true);
+      try {
+        final verification = await _authService.verifyCustomerReferralCode(
+          referralCode: rawCustomerCode,
+          phoneNumber: formattedPhone,
+        );
+        if (verification['valid'] != true) {
+          setState(() {
+            _isLoading = false;
+            _regCustomerReferralError = 'Invalid customer referral code. Please check or leave it empty.';
+          });
+          return;
+        }
+        normalizedCustomerCode = AuthService.normalizeCustomerReferralCode(rawCustomerCode);
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+          _regCustomerReferralError = 'Invalid customer referral code. Please check or leave it empty.';
+        });
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
     try {
       await _authService.registerUser(
@@ -244,6 +268,7 @@ class _AuthScreenState extends State<AuthScreen> {
         password: _regPasswordController.text.trim(),
         companyName: _regCompanyNameController.text.trim(),
         dateOfBirth: _regDobController.text.trim(),
+        referralCode: normalizedCustomerCode,
         verificationId: _verificationId,
         smsCode: _regOtpController.text.trim(),
       );
@@ -535,105 +560,40 @@ class _AuthScreenState extends State<AuthScreen> {
   void _handleLogin() async {
     if (!_loginFormKey.currentState!.validate()) return;
 
-    if (_loginStep == 1) {
-      final username = _loginUsernameController.text.trim();
-      final password = _loginPasswordController.text.trim();
+    final username = _loginUsernameController.text.trim();
+    final password = _loginPasswordController.text.trim();
 
-      if (username.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter your username.')),
-        );
-        return;
-      }
-
-      if (password.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter your password.')),
-        );
-        return;
-      }
-
-      // Verify customer username/password credentials directly on Step 1
-      setState(() => _isLoading = true);
-      try {
-        await _authService.loginCustomerWithUsernamePassword(
-          username: username,
-          password: password,
-        );
-
-        final currentProfile = AppStateService.instance.hasSessionProfile
-            ? AppStateService.instance.currentUserProfile
-            : null;
-
-        final bool alreadyHasSalesperson = currentProfile != null &&
-            ((currentProfile.salesPersonId != null && currentProfile.salesPersonId!.trim().isNotEmpty) ||
-             (currentProfile.assignedSalespersonId != null && currentProfile.assignedSalespersonId!.trim().isNotEmpty));
-
-        if (alreadyHasSalesperson) {
-          // Customers who completed referral verification enter app directly without redundant prompt
-          await NotificationService.saveCurrentUserToken();
-          setState(() => _isLoading = false);
-
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
-          );
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-          );
-          return;
-        }
-
-        // Only transition to Step 2 (Customer Referral Code) if salesperson verification is pending!
-        setState(() {
-          _isLoading = false;
-          _loginStep = 2;
-        });
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        final errorText = e.toString().replaceAll('Exception: ', '');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorText),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your username.')),
+      );
       return;
     }
 
-    // Step 2: Final Submission (Optional Customer Referral Code linking + Referral Gate Routing)
-    final referralInput = _loginReferralCodeController.text.trim();
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your password.')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
-      if (referralInput.isNotEmpty) {
-        await _authService.verifyAndLinkReferralCode(
-          referralInput,
-          clientName: _loginUsernameController.text.trim(),
-          clientPhone: _loginPhoneController.text.trim(),
-        );
-      }
+      await _authService.loginCustomerWithUsernamePassword(
+        username: username,
+        password: password,
+      );
 
-      final uid = _authService.currentUser?.uid ?? _authService.currentUid;
-      UserProfile? profile;
-      if (uid != null && uid.isNotEmpty) {
-        profile = await _firestoreService.getUserProfile(uid);
-        if (profile != null) {
-          await UserSessionService.saveUserSession(profile);
-          AppStateService.instance.setCurrentUserProfile(profile);
-        }
-        if (profile == null ||
-            profile.salesPersonId == null ||
-            profile.salesPersonId!.isEmpty) {
-          await _authService.autoAssignSalesperson(targetUserId: uid);
-          profile = await _firestoreService.getUserProfile(uid);
-          if (profile != null) {
-            await UserSessionService.saveUserSession(profile);
-            AppStateService.instance.setCurrentUserProfile(profile);
+      UserProfile? currentProfile = AppStateService.instance.hasSessionProfile
+          ? AppStateService.instance.currentUserProfile
+          : null;
+      if (currentProfile == null) {
+        final uid = _authService.currentUser?.uid ?? _authService.currentUid;
+        if (uid != null && uid.isNotEmpty) {
+          currentProfile = await _firestoreService.getUserProfile(uid);
+          if (currentProfile != null) {
+            await UserSessionService.saveUserSession(currentProfile);
+            AppStateService.instance.setCurrentUserProfile(currentProfile);
           }
         }
       }
@@ -643,22 +603,24 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (!mounted) return;
 
-      final bool stillRequiresReferral = profile != null &&
-          AuthGate.requiresSalespersonCompletion(profile);
+      final bool hasSalesperson = currentProfile != null &&
+          ((currentProfile.salesPersonId != null && currentProfile.salesPersonId!.trim().isNotEmpty) ||
+           (currentProfile.assignedSalespersonId != null && currentProfile.assignedSalespersonId!.trim().isNotEmpty)) &&
+          !AuthGate.requiresSalespersonCompletion(currentProfile);
 
-      if (stillRequiresReferral) {
-        // Customer requiring referral verification cannot bypass ReferralGateScreen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
-        );
-      } else {
+      if (hasSalesperson) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sign In Successful! Welcome to ITACON.')),
         );
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ReferralGateScreen()),
         );
       }
     } catch (e) {
@@ -702,13 +664,9 @@ class _AuthScreenState extends State<AuthScreen> {
                       alignment: Alignment.centerLeft,
                       child: InkWell(
                         onTap: () {
-                          if (_loginStep > 1) {
-                            setState(() => _loginStep--);
-                          } else {
-                            setState(() {
-                              _viewMode = AuthViewMode.choice;
-                            });
-                          }
+                          setState(() {
+                            _viewMode = AuthViewMode.choice;
+                          });
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
@@ -837,8 +795,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              _buildLoginTimelineIndicator(),
-                              const SizedBox(height: 12),
                               _buildLoginFormFields(),
                               const SizedBox(height: 16),
                               _buildLoginActionButton(),
@@ -917,208 +873,86 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ===========================================================================
-  // LOGIN TIMELINE INDICATOR (2 STEPS)
-  // ===========================================================================
-  Widget _buildLoginTimelineIndicator() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Row(
-        children: [
-          _buildLoginTimelineStep(stepNumber: 1, label: 'Account'),
-          Expanded(child: _buildTimelineDashedLine(isPassed: _loginStep > 1)),
-          _buildLoginTimelineStep(stepNumber: 2, label: 'Referral Code'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoginTimelineStep({required int stepNumber, required String label}) {
-    final isActive = _loginStep == stepNumber;
-    final isPassed = _loginStep > stepNumber;
-
-    return GestureDetector(
-      onTap: stepNumber < _loginStep
-          ? () {
-              setState(() {
-                _loginStep = stepNumber;
-              });
-            }
-          : null,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isActive || isPassed
-                  ? const Color(0xFF1B365D)
-                  : Colors.white,
-              border: Border.all(
-                color: isActive || isPassed
-                    ? const Color(0xFF1B365D)
-                    : Colors.grey.shade300,
-                width: 1.5,
-              ),
-            ),
-            child: Center(
-              child: isPassed
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
-                  : Text(
-                      '$stepNumber',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isActive ? Colors.white : Colors.grey.shade600,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight:
-                  isActive || isPassed ? FontWeight.bold : FontWeight.w500,
-              color: isActive || isPassed
-                  ? const Color(0xFF1B365D)
-                  : Colors.grey.shade500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
   // LOGIN FORM FIELDS AND BUTTON
   // ===========================================================================
   Widget _buildLoginFormFields() {
-    if (_loginStep == 1) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 4),
-          // Username
-          _buildFieldLabel('Username *'),
-          _buildCustomInputField(
-            controller: _loginUsernameController,
-            hintText: 'Enter Username',
-            prefixIcon: Icons.person_outline_rounded,
-            validator: (v) => v == null || v.trim().isEmpty
-                ? 'Please enter your username'
-                : null,
-          ),
-          const SizedBox(height: 14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        // Username
+        _buildFieldLabel('Username *'),
+        _buildCustomInputField(
+          controller: _loginUsernameController,
+          hintText: 'Enter Username',
+          prefixIcon: Icons.person_outline_rounded,
+          validator: (v) => v == null || v.trim().isEmpty
+              ? 'Please enter your username'
+              : null,
+        ),
+        const SizedBox(height: 14),
 
-          // Password
-          _buildFieldLabel('Password *'),
-          _buildCustomInputField(
-            controller: _loginPasswordController,
-            hintText: 'Enter your password',
-            prefixIcon: Icons.lock_outline_rounded,
-            obscureText: _obscurePassword,
-            suffixIcon: IconButton(
-              constraints: const BoxConstraints(maxHeight: 38, maxWidth: 38),
-              icon: Icon(
-                _obscurePassword
-                    ? Icons.visibility_off_outlined
-                    : Icons.visibility_outlined,
-                color: Colors.grey.shade600,
-                size: 18,
-              ),
-              onPressed: () =>
-                  setState(() => _obscurePassword = !_obscurePassword),
+        // Password
+        _buildFieldLabel('Password *'),
+        _buildCustomInputField(
+          controller: _loginPasswordController,
+          hintText: 'Enter your password',
+          prefixIcon: Icons.lock_outline_rounded,
+          obscureText: _obscurePassword,
+          suffixIcon: IconButton(
+            constraints: const BoxConstraints(maxHeight: 38, maxWidth: 38),
+            icon: Icon(
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
+              color: Colors.grey.shade600,
+              size: 18,
             ),
-            validator: (v) => v == null || v.isEmpty
-                ? 'Enter your password'
-                : null,
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
           ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerRight,
-            child: InkWell(
-              onTap: () async {
-                final prefill = _loginUsernameController.text.trim().isNotEmpty
-                    ? _loginUsernameController.text.trim()
-                    : null;
-                final resetPhone = await ForgotPasswordScreen.showAsBottomSheet(
-                  context,
-                  initialPhone: prefill,
-                );
-                if (resetPhone != null && resetPhone.isNotEmpty && mounted) {
-                  setState(() {
-                    _loginUsernameController.text = resetPhone;
-                    _loginPasswordController.clear();
-                  });
-                }
-              },
-              borderRadius: BorderRadius.circular(6),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: Text(
-                  'Forgot Password?',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFFF16528),
-                  ),
+          validator: (v) => v == null || v.isEmpty
+              ? 'Enter your password'
+              : null,
+        ),
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: InkWell(
+            onTap: () async {
+              final prefill = _loginUsernameController.text.trim().isNotEmpty
+                  ? _loginUsernameController.text.trim()
+                  : null;
+              final resetPhone = await ForgotPasswordScreen.showAsBottomSheet(
+                context,
+                initialPhone: prefill,
+              );
+              if (resetPhone != null && resetPhone.isNotEmpty && mounted) {
+                setState(() {
+                  _loginUsernameController.text = resetPhone;
+                  _loginPasswordController.clear();
+                });
+              }
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Text(
+                'Forgot Password?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFF16528),
                 ),
               ),
             ),
           ),
-        ],
-      );
-    } else {
-      // STEP 2: Customer Referral Code (Optional)
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 8),
-          _buildFieldLabel('Customer Referral Code (Optional)'),
-          _buildCustomInputField(
-            controller: _loginReferralCodeController,
-            hintText: 'e.g., CUST123 (Optional)',
-            prefixIcon: Icons.qr_code_outlined,
-            textCapitalization: TextCapitalization.characters,
-            validator: null,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1B365D).withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: const Color(0xFF1B365D).withValues(alpha: 0.15)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline_rounded,
-                    color: Color(0xFF1B365D), size: 20),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'If you have any Customer Referral Code, please enter it below, or skip this step to proceed.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF1B365D),
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
+        ),
+      ],
+    );
   }
 
   Widget _buildLoginActionButton() {
-    final isFinalStep = _loginStep == 2;
     return SizedBox(
       height: 46,
       child: AppPressable(
@@ -1146,7 +980,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      isFinalStep ? 'Sign In' : 'Continue',
+                      'Sign In',
                       style: GoogleFonts.inter(
                         color: Colors.white,
                         fontSize: 15,
@@ -1825,6 +1659,33 @@ class _AuthScreenState extends State<AuthScreen> {
           suffixIcon: const Icon(Icons.calendar_today_rounded,
               color: Color(0xFF1B365D), size: 18),
         ),
+        const SizedBox(height: 12),
+        _buildFieldLabel('Customer Referral Code (Optional)'),
+        _buildCustomInputField(
+          controller: _regCustomerReferralCodeController,
+          hintText: 'Enter if a customer referred you',
+          prefixIcon: Icons.card_giftcard_rounded,
+          textCapitalization: TextCapitalization.characters,
+          onChanged: (_) {
+            if (_regCustomerReferralError != null) {
+              setState(() => _regCustomerReferralError = null);
+            }
+          },
+        ),
+        if (_regCustomerReferralError != null) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 4.0),
+            child: Text(
+              _regCustomerReferralError!,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1900,11 +1761,13 @@ class _AuthScreenState extends State<AuthScreen> {
     TextCapitalization textCapitalization = TextCapitalization.none,
     TextAlign textAlign = TextAlign.start,
     String? Function(String?)? validator,
+    ValueChanged<String>? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       readOnly: readOnly,
       onTap: onTap,
+      onChanged: onChanged,
       obscureText: obscureText,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,

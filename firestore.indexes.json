@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "tiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isTrending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "trendingOrder",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "products",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isTrending",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "trendingOrder",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

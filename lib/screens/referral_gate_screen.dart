@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../services/auth_service.dart';
-import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
 import 'main_navigation_screen.dart';
 
@@ -15,126 +15,13 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
   final _codeController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
+  bool _isAutoAssigning = false;
   String? _error;
 
   @override
   void dispose() {
     _codeController.dispose();
     super.dispose();
-  }
-
-  void _showSmsConfirmationDialog({
-    required String spName,
-    required String spPhone,
-    required String referralCode,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.sms_rounded, color: Color(0xFF1A237E), size: 28),
-            SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'SMS Notification Sent!',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.indigo.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.indigo.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.mark_chat_read_rounded, size: 16, color: Color(0xFF1A237E)),
-                      SizedBox(width: 6),
-                      Text(
-                        '📲 Phone SMS Message',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1A237E)),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 16),
-                  Text(
-                    'Welcome to ITACON! Your account is linked to Salesperson:\n• Name: $spName\n• Phone: $spPhone',
-                    style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Your Assigned Salesperson Referral Code:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 6),
-                  Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A237E),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        referralCode,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'Salesperson linked successfully! Tap OK to proceed.',
-              style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.3),
-            ),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A237E),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                if (mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-                  );
-                }
-              },
-              child: const Text(
-                'OK',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _verifyManualCode() async {
@@ -167,23 +54,56 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
           MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
         );
       } else {
-        setState(() => _error = 'Invalid or inactive salesperson code.');
+        setState(() => _error = 'Invalid or inactive referral code');
       }
+    } on FirebaseFunctionsException catch (fe) {
+      stopwatch.stop();
+      debugPrint('[PERF] Referral verification FirebaseFunctionsException after ${stopwatch.elapsedMilliseconds}ms: code=${fe.code}, message=${fe.message}');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (fe.message == 'invalid-code' || fe.code == 'not-found') {
+          _error = 'Referral code not found';
+        } else if (fe.message == 'inactive-code' || fe.code == 'failed-precondition') {
+          _error = 'This sales representative is inactive';
+        } else if (fe.message == 'already-linked' || fe.code == 'already-exists') {
+          _error = 'Your account is already linked';
+        } else if (fe.code == 'unavailable' || fe.code == 'deadline-exceeded') {
+          _error = 'Please check your internet connection';
+        } else {
+          _error = 'Something went wrong, please try again';
+        }
+      });
     } catch (e) {
       stopwatch.stop();
       debugPrint('[PERF] Referral verification error after ${stopwatch.elapsedMilliseconds}ms: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _error = 'Verification failed. Please check network and try again.';
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('socket') ||
+              errorStr.contains('network') ||
+              errorStr.contains('connection') ||
+              errorStr.contains('offline')) {
+            _error = 'Please check your internet connection';
+          } else if (errorStr.contains('not found') || errorStr.contains('invalid-code')) {
+            _error = 'Referral code not found';
+          } else if (errorStr.contains('inactive')) {
+            _error = 'This sales representative is inactive';
+          } else if (errorStr.contains('already-linked') || errorStr.contains('already linked')) {
+            _error = 'Your account is already linked';
+          } else {
+            _error = 'Something went wrong, please try again';
+          }
         });
       }
     }
   }
 
   void _executeAutoAssign() async {
-    if (_isLoading) return;
+    if (_isLoading || _isAutoAssigning) return;
     setState(() {
+      _isAutoAssigning = true;
       _isLoading = true;
       _error = null;
     });
@@ -194,36 +114,65 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
       stopwatch.stop();
       debugPrint('[PERF] Auto-assign details fetched in ${stopwatch.elapsedMilliseconds}ms');
 
-      final refCode = details['referralCode'] ?? FirestoreService.defaultSalespersonReferralCode;
-      final spName = details['name'] ?? FirestoreService.defaultSalespersonName;
-      final spPhone = details['phone'] ?? FirestoreService.defaultSalespersonPhone;
+      final spName = details['name'] ?? 'Sales Executive';
 
       if (mounted) {
         setState(() {
-          _codeController.text = refCode;
+          _isAutoAssigning = false;
           _isLoading = false;
         });
 
-        _showSmsConfirmationDialog(
-          spName: spName,
-          spPhone: spPhone,
-          referralCode: refCode,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("You've been assigned to $spName"),
+            backgroundColor: const Color(0xFF1B365D),
+          ),
         );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        );
+      }
+    } on FirebaseFunctionsException catch (fe) {
+      stopwatch.stop();
+      debugPrint('[PERF] Auto-assign FirebaseFunctionsException after ${stopwatch.elapsedMilliseconds}ms: code=${fe.code}, message=${fe.message}');
+      if (mounted) {
+        setState(() {
+          _isAutoAssigning = false;
+          _isLoading = false;
+          if (fe.message == 'already-linked' || fe.code == 'already-exists') {
+            _error = 'Your account is already linked';
+          } else if (fe.message == 'no-salesperson-available' || fe.code == 'failed-precondition') {
+            _error = 'No sales executive available right now. Please enter a referral code or try again later.';
+          } else if (fe.code == 'unavailable' || fe.code == 'deadline-exceeded') {
+            _error = 'Please check your internet connection';
+          } else {
+            _error = 'Something went wrong, please try again';
+          }
+        });
       }
     } catch (e) {
       stopwatch.stop();
       debugPrint('[PERF] Auto-assign failed in ${stopwatch.elapsedMilliseconds}ms: $e');
       if (mounted) {
         setState(() {
-          _codeController.text = FirestoreService.defaultSalespersonReferralCode;
+          _isAutoAssigning = false;
           _isLoading = false;
+          final errorStr = e.toString().toLowerCase();
+          if (errorStr.contains('already-linked') || errorStr.contains('already linked')) {
+            _error = 'Your account is already linked';
+          } else if (errorStr.contains('no-salesperson-available') || errorStr.contains('no sales executive')) {
+            _error = 'No sales executive available right now. Please enter a referral code or try again later.';
+          } else if (errorStr.contains('socket') ||
+              errorStr.contains('network') ||
+              errorStr.contains('connection') ||
+              errorStr.contains('offline')) {
+            _error = 'Please check your internet connection';
+          } else {
+            _error = 'Something went wrong, please try again';
+          }
         });
-
-        _showSmsConfirmationDialog(
-          spName: FirestoreService.defaultSalespersonName,
-          spPhone: FirestoreService.defaultSalespersonPhone,
-          referralCode: FirestoreService.defaultSalespersonReferralCode,
-        );
       }
     }
   }
@@ -361,22 +310,37 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
               const SizedBox(height: 24),
 
               // Auto-Assign Quick Action
-              OutlinedButton.icon(
+              OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   side: const BorderSide(color: Color(0xFFFF8F00), width: 1.5),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.bolt_rounded, color: Color(0xFFFF8F00)),
-                label: const Text(
-                  'Auto-Assign a Sales Executive',
-                  style: TextStyle(
-                      color: Color(0xFFFF8F00),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15),
-                ),
-                onPressed: _isLoading ? null : _executeAutoAssign,
+                onPressed: (_isLoading || _isAutoAssigning) ? null : _executeAutoAssign,
+                child: _isAutoAssigning
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF8F00)),
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.bolt_rounded, color: Color(0xFFFF8F00)),
+                          SizedBox(width: 8),
+                          Text(
+                            'Auto-Assign a Sales Executive',
+                            style: TextStyle(
+                                color: Color(0xFFFF8F00),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),

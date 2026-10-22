@@ -1506,7 +1506,7 @@ class FirestoreService {
         tileCategory: 'Tile Adhesives',
         classification: 'TYPE-1 (C1T)',
         color: 'Grey',
-        basePrice: 150.0,
+        basePrice: 200.0,
         unit: 'bag',
         bagWeightKg: 20.0,
         usageTileSizes: 'Floor 2x2, Wall 12x18, Parking Tiles 16x16, 12x12',
@@ -1535,7 +1535,7 @@ class FirestoreService {
         tileCategory: 'Tile Adhesives',
         classification: 'TYPE-2 (C2T)',
         color: 'Grey',
-        basePrice: 185.0,
+        basePrice: 235.0,
         unit: 'bag',
         bagWeightKg: 20.0,
         usageTileSizes: '300x600, 300x450 Wall, 800x800, 600x1200 upto 10 ft.',
@@ -1564,7 +1564,7 @@ class FirestoreService {
         tileCategory: 'Tile Adhesives',
         classification: 'TYPE-3 (C2TE)',
         color: 'Grey',
-        basePrice: 220.0,
+        basePrice: 270.0,
         unit: 'bag',
         bagWeightKg: 20.0,
         usageTileSizes: '1000x1000, 800x1600 upto 10 ft., 600x1200 upto 20 ft., 200x1200 Wooden Plank.',
@@ -1593,7 +1593,7 @@ class FirestoreService {
         tileCategory: 'Tile Adhesives',
         classification: 'TYPE-3 (WHITE) (C2TE)',
         color: 'White',
-        basePrice: 310.0,
+        basePrice: 360.0,
         unit: 'bag',
         bagWeightKg: 20.0,
         usageTileSizes: '1000x1000, 800x1600 upto 10 ft., 600x1200 upto 20 ft., 200x1200 Wooden Plank.',
@@ -1622,7 +1622,7 @@ class FirestoreService {
         tileCategory: 'Tile Adhesives',
         classification: 'TYPE-4 (C2TES1)',
         color: 'Grey',
-        basePrice: 290.0,
+        basePrice: 340.0,
         unit: 'bag',
         bagWeightKg: 20.0,
         usageTileSizes: '1200x1800, 1200x1200, 1200x1600, 800x2400, Slabs, Marble and Granite.',
@@ -1651,7 +1651,7 @@ class FirestoreService {
         tileCategory: 'Tile Adhesives',
         classification: 'TYPE-4 (WHITE) (C2TES1)',
         color: 'White',
-        basePrice: 380.0,
+        basePrice: 430.0,
         unit: 'bag',
         bagWeightKg: 20.0,
         usageTileSizes: '1200x1800, 1200x1200, 1200x1600, 800x2400, Slabs, Marble and Granite.',
@@ -3085,6 +3085,66 @@ class FirestoreService {
               final data = doc.data();
               return (data['isRead'] != true) && (data['read'] != true);
             }).length);
+  }
+
+  /// Fetches trending tiles from Firestore.
+  /// First queries `tiles` collection with `isTrending == true`.
+  /// Orders results in-memory by `trendingOrder` ascending.
+  /// If fewer than [limit] tiles are marked trending, refills with other active in-stock tiles.
+  /// Falls back to `ProductCatalogService.allCatalogProducts` if offline or on error.
+  Future<List<TileProduct>> getTrendingTiles({int limit = 4}) async {
+    try {
+      final snapshot = await _tilesRef
+          .where('isTrending', isEqualTo: true)
+          .get();
+
+      final List<TileProduct> trending = snapshot.docs
+          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
+          .where((p) => p.isActive)
+          .toList();
+
+      // Sort by trendingOrder ascending (nulls placed at end)
+      trending.sort((a, b) {
+        final orderA = a.trendingOrder ?? 999;
+        final orderB = b.trendingOrder ?? 999;
+        return orderA.compareTo(orderB);
+      });
+
+      // If we got enough items, return top [limit]
+      if (trending.length >= limit) {
+        return trending.take(limit).toList();
+      }
+
+      // If fewer than limit, refill with active in-stock tiles
+      final existingIds = trending.map((p) => p.id).toSet();
+      final refillSnap = await _tilesRef
+          .where('isActive', isEqualTo: true)
+          .limit(limit + 5)
+          .get();
+
+      for (final doc in refillSnap.docs) {
+        if (!existingIds.contains(doc.id)) {
+          final prod = TileProduct.fromMap(doc.data(), doc.id);
+          if (prod.productLine != 'adhesives' && !prod.isAdhesive) {
+            trending.add(prod);
+            existingIds.add(doc.id);
+            if (trending.length >= limit) break;
+          }
+        }
+      }
+
+      return trending.take(limit).toList();
+    } catch (e) {
+      debugPrint('[FirestoreService] Error fetching trending tiles: $e');
+      try {
+        return ProductCatalogService.allCatalogProducts
+            .where((p) => p.productLine == 'tiles' && p.isActive)
+            .take(limit)
+            .toList();
+      } catch (_) {
+        return [];
+      }
+    }
   }
 }
 
