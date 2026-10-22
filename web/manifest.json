@@ -1,11 +1,11 @@
 {
-    "name": "itacon_app",
-    "short_name": "itacon_app",
+    "name": "ITACON GRANITO",
+    "short_name": "ITACON",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#07172E",
+    "theme_color": "#07172E",
+    "description": "ITACON GRANITO — Premium Luxury Ceramic & Porcelain Tiles Catalogue & Orders.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

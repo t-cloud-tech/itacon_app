@@ -30,7 +30,7 @@ void main() {
         home: ProductDetailScreen(product: product),
       ),
     );
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     // Verify Tile View is the default mode
     expect(find.text('Tile View'), findsWidgets);
@@ -40,7 +40,7 @@ void main() {
 
     // Tap 'See Mockup' button to switch to Mockup mode
     await tester.tap(find.text('See Mockup'));
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     // Verify switched to Mockup
     expect(find.text('Rooms'), findsOneWidget);
@@ -48,7 +48,7 @@ void main() {
 
     // Tap 'Tile View' pill in toggle switch to switch back
     await tester.tap(find.text('Tile View').first);
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     // Verify back in Tile View mode
     expect(find.text('Faces'), findsOneWidget);

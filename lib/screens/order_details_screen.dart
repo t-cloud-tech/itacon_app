@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../utils/file_io_helper.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -92,11 +93,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             bytes = await file.readAsBytes();
           } catch (_) {
             if (file.path != null && file.path!.isNotEmpty) {
-              bytes = await File(file.path!).readAsBytes();
+              bytes = await readFileBytes(file.path!);
             }
           }
 
-          final size = bytes?.length ?? file.lengthSync() ?? (await file.length()) ?? 0;
+          final int size = bytes?.length ?? (file.path != null ? ((await readFileBytes(file.path!))?.length ?? 0) : 0);
 
           final validation = PaymentReceiptValidator.validate(
             fileName: file.name,
@@ -237,7 +238,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         storagePaths.add(storagePath);
 
         final storageRef = FirebaseStorage.instance.ref().child(storagePath);
-        final fileBytes = attachment.bytes ?? (attachment.path != null ? await File(attachment.path!).readAsBytes() : Uint8List(0));
+        final fileBytes = attachment.bytes ??
+            (attachment.path != null ? (await readFileBytes(attachment.path!) ?? Uint8List(0)) : Uint8List(0));
 
         await storageRef.putData(
           fileBytes,
@@ -619,7 +621,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           ),
           body: SafeArea(
             top: false,
-            child: SingleChildScrollView(
+            child: ResponsiveConstraint(
+              maxContentWidth: 720,
+              child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,6 +710,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ],
               ),
             ),
+          ),
           ),
         );
       },

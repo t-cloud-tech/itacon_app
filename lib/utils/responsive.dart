@@ -219,17 +219,19 @@ extension ResponsiveExtension on BuildContext {
 }
 
 /// Responsive Constraint Wrapper
-/// Ensures comfortable max bounds and centered alignment on wide mobile screens / foldables.
+/// Ensures comfortable max bounds and centered alignment on wide screens / foldables / desktop web.
 class ResponsiveConstraint extends StatelessWidget {
   final Widget child;
   final double maxContentWidth;
   final Color? backgroundColor;
+  final double? heightFactor;
 
   const ResponsiveConstraint({
     super.key,
     required this.child,
     this.maxContentWidth = 600.0,
     this.backgroundColor,
+    this.heightFactor,
   });
 
   @override
@@ -238,11 +240,14 @@ class ResponsiveConstraint extends StatelessWidget {
       return child;
     }
     return Container(
-      color: backgroundColor ?? Theme.of(context).scaffoldBackgroundColor,
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxContentWidth),
-        child: child,
+      color: backgroundColor,
+      child: Align(
+        alignment: Alignment.topCenter,
+        heightFactor: heightFactor,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxContentWidth),
+          child: child,
+        ),
       ),
     );
   }

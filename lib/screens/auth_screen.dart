@@ -326,7 +326,13 @@ class _AuthScreenState extends State<AuthScreen> {
         backgroundColor: _viewMode == AuthViewMode.choice
             ? Colors.white
             : const Color(0xFFF8F9FA),
-        body: _buildBody(),
+        body: ResponsiveConstraint(
+          maxContentWidth: 550,
+          backgroundColor: _viewMode == AuthViewMode.choice
+              ? Colors.white
+              : const Color(0xFFF8F9FA),
+          child: _buildBody(),
+        ),
       ),
     );
   }

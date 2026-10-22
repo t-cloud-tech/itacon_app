@@ -89,6 +89,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       bottomNavigationBar: ResponsiveConstraint(
         maxContentWidth: 720,
         backgroundColor: Colors.transparent,
+        heightFactor: 1.0,
         child: AppFloatingBottomBar(
           currentIndex: _currentIndex,
           onTap: _onTabSelected,

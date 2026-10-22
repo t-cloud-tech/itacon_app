@@ -188,7 +188,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     // Dynamic physical dimension scaling based on tile ratio
     final ratio = TileDimensionHelper.calculateTileAspectRatio(_selectedSize);
-    final screenWidth = MediaQuery.of(context).size.width;
+    final rawScreenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = rawScreenWidth > 720 ? 720.0 : rawScreenWidth;
     // Scaled frame height matching physical proportions
     final calculatedFrameHeight = (screenWidth / ratio).clamp(240.0, 420.0);
 
@@ -292,7 +293,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
+      body: ResponsiveConstraint(
+        maxContentWidth: 720,
+        child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -965,9 +968,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
       ),
+      ),
 
       // Bottom Action Bar
-      bottomNavigationBar: Container(
+      bottomNavigationBar: ResponsiveConstraint(
+        maxContentWidth: 720,
+        backgroundColor: Colors.white,
+        heightFactor: 1.0,
+        child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1077,6 +1085,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

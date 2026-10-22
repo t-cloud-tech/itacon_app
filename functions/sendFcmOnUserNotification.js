@@ -50,6 +50,19 @@ exports.sendFcmOnUserNotification = functions.firestore
       const title = notification.title || 'ITACON Granito';
       const body = notification.message || '';
 
+      const notificationIdStr = String(notificationId || notification.notificationId || notification.id || '');
+      const typeStr = String(notification.type || '');
+      const eventStr = String(notification.event || notification.eventType || '');
+      const orderIdStr = String(notification.orderId || notification.relatedOrderId || '');
+      const relatedEstimateIdStr = String(notification.relatedEstimateId || '');
+      const offerIdStr = String(notification.offerId || notification.relatedOfferId || '');
+      const relatedOfferIdStr = String(notification.relatedOfferId || notification.offerId || '');
+      const bannerImageUrlStr = String(
+        notification.bannerImageUrl ||
+        (notification.payload && notification.payload.bannerImageUrl) ||
+        ''
+      );
+
       const message = {
         token: fcmToken.trim(),
         notification: {
@@ -57,15 +70,19 @@ exports.sendFcmOnUserNotification = functions.firestore
           body: body,
         },
         data: {
-          notificationId: String(notificationId || notification.notificationId || ''),
-          type: String(notification.type || ''),
-          event: String(notification.event || ''),
-          orderId: String(notification.orderId || notification.relatedOrderId || ''),
-          relatedEstimateId: String(notification.relatedEstimateId || ''),
+          notificationId: notificationIdStr,
+          type: typeStr,
+          event: eventStr,
+          orderId: orderIdStr,
+          relatedEstimateId: relatedEstimateIdStr,
+          offerId: offerIdStr,
+          relatedOfferId: relatedOfferIdStr,
+          bannerImageUrl: bannerImageUrlStr,
         },
         android: {
           priority: 'high',
           notification: {
+            channelId: 'itacon_high_importance_channel',
             sound: 'default',
             clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           },

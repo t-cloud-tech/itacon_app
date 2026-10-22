@@ -342,9 +342,11 @@ class ProfileScreen extends StatelessWidget {
     final appState = AppStateService.instance;
 
     return Scaffold(
-      body: ListenableBuilder(
-        listenable: appState,
-        builder: (context, _) {
+      body: ResponsiveConstraint(
+        maxContentWidth: 720,
+        child: ListenableBuilder(
+          listenable: appState,
+          builder: (context, _) {
           final profile = appState.currentUserProfile;
           final completionPct = appState.profileCompletionPercentage;
           final pendingFields = appState.pendingProfileFields;
@@ -777,6 +779,7 @@ class ProfileScreen extends StatelessWidget {
             ),
           );
         },
+      ),
       ),
     );
   }

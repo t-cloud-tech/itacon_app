@@ -134,17 +134,11 @@ exports.sendRegionalGreetings = onSchedule(
 
         console.log(`[RegionalGreetings] Dispatching greeting '${greeting.title}' to ${usersToNotify.length} new user(s).`);
 
-        const fcmTokens = [];
         let batch = db.batch();
         let operationCount = 0;
 
         for (const item of usersToNotify) {
           const { userId, userData, notificationId, notifRef } = item;
-
-          // Collect FCM Token for push delivery
-          if (userData.fcmToken && typeof userData.fcmToken === 'string' && userData.fcmToken.trim().length > 0) {
-            fcmTokens.push(userData.fcmToken.trim());
-          }
 
           // Create notification document with exact required production schema
           batch.set(notifRef, {
@@ -174,33 +168,7 @@ exports.sendRegionalGreetings = onSchedule(
           await batch.commit();
         }
 
-        // Send FCM Push Notification via multicast chunked by 500
-        if (fcmTokens.length > 0) {
-          const FCM_BATCH_SIZE = 500;
-          for (let i = 0; i < fcmTokens.length; i += FCM_BATCH_SIZE) {
-            const batchTokens = fcmTokens.slice(i, i + FCM_BATCH_SIZE);
-            const payload = {
-              notification: {
-                title: greeting.title,
-                body: greeting.message,
-              },
-              data: {
-                type: 'festival_greeting',
-                event: 'festival_greeting',
-                greetingId: String(greeting.id || greeting.greetingId || ''),
-                bannerImageUrl: String(greeting.bannerImageUrl || ''),
-              },
-              tokens: batchTokens,
-            };
-
-            try {
-              const fcmResponse = await admin.messaging().sendEachForMulticast(payload);
-              console.log(`[RegionalGreetings] FCM Push sent to ${batchTokens.length} token(s). Success: ${fcmResponse.successCount}, Failures: ${fcmResponse.failureCount}`);
-            } catch (fcmErr) {
-              console.error('[RegionalGreetings] Error sending FCM Push notification:', fcmErr);
-            }
-          }
-        }
+        console.log(`[RegionalGreetings] Successfully saved ${usersToNotify.length} greeting notification documents for '${greeting.title}'. Push delivery automatically handled by sendFcmOnUserNotification.`);
       }
     } catch (error) {
       console.error('[RegionalGreetings] Error running scheduled festival greetings:', error);

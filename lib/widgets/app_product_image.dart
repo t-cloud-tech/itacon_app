@@ -1,4 +1,4 @@
-import 'dart:io';
+import '../utils/file_io_helper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -173,19 +173,18 @@ class AppProductImage extends StatelessWidget {
     } else if (!kIsWeb &&
         (imagePath.startsWith('/') ||
             imagePath.startsWith('file://') ||
-            (Platform.isWindows && imagePath.contains(r':\'))) &&
+            (isWindowsPlatform && imagePath.contains(r':\'))) &&
         !imagePath.startsWith('assets/')) {
       // 3. Local Filesystem File
       try {
-        final file = File(imagePath.replaceFirst('file://', ''));
-        if (file.existsSync()) {
-          content = Image.file(
-            file,
+        final filePath = imagePath.replaceFirst('file://', '');
+        if (fileExists(filePath)) {
+          content = buildFileImage(
+            path: filePath,
             width: width,
             height: height,
             fit: fit,
             cacheWidth: effectiveCacheWidth,
-            filterQuality: FilterQuality.medium,
             errorBuilder: (context, error, stackTrace) => _buildFallback(),
           );
         } else {

@@ -104,9 +104,11 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
           child: Container(color: AppTheme.borderSubtle, height: 1),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: ResponsiveConstraint(
+        maxContentWidth: 720,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Hero Banner Card
             _buildHeroBanner(),
@@ -138,7 +140,13 @@ class _ReferAndEarnScreenState extends State<ReferAndEarnScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomShareBar(),
+      ),
+      bottomNavigationBar: ResponsiveConstraint(
+        maxContentWidth: 720,
+        backgroundColor: Colors.white,
+        heightFactor: 1.0,
+        child: _buildBottomShareBar(),
+      ),
     );
   }
 

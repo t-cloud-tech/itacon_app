@@ -287,7 +287,9 @@ class UserSessionService {
     AppStateService.instance.setCurrentUserProfile(profile);
     AppStateService.instance.loadUserWishlist(profile.userId);
     await AppStateService.instance.loadUserCart(profile.userId);
-    NotificationService.saveCurrentUserToken();
+    if (Firebase.apps.isNotEmpty) {
+      NotificationService.saveCurrentUserToken();
+    }
     return profile;
   }
 
@@ -317,7 +319,17 @@ class UserSessionService {
     await prefs.remove(_keySalespersonId);
     await prefs.remove(_keySalespersonName);
     await prefs.remove(_keySalespersonPhone);
-    await prefs.remove(_keySalespersonReferralCode);
+    final currentUserId = AppStateService.instance.currentUserProfile.userId.isNotEmpty
+        ? AppStateService.instance.currentUserProfile.userId
+        : (prefs.getString(_keyUserId) ?? (Firebase.apps.isNotEmpty ? FirebaseAuth.instance.currentUser?.uid : null) ?? '');
+
+    if (currentUserId.isNotEmpty && Firebase.apps.isNotEmpty) {
+      try {
+        await NotificationService.clearTokenOnLogout(currentUserId);
+      } catch (e) {
+        debugPrint('[UserSessionService] Note during FCM token cleanup: $e');
+      }
+    }
 
     if (signOutFirebase) {
       try {

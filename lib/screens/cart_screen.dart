@@ -293,9 +293,11 @@ class CartScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListenableBuilder(
-        listenable: appState,
-        builder: (context, _) {
+      body: ResponsiveConstraint(
+        maxContentWidth: 720,
+        child: ListenableBuilder(
+          listenable: appState,
+          builder: (context, _) {
           if (appState.cartItems.isEmpty) {
             return Center(
               child: Column(
@@ -597,6 +599,7 @@ class CartScreen extends StatelessWidget {
             ],
           );
         },
+      ),
       ),
     );
   }

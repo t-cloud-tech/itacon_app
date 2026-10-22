@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../models/notification_queue.dart';
 import '../services/firestore_service.dart';
 import '../services/app_state_service.dart';
+import 'order_details_screen.dart';
 
 /// In-App Notification Center featuring Celebratory Cards for Festival & Event Greetings
 class NotificationsScreen extends StatefulWidget {
@@ -47,8 +48,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<NotificationQueueItem>>(
-        stream: _firestoreService.getUserNotificationsStream(userId),
+      body: ResponsiveConstraint(
+        maxContentWidth: 720,
+        child: StreamBuilder<List<NotificationQueueItem>>(
+          stream: _firestoreService.getUserNotificationsStream(userId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -63,16 +66,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             notifications = _buildMockNotifications(userId);
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: notifications.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 14),
-            itemBuilder: (context, index) {
-              final item = notifications[index];
-              return _buildNotificationCard(context, item, userId);
-            },
-          );
-        },
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: notifications.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
+              itemBuilder: (context, index) {
+                final item = notifications[index];
+                return _buildNotificationCard(context, item, userId);
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -86,11 +90,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final isUnread = !item.isRead;
 
     return GestureDetector(
-      onTap: () async {
-        if (isUnread && userId.isNotEmpty) {
-          await _firestoreService.markNotificationAsRead(userId, item.id);
-        }
-      },
+      onTap: () => _handleNotificationCardTap(context, item, userId),
       child: Container(
         decoration: BoxDecoration(
           color: isUnread ? Colors.white : Colors.grey.shade50,
@@ -318,5 +318,89 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         createdAt: DateTime.now().subtract(const Duration(hours: 5)),
       ),
     ];
+  }
+
+  Future<void> _handleNotificationCardTap(
+    BuildContext context,
+    NotificationQueueItem item,
+    String userId,
+  ) async {
+    // 1. Mark as read
+    if (!item.isRead && userId.isNotEmpty) {
+      try {
+        await _firestoreService.markNotificationAsRead(userId, item.id);
+      } catch (e) {
+        debugPrint('[NotificationsScreen] Error marking notification as read: $e');
+      }
+    }
+
+    final type = item.type.toLowerCase().trim();
+    final event = item.event.toLowerCase().trim();
+    final orderId = (item.orderId.isNotEmpty ? item.orderId : item.relatedOrderId).trim();
+
+    final isOrderRelated = type == 'order' ||
+        event.contains('order') ||
+        event == 'production_started' ||
+        event == 'production_completed' ||
+        event == 'shipment_dispatched' ||
+        event == 'order_delivered';
+
+    // 2. Order-related notification navigation with customer ownership validation
+    if (isOrderRelated && orderId.isNotEmpty) {
+      final currentUserId = _appState.currentUserProfile.userId;
+      final itemRecipient = item.recipientId.trim();
+
+      if (itemRecipient.isNotEmpty && currentUserId.isNotEmpty && itemRecipient != currentUserId) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Access restricted: Order belongs to another account.'),
+              backgroundColor: AppTheme.statusError,
+            ),
+          );
+        }
+        return;
+      }
+
+      final order = await _firestoreService.getOrder(orderId);
+      if (order != null) {
+        if (currentUserId.isNotEmpty &&
+            order.userId.isNotEmpty &&
+            order.userId != currentUserId &&
+            order.customerId != currentUserId) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Access restricted: Order belongs to another account.'),
+                backgroundColor: AppTheme.statusError,
+              ),
+            );
+          }
+          return;
+        }
+
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderDetailsScreen(orderId: orderId, initialOrder: order),
+            ),
+          );
+        }
+      } else {
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OrderDetailsScreen(orderId: orderId),
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    // 3. For offer-related and general notifications:
+    // Retain existing notification screen behavior (card marked read, banner shown)
   }
 }

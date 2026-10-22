@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -13,28 +14,88 @@ class NotificationService {
   static final FirestoreService _firestoreService =
       FirestoreService.instance;
 
+  /// Web VAPID public key. Can be provided via --dart-define=FCM_WEB_VAPID_KEY=...
+  /// If empty, web push registration is safely skipped to avoid browser exceptions.
+  static const String webVapidKey =
+      String.fromEnvironment('FCM_WEB_VAPID_KEY', defaultValue: '');
+
   /// Global navigator key allowing navigation from notification callbacks
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
   static RemoteMessage? _pendingMessage;
   static bool _isAppReady = false;
+  static final Set<String> _recentForegroundAlertIds = {};
 
-  static Future<void> initialize() async {
+  /// Retrieves the device FCM token safely across both mobile and web.
+  /// On web, skips registration gracefully if webVapidKey is empty or unconfigured.
+  static Future<String?> _getTokenSafely() async {
     try {
-      // Ask notification permission (Android 13+ and iOS)
-      await _messaging.requestPermission(
+      if (kIsWeb) {
+        if (webVapidKey.isEmpty) {
+          debugPrint('[NotificationService] FCM_WEB_VAPID_KEY not configured. Web push registration safely skipped.');
+          return null;
+        }
+        return await _messaging.getToken(vapidKey: webVapidKey);
+      } else {
+        return await _messaging.getToken();
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] getTokenSafely non-fatal error: $e');
+      return null;
+    }
+  }
+
+  /// Explicitly requests notification permission on Web following user interaction.
+  static Future<NotificationSettings?> requestWebNotificationPermission() async {
+    try {
+      final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        final token = await _getTokenSafely();
+        if (token != null && token.isNotEmpty) {
+          await _saveToken(token);
+        }
+      }
+      return settings;
     } catch (e) {
-      debugPrint('[NotificationService] Permission request non-fatal error: $e');
+      debugPrint('[NotificationService] requestWebNotificationPermission error: $e');
+      return null;
+    }
+  }
+
+  static Future<void> initialize() async {
+    if (!kIsWeb) {
+      try {
+        // Ask notification permission (Android 13+ and iOS)
+        await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+
+        if (defaultTargetPlatform == TargetPlatform.iOS) {
+          // Explicitly configure iOS foreground notification presentation:
+          // Keep alert false to avoid duplicate system banner while in-app luxury SnackBar handles foreground alerts,
+          // and allow native badge updates and sound.
+          await _messaging.setForegroundNotificationPresentationOptions(
+            alert: false,
+            badge: true,
+            sound: true,
+          );
+        }
+      } catch (e) {
+        debugPrint('[NotificationService] Permission/presentation request non-fatal error: $e');
+      }
     }
 
     try {
-      // Get FCM token
-      final token = await _messaging.getToken();
+      // Get FCM token safely
+      final token = await _getTokenSafely();
 
       if (token != null && token.isNotEmpty) {
         debugPrint('[NotificationService] FCM Token initialized successfully');
@@ -57,6 +118,7 @@ class NotificationService {
       debugPrint('[NotificationService] Foreground notification received');
       debugPrint('[NotificationService] Title: ${message.notification?.title}');
       debugPrint('[NotificationService] Body: ${message.notification?.body}');
+      _handleForegroundNotification(message);
     });
 
     // User taps a notification while app is in background (Case B)
@@ -201,10 +263,10 @@ class NotificationService {
     }
 
     try {
-      final token = await _messaging.getToken();
+      final token = await _getTokenSafely();
 
       if (token == null || token.isEmpty) {
-        debugPrint('[NotificationService] Cannot save FCM token: token is empty.');
+        debugPrint('[NotificationService] Cannot save FCM token: token is empty or skipped on web.');
         return;
       }
 
@@ -216,6 +278,124 @@ class NotificationService {
       debugPrint('[NotificationService] FCM token saved to Firestore after login.');
     } catch (e) {
       debugPrint('[NotificationService] Failed to save FCM token after login: $e');
+    }
+  }
+
+  /// Displays an in-app luxury banner when a notification is received in the foreground
+  static void _handleForegroundNotification(RemoteMessage message) {
+    final title = message.notification?.title ?? message.data['title'] ?? 'ITACON Granito';
+    final body = message.notification?.body ?? message.data['message'] ?? message.data['body'] ?? '';
+    final dedupeKey = message.messageId ??
+        '${message.data['notificationId']}_${message.data['orderId']}_${message.data['offerId']}_${title}_$body';
+
+    // Prevent duplicate foreground alerts
+    if (_recentForegroundAlertIds.contains(dedupeKey)) {
+      debugPrint('[NotificationService] Duplicate foreground alert suppressed: $dedupeKey');
+      return;
+    }
+    _recentForegroundAlertIds.add(dedupeKey);
+    if (_recentForegroundAlertIds.length > 50) {
+      _recentForegroundAlertIds.remove(_recentForegroundAlertIds.first);
+    }
+
+    final context = navigatorKey.currentContext;
+    if (context == null) {
+      debugPrint('[NotificationService] No active context to show foreground alert');
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (messenger == null) return;
+
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF0E274D), // AppTheme.primaryNavy
+          elevation: 6,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: Color(0xFFFF8F00), width: 1), // AppTheme.accentOrange
+          ),
+          duration: const Duration(seconds: 5),
+          content: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF8F00).withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.notifications_active_rounded,
+                  color: Color(0xFFFF8F00),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (body.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        body,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          action: SnackBarAction(
+            label: 'VIEW',
+            textColor: const Color(0xFFFF8F00),
+            onPressed: () {
+              handleNotificationNavigation(message);
+            },
+          ),
+        ),
+      );
+    });
+  }
+
+  /// Safely removes FCM device token association in Firestore on logout
+  static Future<void> clearTokenOnLogout(String userId) async {
+    if (userId.isEmpty) return;
+    try {
+      final currentToken = await _getTokenSafely().timeout(
+        const Duration(seconds: 2),
+        onTimeout: () => null,
+      );
+      if (currentToken != null && currentToken.isNotEmpty) {
+        await _firestoreService
+            .removeFcmTokenIfMatches(userId, currentToken)
+            .timeout(const Duration(seconds: 2), onTimeout: () {});
+        debugPrint('[NotificationService] Cleaned up FCM device token for user $userId on logout.');
+      }
+    } catch (e) {
+      debugPrint('[NotificationService] Error clearing FCM token on logout: $e');
     }
   }
 }

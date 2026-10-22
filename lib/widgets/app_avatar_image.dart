@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../utils/file_io_helper.dart';
 
 /// Rock-solid cross-platform avatar image widget.
 /// Handles network (http/https), web blobs (blob:), Base64 data URIs (data:image/...),
@@ -80,10 +80,9 @@ class AppAvatarImage extends StatelessWidget {
     // 4. Local File (ONLY on non-web platforms to avoid "Unsupported operation: _Namespace")
     if (!kIsWeb) {
       try {
-        final file = File(clean);
-        if (file.existsSync()) {
-          return Image.file(
-            file,
+        if (fileExists(clean)) {
+          return buildFileImage(
+            path: clean,
             width: size,
             height: size,
             fit: BoxFit.cover,
@@ -194,10 +193,9 @@ class AppShowroomImage extends StatelessWidget {
 
     if (!kIsWeb) {
       try {
-        final file = File(clean);
-        if (file.existsSync()) {
-          return Image.file(
-            file,
+        if (fileExists(clean)) {
+          return buildFileImage(
+            path: clean,
             width: width,
             height: height,
             fit: fit,

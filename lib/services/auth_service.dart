@@ -207,6 +207,22 @@ class AuthService {
               message = 'App verification failed. Please try again.';
               break;
 
+            case 'captcha-check-failed':
+              message = 'reCAPTCHA verification failed. Please refresh and try again.';
+              break;
+
+            case 'missing-app-credential':
+              message = 'App credential missing. Please complete the reCAPTCHA verification.';
+              break;
+
+            case 'app-not-authorized':
+              message = 'Domain not authorized for authentication. Please contact support.';
+              break;
+
+            case 'web-context-cancelled':
+              message = 'Verification was cancelled. Please try again.';
+              break;
+
             case 'network-request-failed':
               message = 'Network error. Please check your internet connection.';
               break;

@@ -926,6 +926,30 @@ class FirestoreService {
     );
   }
 
+  /// Safely removes FCM token on logout if it matches this device's current token,
+  /// preventing an older session from wiping another active session's token.
+  Future<void> removeFcmTokenIfMatches(String uid, String currentToken) async {
+    if (uid.isEmpty || currentToken.isEmpty || Firebase.apps.isEmpty) return;
+    try {
+      final docRef = _usersRef.doc(uid);
+      final doc = await docRef.get().timeout(const Duration(seconds: 2));
+      if (doc.exists && doc.data() != null) {
+        final existingToken = doc.data()!['fcmToken'];
+        if (existingToken == currentToken) {
+          await docRef.set({
+            'fcmToken': '',
+            'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true)).timeout(const Duration(seconds: 2));
+          debugPrint('[FirestoreService] Successfully cleared FCM token for user $uid on logout.');
+        } else {
+          debugPrint('[FirestoreService] FCM token for user $uid belongs to another active session; skipping logout removal.');
+        }
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] Error during FCM token logout cleanup: $e');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getUsersByCategory(String categoryId) async {
     try {
       final colName = _getCategoryCollectionName(categoryId);
@@ -2071,6 +2095,19 @@ class FirestoreService {
       debugPrint('[FirestoreService] getOrderStream non-fatal error for $orderId: $error');
       return null;
     });
+  }
+
+  /// Fetches a single TileOrder document by orderId
+  Future<TileOrder?> getOrder(String orderId) async {
+    if (orderId.isEmpty || Firebase.apps.isEmpty) return null;
+    try {
+      final doc = await _ordersRef.doc(orderId).get();
+      if (!doc.exists || doc.data() == null) return null;
+      return TileOrder.fromMap(doc.data()!, doc.id);
+    } catch (e) {
+      debugPrint('[FirestoreService] getOrder non-fatal error for $orderId: $e');
+      return null;
+    }
   }
 
   // ===========================================================================
