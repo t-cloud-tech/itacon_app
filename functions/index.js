@@ -86,3 +86,7 @@ exports.onSalesPersonWrite = onSalesPersonWrite;
 const { createCustomerByStaff } = require('./createCustomerByStaff');
 exports.createCustomerByStaff = createCustomerByStaff;
 
+
+// Staff-created customer accounts (admin / salesperson)
+const { createCustomerByStaff } = require('./createCustomerByStaff');
+exports.createCustomerByStaff = createCustomerByStaff;

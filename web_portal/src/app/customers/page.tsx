@@ -17,7 +17,9 @@ import {
   AlertCircle,
   Building,
   UserCheck,
+  UserPlus,
 } from "lucide-react";
+import { AddCustomerModal } from "@/components/customers/add-customer-modal";
 
 export default function CustomersPage() {
   const { user, role, salesperson } = useAuth();
@@ -26,6 +28,7 @@ export default function CustomersPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [tierFilter, setTierFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
   const loadLiveCustomers = useCallback(async () => {
@@ -95,6 +98,13 @@ export default function CustomersPage() {
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 text-xs font-semibold text-white bg-[#E66A23] hover:bg-[#D95D16] rounded-lg shadow-sm transition-colors cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Add Customer</span>
+            </button>
             <button
               onClick={loadLiveCustomers}
               disabled={isLoading}
@@ -337,6 +347,14 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <AddCustomerModal
+          role={role}
+          onClose={() => setShowAddModal(false)}
+          onCreated={loadLiveCustomers}
+        />
+      )}
     </DashboardShell>
   );
 }

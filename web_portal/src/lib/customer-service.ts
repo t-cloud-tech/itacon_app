@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db, invokeCallable } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc, setDoc, query, where } from "firebase/firestore";
 import { Customer, UserProfile, SalesPerson, UserRole } from "@/types";
 
@@ -588,4 +588,44 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
     console.error("Error fetching customer by ID:", error);
     return null;
   }
+}
+
+export interface NewCustomerInput {
+  name: string;
+  companyName: string;
+  category: string;
+  phone: string;
+  email?: string;
+  gstNumber?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  /** Admin picks the salesperson; ignored server-side for salesperson callers. */
+  salesPersonId?: string;
+  /** Optional overrides — generated server-side when blank. */
+  username?: string;
+  password?: string;
+}
+
+export interface CreatedCustomerCredentials {
+  customerId: string;
+  username: string;
+  password: string;
+  salespersonName: string;
+}
+
+/**
+ * Creates a customer account (Auth user + profile + login credentials) through the
+ * staff-only `createCustomerByStaff` Cloud Function. Returns the credentials to hand over.
+ */
+export async function createCustomerByStaff(
+  input: NewCustomerInput
+): Promise<CreatedCustomerCredentials> {
+  const res = await invokeCallable<NewCustomerInput, CreatedCustomerCredentials>(
+    "createCustomerByStaff",
+    input,
+    "asia-south1"
+  );
+  return res.data;
 }
