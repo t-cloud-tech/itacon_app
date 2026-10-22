@@ -25,6 +25,7 @@ service cloud.firestore {
     }
 
     // Staff = admin, manager, salesperson (via custom claim OR Firestore role/category).
+    // Designers are intentionally NOT staff: they only manage the tile catalogue (see isDesigner).
     // NOTE: salesPersons document existence check = cost-effective proxy for salesperson auth.
     function isStaff() {
       return isAuthenticated() && (
@@ -36,6 +37,19 @@ service cloud.firestore {
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'manager', 'salesperson', 'staff']) ||
           (('userCategory' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory in ['admin', 'manager', 'salesperson', 'staff'])
+        ))
+      );
+    }
+
+    // Designer role check (catalogue management only)
+    function isDesigner() {
+      return isAuthenticated() && (
+        (('role' in request.auth.token) && request.auth.token.role == 'designer') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+          (('role' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'designer') ||
+          (('userCategory' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCategory == 'designer')
         ))
       );
     }
@@ -684,15 +698,28 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // DESIGNER PROFILES (keyed by designerId, defaults to the designer's uid)
+    // Managed by admin/manager; a designer can read only their own profile.
+    // =========================================================================
+    match /Designer/{designerId} {
+      allow read: if isOwner(designerId) ||
+        (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+        isAdminOrManager();
+      allow write: if isAdminOrManager() && !hasSensitiveFields(request.resource.data);
+    }
+
+    // =========================================================================
     // PRODUCTS, TILES, CATEGORIES, SYSTEM CONFIG
     // =========================================================================
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdminOrManager();
+      allow create, update: if isAdminOrManager() || isDesigner();
+      allow delete: if isAdminOrManager();
     }
     match /tiles/{tileId} {
       allow read: if true;
-      allow write: if isAdminOrManager();
+      allow create, update: if isAdminOrManager() || isDesigner();
+      allow delete: if isAdminOrManager();
     }
     match /categories/{catId} {
       allow read: if true;

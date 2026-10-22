@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { canAccessPath } from "@/lib/auth-utils";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
@@ -14,13 +15,19 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children, title, subtitle }: DashboardShellProps) {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const pathname = usePathname();
+  const { user, role, loading } = useAuth();
+  const isAllowed = canAccessPath(role, pathname);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    if (!user) {
       router.replace("/login");
+    } else if (!isAllowed) {
+      // e.g. a designer opening /customers directly by URL
+      router.replace("/");
     }
-  }, [user, loading, router]);
+  }, [user, loading, isAllowed, router]);
 
   if (loading) {
     return (
@@ -31,7 +38,7 @@ export function DashboardShell({ children, title, subtitle }: DashboardShellProp
     );
   }
 
-  if (!user) {
+  if (!user || !isAllowed) {
     return null;
   }
 

@@ -474,8 +474,8 @@ async function runTests() {
 
   // 16. No secrets logged & Allowed roles check
   {
-    assert.deepStrictEqual([...ALLOWED_STAFF_ROLES].sort(), ["admin", "manager", "salesperson"]);
-    console.log("✔ Test 16: Allowed staff roles restricted to admin, manager, salesperson");
+    assert.deepStrictEqual([...ALLOWED_STAFF_ROLES].sort(), ["admin", "designer", "manager", "salesperson"]);
+    console.log("✔ Test 16: Allowed staff roles restricted to admin, designer, manager, salesperson");
   }
 
   // =========================================================================

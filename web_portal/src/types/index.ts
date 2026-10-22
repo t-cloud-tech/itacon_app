@@ -1,4 +1,4 @@
-export type UserRole = "customer" | "salesperson" | "manager" | "admin";
+export type UserRole = "customer" | "salesperson" | "manager" | "admin" | "designer";
 
 export interface UserProfile {
   userId: string;
@@ -9,6 +9,7 @@ export interface UserProfile {
   companyName?: string;
   userCategory?: string;
   salesPersonId?: string;
+  designerId?: string;
   referralCode?: string;
   city?: string;
   state?: string;
@@ -36,6 +37,21 @@ export interface SalesPerson {
   status: "active" | "inactive";
   assignedClientsCount: number;
   activeClientsCount: number;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+// Stored in the `Designer` collection, keyed by designerId (defaults to the user's uid)
+export interface Designer {
+  designerId: string;
+  userId: string;
+  employeeId: string;
+  name: string;
+  phone: string;
+  email: string;
+  designation: string;
+  specializations: string[];
+  status: "active" | "inactive";
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

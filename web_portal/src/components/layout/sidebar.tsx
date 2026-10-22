@@ -20,17 +20,19 @@ import {
   ChevronRight
 } from "lucide-react";
 
+import { canAccessPath } from "@/lib/auth-utils";
+
 interface NavItem {
   name: string;
   href: string;
   icon: React.ElementType;
   badge?: string;
-  adminOnly?: boolean;
 }
 
+// Visibility per role is decided by canAccessPath (same rule DashboardShell enforces)
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Salespersons", href: "/salespersons", icon: UserCog, adminOnly: true },
+  { name: "Salespersons", href: "/salespersons", icon: UserCog },
   { name: "Leads", href: "/leads", icon: UserCheck },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Opportunities", href: "/opportunities", icon: Target },
@@ -43,7 +45,7 @@ const navItems: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, salesperson, role, logout } = useAuth();
+  const { user, salesperson, designer, role, logout } = useAuth();
 
   return (
     <aside className="w-64 bg-[#0E274D] text-white flex flex-col justify-between shrink-0 h-screen max-h-screen border-r border-[#1A2D5A] select-none sticky top-0 overflow-hidden">
@@ -56,12 +58,12 @@ export function Sidebar() {
           <div>
             <div className="font-bold text-lg leading-tight tracking-tight text-white whitespace-nowrap">ITACON GRANITO</div>
             <div className="text-[11px] font-medium text-orange-400 uppercase tracking-wider">
-              {role === "admin" ? "Admin Portal" : "Salesperson Portal"}
+              {role === "admin" ? "Admin Portal" : role === "designer" ? "Designer Studio" : "Salesperson Portal"}
             </div>
           </div>
         </div>
 
-        {/* Salesperson / Admin Profile Capsule */}
+        {/* Staff Profile Capsule */}
         <div className="px-3.5 py-3 mx-3 mt-3 rounded-xl bg-white/5 border border-white/10 shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-9 h-9 rounded-full bg-[#E66A23]/20 border border-[#E66A23]/40 flex items-center justify-center font-bold text-sm text-orange-300 shrink-0">
@@ -70,7 +72,9 @@ export function Sidebar() {
             <div className="overflow-hidden">
               <p className="text-sm font-semibold text-white truncate">{user?.name || "User"}</p>
               <p className="text-xs text-slate-400 truncate">
-                {salesperson?.employeeId || (role === "admin" ? "Super Admin" : "Executive")}
+                {role === "designer"
+                  ? designer?.employeeId || designer?.designation || "Designer"
+                  : salesperson?.employeeId || (role === "admin" ? "Super Admin" : "Executive")}
               </p>
             </div>
           </div>
@@ -87,7 +91,7 @@ export function Sidebar() {
         {/* Navigation Items */}
         <nav className="mt-3 px-3 space-y-1">
           {navItems
-            .filter((item) => !item.adminOnly || role === "admin")
+            .filter((item) => canAccessPath(role, item.href))
             .map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;

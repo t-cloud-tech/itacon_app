@@ -2,26 +2,27 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { 
-  signInWithCustomToken, 
-  signOut as fbSignOut, 
+import {
+  signInWithCustomToken,
+  signOut as fbSignOut,
   onAuthStateChanged,
   User as FirebaseUser
 } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "./firebase";
-import { 
+import {
   buildUserProfileFromDoc,
-  AuthException, 
-  type AuthErrorCode 
+  AuthException,
+  type AuthErrorCode
 } from "./auth-utils";
-import { UserProfile, SalesPerson, UserRole } from "@/types";
+import { UserProfile, SalesPerson, Designer, UserRole } from "@/types";
 
 export { AuthException, type AuthErrorCode };
 
 interface AuthContextType {
   user: UserProfile | null;
   salesperson: SalesPerson | null;
+  designer: Designer | null;
   role: UserRole | null;
   loading: boolean;
   login: (identifier: string, password: string) => Promise<void>;
@@ -30,11 +31,70 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function loadSalespersonProfile(profile: UserProfile): Promise<SalesPerson | null> {
+  if ((profile.role !== "salesperson" && profile.role !== "manager") || !profile.salesPersonId) {
+    return null;
+  }
+  try {
+    const spDoc = await getDoc(doc(db, "salesPersons", profile.salesPersonId));
+    if (!spDoc.exists()) return null;
+    const data = spDoc.data();
+    return {
+      salesPersonId: spDoc.id,
+      employeeId: data.employeeId || "",
+      name: data.name || profile.name,
+      phone: data.phone || profile.phone,
+      email: data.email || profile.email,
+      referralCode: data.referralCode || "",
+      region: data.region || "Western Region",
+      states: data.states || ["GJ"],
+      status: data.status || "active",
+      assignedClientsCount: data.assignedClientsCount || 0,
+      activeClientsCount: data.activeClientsCount || 0,
+    };
+  } catch (e) {
+    console.warn("Could not fetch salesperson profile document:", e);
+    return null;
+  }
+}
+
+async function loadDesignerProfile(profile: UserProfile): Promise<Designer | null> {
+  if (profile.role !== "designer") return null;
+  const designerId = profile.designerId || profile.userId;
+  try {
+    const designerDoc = await getDoc(doc(db, "Designer", designerId));
+    if (!designerDoc.exists()) return null;
+    const data = designerDoc.data();
+    return {
+      designerId: designerDoc.id,
+      userId: data.userId || profile.userId,
+      employeeId: data.employeeId || "",
+      name: data.name || profile.name,
+      phone: data.phone || profile.phone,
+      email: data.email || profile.email,
+      designation: data.designation || "Tile Designer",
+      specializations: Array.isArray(data.specializations) ? data.specializations : [],
+      status: data.status === "inactive" ? "inactive" : "active",
+    };
+  } catch (e) {
+    console.warn("Could not fetch designer profile document:", e);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [salesperson, setSalesperson] = useState<SalesPerson | null>(null);
+  const [designer, setDesigner] = useState<Designer | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const clearSession = () => {
+    setUser(null);
+    setSalesperson(null);
+    setDesigner(null);
+    setRole(null);
+  };
 
   // Authoritative Firebase Auth persistence listener
   useEffect(() => {
@@ -43,9 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser: FirebaseUser | null) => {
       if (!fbUser) {
         if (isMounted) {
-          setUser(null);
-          setSalesperson(null);
-          setRole(null);
+          clearSession();
           setLoading(false);
         }
         return;
@@ -57,57 +115,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!userDocSnap.exists()) {
           // If no user profile exists for authenticated user, sign out
           await fbSignOut(auth);
-          if (isMounted) {
-            setUser(null);
-            setSalesperson(null);
-            setRole(null);
-          }
+          if (isMounted) clearSession();
           return;
         }
 
         const profile = buildUserProfileFromDoc(fbUser.uid, userDocSnap.data() as Record<string, unknown>);
-
-        // Load salesperson profile if applicable
-        let spProfile: SalesPerson | null = null;
-        if (
-          (profile.role === "salesperson" || profile.role === "manager") &&
-          profile.salesPersonId
-        ) {
-          try {
-            const spDoc = await getDoc(doc(db, "salesPersons", profile.salesPersonId));
-            if (spDoc.exists()) {
-              const data = spDoc.data();
-              spProfile = {
-                salesPersonId: spDoc.id,
-                employeeId: data.employeeId || "",
-                name: data.name || profile.name,
-                phone: data.phone || profile.phone,
-                email: data.email || profile.email,
-                referralCode: data.referralCode || "",
-                region: data.region || "Western Region",
-                states: data.states || ["GJ"],
-                status: data.status || "active",
-                assignedClientsCount: data.assignedClientsCount || 0,
-                activeClientsCount: data.activeClientsCount || 0,
-              };
-            }
-          } catch (e) {
-            console.warn("Could not fetch salesperson profile document:", e);
-          }
-        }
+        const [spProfile, designerProfile] = await Promise.all([
+          loadSalespersonProfile(profile),
+          loadDesignerProfile(profile),
+        ]);
 
         if (isMounted) {
           setUser(profile);
           setSalesperson(spProfile);
+          setDesigner(designerProfile);
           setRole(profile.role);
         }
       } catch (err) {
         console.warn("Session restore error:", err);
-        if (isMounted) {
-          setUser(null);
-          setSalesperson(null);
-          setRole(null);
-        }
+        if (isMounted) clearSession();
       } finally {
         if (isMounted) {
           setLoading(false);
@@ -155,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (code === "functions/permission-denied" || message.includes("Access Denied")) {
           throw new AuthException(
             "UNAUTHORIZED_ROLE",
-            "Access Denied: This web portal is restricted to Salespersons and Admins. Customer accounts must use the ITACON mobile app."
+            "Access Denied: This web portal is restricted to authorized staff (Admins, Salespersons, Designers). Customer accounts must use the ITACON mobile app."
           );
         }
         if (code === "functions/failed-precondition" || message.includes("deactivated or blocked")) {
@@ -199,38 +225,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // 4. Client-side role re-validation (defense-in-depth for UI routing)
       const userProfile = buildUserProfileFromDoc(authedUid, userDocSnap.data() as Record<string, unknown>);
 
-      // 5. Fetch salesperson profile document if applicable
-      let spProfile: SalesPerson | null = null;
-      if (
-        (userProfile.role === "salesperson" || userProfile.role === "manager") &&
-        userProfile.salesPersonId
-      ) {
-        try {
-          const spDoc = await getDoc(doc(db, "salesPersons", userProfile.salesPersonId));
-          if (spDoc.exists()) {
-            const data = spDoc.data();
-            spProfile = {
-              salesPersonId: spDoc.id,
-              employeeId: data.employeeId || "",
-              name: data.name || userProfile.name,
-              phone: data.phone || userProfile.phone,
-              email: data.email || userProfile.email,
-              referralCode: data.referralCode || "",
-              region: data.region || "Western Region",
-              states: data.states || ["GJ"],
-              status: data.status || "active",
-              assignedClientsCount: data.assignedClientsCount || 0,
-              activeClientsCount: data.activeClientsCount || 0,
-            };
-          }
-        } catch (e) {
-          console.warn("Could not fetch salesperson profile document:", e);
-        }
-      }
+      // 5. Fetch role-specific profile documents (salesPersons / Designer)
+      const [spProfile, designerProfile] = await Promise.all([
+        loadSalespersonProfile(userProfile),
+        loadDesignerProfile(userProfile),
+      ]);
 
       // Update state
       setUser(userProfile);
       setSalesperson(spProfile);
+      setDesigner(designerProfile);
       setRole(userProfile.role);
 
     } finally {
@@ -242,13 +246,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fbSignOut(auth);
     } catch (_) {}
-    setUser(null);
-    setSalesperson(null);
-    setRole(null);
+    clearSession();
   };
 
   return (
-    <AuthContext.Provider value={{ user, salesperson, role, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, salesperson, designer, role, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -261,5 +263,3 @@ export function useAuth() {
   }
   return context;
 }
-
-

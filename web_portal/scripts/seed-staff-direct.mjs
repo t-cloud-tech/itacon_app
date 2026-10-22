@@ -31,7 +31,7 @@ const CONFIG = {
   name: "Vraj Patel",
   email: "Vrajp9013@gmail.com",
   phone: "9876543210",
-  role: "admin", // "salesperson" or "admin"
+  role: "admin", // "salesperson", "admin", or "designer"
   password: "Admin@1234",
   salespersonCode: "SALES101",
   employeeId: "EMP-SP101",
@@ -55,12 +55,13 @@ async function main() {
   const hash = hashPassword(CONFIG.password, salt);
   const now = new Date().toISOString();
   const isSalesperson = CONFIG.role === "salesperson";
+  const isDesigner = CONFIG.role === "designer";
   const cleanPhone = CONFIG.phone.replace(/\D/g, "");
   const spId = isSalesperson ? `SP_${cleanPhone.slice(-4) || "101"}` : undefined;
   const referralCode = (CONFIG.salespersonCode || `SALES${Math.floor(100 + Math.random() * 900)}`).trim().toUpperCase();
 
   // 1. users collection doc
-  const userDocId = spId || "admin_01";
+  const userDocId = spId || (isDesigner ? `designer_${cleanPhone.slice(-4) || "01"}` : "admin_01");
   const userPayload = {
     name: CONFIG.name,
     fullName: CONFIG.name,
@@ -76,6 +77,11 @@ async function main() {
     assignedClientsCount: 0,
     activeClientsCount: 0,
   };
+
+  if (isDesigner) {
+    userPayload.designerId = userDocId;
+    userPayload.employeeId = CONFIG.employeeId;
+  }
 
   if (isSalesperson) {
     userPayload.salesPersonId = spId;
@@ -107,6 +113,25 @@ async function main() {
     };
     await setDoc(doc(db, "salesPersons", spId), spPayload, { merge: true });
     console.log(`✅ Saved salesPersons/${spId}`);
+  }
+
+  // 3. Designer collection doc (profile shown in the Designer Studio)
+  if (isDesigner) {
+    const designerPayload = {
+      designerId: userDocId,
+      userId: userDocId,
+      employeeId: CONFIG.employeeId,
+      name: CONFIG.name,
+      phone: CONFIG.phone.trim(),
+      email: CONFIG.email.toLowerCase().trim(),
+      designation: "Tile Designer",
+      specializations: [],
+      status: "active",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await setDoc(doc(db, "Designer", userDocId), designerPayload, { merge: true });
+    console.log(`✅ Saved Designer/${userDocId}`);
   }
 
   console.log("\n🎉 Salesperson created & allocated successfully in Firestore!");

@@ -65,7 +65,7 @@ export class AuthException extends Error {
   }
 }
 
-export const ALLOWED_PORTAL_ROLES: readonly string[] = ["admin", "manager", "salesperson"];
+export const ALLOWED_PORTAL_ROLES: readonly string[] = ["admin", "manager", "salesperson", "designer"];
 
 /**
  * Client-side user profile constructor and defense-in-depth role re-validator.
@@ -83,13 +83,13 @@ export function buildUserProfileFromDoc(
     );
   }
 
-  // Verify Role: Staff only (Salesperson, Manager, Admin)
+  // Verify Role: Staff only (Salesperson, Manager, Admin, Designer)
   const rawRole = typeof userDocData.role === "string" ? userDocData.role : "salesperson";
   const userRole = rawRole.toLowerCase().trim() as UserRole;
   if (!ALLOWED_PORTAL_ROLES.includes(userRole)) {
     throw new AuthException(
       "UNAUTHORIZED_ROLE",
-      "Access Denied: This web portal is restricted to Salespersons and Admins. Customer accounts must use the ITACON mobile app."
+      "Access Denied: This web portal is restricted to authorized staff (Admins, Salespersons, Designers). Customer accounts must use the ITACON mobile app."
     );
   }
 
@@ -120,6 +120,7 @@ export function buildUserProfileFromDoc(
     companyName: typeof userDocData.companyName === "string" ? userDocData.companyName : undefined,
     userCategory: typeof userDocData.userCategory === "string" ? userDocData.userCategory : undefined,
     salesPersonId: typeof userDocData.salesPersonId === "string" ? userDocData.salesPersonId : undefined,
+    designerId: typeof userDocData.designerId === "string" ? userDocData.designerId : undefined,
     city: typeof userDocData.city === "string" ? userDocData.city : undefined,
     state: typeof userDocData.state === "string" ? userDocData.state : undefined,
     status: status === "blocked" || status === "inactive" ? status : "active",
@@ -129,3 +130,22 @@ export function buildUserProfileFromDoc(
 }
 
 
+
+/**
+ * Portal routes each staff role may open. Designers only manage the tile catalogue;
+ * Salespersons page is admin-only. Anything not listed is open to admin/manager/salesperson.
+ */
+const DESIGNER_PATHS: readonly string[] = ["/", "/products"];
+const ADMIN_ONLY_PATHS: readonly string[] = ["/salespersons"];
+
+function matchesPath(pathname: string, base: string): boolean {
+  if (base === "/") return pathname === "/";
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
+export function canAccessPath(role: UserRole | null, pathname: string): boolean {
+  if (!role) return false;
+  if (role === "designer") return DESIGNER_PATHS.some((p) => matchesPath(pathname, p));
+  if (ADMIN_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return role === "admin";
+  return true;
+}

@@ -10,7 +10,7 @@ if (!admin.apps.length) {
 /**
  * Allowed staff roles permitted to access the web portal.
  */
-const ALLOWED_STAFF_ROLES = Object.freeze(['admin', 'manager', 'salesperson']);
+const ALLOWED_STAFF_ROLES = Object.freeze(['admin', 'manager', 'salesperson', 'designer']);
 
 /**
  * Normalizes Indian phone numbers according to canonical app behavior:

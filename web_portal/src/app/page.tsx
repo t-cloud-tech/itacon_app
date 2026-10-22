@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, limit, orderBy, onSnapshot } from "f
 import { subscribeClientPORequests, subscribeAllOrders, ClientOrderPO, getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { RevenueOverviewCard } from "@/components/dashboard/revenue-overview-card";
 import { OrdersStatusDonutCard } from "@/components/dashboard/orders-status-donut-card";
+import { AddTileModal } from "@/components/catalogue/add-tile-modal";
 import { 
   TrendingUp, 
   Users, 
@@ -20,12 +21,16 @@ import {
   ArrowUpRight, 
   PlusCircle, 
   Grid3X3, 
-  ArrowRight,
-  ShieldAlert,
-  Smartphone,
-  Truck,
-  ShoppingBag,
-  FileCheck2
+  ArrowRight, 
+  ShieldAlert, 
+  Smartphone, 
+  Truck, 
+  ShoppingBag, 
+  FileCheck2,
+  Palette,
+  Layers,
+  Package,
+  Check
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -48,8 +53,32 @@ export default function DashboardPage() {
   const [poRequests, setPoRequests] = useState<ClientOrderPO[]>([]);
   const [allOrders, setAllOrders] = useState<ClientOrderPO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddTileModalOpen, setIsAddTileModalOpen] = useState(false);
+  const [designerTiles, setDesignerTiles] = useState<any[]>([]);
 
   useEffect(() => {
+    if (role !== "designer") return;
+    async function loadDesignerTiles() {
+      try {
+        let snap = await getDocs(query(collection(db, "products"), limit(60)));
+        if (snap.empty) {
+          snap = await getDocs(query(collection(db, "tiles"), limit(60)));
+        }
+        setDesignerTiles(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      } catch (e) {
+        console.warn("Could not load designer tiles:", e);
+      }
+    }
+    loadDesignerTiles();
+  }, [role]);
+
+  useEffect(() => {
+    // If role is designer, designer studio dashboard manages tiles only - skip CRM order listeners
+    if (role === "designer") {
+      setIsLoading(false);
+      return;
+    }
+
     // 1. Subscribe to live Client PO requests
     const unsubPOs = subscribeClientPORequests(user, salesperson, role, (livePOs) => {
       setPoRequests(livePOs);
@@ -301,6 +330,252 @@ export default function DashboardPage() {
       monthQuotationsCount: allQuotations.length > 0 ? allQuotations.length : (prev.monthQuotationsCount || 15),
     }));
   }, [allOrders, allQuotations, allSalesOrders, role, user, salesperson]);
+
+  if (role === "designer") {
+    const designerCategories = [...new Set(designerTiles.map((t) => t.tileCategory).filter(Boolean))] as string[];
+    const designerFinishes = [...new Set(designerTiles.map((t) => t.surface || t.finish).filter(Boolean))] as string[];
+    return (
+      <DashboardShell
+        title={`Designer Studio — ${user?.name || "Lead Designer"}`}
+        subtitle="Morbi Master Ceramic & Vitrified Surface Design Lab • Real-time Mobile App Synchronization"
+      >
+        <div className="space-y-8 max-w-7xl mx-auto">
+          {/* Designer Studio Header Banner */}
+          <div className="bg-gradient-to-r from-[#0E274D] via-[#163666] to-[#0E274D] rounded-2xl p-6 text-white shadow-xl border border-orange-500/30 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-[#E66A23] text-white tracking-wide">
+                  Designer Studio
+                </span>
+                <span className="text-xs text-orange-300 font-medium flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5" /> Direct Mobile App Sync Active
+                </span>
+              </div>
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">
+                Ceramic & Vitrified Surface Design Studio
+              </h1>
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                Design, configure, and publish new tile models directly into ITACON's cloud catalogue. Newly added tiles immediately become available to Dealers, Architects, Builders, and Sales teams in their mobile app.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 shrink-0">
+              <button
+                onClick={() => setIsAddTileModalOpen(true)}
+                className="inline-flex items-center space-x-2 px-5 py-3 rounded-xl bg-gradient-to-r from-[#E66A23] to-[#F59E0B] hover:opacity-95 text-white text-xs font-bold shadow-lg shadow-[#E66A23]/30 transition-all cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>+ Add New Tile to Catalogue</span>
+              </button>
+              <Link
+                href="/products"
+                className="inline-flex items-center space-x-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold border border-white/20 transition-all"
+              >
+                <Grid3X3 className="w-4 h-4" />
+                <span>Browse Full Catalogue</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* 4 KPI Cards for Designer */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="card-luxury p-5 flex items-center space-x-4 border-l-4 border-l-[#E66A23]">
+              <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#E66A23]">
+                <Grid3X3 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Active Tile Models</p>
+                <p className="text-2xl font-black text-[#0E274D] mt-0.5">{designerTiles.length}</p>
+                <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Live in App Catalogue
+                </span>
+              </div>
+            </div>
+
+            <div className="card-luxury p-5 flex items-center space-x-4 border-l-4 border-l-blue-600">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Catalogue Categories</p>
+                <p className="text-2xl font-black text-[#0E274D] mt-0.5">{designerCategories.length}</p>
+                <span className="text-[10px] text-slate-400 truncate block">{designerCategories.slice(0, 4).join(", ") || "None yet"}</span>
+              </div>
+            </div>
+
+            <div className="card-luxury p-5 flex items-center space-x-4 border-l-4 border-l-emerald-600">
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600">
+                <Package className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Ready Stock Boxes</p>
+                <p className="text-2xl font-black text-[#0E274D] mt-0.5">
+                  {designerTiles.reduce((acc, t) => acc + (Number(t.availableStock) || 0), 0).toLocaleString("en-IN")}
+                </p>
+                <span className="text-[10px] text-slate-400">Across listed tiles</span>
+              </div>
+            </div>
+
+            <div className="card-luxury p-5 flex items-center space-x-4 border-l-4 border-l-purple-600">
+              <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-200/60 flex items-center justify-center text-purple-600">
+                <Palette className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Surface Finishes</p>
+                <p className="text-2xl font-black text-[#0E274D] mt-0.5">{designerFinishes.length}</p>
+                <span className="text-[10px] text-slate-400 truncate block">{designerFinishes.slice(0, 4).join(", ") || "None yet"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Design Launchpads */}
+          <div className="card-luxury p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-[#0E274D]">Quick Design Launchpads</h2>
+                <p className="text-xs text-slate-500">Preset dimension workflows for rapid catalogue addition</p>
+              </div>
+              <span className="text-xs font-semibold text-[#E66A23]">One-Click Studio Presets</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button
+                onClick={() => setIsAddTileModalOpen(true)}
+                className="p-4 rounded-xl border border-slate-200 hover:border-[#E66A23] bg-slate-50 hover:bg-orange-50/40 text-left transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#0E274D] group-hover:text-[#E66A23]">
+                    600x1200 mm Vitrified Floor
+                  </span>
+                  <PlusCircle className="w-4 h-4 text-slate-400 group-hover:text-[#E66A23]" />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">High Gloss Polish / Satin Matt • 15.5 sqft/box</p>
+              </button>
+
+              <button
+                onClick={() => setIsAddTileModalOpen(true)}
+                className="p-4 rounded-xl border border-slate-200 hover:border-[#E66A23] bg-slate-50 hover:bg-orange-50/40 text-left transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#0E274D] group-hover:text-[#E66A23]">
+                    800x1600 mm Grand Slab
+                  </span>
+                  <PlusCircle className="w-4 h-4 text-slate-400 group-hover:text-[#E66A23]" />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">Carving / Endless Marble • 27.56 sqft/box</p>
+              </button>
+
+              <button
+                onClick={() => setIsAddTileModalOpen(true)}
+                className="p-4 rounded-xl border border-slate-200 hover:border-[#E66A23] bg-slate-50 hover:bg-orange-50/40 text-left transition-all group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#0E274D] group-hover:text-[#E66A23]">
+                    200x1200 mm Wood Plank
+                  </span>
+                  <PlusCircle className="w-4 h-4 text-slate-400 group-hover:text-[#E66A23]" />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">Wood Embossed Texture • 12.91 sqft/box</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Live Catalogue Tiles Section */}
+          <div className="card-luxury p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-base font-bold text-[#0E274D]">Live Master Tile Catalogue</h2>
+                <p className="text-xs text-slate-500">Currently active models in the mobile app catalogue</p>
+              </div>
+              <Link
+                href="/products"
+                className="text-xs font-bold text-[#E66A23] hover:underline flex items-center gap-1"
+              >
+                <span>View All Tiles in Grid</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {designerTiles.length === 0 && (
+              <p className="text-sm text-slate-500 text-center py-10">
+                No tiles in the catalogue yet. Use “Add New Tile to Catalogue” to publish the first one.
+              </p>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {designerTiles.slice(0, 6).map((tile) => {
+                const tileImg = tile.imageUrl || (Array.isArray(tile.images) && tile.images[0]) || "";
+                return (
+                  <div
+                    key={tile.id}
+                    className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="h-40 bg-slate-100 relative p-3 flex flex-col justify-between overflow-hidden">
+                        {tileImg && (
+                          <div
+                            className="absolute inset-0 bg-cover bg-center opacity-40"
+                            style={{ backgroundImage: `url(${tileImg})` }}
+                          />
+                        )}
+                        <div className="flex items-center justify-between relative z-10">
+                          <span className="text-[10px] font-mono font-bold bg-white/95 px-2 py-0.5 rounded text-slate-800 shadow-xs">
+                            {tile.sku || "ITA-TILE"}
+                          </span>
+                          <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                            {tile.availableStock ? `${tile.availableStock} Boxes Ready` : "Live in App"}
+                          </span>
+                        </div>
+                        <div className="relative z-10 text-center py-2">
+                          <span className="inline-block px-3 py-1 bg-white/90 rounded-lg text-xs font-mono font-bold text-slate-800 shadow-xs">
+                            {tile.size || "600x1200 mm"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-700 relative z-10 bg-white/70 px-2 py-0.5 rounded">
+                          <span>{tile.tileCategory || "Floor Tiles"}</span>
+                          <span className="font-semibold text-[#E66A23]">{tile.surface || "Polished"}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-2">
+                        <h3 className="text-sm font-bold text-[#0E274D] truncate">{tile.name}</h3>
+                        <p className="text-xs text-slate-500">{tile.color || "Standard Color"}</p>
+                        <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                          <span className="text-slate-500">{tile.sqFtPerBox || 15.5} sqft/box</span>
+                          <span className="font-extrabold text-[#0E274D]">₹{tile.basePrice || 580} /box</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
+                        <Check className="w-3 h-3" /> App Sync Live
+                      </span>
+                      <button
+                        onClick={() => setIsAddTileModalOpen(true)}
+                        className="text-xs text-[#E66A23] font-bold hover:underline cursor-pointer"
+                      >
+                        + Add Variant
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Add Tile Modal */}
+          <AddTileModal
+            isOpen={isAddTileModalOpen}
+            onClose={() => setIsAddTileModalOpen(false)}
+            onTileAdded={(newTile) => {
+              setDesignerTiles((prev) => [newTile, ...prev]);
+            }}
+          />
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell
