@@ -256,8 +256,8 @@ service cloud.firestore {
         !hasSensitiveFields(request.resource.data) &&
         !hasRewardFields(request.resource.data) &&
         (!isOwner(userId) || (
-          (!('role' in request.resource.data) || !(request.resource.data.role in ['admin', 'manager', 'salesperson', 'staff'])) &&
-          (!('userCategory' in request.resource.data) || !(request.resource.data.userCategory in ['admin', 'manager', 'salesperson', 'staff']))
+          (!('role' in request.resource.data) || request.resource.data.role == 'customer' || isValidCustomerCategory(request.resource.data.role)) &&
+          (!('userCategory' in request.resource.data) || isValidCustomerCategory(request.resource.data.userCategory))
         ));
 
       allow update: if isAuthenticated() &&

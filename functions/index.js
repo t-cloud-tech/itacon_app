@@ -82,6 +82,7 @@ exports.verifyReferralCode = verifyReferralCode;
 exports.autoAssignSalesperson = autoAssignSalesperson;
 exports.verifyCustomerReferralCode = verifyCustomerReferralCode;
 exports.onSalesPersonWrite = onSalesPersonWrite;
-
-
+// Staff-created customer accounts (admin / salesperson)
+const { createCustomerByStaff } = require('./createCustomerByStaff');
+exports.createCustomerByStaff = createCustomerByStaff;
 
