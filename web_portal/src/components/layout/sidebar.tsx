@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Truck,
   UserCog,
+  Wrench,
   LogOut,
   ChevronRight
 } from "lucide-react";
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { name: "Opportunities", href: "/opportunities", icon: Target },
   { name: "Follow-ups", href: "/follow-ups", icon: CalendarClock },
   { name: "Tile Catalogue", href: "/products", icon: Grid3X3 },
+  { name: "Fixing Solutions", href: "/fixing-solutions", icon: Wrench },
   { name: "Quotations", href: "/quotations", icon: FileSpreadsheet },
   { name: "Approvals", href: "/approvals", icon: CheckSquare },
   { name: "Sales Orders", href: "/orders", icon: Truck },

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
+import { fetchAppTiles } from "@/lib/catalogue-service";
 import { collection, query, where, getDocs, limit, orderBy, onSnapshot } from "firebase/firestore";
 import { subscribeClientPORequests, subscribeAllOrders, ClientOrderPO, getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { RevenueOverviewCard } from "@/components/dashboard/revenue-overview-card";
@@ -60,11 +61,7 @@ export default function DashboardPage() {
     if (role !== "designer") return;
     async function loadDesignerTiles() {
       try {
-        let snap = await getDocs(query(collection(db, "products"), limit(60)));
-        if (snap.empty) {
-          snap = await getDocs(query(collection(db, "tiles"), limit(60)));
-        }
-        setDesignerTiles(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setDesignerTiles(await fetchAppTiles());
       } catch (e) {
         console.warn("Could not load designer tiles:", e);
       }

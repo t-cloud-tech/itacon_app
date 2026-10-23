@@ -135,7 +135,7 @@ export function buildUserProfileFromDoc(
  * Portal routes each staff role may open. Designers only manage the tile catalogue;
  * Salespersons page is admin-only. Anything not listed is open to admin/manager/salesperson.
  */
-const DESIGNER_PATHS: readonly string[] = ["/", "/products"];
+const DESIGNER_PATHS: readonly string[] = ["/", "/products", "/fixing-solutions"];
 const ADMIN_ONLY_PATHS: readonly string[] = ["/salespersons"];
 
 function matchesPath(pathname: string, base: string): boolean {

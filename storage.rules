@@ -57,6 +57,16 @@ service firebase.storage {
 
     // ITACON Product catalog images (tiles, mockups, adhesives)
     // Read-only access for catalog images so all ITACON app users can view products
+    // Designer/admin tile photo uploads from the web portal
+    match /products/designer_uploads/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('role', '') in ['designer', 'admin', 'manager']
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
     match /products/{allPaths=**} {
       allow read: if true;
       allow write: if false;

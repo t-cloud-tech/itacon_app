@@ -7,7 +7,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { AddTileModal } from "@/components/catalogue/add-tile-modal";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, limit, orderBy } from "firebase/firestore";
+import { fetchAppTiles } from "@/lib/catalogue-service";
 import { 
   Grid3X3, 
   Search, 
@@ -49,129 +49,7 @@ function ProductsContent() {
     async function fetchProducts() {
       setIsLoading(true);
       try {
-        // Query products collection first, then tiles collection
-        let snap = await getDocs(query(collection(db, "products"), limit(60)));
-        if (snap.empty) {
-          snap = await getDocs(query(collection(db, "tiles"), limit(60)));
-        }
-
-        const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        if (list.length > 0) {
-          setProducts(list);
-        } else {
-          // Ceramic & porcelain tile catalogue fallback
-          setProducts([
-            {
-              id: "prod-1",
-              productId: "ITA-STAT-6012",
-              sku: "ITA-STAT-6012",
-              name: "Statuario White Marble Porcelain",
-              tileCategory: "Floor Tiles",
-              size: "600x1200 mm",
-              surface: "High Gloss Polish",
-              color: "White / Grey Vein",
-              basePrice: 580,
-              sqFtPerBox: 15.5,
-              boxWeightKg: 29.5,
-              pcsPerBox: 2,
-              stockStatus: "available",
-              availableStock: 1450,
-              imageUrl: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-              images: ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80"],
-            },
-            {
-              id: "prod-2",
-              productId: "ITA-NERO-8016",
-              sku: "ITA-NERO-8016",
-              name: "Nero Marquina Grand Slab",
-              tileCategory: "Slab Tiles",
-              size: "800x1600 mm",
-              surface: "Carving Matt",
-              color: "Nero Black / White Veins",
-              basePrice: 920,
-              sqFtPerBox: 27.56,
-              boxWeightKg: 54.0,
-              pcsPerBox: 2,
-              stockStatus: "available",
-              availableStock: 620,
-              imageUrl: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80",
-              images: ["https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=800&q=80"],
-            },
-            {
-              id: "prod-3",
-              productId: "ITA-TRAV-6012",
-              sku: "ITA-TRAV-6012",
-              name: "Travertino Grigio Rustic",
-              tileCategory: "Floor Tiles",
-              size: "600x1200 mm",
-              surface: "Satin Matt",
-              color: "Grigio Grey",
-              basePrice: 540,
-              sqFtPerBox: 15.5,
-              boxWeightKg: 29.0,
-              pcsPerBox: 2,
-              stockStatus: "available",
-              availableStock: 890,
-              imageUrl: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80",
-              images: ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80"],
-            },
-            {
-              id: "prod-4",
-              productId: "ITA-WOOD-2012",
-              sku: "ITA-WOOD-2012",
-              name: "Oak Natural Wood Plank",
-              tileCategory: "Wall & Floor Planks",
-              size: "200x1200 mm",
-              surface: "Wood Embossed",
-              color: "Warm Oak Brown",
-              basePrice: 490,
-              sqFtPerBox: 12.91,
-              boxWeightKg: 24.5,
-              pcsPerBox: 5,
-              stockStatus: "available",
-              availableStock: 410,
-              imageUrl: "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80",
-              images: ["https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=800&q=80"],
-            },
-            {
-              id: "prod-5",
-              productId: "ITA-CALA-6060",
-              sku: "ITA-CALA-6060",
-              name: "Calacatta Gold Vitrified",
-              tileCategory: "Floor Tiles",
-              size: "600x600 mm",
-              surface: "High Gloss Polish",
-              color: "Bianco Gold",
-              basePrice: 420,
-              sqFtPerBox: 15.5,
-              boxWeightKg: 27.5,
-              pcsPerBox: 4,
-              stockStatus: "available",
-              availableStock: 2200,
-              imageUrl: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80",
-              images: ["https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=800&q=80"],
-            },
-            {
-              id: "prod-6",
-              productId: "ITA-CEMT-3060",
-              sku: "ITA-CEMT-3060",
-              name: "Urban Concrete Subway Wall Tile",
-              tileCategory: "Wall Tiles",
-              size: "300x600 mm",
-              surface: "Matt Ceramic",
-              color: "Smoke Grey",
-              basePrice: 320,
-              sqFtPerBox: 8.71,
-              boxWeightKg: 14.0,
-              pcsPerBox: 8,
-              stockStatus: "available",
-              availableStock: 1800,
-              imageUrl: "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80",
-              images: ["https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80"],
-            }
-          ]);
-        }
+        setProducts(await fetchAppTiles());
       } catch (err) {
         console.warn("Could not load products:", err);
       } finally {
@@ -201,6 +79,8 @@ function ProductsContent() {
 
     return matchesSearch && matchesCat && matchesFinish;
   });
+
+  const categoryOptions = [...new Set(products.map((p) => p.tileCategory).filter(Boolean))] as string[];
 
   const isDesignerOrAdmin = role === "designer" || role === "admin";
 
@@ -281,12 +161,9 @@ function ProductsContent() {
               className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
             >
               <option value="all">All Tile Categories</option>
-              <option value="Floor Tiles">Floor Tiles</option>
-              <option value="Slab Tiles">Grand Slab Tiles</option>
-              <option value="Wall Tiles">Wall Tiles</option>
-              <option value="Wall & Floor Planks">Planks</option>
-              <option value="Heavy Duty Parkings">Heavy Duty Parkings</option>
-              <option value="Tile Adhesives">Tile Adhesives</option>
+              {categoryOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
 
             <select
