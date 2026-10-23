@@ -713,12 +713,12 @@ service cloud.firestore {
     // =========================================================================
     match /products/{productId} {
       allow read: if true;
-      allow create, update: if isAdminOrManager() || isDesigner();
+      allow create, update: if isDesigner() || isAdminOrManager();
       allow delete: if isAdminOrManager();
     }
     match /tiles/{tileId} {
       allow read: if true;
-      allow create, update: if isAdminOrManager() || isDesigner();
+      allow create, update: if isDesigner() || isAdminOrManager();
       allow delete: if isAdminOrManager();
     }
     match /categories/{catId} {

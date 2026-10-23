@@ -57,12 +57,24 @@ service firebase.storage {
 
     // ITACON Product catalog images (tiles, mockups, adhesives)
     // Read-only access for catalog images so all ITACON app users can view products
+    function isDesignerOrStaff() {
+      // Token claim first: rules short-circuit left to right, so a failed Firestore lookup
+      // in a later branch must not be able to block a user whose token already has the role.
+      return isAuthenticated() && (
+        (('role' in request.auth.token) && request.auth.token.role in ['designer', 'admin', 'manager']) ||
+        (firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) && (
+          (('role' in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'designer') ||
+          (('userCategory' in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data) &&
+           firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.userCategory == 'designer')
+        ))
+      );
+    }
+
     // Designer/admin tile photo uploads from the web portal
     match /products/designer_uploads/{fileName} {
       allow read: if true;
-      allow write: if isAuthenticated()
-        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('role', '') in ['designer', 'admin', 'manager']
+      allow write: if isDesignerOrStaff()
         && request.resource.size <= 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }

@@ -338,7 +338,8 @@ async function processStaffVerification({
   }
 
   // 8. Generate Firebase Custom Token for the CANONICAL UID (never legacy document ID)
-  const customToken = await authAdmin.createCustomToken(canonicalUid);
+  // The role claim lets Storage/Firestore rules authorize staff without cross-service lookups
+  const customToken = await authAdmin.createCustomToken(canonicalUid, { role: canonicalRole });
 
   // Return strictly minimal token payload - NEVER return hashes, salts, or user doc
   return {
