@@ -185,7 +185,7 @@ function ProductsContent() {
 
         {/* Designer Mode Welcome Banner */}
         {role === "designer" && (
-          <div className="bg-gradient-to-r from-[#0E274D] to-[#1E3A8A] rounded-2xl p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#1A2D5A]">
+          <div className="bg-gradient-to-r from-[#0E274D] to-[#1E3A8A] rounded-2xl p-5 text-white shadow-md border border-[#1A2D5A]">
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#E66A23] text-white">
@@ -202,13 +202,6 @@ function ProductsContent() {
                 As a Designer, you have authority to add new ceramic, vitrified, and porcelain tile designs to the catalogue. Every new tile is immediately searchable and visible in the client mobile app.
               </p>
             </div>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-gradient-to-r from-[#E66A23] to-[#F59E0B] hover:opacity-95 text-white text-xs font-bold rounded-xl shadow-md shadow-[#E66A23]/30 transition-all shrink-0 cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>+ Add New Tile</span>
-            </button>
           </div>
         )}
 
