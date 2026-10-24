@@ -1457,14 +1457,31 @@ class FirestoreService {
     if (pattern != null && pattern.isNotEmpty) query = query.where('pattern', isEqualTo: pattern);
     if (stockStatus != null && stockStatus.isNotEmpty) query = query.where('stockStatus', isEqualTo: stockStatus);
 
-    var snapshot = await query.get();
-    if (snapshot.docs.isEmpty) {
-      snapshot = await _tilesRef.where('isActive', isEqualTo: true).get();
+    QuerySnapshot<Map<String, dynamic>> snapshot;
+    try {
+      snapshot = await query.get();
+      if (snapshot.docs.isEmpty) {
+        snapshot = await _tilesRef.where('isActive', isEqualTo: true).get();
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] Filtered query error: $e, falling back to base active products');
+      try {
+        snapshot = await _productsRef.where('isActive', isEqualTo: true).get();
+      } catch (_) {
+        snapshot = await _tilesRef.where('isActive', isEqualTo: true).get();
+      }
     }
 
-    var list = snapshot.docs.map((doc) => TileProduct.fromMap(doc.data(), doc.id)).toList();
-    if (maxPrice != null) {
-      list = list.where((p) => p.basePrice <= maxPrice).toList();
+    final list = <TileProduct>[];
+    for (final doc in snapshot.docs) {
+      try {
+        final prod = TileProduct.fromMap(doc.data(), doc.id);
+        if (maxPrice == null || prod.basePrice <= maxPrice) {
+          list.add(prod);
+        }
+      } catch (e) {
+        debugPrint('[FirestoreService] Skipped malformed tile doc ${doc.id}: $e');
+      }
     }
     return list;
   }
@@ -2759,18 +2776,33 @@ class FirestoreService {
           .where('stockStatus', whereIn: ['available_now', 'available'])
           .where('isActive', isEqualTo: true)
           .get();
-      return snap.docs
-          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
-          .toList();
+      final list = <TileProduct>[];
+      for (final doc in snap.docs) {
+        try {
+          list.add(TileProduct.fromMap(doc.data(), doc.id));
+        } catch (e) {
+          debugPrint('[FirestoreService] Skipped malformed ready stock tile ${doc.id}: $e');
+        }
+      }
+      return list;
     } catch (_) {
-      final snap = await _db.collection('products').get();
-      return snap.docs
-          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
-          .where((prod) =>
-              prod.isActive &&
-              (prod.stockStatus == 'available_now' ||
-                  prod.stockStatus == 'available'))
-          .toList();
+      try {
+        final snap = await _db.collection('products').get();
+        final list = <TileProduct>[];
+        for (final doc in snap.docs) {
+          try {
+            final prod = TileProduct.fromMap(doc.data(), doc.id);
+            if (prod.isActive && (prod.stockStatus == 'available_now' || prod.stockStatus == 'available')) {
+              list.add(prod);
+            }
+          } catch (e) {
+            debugPrint('[FirestoreService] Skipped malformed ready stock tile fallback ${doc.id}: $e');
+          }
+        }
+        return list;
+      } catch (_) {
+        return [];
+      }
     }
   }
 
@@ -3094,14 +3126,33 @@ class FirestoreService {
   /// Falls back to `ProductCatalogService.allCatalogProducts` if offline or on error.
   Future<List<TileProduct>> getTrendingTiles({int limit = 4}) async {
     try {
-      final snapshot = await _tilesRef
-          .where('isTrending', isEqualTo: true)
-          .get();
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      try {
+        snapshot = await _productsRef
+            .where('isTrending', isEqualTo: true)
+            .get();
+        if (snapshot.docs.isEmpty) {
+          snapshot = await _tilesRef
+              .where('isTrending', isEqualTo: true)
+              .get();
+        }
+      } catch (_) {
+        snapshot = await _tilesRef
+            .where('isTrending', isEqualTo: true)
+            .get();
+      }
 
-      final List<TileProduct> trending = snapshot.docs
-          .map((doc) => TileProduct.fromMap(doc.data(), doc.id))
-          .where((p) => p.isActive)
-          .toList();
+      final List<TileProduct> trending = [];
+      for (final doc in snapshot.docs) {
+        try {
+          final prod = TileProduct.fromMap(doc.data(), doc.id);
+          if (prod.isActive && prod.productLine == 'tiles' && !prod.isAdhesive) {
+            trending.add(prod);
+          }
+        } catch (e) {
+          debugPrint('[FirestoreService] Skipped malformed trending tile ${doc.id}: $e');
+        }
+      }
 
       // Sort by trendingOrder ascending (nulls placed at end)
       trending.sort((a, b) {
@@ -3115,20 +3166,39 @@ class FirestoreService {
         return trending.take(limit).toList();
       }
 
-      // If fewer than limit, refill with active in-stock tiles
+      // If fewer than limit, refill with active in-stock tiles ONLY (never adhesives)
       final existingIds = trending.map((p) => p.id).toSet();
-      final refillSnap = await _tilesRef
-          .where('isActive', isEqualTo: true)
-          .limit(limit + 5)
-          .get();
+      QuerySnapshot<Map<String, dynamic>> refillSnap;
+      try {
+        refillSnap = await _productsRef
+            .where('isActive', isEqualTo: true)
+            .where('productLine', isEqualTo: 'tiles')
+            .limit(limit + 10)
+            .get();
+        if (refillSnap.docs.isEmpty) {
+          refillSnap = await _productsRef
+              .where('isActive', isEqualTo: true)
+              .limit(limit + 10)
+              .get();
+        }
+      } catch (_) {
+        refillSnap = await _tilesRef
+            .where('isActive', isEqualTo: true)
+            .limit(limit + 10)
+            .get();
+      }
 
       for (final doc in refillSnap.docs) {
         if (!existingIds.contains(doc.id)) {
-          final prod = TileProduct.fromMap(doc.data(), doc.id);
-          if (prod.productLine != 'adhesives' && !prod.isAdhesive) {
-            trending.add(prod);
-            existingIds.add(doc.id);
-            if (trending.length >= limit) break;
+          try {
+            final prod = TileProduct.fromMap(doc.data(), doc.id);
+            if (prod.isActive && prod.productLine == 'tiles' && !prod.isAdhesive) {
+              trending.add(prod);
+              existingIds.add(doc.id);
+              if (trending.length >= limit) break;
+            }
+          } catch (e) {
+            debugPrint('[FirestoreService] Skipped malformed refill tile ${doc.id}: $e');
           }
         }
       }
@@ -3136,14 +3206,7 @@ class FirestoreService {
       return trending.take(limit).toList();
     } catch (e) {
       debugPrint('[FirestoreService] Error fetching trending tiles: $e');
-      try {
-        return ProductCatalogService.allCatalogProducts
-            .where((p) => p.productLine == 'tiles' && p.isActive)
-            .take(limit)
-            .toList();
-      } catch (_) {
-        return [];
-      }
+      return [];
     }
   }
 }

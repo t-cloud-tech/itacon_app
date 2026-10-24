@@ -69,6 +69,8 @@
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
             <key>CFBundleURLSchemes</key>
             <array>
                 <string>com.googleusercontent.apps.889001862943-u53tmahl0vnqos8sgngrsn4ke8pltcks</string>
@@ -81,6 +83,12 @@
 	<string>ITACON Granito requires photo library access to choose your profile picture and upload payment proofs.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>ITACON Granito requires access to save purchase orders and generated documents to your photo library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>ITACON Granito requires microphone access when recording videos or capturing media.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

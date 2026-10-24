@@ -31,27 +31,29 @@ class AdhesiveCard extends StatelessWidget {
 
     final imagePath = product.images.isNotEmpty
         ? product.images.first
-        : 'products/adhesives/ITA-LX-01.png';
+        : (product.frontCardImage.isNotEmpty ? product.frontCardImage : 'products/adhesives/ITA-LX-01.png');
 
-    return AppPressable(
-      onTap: onTap ??
-          () {
-            StorageImageService.warmCache([
-              product.frontCardImage,
-              product.frontCardThumbnail,
-              ...product.resolvedFaceImages,
-              ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
-            ]);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProductDetailScreen(product: product),
-              ),
-            );
-          },
-      scaleDown: 0.97,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
+    return AspectRatio(
+      aspectRatio: 0.70,
+      child: AppPressable(
+        onTap: onTap ??
+            () {
+              StorageImageService.warmCache([
+                product.frontCardImage,
+                product.frontCardThumbnail,
+                ...product.resolvedFaceImages,
+                ...product.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+              ]);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProductDetailScreen(product: product),
+                ),
+              );
+            },
+        scaleDown: 0.97,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -230,22 +232,25 @@ class AdhesiveCard extends StatelessWidget {
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  '₹${product.basePrice.toInt()}',
+                                  product.basePrice <= 0
+                                      ? 'Price on request'
+                                      : '₹${product.basePrice.toInt()}',
                                   style: GoogleFonts.inter(
-                                    fontSize: 16,
+                                    fontSize: product.basePrice <= 0 ? 11.5 : 16,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.primaryNavy,
                                   ),
                                 ),
                               ),
-                              Text(
-                                '/ Bag + Tax',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.accentOrange,
+                              if (product.basePrice > 0)
+                                Text(
+                                  '/ Bag + Tax',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.accentOrange,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -291,6 +296,7 @@ class AdhesiveCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

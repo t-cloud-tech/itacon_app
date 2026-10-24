@@ -56,6 +56,9 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  static const int _pageSize = 20;
+  int _displayedCount = 20;
+
   @override
   void initState() {
     super.initState();
@@ -75,8 +78,11 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
+        _displayedCount = _pageSize;
       });
     });
+
+    _scrollController.addListener(_onScroll);
 
     final initialSurfaces = <String>{};
     if (widget.initialSurface != null &&
@@ -98,29 +104,41 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     _loadProducts();
   }
 
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
+      final totalFiltered = _filteredProducts.length;
+      if (_displayedCount < totalFiltered) {
+        setState(() {
+          _displayedCount = (_displayedCount + _pageSize).clamp(0, totalFiltered);
+        });
+      }
+    }
+  }
+
   Future<void> _loadProducts() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _displayedCount = _pageSize;
     });
 
     try {
       final firestoreTiles = await _firestoreService.getTilesCatalogueAdvanced();
-      final adhesives = ProductCatalogService.allCatalogProducts
-          .where((p) => p.isAdhesive)
-          .toList();
 
       if (mounted) {
         setState(() {
-          _allProducts = [...firestoreTiles, ...adhesives];
+          _allProducts = _organizeProducts(firestoreTiles);
           _isLoading = false;
+          _errorMessage = null;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           // Fallback to static catalog if offline or in tests where Firebase is not initialized
-          _allProducts = List<TileProduct>.from(ProductCatalogService.allCatalogProducts);
+          _allProducts = _organizeProducts(
+              List<TileProduct>.from(ProductCatalogService.allCatalogProducts));
           _isLoading = false;
           _errorMessage = e.toString();
         });
@@ -128,9 +146,58 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     }
   }
 
+  bool _isAdhesiveProduct(TileProduct p) =>
+      p.isAdhesive || p.id.startsWith('PROD_ADH_') || p.productId.startsWith('PROD_ADH_');
+
+  static int _getAdhesiveRank(TileProduct p) {
+    final id = p.id.toUpperCase();
+    if (id.contains('LX01') || id.contains('LX-01')) return 1;
+    if (id.contains('LX02') || id.contains('LX-02')) return 2;
+    if (id.contains('LX03W') || id.contains('LX-03W')) return 4;
+    if (id.contains('LX03') || id.contains('LX-03')) return 3;
+    if (id.contains('LX04W') || id.contains('LX-04W')) return 6;
+    if (id.contains('LX04') || id.contains('LX-04')) return 5;
+
+    final sku = p.sku.toUpperCase();
+    if (sku.contains('LX-01') || sku.contains('LX01')) return 1;
+    if (sku.contains('LX-02') || sku.contains('LX02')) return 2;
+    if (sku.contains('LX-03W') || sku.contains('LX03W')) return 4;
+    if (sku.contains('LX-03') || sku.contains('LX03')) return 3;
+    if (sku.contains('LX-04W') || sku.contains('LX04W')) return 6;
+    if (sku.contains('LX-04') || sku.contains('LX04')) return 5;
+
+    final name = p.name.toUpperCase();
+    if (name.contains('LX-01') || name.contains('LX 01')) return 1;
+    if (name.contains('LX-02') || name.contains('LX 02')) return 2;
+    if (name.contains('LX-03W') || name.contains('LX 03W')) return 4;
+    if (name.contains('LX-03') || name.contains('LX 03')) return 3;
+    if (name.contains('LX-04W') || name.contains('LX 04W')) return 6;
+    if (name.contains('LX-04') || name.contains('LX 04')) return 5;
+
+    return 99;
+  }
+
+  List<TileProduct> _organizeProducts(List<TileProduct> rawList) {
+    final tiles = <TileProduct>[];
+    final adhesives = <TileProduct>[];
+
+    for (final p in rawList) {
+      if (_isAdhesiveProduct(p)) {
+        adhesives.add(p);
+      } else {
+        tiles.add(p);
+      }
+    }
+
+    // Default view: tiles first in their current order, then the 6 adhesives in LX-01..LX-04W order
+    adhesives.sort((a, b) => _getAdhesiveRank(a).compareTo(_getAdhesiveRank(b)));
+    return [...tiles, ...adhesives];
+  }
+
   @override
   void dispose() {
     _searchFocusNode.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -161,16 +228,31 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       return _activeFilter.matches(p);
     }).toList();
 
-    // Apply Sorting
-    if (_sortOption == 'price_asc') {
-      filtered.sort((a, b) => a.basePrice.compareTo(b.basePrice));
-    } else if (_sortOption == 'price_desc') {
-      filtered.sort((a, b) => b.basePrice.compareTo(a.basePrice));
-    } else if (_sortOption == 'name_asc') {
-      filtered.sort((a, b) => a.name.compareTo(b.name));
+    // Separate matching tiles and matching adhesives so they are never mixed
+    final tiles = <TileProduct>[];
+    final adhesives = <TileProduct>[];
+    for (final p in filtered) {
+      if (_isAdhesiveProduct(p)) {
+        adhesives.add(p);
+      } else {
+        tiles.add(p);
+      }
     }
 
-    return filtered;
+    // Apply Sorting: sort tiles among themselves and adhesives among themselves,
+    // and ALWAYS keep adhesives after tiles.
+    if (_sortOption == 'price_asc') {
+      tiles.sort((a, b) => a.basePrice.compareTo(b.basePrice));
+      adhesives.sort((a, b) => a.basePrice.compareTo(b.basePrice));
+    } else if (_sortOption == 'price_desc') {
+      tiles.sort((a, b) => b.basePrice.compareTo(a.basePrice));
+      adhesives.sort((a, b) => b.basePrice.compareTo(a.basePrice));
+    } else if (_sortOption == 'name_asc') {
+      tiles.sort((a, b) => a.name.compareTo(b.name));
+      adhesives.sort((a, b) => a.name.compareTo(b.name));
+    }
+
+    return [...tiles, ...adhesives];
   }
 
   void _openFilterBottomSheet() {
@@ -187,6 +269,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         onApplyFilter: (newFilter) {
           setState(() {
             _activeFilter = newFilter;
+            _displayedCount = _pageSize;
           });
         },
       ),
@@ -255,6 +338,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       _activeFilter = ProductFilterCriteria();
       _searchController.clear();
       _sortOption = 'default';
+      _displayedCount = _pageSize;
     });
   }
 
@@ -267,6 +351,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         updatedSizes.add(sz);
       }
       _activeFilter = _activeFilter.copyWith(selectedSizes: updatedSizes);
+      _displayedCount = _pageSize;
     });
   }
 
@@ -283,6 +368,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
         }
       }
       _activeFilter = _activeFilter.copyWith(selectedSurfaces: updatedSurfaces);
+      _displayedCount = _pageSize;
     });
   }
 
@@ -575,7 +661,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                   size: 64, color: Colors.grey.shade400),
                               const SizedBox(height: 16),
                               Text(
-                                'Failed to load products',
+                                "Couldn't load tiles",
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
@@ -584,7 +670,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _errorMessage!,
+                                _errorMessage ?? 'Please check your connection and try again.',
                                 textAlign: TextAlign.center,
                                 style: GoogleFonts.inter(
                                     fontSize: 13, color: AppTheme.textSubtle),
@@ -639,35 +725,40 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                               ),
                             ),
                           )
-                        : MasonryGridView.count(
-                    controller: _scrollController,
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                    physics: const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics()),
-                    cacheExtent: 800,
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      // Lightweight nearby thumbnail URL pre-warming ahead of scroll
-                      if (index + 2 < filtered.length) {
-                        final nextUrls = filtered
-                            .skip(index + 1)
-                            .take(4)
-                            .map((p) => p.frontCardThumbnail)
-                            .where((path) => StorageImageService.getCachedUrl(path) == null)
-                            .toList();
-                        if (nextUrls.isNotEmpty) {
-                          StorageImageService.warmCache(nextUrls);
-                        }
-                      }
+                        : Builder(
+                            builder: (context) {
+                              final displayedItems = filtered.take(_displayedCount).toList();
+                              return MasonryGridView.count(
+                                controller: _scrollController,
+                                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                                physics: const BouncingScrollPhysics(
+                                    parent: AlwaysScrollableScrollPhysics()),
+                                cacheExtent: 800,
+                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 16,
+                                crossAxisSpacing: 16,
+                                itemCount: displayedItems.length,
+                                itemBuilder: (context, index) {
+                                  // Lightweight nearby thumbnail URL pre-warming ahead of scroll
+                                  if (index + 2 < displayedItems.length) {
+                                    final nextUrls = displayedItems
+                                        .skip(index + 1)
+                                        .take(4)
+                                        .map((p) => p.frontCardThumbnail)
+                                        .where((path) => StorageImageService.getCachedUrl(path) == null)
+                                        .toList();
+                                    if (nextUrls.isNotEmpty) {
+                                      StorageImageService.warmCache(nextUrls);
+                                    }
+                                  }
 
-                      final product = filtered[index];
-                      return _buildLuxuryTileCard(context, product);
-                    },
-                  ),
+                                  final product = displayedItems[index];
+                                  return _buildLuxuryTileCard(context, product);
+                                },
+                              );
+                            },
+                          ),
           ),
         ],
       ),
@@ -855,7 +946,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                     child: Text(
                                       product.isAdhesive
                                           ? '₹${effectivePrice.toStringAsFixed(0)}/bag'
-                                          : '₹${effectivePrice.toStringAsFixed(0)}/sq ft',
+                                          : (effectivePrice <= 0 ? 'Price on request' : '₹${effectivePrice.toStringAsFixed(0)}/sq ft'),
                                       style: GoogleFonts.inter(
                                         fontSize: context.sp(13.5),
                                         fontWeight: FontWeight.w800,

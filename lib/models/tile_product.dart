@@ -301,6 +301,28 @@ class TileProduct {
     };
   }
 
+  /// Helper to safely parse double values from num or String representations
+  static double _safeDouble(dynamic value, [double defaultValue = 0.0]) {
+    if (value == null) return defaultValue;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final clean = value.replaceAll(RegExp(r'[^0-9.]'), '');
+      return double.tryParse(clean) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
+  /// Helper to safely parse integer values from num or String representations
+  static int _safeInt(dynamic value, [int defaultValue = 0]) {
+    if (value == null) return defaultValue;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final clean = value.replaceAll(RegExp(r'[^0-9]'), '');
+      return int.tryParse(clean) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
   /// Reconstructs TileProduct from a persisted JSON map
   factory TileProduct.fromJson(Map<String, dynamic> json) {
     final docId = json['id']?.toString() ?? json['productId']?.toString() ?? '';
@@ -309,82 +331,128 @@ class TileProduct {
 
   factory TileProduct.fromMap(Map<String, dynamic> map, String docId) {
     final pId = map['productId'] ?? (docId.isNotEmpty ? docId : (map['id'] ?? ''));
-    final colorVal = map['baseColour'] ?? map['color'] ?? map['baseColor'] ?? 'Grey';
-    final sz = map['size'] ?? '20 kg Bag';
-    final stStatus = map['stockStatus'] ?? 'available';
-    final cStock = ((map['currentStock'] ?? map['availableQuantity'] ?? 500) as num).toInt();
-    final rStock = ((map['reservedStock'] ?? 0) as num).toInt();
-    final aStock = ((map['availableStock'] ?? (cStock - rStock)) as num).toInt();
+    final colorVal = (map['baseColour'] ?? map['color'] ?? map['baseColor'] ?? 'Grey').toString();
+    final sz = (map['size'] ?? '20 kg Bag').toString();
+    final stStatus = (map['stockStatus'] ?? 'available').toString();
+
+    final cStock = _safeInt(map['currentStock'] ?? map['availableQuantity'], 500);
+    final rStock = _safeInt(map['reservedStock'], 0);
+    final aStock = _safeInt(map['availableStock'], (cStock - rStock).clamp(0, 999999));
     final aspVal = TileDimensionHelper.calculateTileAspectRatio(sz);
 
-    final prodLine = map['productLine'] ?? (map['unit'] == 'bag' || docId.contains('ADH') || map['categoryId'] == 'CAT_ADHESIVES' ? 'adhesives' : 'tiles');
-    final classVal = map['classification'] ?? map['surface'] ?? '';
-    final bagWt = ((map['bagWeightKg'] ?? map['boxWeightKg'] ?? 20.0) as num).toDouble();
-    final usageVal = map['usageTileSizes'] ?? '';
-    final appNotes = map['applicationNotes'] ?? '';
-    final rawSqFt = (map['sqFtPerBox'] as num?)?.toDouble();
+    final rawProdLine = map['productLine']?.toString();
+    final prodLine = (rawProdLine != null && rawProdLine.isNotEmpty)
+        ? rawProdLine
+        : ((map['unit'] == 'bag' || docId.contains('ADH') || map['categoryId'] == 'CAT_ADHESIVES')
+            ? 'adhesives'
+            : 'tiles');
+
+    final classVal = (map['classification'] ?? map['surface'] ?? '').toString();
+    final bagWt = _safeDouble(map['bagWeightKg'] ?? map['boxWeightKg'], 20.0);
+    final usageVal = (map['usageTileSizes'] ?? '').toString();
+    final appNotes = (map['applicationNotes'] ?? '').toString();
+    final rawSqFt = map['sqFtPerBox'] != null ? _safeDouble(map['sqFtPerBox']) : null;
     final resolvedSqFt = (rawSqFt != null && rawSqFt > 1.0)
         ? rawSqFt
         : (prodLine == 'adhesives' ? 0.0 : TileDimensionHelper.getSqFtPerBox(sz));
 
+    // Handle basePrice stored as number, string, or in 'price' field
+    final rawPrice = map['basePrice'] ?? map['price'];
+    final parsedBasePrice = _safeDouble(rawPrice, 0.0);
+
+    // Safely parse image lists
+    List<String> parsedImages;
+    if (map['images'] is List) {
+      parsedImages = (map['images'] as List)
+          .where((e) => e != null && e.toString().trim().isNotEmpty)
+          .map((e) => e.toString().trim())
+          .toList();
+    } else if (map['imageUrl'] != null && map['imageUrl'].toString().trim().isNotEmpty) {
+      parsedImages = [map['imageUrl'].toString().trim()];
+    } else {
+      parsedImages = <String>[];
+    }
+
+    List<String>? parsedFaceImages;
+    if (map['faceImages'] is List) {
+      parsedFaceImages = (map['faceImages'] as List)
+          .where((e) => e != null && e.toString().trim().isNotEmpty)
+          .map((e) => e.toString().trim())
+          .toList();
+    }
+
+    List<String>? parsedMockupImages;
+    if (map['mockupImages'] is List) {
+      parsedMockupImages = (map['mockupImages'] as List)
+          .where((e) => e != null && e.toString().trim().isNotEmpty)
+          .map((e) => e.toString().trim())
+          .toList();
+    }
+
+    List<String> parsedLifestyleImages = const [];
+    if (map['lifestyleImages'] is List) {
+      parsedLifestyleImages = (map['lifestyleImages'] as List)
+          .where((e) => e != null && e.toString().trim().isNotEmpty)
+          .map((e) => e.toString().trim())
+          .toList();
+    }
+
+    List<String> parsedSpaces = const ['Living Room', 'Bedroom'];
+    if (map['spaces'] is List) {
+      parsedSpaces = (map['spaces'] as List)
+          .where((e) => e != null && e.toString().trim().isNotEmpty)
+          .map((e) => e.toString().trim())
+          .toList();
+    }
+
     return TileProduct(
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? pId.toString()),
       productId: pId.toString(),
-      sku: map['sku'] ?? 'ITA-PROD-$docId',
-      name: map['name'] ?? 'Unnamed Product',
-      categoryId: map['categoryId'] ?? 'CAT_GLAZED_01',
-      tileCategory: map['tileCategory'] ?? (prodLine == 'adhesives' ? 'Tile Adhesives' : 'Floor Tiles'),
+      sku: (map['sku'] ?? 'ITA-PROD-$docId').toString(),
+      name: (map['name'] ?? 'Unnamed Product').toString(),
+      categoryId: (map['categoryId'] ?? 'CAT_GLAZED_01').toString(),
+      tileCategory: (map['tileCategory'] ?? (prodLine == 'adhesives' ? 'Tile Adhesives' : 'Floor Tiles')).toString(),
       productLine: prodLine,
       classification: classVal,
-      bagWeightKg: (map['bagWeightKg'] as num?)?.toDouble() ?? bagWt,
+      bagWeightKg: map['bagWeightKg'] != null ? _safeDouble(map['bagWeightKg'], bagWt) : bagWt,
       usageTileSizes: usageVal,
       applicationNotes: appNotes,
       size: sz,
-      surface: classVal.isNotEmpty ? classVal : (map['surface'] ?? 'Glossy'),
+      surface: classVal.isNotEmpty ? classVal : (map['surface']?.toString() ?? 'Glossy'),
       color: colorVal,
       baseColour: colorVal,
-      pattern: map['pattern'] ?? 'Polymer Modified',
-      basePrice: (map['basePrice'] as num?)?.toDouble() ?? 0.0,
-      moq: (map['moq'] as num?)?.toInt() ?? 1,
-      unit: map['unit'] ?? (prodLine == 'adhesives' ? 'bag' : 'box'),
+      pattern: (map['pattern'] ?? 'Polymer Modified').toString(),
+      basePrice: parsedBasePrice,
+      moq: _safeInt(map['moq'], 1),
+      unit: (map['unit'] ?? (prodLine == 'adhesives' ? 'bag' : 'box')).toString(),
       stockStatus: stStatus,
-      availableQuantity: (map['availableQuantity'] as num?)?.toInt() ?? aStock,
-      currentStock: (map['currentStock'] as num?)?.toInt() ?? cStock,
-      reservedStock: (map['reservedStock'] as num?)?.toInt() ?? rStock,
-      availableStock: (map['availableStock'] as num?)?.toInt() ?? aStock,
-      images: map['images'] is List
-          ? List<String>.from((map['images'] as List).map((e) => e.toString()))
-          : (map['imageUrl'] != null ? [map['imageUrl'].toString()] : <String>[]),
-      faceImages: map['faceImages'] is List
-          ? List<String>.from((map['faceImages'] as List).map((e) => e.toString()))
-          : null,
-      mockupImages: map['mockupImages'] is List
-          ? List<String>.from((map['mockupImages'] as List).map((e) => e.toString()))
-          : null,
-      isActive: map['isActive'] ?? true,
-      isComingSoon: map['isComingSoon'] ?? false,
-      collection: map['collection'] ?? (prodLine == 'adhesives' ? 'Fixing Solutions' : 'Endless'),
-      spaces: map['spaces'] is List
-          ? List<String>.from((map['spaces'] as List).map((e) => e.toString()))
-          : const ['Living Room', 'Bedroom'],
-      finish: map['finish'] ?? (prodLine == 'adhesives' ? classVal : 'Polished'),
-      productType: map['productType'] ?? (prodLine == 'adhesives' ? 'Adhesives' : 'Vitrified'),
-      bodyType: map['bodyType'] ?? (prodLine == 'adhesives' ? 'Polymer Cementitious Matrix' : 'Porcelain'),
-      thickness: map['thickness'] ?? '9 mm',
-      thicknessMm: (map['thicknessMm'] as num?)?.toDouble() ?? 9.0,
-      boxWeightKg: (map['boxWeightKg'] as num?)?.toDouble() ?? bagWt,
-      pcsPerBox: (map['pcsPerBox'] as num?)?.toInt() ?? TileDimensionHelper.getPcsPerBox(sz),
+      availableQuantity: _safeInt(map['availableQuantity'], aStock),
+      currentStock: _safeInt(map['currentStock'], cStock),
+      reservedStock: _safeInt(map['reservedStock'], rStock),
+      availableStock: _safeInt(map['availableStock'], aStock),
+      images: parsedImages,
+      faceImages: parsedFaceImages,
+      mockupImages: parsedMockupImages,
+      isActive: map['isActive'] == null ? true : (map['isActive'] == true || map['isActive'] == 'true'),
+      isComingSoon: map['isComingSoon'] == true || map['isComingSoon'] == 'true',
+      collection: (map['collection'] ?? (prodLine == 'adhesives' ? 'Fixing Solutions' : 'Endless')).toString(),
+      spaces: parsedSpaces,
+      finish: (map['finish'] ?? (prodLine == 'adhesives' ? classVal : 'Polished')).toString(),
+      productType: (map['productType'] ?? (prodLine == 'adhesives' ? 'Adhesives' : 'Vitrified')).toString(),
+      bodyType: (map['bodyType'] ?? (prodLine == 'adhesives' ? 'Polymer Cementitious Matrix' : 'Porcelain')).toString(),
+      thickness: (map['thickness'] ?? '9 mm').toString(),
+      thicknessMm: _safeDouble(map['thicknessMm'], 9.0),
+      boxWeightKg: _safeDouble(map['boxWeightKg'], bagWt),
+      pcsPerBox: _safeInt(map['pcsPerBox'], TileDimensionHelper.getPcsPerBox(sz)),
       sqFtPerBox: resolvedSqFt,
-      thicknessCategory: map['thicknessCategory'] ?? 'standard',
-      shape: map['shape'] ?? 'rectangle',
+      thicknessCategory: (map['thicknessCategory'] ?? 'standard').toString(),
+      shape: (map['shape'] ?? 'rectangle').toString(),
       aspectRatio: map['aspectRatio']?.toString() ?? '$aspVal',
-      aspectRatioValue: (map['aspectRatioValue'] as num?)?.toDouble() ?? aspVal,
-      randomPattern: map['randomPattern'] ?? '4 Faces',
-      priceCategory: map['priceCategory'] ?? 'Premium',
-      shade: map['shade'] ?? 'Light',
-      lifestyleImages: map['lifestyleImages'] is List
-          ? List<String>.from((map['lifestyleImages'] as List).map((e) => e.toString()))
-          : const [],
+      aspectRatioValue: _safeDouble(map['aspectRatioValue'], aspVal),
+      randomPattern: (map['randomPattern'] ?? '4 Faces').toString(),
+      priceCategory: (map['priceCategory'] ?? 'Premium').toString(),
+      shade: (map['shade'] ?? 'Light').toString(),
+      lifestyleImages: parsedLifestyleImages,
       packingDetails: map['packingDetails'] is Map
           ? Map<String, dynamic>.from(map['packingDetails'] as Map)
           : {
@@ -393,8 +461,8 @@ class TileProduct {
               'boxesPerPallet': 50,
               'piecesPerBox': 1,
             },
-      isTrending: map['isTrending'] == true,
-      trendingOrder: (map['trendingOrder'] as num?)?.toInt(),
+      isTrending: map['isTrending'] == true || map['isTrending'] == 'true',
+      trendingOrder: map['trendingOrder'] != null ? _safeInt(map['trendingOrder']) : null,
       createdAt: map['createdAt'] is Timestamp
           ? (map['createdAt'] as Timestamp).toDate()
           : (map['createdAt'] is String

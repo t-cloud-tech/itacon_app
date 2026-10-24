@@ -29,6 +29,7 @@ class NotificationService {
 
   /// Retrieves the device FCM token safely across both mobile and web.
   /// On web, skips registration gracefully if webVapidKey is empty or unconfigured.
+  /// On iOS, verifies APNs availability before requesting FCM token to prevent crashes on free/simulator builds.
   static Future<String?> _getTokenSafely() async {
     try {
       if (kIsWeb) {
@@ -37,6 +38,21 @@ class NotificationService {
           return null;
         }
         return await _messaging.getToken(vapidKey: webVapidKey);
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        // On iOS without a paid Apple Developer certificate (e.g. Free Apple ID / Sideloadly or Simulator),
+        // APNs tokens are unavailable. Firebase Messaging requires an APNs token before fetching the FCM token.
+        // We safely check for the APNs token first so the app never throws or crashes.
+        try {
+          final apnsToken = await _messaging.getAPNSToken();
+          if (apnsToken == null) {
+            debugPrint('[NotificationService] iOS APNs token not available (normal on free account or simulator). Skipping FCM token.');
+            return null;
+          }
+          return await _messaging.getToken();
+        } catch (iosErr) {
+          debugPrint('[NotificationService] iOS APNs/FCM token retrieval non-fatal error: $iosErr');
+          return null;
+        }
       } else {
         return await _messaging.getToken();
       }
@@ -106,38 +122,54 @@ class NotificationService {
     }
 
     // Token can change in the future
-    _messaging.onTokenRefresh.listen((newToken) async {
-      debugPrint('[NotificationService] FCM Token refreshed');
-      await _saveToken(newToken);
-    }).onError((error) {
-      debugPrint('[NotificationService] onTokenRefresh non-fatal error: $error');
-    });
+    try {
+      _messaging.onTokenRefresh.listen((newToken) async {
+        debugPrint('[NotificationService] FCM Token refreshed');
+        await _saveToken(newToken);
+      }).onError((error) {
+        debugPrint('[NotificationService] onTokenRefresh non-fatal error: $error');
+      });
+    } catch (e) {
+      debugPrint('[NotificationService] onTokenRefresh listener error: $e');
+    }
 
     // App is open (foreground) and receives a notification
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('[NotificationService] Foreground notification received');
-      debugPrint('[NotificationService] Title: ${message.notification?.title}');
-      debugPrint('[NotificationService] Body: ${message.notification?.body}');
-      _handleForegroundNotification(message);
-    });
+    try {
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('[NotificationService] Foreground notification received');
+        debugPrint('[NotificationService] Title: ${message.notification?.title}');
+        debugPrint('[NotificationService] Body: ${message.notification?.body}');
+        _handleForegroundNotification(message);
+      });
+    } catch (e) {
+      debugPrint('[NotificationService] onMessage listener error: $e');
+    }
 
     // User taps a notification while app is in background (Case B)
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('[NotificationService] Notification opened from background');
-      debugPrint('[NotificationService] Data: ${message.data}');
-      handleNotificationNavigation(message);
-    });
+    try {
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('[NotificationService] Notification opened from background');
+        debugPrint('[NotificationService] Data: ${message.data}');
+        handleNotificationNavigation(message);
+      });
+    } catch (e) {
+      debugPrint('[NotificationService] onMessageOpenedApp listener error: $e');
+    }
 
     // User taps a notification that launched the app from terminated state (Case A)
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      debugPrint('[NotificationService] App launched from terminated notification');
-      debugPrint('[NotificationService] Data: ${initialMessage.data}');
-      if (_isAppReady && navigatorKey.currentState != null) {
-        handleNotificationNavigation(initialMessage);
-      } else {
-        _pendingMessage = initialMessage;
+    try {
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('[NotificationService] App launched from terminated notification');
+        debugPrint('[NotificationService] Data: ${initialMessage.data}');
+        if (_isAppReady && navigatorKey.currentState != null) {
+          handleNotificationNavigation(initialMessage);
+        } else {
+          _pendingMessage = initialMessage;
+        }
       }
+    } catch (e) {
+      debugPrint('[NotificationService] getInitialMessage non-fatal error: $e');
     }
   }
 

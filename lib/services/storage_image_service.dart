@@ -1,6 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-
 /// Centralized service for resolving Firebase Storage product image paths to HTTPS URLs,
 /// managing in-memory resolution caches, and providing local asset fallback paths.
 class StorageImageService {
@@ -235,43 +232,27 @@ class StorageImageService {
     return null;
   }
 
-  /// Synchronously checks if a download URL is already cached in memory.
+  /// Returns a direct, deterministic HTTPS download URL for a Firebase Storage path.
+  static String getDirectStorageUrl(String path) {
+    final clean = normalizeStoragePath(path);
+    final encoded = Uri.encodeComponent(clean);
+    return 'https://firebasestorage.googleapis.com/v0/b/$storageBucket/o/$encoded?alt=media';
+  }
+
+  /// Synchronously returns an HTTPS URL for a storage path, using memory cache or direct storage URL.
   static String? getCachedUrl(String path) {
+    if (path.isEmpty) return null;
     final normalized = normalizeStoragePath(path);
+    if (!_urlCache.containsKey(normalized)) {
+      _urlCache[normalized] = getDirectStorageUrl(normalized);
+    }
     return _urlCache[normalized];
   }
 
-  /// Resolves a Firebase Storage path to an HTTPS download URL.
-  /// Returns null if resolving fails, without throwing.
+  /// Resolves a Firebase Storage path to an HTTPS download URL synchronously or via memory cache.
   static Future<String?> getDownloadUrl(String path) async {
     if (path.isEmpty) return null;
-    final normalized = normalizeStoragePath(path);
-
-    if (_urlCache.containsKey(normalized)) {
-      return _urlCache[normalized];
-    }
-
-    if (_inFlightFutures.containsKey(normalized)) {
-      return _inFlightFutures[normalized];
-    }
-
-    final future = () async {
-      try {
-        final storage = FirebaseStorage.instanceFor(bucket: storageBucket);
-        final ref = storage.ref(normalized);
-        final url = await ref.getDownloadURL();
-        _urlCache[normalized] = url;
-        return url;
-      } catch (e) {
-        debugPrint('StorageImageService: Could not resolve download URL for $normalized: $e');
-        return null;
-      } finally {
-        _inFlightFutures.remove(normalized);
-      }
-    }();
-
-    _inFlightFutures[normalized] = future;
-    return future;
+    return getCachedUrl(path);
   }
 
   /// Optional helper to warm the in-memory cache for a list of paths lazily.

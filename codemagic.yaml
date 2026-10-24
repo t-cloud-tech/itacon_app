@@ -1,0 +1,68 @@
+# ==============================================================================
+# Codemagic CI/CD Configuration for ITACON App (Free Cloud iOS Builds)
+# No Mac hardware, no paid Apple Developer account, and no code-signing required.
+# ==============================================================================
+
+workflows:
+  # ----------------------------------------------------------------------------
+  # Workflow A: iOS Simulator (Debug)
+  # Generates: itacon-simulator.zip for web testing on Appetize.io
+  # ----------------------------------------------------------------------------
+  ios-simulator:
+    name: iOS Simulator (Appetize.io)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events: [] # Manual trigger only to preserve free build minutes
+    scripts:
+      - name: Configure Flutter and CocoaPods
+        script: |
+          flutter config --no-enable-swift-package-manager
+          flutter clean
+          flutter pub get
+          cd ios && rm -rf Pods Podfile.lock && pod install --repo-update && cd ..
+      - name: Build iOS Simulator App
+        script: |
+          flutter build ios --simulator --debug
+      - name: Package Simulator Zip for Appetize.io
+        script: |
+          cd build/ios/iphonesimulator
+          zip -r -y itacon-simulator.zip Runner.app
+    artifacts:
+      - build/ios/iphonesimulator/itacon-simulator.zip
+
+  # ----------------------------------------------------------------------------
+  # Workflow B: iOS Unsigned IPA (Release)
+  # Generates: itacon-unsigned.ipa for USB sideloading on Windows with Sideloadly
+  # ----------------------------------------------------------------------------
+  ios-unsigned-ipa:
+    name: iOS Unsigned IPA (Sideloadly)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    triggering:
+      events: [] # Manual trigger only to preserve free build minutes
+    scripts:
+      - name: Configure Flutter and CocoaPods
+        script: |
+          flutter config --no-enable-swift-package-manager
+          flutter clean
+          flutter pub get
+          cd ios && rm -rf Pods Podfile.lock && pod install --repo-update && cd ..
+      - name: Build iOS Release without Codesign
+        script: |
+          flutter build ios --release --no-codesign
+      - name: Package Unsigned IPA for Sideloadly
+        script: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r -y itacon-unsigned.ipa Payload
+    artifacts:
+      - itacon-unsigned.ipa

@@ -149,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
+          _trendingProducts = [];
           _isLoadingTrending = false;
         });
       }
@@ -686,7 +687,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: Text(
                                         product.isAdhesive
                                             ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                            : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
+                                            : (product.basePrice <= 0 ? 'Price on request' : '₹${product.basePrice.toStringAsFixed(0)} / sq ft'),
                                         style: GoogleFonts.inter(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w800,

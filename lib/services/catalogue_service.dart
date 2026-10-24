@@ -67,20 +67,29 @@ class CatalogueService {
           .where('isActive', isEqualTo: true)
           .get();
       
-      return snap.docs
-          .map((doc) => TileProduct.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id))
-          .toList();
+      final list = <TileProduct>[];
+      for (final doc in snap.docs) {
+        try {
+          list.add(TileProduct.fromMap(doc.data() as Map<String, dynamic>, doc.id));
+        } catch (_) {}
+      }
+      return list;
     } catch (_) {
-      final snap = await _productsRef.get();
-      return snap.docs
-          .map((doc) => TileProduct.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id))
-          .where((prod) =>
-              prod.isActive &&
-              (prod.stockStatus == 'available_now' ||
-                  prod.stockStatus == 'available'))
-          .toList();
+      try {
+        final snap = await _productsRef.get();
+        final list = <TileProduct>[];
+        for (final doc in snap.docs) {
+          try {
+            final prod = TileProduct.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+            if (prod.isActive && (prod.stockStatus == 'available_now' || prod.stockStatus == 'available')) {
+              list.add(prod);
+            }
+          } catch (_) {}
+        }
+        return list;
+      } catch (_) {
+        return [];
+      }
     }
   }
 }

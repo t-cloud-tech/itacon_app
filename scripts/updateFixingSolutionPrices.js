@@ -280,46 +280,8 @@ async function run() {
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     } else {
-      // Document does not exist yet: create complete product record with new price
-      const docPayload = {
-        id: p.id,
-        productId: p.productId,
-        sku: p.sku,
-        name: p.name,
-        productName: p.productName,
-        productLine: p.productLine,
-        tileCategory: p.tileCategory,
-        collection: p.collection,
-        category: p.category,
-        categoryId: p.categoryId,
-        categoryName: p.categoryName,
-        classification: p.classification,
-        color: p.color,
-        basePrice: p.newBasePrice,
-        price: p.newBasePrice,
-        unit: p.unit,
-        bagWeightKg: p.bagWeightKg,
-        size: p.size,
-        surface: p.surface,
-        pattern: p.pattern,
-        moq: p.moq,
-        stockStatus: p.stockStatus,
-        availableQuantity: p.availableQuantity,
-        productType: p.productType,
-        bodyType: p.bodyType,
-        thickness: p.thickness,
-        boxWeightKg: p.boxWeightKg,
-        sqFtPerBox: p.sqFtPerBox,
-        images: p.images,
-        usageTileSizes: p.usageTileSizes,
-        applicationNotes: p.applicationNotes,
-        isActive: p.isActive,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-
-      batch.set(prodRef, docPayload);
-      batch.set(tileRef, docPayload);
+      // SAFETY ABORT: Script is strictly prohibited from creating new documents.
+      throw new Error(`[SAFETY ABORT] Document ${p.id} does not exist in Firestore. Creation of new products is disabled.`);
     }
 
     logDetails.push({
