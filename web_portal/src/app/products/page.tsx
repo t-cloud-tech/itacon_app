@@ -239,9 +239,11 @@ function ProductsContent() {
                       <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-white/95 text-slate-800 shadow-xs border border-slate-200/60">
                         {tile.sku || tile.productId || "ITA-TILE"}
                       </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100/90 text-emerald-800 backdrop-blur-xs border border-emerald-200">
-                        {tile.availableStock ? `${tile.availableStock} Boxes Ready` : "In Stock"}
-                      </span>
+                      {role !== "designer" && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100/90 text-emerald-800 backdrop-blur-xs border border-emerald-200">
+                          {tile.availableStock ? `${tile.availableStock} Boxes Ready` : "In Stock"}
+                        </span>
+                      )}
                     </div>
 
                     <div className="text-center py-4 relative z-10">

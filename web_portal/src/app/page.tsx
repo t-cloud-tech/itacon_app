@@ -375,7 +375,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 4 KPI Cards for Designer */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             <div className="card-luxury p-5 flex items-center space-x-4 border-l-4 border-l-[#E66A23]">
               <div className="w-12 h-12 rounded-xl bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#E66A23]">
                 <Grid3X3 className="w-6 h-6" />
@@ -397,19 +397,6 @@ export default function DashboardPage() {
                 <p className="text-xs text-slate-500 font-medium">Catalogue Categories</p>
                 <p className="text-2xl font-black text-[#0E274D] mt-0.5">{designerCategories.length}</p>
                 <span className="text-[10px] text-slate-400 truncate block">{designerCategories.slice(0, 4).join(", ") || "None yet"}</span>
-              </div>
-            </div>
-
-            <div className="card-luxury p-5 flex items-center space-x-4 border-l-4 border-l-emerald-600">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600">
-                <Package className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Ready Stock Boxes</p>
-                <p className="text-2xl font-black text-[#0E274D] mt-0.5">
-                  {designerTiles.reduce((acc, t) => acc + (Number(t.availableStock) || 0), 0).toLocaleString("en-IN")}
-                </p>
-                <span className="text-[10px] text-slate-400">Across listed tiles</span>
               </div>
             </div>
 
@@ -520,7 +507,7 @@ export default function DashboardPage() {
                             {tile.sku || "ITA-TILE"}
                           </span>
                           <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                            {tile.availableStock ? `${tile.availableStock} Boxes Ready` : "Live in App"}
+                            Live in App
                           </span>
                         </div>
                         <div className="relative z-10 text-center py-2">

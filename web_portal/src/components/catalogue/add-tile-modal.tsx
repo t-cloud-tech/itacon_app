@@ -55,9 +55,6 @@ const PRESET_IMAGES = [
   },
 ];
 
-// Same four spaces as the mobile app's "Shop by Space" (ProductEnums.spaces)
-const SPACES = ["Living Room", "Bath Room", "Bedroom", "Outdoor"];
-
 const MIN_FACE_SLOTS = 4;
 const MAX_FACE_SLOTS = 12;
 
@@ -148,17 +145,14 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
     color: "White / Grey Vein",
     pattern: "Marble Vein",
     collection: "Endless Marbles",
-    basePrice: "580",
-    unit: "box",
+    basePrice: "35",
+    unit: "sqft",
     moq: "10",
     sqFtPerBox: "15.5",
     pcsPerBox: "2",
     boxWeightKg: "29.5",
     thickness: "9 mm",
     thicknessMm: "9.0",
-    stockQuantity: "500",
-    stockStatus: "available",
-    spaces: ["Living Room", "Bedroom"],
     faceImages: [PRESET_IMAGES[0].url, "", "", ""],
     mockupImage: "",
     productType: "Vitrified",
@@ -226,16 +220,6 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
     }
   };
 
-  const toggleSpace = (space: string) => {
-    setFormData((prev) => {
-      const exists = prev.spaces.includes(space);
-      return {
-        ...prev,
-        spaces: exists ? prev.spaces.filter((s) => s !== space) : [...prev.spaces, space],
-      };
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -286,8 +270,9 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
       };
 
       const now = new Date().toISOString();
-      const stockNum = parseInt(formData.stockQuantity, 10) || 500;
-      const priceNum = parseFloat(formData.basePrice) || 580;
+      // Stock is not captured for designers; keep the tile visible as in-stock in the app.
+      const stockNum = 500;
+      const priceNum = parseFloat(formData.basePrice) || 35;
       const sqFtNum = parseFloat(formData.sqFtPerBox) || 15.5;
       const pcsNum = parseInt(formData.pcsPerBox, 10) || 2;
       const wtNum = parseFloat(formData.boxWeightKg) || 29.5;
@@ -310,7 +295,7 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
         basePrice: priceNum,
         unit: formData.unit,
         moq: moqNum,
-        stockStatus: formData.stockStatus, // 'available' or 'available_now'
+        stockStatus: "available",
         availableQuantity: stockNum,
         currentStock: stockNum,
         reservedStock: 0,
@@ -322,7 +307,7 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
         isActive: true,
         isComingSoon: false,
         collection: formData.collection.trim(),
-        spaces: formData.spaces,
+        spaces: [],
         finish: formData.surface.trim(),
         productType: formData.productType,
         bodyType: formData.bodyType,
@@ -571,7 +556,7 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
                     type="number"
                     step="any"
                     required
-                    placeholder="580"
+                    placeholder="35"
                     value={formData.basePrice}
                     onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
                     className="w-full pl-8 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0E274D] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
@@ -626,28 +611,6 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Ready Stock (Boxes)</label>
-                <input
-                  type="number"
-                  value={formData.stockQuantity}
-                  onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Stock Availability</label>
-                <select
-                  value={formData.stockStatus}
-                  onChange={(e) => setFormData({ ...formData, stockStatus: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-                >
-                  <option value="available">Ready Stock (available)</option>
-                  <option value="available_now">Available Now</option>
-                  <option value="made_to_order">Made to Order</option>
-                </select>
-              </div>
             </div>
           </div>
 
@@ -657,32 +620,6 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
               <Palette className="w-4 h-4 text-[#E66A23]" />
               <span>3. Applicable Spaces & High-Res Tile Texture</span>
             </h3>
-
-            {/* Spaces Pills */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-2">Suitable Living Spaces</label>
-              <div className="flex flex-wrap gap-2">
-                {SPACES.map(
-                  (space) => {
-                    const isSelected = formData.spaces.includes(space);
-                    return (
-                      <button
-                        type="button"
-                        key={space}
-                        onClick={() => toggleSpace(space)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          isSelected
-                            ? "bg-[#0E274D] text-white shadow-xs"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                        }`}
-                      >
-                        {space} {isSelected ? "✓" : "+"}
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
 
             {/* Tile face carousel images + room mockup */}
             <div className="space-y-3">
