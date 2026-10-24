@@ -1,15 +1,84 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { ref, getDownloadURL } from "firebase/storage";
+import { db, storage } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { FIXING_SOLUTIONS } from "@/lib/fixing-solutions";
-import { Search, Wrench, Droplets, Timer, Ruler } from "lucide-react";
+import { AddFixingSolutionModal } from "@/components/catalogue/add-fixing-solution-modal";
+import { FIXING_SOLUTIONS, fixingSolutionImage, type FixingSolution } from "@/lib/fixing-solutions";
+import { Search, Wrench, Droplets, Timer, Ruler, PlusCircle } from "lucide-react";
+
+// Designer-added adhesives live in Firestore; the built-in range is the static list.
+function fromFirestore(id: string, d: any): FixingSolution {
+  const price = Number(d.basePrice) || 0;
+  return {
+    id,
+    sku: d.sku || "",
+    name: d.name || "Fixing Solution",
+    grade: d.classification || d.surface || "",
+    shortDesc: d.applicationNotes || "",
+    idealFor: d.usageTileSizes || "",
+    coverage: d.coverage || "-",
+    weight: d.size || "",
+    price,
+    mrp: Number(d.mrp) || price,
+    waterRatio: d.waterRatio || "-",
+    potLife: d.potLife || "-",
+    openTime: d.openTime || "-",
+    tensileStrength: d.tensileStrength || "-",
+    image: (Array.isArray(d.images) && d.images[0]) || d.imageUrl || "",
+  };
+}
+
+// Resolves a Storage path (products/adhesives/<sku>.webp) to a download URL; full URLs pass through.
+function FixingImage({ src, alt }: { src: string; alt: string }) {
+  const [url, setUrl] = useState(/^https?:/.test(src) ? src : "");
+  useEffect(() => {
+    if (/^https?:/.test(src)) {
+      setUrl(src);
+      return;
+    }
+    let cancelled = false;
+    getDownloadURL(ref(storage, src))
+      .then((u) => !cancelled && setUrl(u))
+      .catch((err) => console.error("Fixing solution image not found:", src, err));
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+  if (!url) return <Wrench className="w-8 h-8 text-slate-300" />;
+  return <img src={url} alt={alt} loading="lazy" className="h-full w-full object-contain p-3" />;
+}
 
 export default function FixingSolutionsPage() {
+  const { role } = useAuth();
+  const canAdd = role === "designer" || role === "admin";
   const [searchTerm, setSearchTerm] = useState("");
+  const [added, setAdded] = useState<FixingSolution[]>([]);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getDocs(query(collection(db, "products"), where("productLine", "==", "adhesives")))
+      .then((snap) => {
+        if (cancelled) return;
+        const builtIn = new Set(FIXING_SOLUTIONS.map((f) => f.sku));
+        setAdded(
+          snap.docs
+            .map((d) => fromFirestore(d.id, d.data()))
+            .filter((f) => f.sku && !builtIn.has(f.sku))
+        );
+      })
+      .catch((err) => console.error("Failed to load fixing solutions:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const term = searchTerm.toLowerCase();
-  const items = FIXING_SOLUTIONS.filter(
+  const items = [...FIXING_SOLUTIONS, ...added].filter(
     (p) =>
       p.name.toLowerCase().includes(term) ||
       p.sku.toLowerCase().includes(term) ||
@@ -34,9 +103,20 @@ export default function FixingSolutionsPage() {
               className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
             />
           </div>
-          <span className="text-xs text-slate-500 shrink-0">
-            Showing <strong className="text-slate-800">{items.length}</strong> fixing solutions
-          </span>
+          <div className="flex items-center gap-4 shrink-0">
+            <span className="text-xs text-slate-500">
+              Showing <strong className="text-slate-800">{items.length}</strong> fixing solutions
+            </span>
+            {canAdd && (
+              <button
+                onClick={() => setIsAddOpen(true)}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-[#E66A23] to-[#F59E0B] text-white text-sm font-bold rounded-xl shadow-md shadow-[#E66A23]/25 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Add Fixing Solution</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {items.length === 0 && (
@@ -46,6 +126,10 @@ export default function FixingSolutionsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((p) => (
             <div key={p.id} className="card-luxury overflow-hidden flex flex-col justify-between">
+              <div>
+              <div className="h-48 bg-slate-100 border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                <FixingImage src={fixingSolutionImage(p)} alt={p.name} />
+              </div>
               <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-slate-100 text-slate-800 border border-slate-200">
@@ -87,6 +171,7 @@ export default function FixingSolutionsPage() {
                   Pot life {p.potLife} · Tensile {p.tensileStrength}
                 </p>
               </div>
+              </div>
               <div className="p-5 pt-3 border-t border-slate-100 flex items-baseline justify-between">
                 <span className="text-[10px] uppercase font-semibold text-slate-400">{p.weight}</span>
                 <div>
@@ -98,6 +183,12 @@ export default function FixingSolutionsPage() {
           ))}
         </div>
       </div>
+
+      <AddFixingSolutionModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onAdded={(item) => setAdded((prev) => [...prev, item])}
+      />
     </DashboardShell>
   );
 }

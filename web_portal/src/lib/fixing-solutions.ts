@@ -14,6 +14,12 @@ export interface FixingSolution {
   potLife: string;
   openTime: string;
   tensileStrength: string;
+  image?: string;
+}
+
+/** Card image: explicit URL (designer uploads) or the webp in Firebase Storage `products/adhesives/<sku>.webp`. */
+export function fixingSolutionImage(p: FixingSolution): string {
+  return p.image || `products/adhesives/${p.sku}.webp`;
 }
 
 export const FIXING_SOLUTIONS: FixingSolution[] = [
