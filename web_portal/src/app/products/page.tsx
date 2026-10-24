@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { AddTileModal } from "@/components/catalogue/add-tile-modal";
+import { StorageImage, tileThumbnailPath } from "@/components/catalogue/storage-image";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, writeBatch } from "firebase/firestore";
 import { fetchAppTiles, SURFACE_FINISHES, matchesSurfaceFilter } from "@/lib/catalogue-service";
@@ -294,7 +295,11 @@ function ProductsContent() {
         {/* Product Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((tile) => {
-            const tileImg = tile.imageUrl || (Array.isArray(tile.images) && tile.images[0]) || "";
+            const tileImg: string =
+              (Array.isArray(tile.faceImages) && tile.faceImages[0]) ||
+              tile.imageUrl ||
+              (Array.isArray(tile.images) && tile.images[0]) ||
+              "";
             const isTileActive = tile.isActive !== false;
             const isToggling = togglingId === tile.id;
 
@@ -312,9 +317,10 @@ function ProductsContent() {
                   <div className="h-48 bg-gradient-to-br from-slate-100 to-slate-200/80 p-4 flex flex-col justify-between relative border-b border-slate-100 overflow-hidden">
                     {/* Background Texture if available */}
                     {tileImg && (
-                      <div
-                        className="absolute inset-0 bg-cover bg-center opacity-30 group-hover:opacity-40 transition-opacity"
-                        style={{ backgroundImage: `url(${tileImg})` }}
+                      <StorageImage
+                        sources={[tileImg, tileThumbnailPath(tileImg)]}
+                        alt={tile.name || tile.sku || "Tile"}
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
                     )}
 
@@ -336,19 +342,11 @@ function ProductsContent() {
                       )}
                     </div>
 
-                    <div className="text-center py-4 relative z-10">
-                      <div className="inline-block p-4 rounded-xl bg-white/90 backdrop-blur-sm shadow-xs border border-white/80 group-hover:scale-105 transition-transform">
-                        <span className="text-xs font-mono font-bold text-[#0E274D] uppercase tracking-widest block">
-                          {tile.size || "600x1200 mm"}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-medium">
-                          {tile.collection || "Endless Series"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-slate-700 font-medium relative z-10 bg-white/70 backdrop-blur-xs px-2.5 py-1 rounded-md">
-                      <span>{tile.tileCategory || "Vitrified Tile"}</span>
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-700 font-medium relative z-10 bg-white/70 backdrop-blur-xs px-2.5 py-1 rounded-md">
+                      <span className="truncate">
+                        {tile.tileCategory || "Vitrified Tile"}
+                        <span className="font-mono font-bold text-[#0E274D]"> · {tile.size || "600x1200 mm"}</span>
+                      </span>
                       <span className="font-semibold text-[#E66A23]">{tile.surface || "Polished"}</span>
                     </div>
                   </div>
