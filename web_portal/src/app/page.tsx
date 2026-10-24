@@ -642,13 +642,6 @@ export default function DashboardPage() {
                 <CalendarClock className="w-3.5 h-3.5 text-slate-600" />
                 <span>Schedule Follow-up</span>
               </Link>
-              <Link
-                href="/products"
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
-              >
-                <Grid3X3 className="w-3.5 h-3.5 text-slate-600" />
-                <span>Browse Tile Catalogue</span>
-              </Link>
             </div>
           </div>
 

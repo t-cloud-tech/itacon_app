@@ -133,10 +133,11 @@ export function buildUserProfileFromDoc(
 
 /**
  * Portal routes each staff role may open. Designers only manage the tile catalogue;
- * Salespersons page is admin-only. Anything not listed is open to admin/manager/salesperson.
+ * Tile Catalogue and Fixing Solutions are designer-only; Salespersons page is admin-only. Anything not listed is open to admin/manager/salesperson.
  */
 const DESIGNER_PATHS: readonly string[] = ["/", "/products", "/fixing-solutions"];
 const ADMIN_ONLY_PATHS: readonly string[] = ["/salespersons"];
+const DESIGNER_ONLY_PATHS: readonly string[] = ["/products", "/fixing-solutions"];
 
 function matchesPath(pathname: string, base: string): boolean {
   if (base === "/") return pathname === "/";
@@ -146,6 +147,7 @@ function matchesPath(pathname: string, base: string): boolean {
 export function canAccessPath(role: UserRole | null, pathname: string): boolean {
   if (!role) return false;
   if (role === "designer") return DESIGNER_PATHS.some((p) => matchesPath(pathname, p));
+  if (DESIGNER_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return false;
   if (ADMIN_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return role === "admin";
   return true;
 }
