@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { canAccessPath } from "@/lib/auth-utils";
+import { canAccessPath, homePathFor } from "@/lib/auth-utils";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
@@ -24,8 +24,8 @@ export function DashboardShell({ children, title, subtitle }: DashboardShellProp
     if (!user) {
       router.replace("/login");
     } else if (!isAllowed) {
-      // e.g. a designer opening /customers directly by URL
-      router.replace("/");
+      // e.g. a designer opening /customers (or / ) directly by URL
+      router.replace(homePathFor(role));
     }
   }, [user, loading, isAllowed, router]);
 

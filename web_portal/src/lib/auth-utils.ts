@@ -132,10 +132,10 @@ export function buildUserProfileFromDoc(
 
 
 /**
- * Portal routes each staff role may open. Designers only manage the tile catalogue;
+ * Portal routes each staff role may open. Designers have no dashboard: they only manage the tile catalogue and fixing solutions;
  * Tile Catalogue and Fixing Solutions are designer-only; Salespersons page is admin-only. Anything not listed is open to admin/manager/salesperson.
  */
-const DESIGNER_PATHS: readonly string[] = ["/", "/products", "/fixing-solutions"];
+const DESIGNER_PATHS: readonly string[] = ["/products", "/fixing-solutions"];
 const ADMIN_ONLY_PATHS: readonly string[] = ["/salespersons"];
 const DESIGNER_ONLY_PATHS: readonly string[] = ["/products", "/fixing-solutions"];
 
@@ -150,4 +150,9 @@ export function canAccessPath(role: UserRole | null, pathname: string): boolean 
   if (DESIGNER_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return false;
   if (ADMIN_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return role === "admin";
   return true;
+}
+
+/** Landing page after login: designers have no dashboard, so they start on the tile catalogue. */
+export function homePathFor(role: UserRole | null): string {
+  return role === "designer" ? "/products" : "/";
 }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, AuthException } from "@/lib/auth-context";
+import { homePathFor } from "@/lib/auth-utils";
 import { 
   Building2, 
   Lock, 
@@ -20,7 +21,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user } = useAuth();
+  const { login, user, role } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -31,9 +32,9 @@ export default function LoginPage() {
   // If already logged in, redirect
   React.useEffect(() => {
     if (user) {
-      router.replace("/");
+      router.replace(homePathFor(role));
     }
-  }, [user, router]);
+  }, [user, role, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
