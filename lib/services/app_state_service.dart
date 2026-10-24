@@ -92,11 +92,13 @@ class AppStateService extends ChangeNotifier {
   UserProfile? _currentUserProfile;
 
   List<CartItem> get cartItems => List.unmodifiable(_cartItems);
-  List<TileProduct> get favoriteProducts => List.unmodifiable(_favoriteProductsMap.values.toList());
-  Set<String> get favoriteProductIds => Set.unmodifiable(_favoriteProductsMap.keys);
+  List<TileProduct> get favoriteProducts =>
+      List.unmodifiable(_favoriteProductsMap.values.where((p) => p.isActive).toList());
+  Set<String> get favoriteProductIds =>
+      Set.unmodifiable(_favoriteProductsMap.values.where((p) => p.isActive).map((p) => p.id));
 
   int get cartCount => _cartItems.length;
-  int get favoritesCount => _favoriteProductsMap.length;
+  int get favoritesCount => favoriteProducts.length;
   int get ordersCount => 0;
 
   int get totalBoxes => _cartItems.fold(0, (sum, item) => sum + item.quantityInBoxes);
@@ -109,7 +111,8 @@ class AppStateService extends ChangeNotifier {
   double get freightFee => 0.0;
   double get totalAmount => subtotal + taxAmount;
 
-  bool isFavorite(String productId) => _favoriteProductsMap.containsKey(productId);
+  bool isFavorite(String productId) =>
+      _favoriteProductsMap[productId]?.isActive == true;
 
   // User Profile Getters & State Management
   UserProfile get currentUserProfile {

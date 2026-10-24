@@ -395,6 +395,24 @@ class CartScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
+                                if (!item.product.isActive)
+                                  Container(
+                                    margin: EdgeInsets.only(top: context.h(4), bottom: context.h(2)),
+                                    padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(2.5)),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                                    ),
+                                    child: Text(
+                                      'This product is currently unavailable',
+                                      style: GoogleFonts.inter(
+                                        fontSize: context.sp(10.5),
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFDC2626),
+                                      ),
+                                    ),
+                                  ),
                                 SizedBox(height: context.h(3)),
                                 Wrap(
                                   spacing: 4,
@@ -476,6 +494,23 @@ class CartScreen extends StatelessWidget {
                                     const SizedBox(width: 6),
 
                                     // Interactive Quantity Stepper with Manual Input Target
+                                    if (!item.product.isActive)
+                                      Container(
+                                        padding: EdgeInsets.symmetric(horizontal: context.w(8), vertical: context.h(4)),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade100,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Unavailable',
+                                          style: GoogleFonts.inter(
+                                            fontSize: context.sp(11),
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      )
+                                    else
                                     Container(
                                       height: context.h(32).clamp(28.0, 36.0),
                                       decoration: BoxDecoration(
@@ -580,6 +615,17 @@ class CartScreen extends StatelessWidget {
                     showActionButton: true,
                     actionButtonText: 'PROCEED TO CHECKOUT →',
                     onActionButtonPressed: () {
+                      final activeItems = appState.cartItems.where((i) => i.product.isActive).toList();
+                      if (activeItems.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('All products in your cart are currently unavailable.'),
+                            backgroundColor: AppTheme.statusError,
+                          ),
+                        );
+                        return;
+                      }
+
                       final eligibility = appState.orderingProfileEligibility;
                       if (!eligibility.isEligible) {
                         _showIncompleteProfileDialog(context, eligibility);

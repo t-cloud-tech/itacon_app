@@ -182,6 +182,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     final adhesives = <TileProduct>[];
 
     for (final p in rawList) {
+      if (!p.isActive) continue;
       if (_isAdhesiveProduct(p)) {
         adhesives.add(p);
       } else {
@@ -205,6 +206,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
   List<TileProduct> get _filteredProducts {
     var filtered = _allProducts.where((p) {
+      if (!p.isActive) return false;
       // 1. Live Search
       if (_searchQuery.trim().isNotEmpty) {
         final query = _searchQuery.toLowerCase().trim();

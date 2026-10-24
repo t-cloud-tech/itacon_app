@@ -5,6 +5,7 @@ import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, doc, setDoc } from "firebase/firestore";
 import { useAuth } from "@/lib/auth-context";
+import { SURFACE_FINISHES } from "@/lib/catalogue-service";
 import {
   X,
   PlusCircle,
@@ -493,13 +494,11 @@ export function AddTileModal({ isOpen, onClose, onTileAdded }: AddTileModalProps
                   onChange={(e) => setFormData({ ...formData, surface: e.target.value })}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
                 >
-                  <option value="High Gloss Polish">High Gloss Polish</option>
-                  <option value="Satin Matt">Satin Matt</option>
-                  <option value="Carving Matt">Carving Matt</option>
-                  <option value="Wood Embossed">Wood Embossed</option>
-                  <option value="Sugar Finish">Sugar Finish</option>
-                  <option value="Rustic Matt">Rustic Matt</option>
-                  <option value="Glossy Ceramic">Glossy Ceramic</option>
+                  {SURFACE_FINISHES.map((finish) => (
+                    <option key={finish} value={finish}>
+                      {finish}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

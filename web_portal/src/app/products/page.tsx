@@ -7,7 +7,8 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { AddTileModal } from "@/components/catalogue/add-tile-modal";
 import { db } from "@/lib/firebase";
-import { fetchAppTiles } from "@/lib/catalogue-service";
+import { doc, getDoc, writeBatch } from "firebase/firestore";
+import { fetchAppTiles, SURFACE_FINISHES, matchesSurfaceFilter } from "@/lib/catalogue-service";
 import { 
   Grid3X3, 
   Search, 
@@ -23,7 +24,8 @@ import {
   Smartphone,
   Tag,
   Palette,
-  Check
+  Check,
+  Loader2
 } from "lucide-react";
 
 function ProductsContent() {
@@ -32,11 +34,12 @@ function ProductsContent() {
 
   const [products, setProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [finishFilter, setFinishFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [justAddedTitle, setJustAddedTitle] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   // Auto open modal if ?action=new
   useEffect(() => {
@@ -49,7 +52,7 @@ function ProductsContent() {
     async function fetchProducts() {
       setIsLoading(true);
       try {
-        setProducts(await fetchAppTiles());
+        setProducts(await fetchAppTiles(true));
       } catch (err) {
         console.warn("Could not load products:", err);
       } finally {
@@ -68,19 +71,86 @@ function ProductsContent() {
     }, 5000);
   };
 
+  const handleToggleStatus = async (tile: any) => {
+    if (togglingId) return; // prevent double clicks
+
+    const isCurrentlyActive = tile.isActive !== false;
+    const nextIsActive = !isCurrentlyActive;
+    const tileDisplayName = tile.name || tile.sku || "this tile";
+
+    if (isCurrentlyActive) {
+      const confirmed = window.confirm(`Hide ${tileDisplayName} from the customer app?`);
+      if (!confirmed) return;
+    }
+
+    setTogglingId(tile.id);
+    try {
+      const productRef = doc(db, "products", tile.id);
+      const tileRef = doc(db, "tiles", tile.id);
+
+      const updateData: any = {
+        isActive: nextIsActive,
+        updatedAt: new Date(),
+      };
+      if (user?.userId) {
+        updateData.updatedBy = user.userId;
+      }
+
+      const [pSnap, tSnap] = await Promise.all([
+        getDoc(productRef).catch(() => null),
+        getDoc(tileRef).catch(() => null),
+      ]);
+
+      const batch = writeBatch(db);
+      let updatedAny = false;
+
+      if (pSnap && pSnap.exists()) {
+        batch.update(productRef, updateData);
+        updatedAny = true;
+      }
+      if (tSnap && tSnap.exists()) {
+        batch.update(tileRef, updateData);
+        updatedAny = true;
+      }
+
+      // If document was not found under exists() in both, perform merge update on productRef
+      if (!updatedAny) {
+        batch.set(productRef, updateData, { merge: true });
+      }
+
+      await batch.commit();
+
+      setProducts((prev) =>
+        prev.map((p) => (p.id === tile.id ? { ...p, isActive: nextIsActive } : p))
+      );
+
+      setToast({
+        message: `"${tileDisplayName}" is now ${nextIsActive ? "Active" : "Inactive"}.`,
+        type: "success",
+      });
+      setTimeout(() => setToast(null), 4000);
+    } catch (err: any) {
+      console.error("Failed to toggle tile status:", err);
+      setToast({
+        message: `Failed to update status: ${err?.message || "Unknown error"}`,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const filteredProducts = products.filter(p => {
     const matchesSearch = 
       (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.size && p.size.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesCat = categoryFilter === "all" || p.tileCategory === categoryFilter;
-    const matchesFinish = finishFilter === "all" || (p.surface && p.surface.toLowerCase().includes(finishFilter.toLowerCase()));
+    const matchesFinish = matchesSurfaceFilter(p, finishFilter);
 
-    return matchesSearch && matchesCat && matchesFinish;
+    return matchesSearch && matchesFinish;
   });
-
-  const categoryOptions = [...new Set(products.map((p) => p.tileCategory).filter(Boolean))] as string[];
 
   const isDesignerOrAdmin = role === "designer" || role === "admin";
 
@@ -94,6 +164,24 @@ function ProductsContent() {
       }
     >
       <div className="space-y-6 max-w-7xl mx-auto">
+        {/* Toast Notification */}
+        {toast && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl border text-xs font-semibold flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+              toast.type === "success"
+                ? "bg-slate-900 text-white border-emerald-500/50"
+                : "bg-rose-950 text-white border-rose-500/50"
+            }`}
+          >
+            {toast.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <span className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0">!</span>
+            )}
+            <span>{toast.message}</span>
+          </div>
+        )}
+
         {/* Designer Mode Welcome Banner */}
         {role === "designer" && (
           <div className="bg-gradient-to-r from-[#0E274D] to-[#1E3A8A] rounded-2xl p-5 text-white shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#1A2D5A]">
@@ -156,28 +244,16 @@ function ProductsContent() {
 
           <div className="flex flex-wrap items-center gap-3">
             <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-            >
-              <option value="all">All Tile Categories</option>
-              {categoryOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-
-            <select
               value={finishFilter}
               onChange={(e) => setFinishFilter(e.target.value)}
               className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
             >
               <option value="all">All Surfaces / Finishes</option>
-              <option value="gloss">Glossy / High Gloss</option>
-              <option value="matt">Satin Matt</option>
-              <option value="carving">Carving</option>
-              <option value="wood">Wood Embossed</option>
-              <option value="sugar">Sugar Finish</option>
-              <option value="rustic">Rustic</option>
+              {SURFACE_FINISHES.map((finish) => (
+                <option key={finish} value={finish}>
+                  {finish}
+                </option>
+              ))}
             </select>
 
             {/* Add New Tile CTA for Designers & Admins */}
@@ -219,10 +295,17 @@ function ProductsContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((tile) => {
             const tileImg = tile.imageUrl || (Array.isArray(tile.images) && tile.images[0]) || "";
+            const isTileActive = tile.isActive !== false;
+            const isToggling = togglingId === tile.id;
+
             return (
               <div
                 key={tile.id}
-                className="card-luxury overflow-hidden flex flex-col justify-between group hover:border-orange-300 transition-all duration-200"
+                className={`card-luxury overflow-hidden flex flex-col justify-between group transition-all duration-200 ${
+                  isTileActive
+                    ? "hover:border-orange-300"
+                    : "opacity-65 bg-slate-50/90 border-slate-300"
+                }`}
               >
                 <div>
                   {/* Tile Preview Header */}
@@ -236,9 +319,16 @@ function ProductsContent() {
                     )}
 
                     <div className="flex items-center justify-between relative z-10">
-                      <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-white/95 text-slate-800 shadow-xs border border-slate-200/60">
-                        {tile.sku || tile.productId || "ITA-TILE"}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-white/95 text-slate-800 shadow-xs border border-slate-200/60">
+                          {tile.sku || tile.productId || "ITA-TILE"}
+                        </span>
+                        {!isTileActive && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white shadow-xs">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
                       {role !== "designer" && (
                         <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100/90 text-emerald-800 backdrop-blur-xs border border-emerald-200">
                           {tile.availableStock ? `${tile.availableStock} Boxes Ready` : "In Stock"}
@@ -307,13 +397,23 @@ function ProductsContent() {
                     </span>
                   </div>
 
-                  {role === "designer" ? (
+                  {role === "designer" || isDesignerOrAdmin ? (
                     <button
-                      onClick={() => setIsAddModalOpen(true)}
-                      className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-[#E66A23] text-slate-700 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                      disabled={isToggling}
+                      onClick={() => handleToggleStatus(tile)}
+                      title={isTileActive ? "Click to deactivate tile" : "Click to activate tile"}
+                      className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer ${
+                        isTileActive
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                          : "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20"
+                      }`}
                     >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      <span>Add Variant</span>
+                      {isToggling ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <span className="text-[9px] leading-none">●</span>
+                      )}
+                      <span>{isTileActive ? "Active" : "Inactive"}</span>
                     </button>
                   ) : (
                     <Link

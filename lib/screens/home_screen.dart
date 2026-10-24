@@ -166,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_searchQuery.trim().isEmpty) return const [];
     final query = _searchQuery.toLowerCase().trim();
     return ProductCatalogService.allCatalogProducts.where((p) {
+      if (!p.isActive) return false;
       final matchName = p.name.toLowerCase().contains(query);
       final matchSize = p.size.toLowerCase().contains(query);
       final matchSurface = p.surface.toLowerCase().contains(query);

@@ -348,19 +348,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final discountRatio = PricingService.tierDiscountMap[category] ?? 0.0;
     final discountPct = (discountRatio * 100).toStringAsFixed(0);
 
-    // Calculate gross subtotal before tier discount
+    // Filter to active available products
+    final activeItems = appState.cartItems.where((i) => i.product.isActive).toList();
+
+    // Calculate gross subtotal before tier discount on active items
     double grossBaseSubtotal = 0.0;
-    for (final item in appState.cartItems) {
+    for (final item in activeItems) {
       final baseBoxCost = item.product.isAdhesive
           ? item.product.basePrice
           : (item.product.basePrice * item.sqFtPerBox);
       grossBaseSubtotal += baseBoxCost * item.quantity;
     }
 
-    final netSubtotal = appState.subtotal;
+    final netSubtotal = activeItems.fold(0.0, (sum, i) => sum + i.itemTotal);
     final discountSavings = grossBaseSubtotal > netSubtotal ? grossBaseSubtotal - netSubtotal : 0.0;
     final gstAmount = netSubtotal * 0.18;
     final grandTotalEstimate = netSubtotal + gstAmount;
+    final activeBoxes = activeItems.fold(0, (sum, i) => sum + i.quantityInBoxes);
+    final activeWeightKg = activeItems.fold(0.0, (sum, i) => sum + i.itemWeightKg);
+    final activeWeightTons = activeWeightKg / 1000.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -508,6 +514,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (!item.product.isActive)
+                          Container(
+                            margin: const EdgeInsets.only(top: 2, bottom: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xFFFCA5A5)),
+                            ),
+                            child: const Text(
+                              'This product is currently unavailable',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
+                            ),
+                          ),
                         const SizedBox(height: 2),
                         Text(
                           '${item.selectedSize} • ${item.selectedFinish}',
@@ -560,9 +580,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           taxAmount: gstAmount,
           freightFee: 0.0,
           grandTotal: grandTotalEstimate,
-          totalBoxes: appState.totalBoxes,
-          totalWeightTons: appState.totalWeightTons,
-          totalWeightKg: appState.totalWeightKg,
+          totalBoxes: activeBoxes,
+          totalWeightTons: activeWeightTons,
+          totalWeightKg: activeWeightKg,
           title: 'PO Estimate & Logistics Summary',
         ),
       ],
@@ -1124,9 +1144,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
+    final activeCartItems = appState.cartItems.where((i) => i.product.isActive).toList();
+    if (activeCartItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No available items to order in your cart.'),
+          backgroundColor: AppTheme.statusError,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
-    final orderItems = OrderService.instance.cartToOrderItems(appState.cartItems);
+    final orderItems = OrderService.instance.cartToOrderItems(activeCartItems);
     final deliveryAddress = '$siteStreet, $siteCity - $sitePincode, $siteState';
 
     final effectiveUserId = user.userId.isNotEmpty
@@ -1141,6 +1172,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final spId = (user.salesPersonId != null && user.salesPersonId!.isNotEmpty)
         ? user.salesPersonId
         : AppStateService.instance.currentUserProfile.salesPersonId;
+
+    final int orderBoxes = activeCartItems.fold(0, (sum, i) => sum + i.quantity);
+    final double orderWeightKg = activeCartItems.fold(0.0, (sum, i) => sum + i.itemWeightKg);
+    final double orderWeightTons = orderWeightKg / 1000.0;
 
     TileOrder? createdOrder;
     try {
@@ -1159,9 +1194,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         deliveryAddress: deliveryAddress,
         transportRequired: true,
         remarks: _deliveryNotesController.text.trim(),
-        totalBoxes: appState.totalBoxes,
-        totalWeightKg: appState.totalWeightKg,
-        totalWeightTons: appState.totalWeightTons,
+        totalBoxes: orderBoxes,
+        totalWeightKg: orderWeightKg,
+        totalWeightTons: orderWeightTons,
         stateCode: safeStateCode,
         paymentMethod: 'bank_transfer',
       );
@@ -1194,8 +1229,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       debugPrint('[PO NAV] Order ID present=${targetOrderId.isNotEmpty}');
     }
 
-    // Clear cart AFTER preserving order reference — cart contents are no longer needed
-    appState.clearCart();
+    // Remove only active items from cart so unavailable items stay indicated
+    for (final item in activeCartItems) {
+      appState.removeFromCart(item);
+    }
 
     if (!mounted) return;
 

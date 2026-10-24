@@ -1,6 +1,8 @@
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
+export * from "./surface-finishes";
+
 // Mirrors the mobile app's TileProduct.isAdhesive
 export function isAdhesiveProduct(p: any): boolean {
   return (
@@ -12,15 +14,31 @@ export function isAdhesiveProduct(p: any): boolean {
 }
 
 /**
- * Tiles exactly as the mobile app lists them: active docs from `products`
- * (falling back to `tiles`), with fixing solutions (adhesives) excluded.
+ * Tiles for the portal & mobile app:
+ * If includeInactive is true (used by Designer Studio), loads all products/tiles
+ * regardless of isActive status so designers can view & reactivate them.
+ * If includeInactive is false (default), queries only active tiles.
  */
-export async function fetchAppTiles(): Promise<any[]> {
-  let snap = await getDocs(query(collection(db, "products"), where("isActive", "==", true)));
-  if (snap.empty) {
-    snap = await getDocs(query(collection(db, "tiles"), where("isActive", "==", true)));
+export async function fetchAppTiles(includeInactive: boolean = false): Promise<any[]> {
+  let snap;
+  if (includeInactive) {
+    snap = await getDocs(collection(db, "products"));
+    if (snap.empty) {
+      snap = await getDocs(collection(db, "tiles"));
+    }
+  } else {
+    snap = await getDocs(query(collection(db, "products"), where("isActive", "==", true)));
+    if (snap.empty) {
+      snap = await getDocs(query(collection(db, "tiles"), where("isActive", "==", true)));
+    }
   }
   return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
+    .map((d) => ({
+      id: d.id,
+      ...d.data(),
+      isActive: d.data().isActive !== false,
+    }))
     .filter((p) => !isAdhesiveProduct(p));
 }
+
+

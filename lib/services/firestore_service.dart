@@ -1476,7 +1476,7 @@ class FirestoreService {
     for (final doc in snapshot.docs) {
       try {
         final prod = TileProduct.fromMap(doc.data(), doc.id);
-        if (maxPrice == null || prod.basePrice <= maxPrice) {
+        if (prod.isActive && (maxPrice == null || prod.basePrice <= maxPrice)) {
           list.add(prod);
         }
       } catch (e) {
@@ -3130,15 +3130,18 @@ class FirestoreService {
       try {
         snapshot = await _productsRef
             .where('isTrending', isEqualTo: true)
+            .where('isActive', isEqualTo: true)
             .get();
         if (snapshot.docs.isEmpty) {
           snapshot = await _tilesRef
               .where('isTrending', isEqualTo: true)
+              .where('isActive', isEqualTo: true)
               .get();
         }
       } catch (_) {
         snapshot = await _tilesRef
             .where('isTrending', isEqualTo: true)
+            .where('isActive', isEqualTo: true)
             .get();
       }
 

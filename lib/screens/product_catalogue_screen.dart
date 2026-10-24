@@ -88,6 +88,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
 
   List<TileProduct> get _filteredProducts {
     return _products.where((product) {
+      if (!product.isActive) return false;
       final matchesSearch = _searchQuery.isEmpty ||
           product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           product.sku.toLowerCase().contains(_searchQuery.toLowerCase()) ||

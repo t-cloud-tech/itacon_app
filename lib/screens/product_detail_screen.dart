@@ -591,6 +591,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (!_product.isActive)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 14),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFFFCA5A5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline, color: Color(0xFFDC2626), size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'This product is currently unavailable',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFFB91C1C),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -988,102 +1014,120 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         child: SafeArea(
-          child: Row(
-            children: [
-              // Quantity Controller with Tactile AppPressable
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.borderSubtle),
-                ),
-                child: Row(
-                  children: [
-                    AppPressable(
-                      onTap: _quantity > 1
-                          ? () {
-                              setState(() {
-                                _quantity--;
-                              });
-                            }
-                          : null,
-                      scaleDown: 0.85,
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Icon(
-                          Icons.remove,
-                          size: 18,
-                          color: _quantity > 1 ? AppTheme.primaryNavy : Colors.grey.shade400,
-                        ),
-                      ),
+          child: !_product.isActive
+              ? Container(
+                  height: 48,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: Text(
+                    'This product is currently unavailable',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey.shade700,
                     ),
-                    AppPressable(
-                      onTap: _showManualQuantityDialog,
-                      scaleDown: 0.94,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryNavy.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              '$_quantity',
-                              style: GoogleFonts.inter(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.primaryNavy,
+                  ),
+                )
+              : Row(
+                  children: [
+                    // Quantity Controller with Tactile AppPressable
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.borderSubtle),
+                      ),
+                      child: Row(
+                        children: [
+                          AppPressable(
+                            onTap: _quantity > 1
+                                ? () {
+                                    setState(() {
+                                      _quantity--;
+                                    });
+                                  }
+                                : null,
+                            scaleDown: 0.85,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Icon(
+                                Icons.remove,
+                                size: 18,
+                                color: _quantity > 1 ? AppTheme.primaryNavy : Colors.grey.shade400,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.edit_outlined, size: 13, color: AppTheme.accentOrange),
-                          ],
-                        ),
+                          ),
+                          AppPressable(
+                            onTap: _showManualQuantityDialog,
+                            scaleDown: 0.94,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryNavy.withValues(alpha: 0.06),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '$_quantity',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.primaryNavy,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.edit_outlined, size: 13, color: AppTheme.accentOrange),
+                                ],
+                              ),
+                            ),
+                          ),
+                          AppPressable(
+                            onTap: () {
+                              setState(() {
+                                _quantity++;
+                              });
+                            },
+                            scaleDown: 0.85,
+                            borderRadius: BorderRadius.circular(8),
+                            child: const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Icon(Icons.add, size: 18, color: AppTheme.primaryNavy),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    AppPressable(
-                      onTap: () {
-                        setState(() {
-                          _quantity++;
-                        });
-                      },
-                      scaleDown: 0.85,
-                      borderRadius: BorderRadius.circular(8),
-                      child: const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Icon(Icons.add, size: 18, color: AppTheme.primaryNavy),
+                    const SizedBox(width: 14),
+
+                    // Add to Cart Button with Micro-Press Animation
+                    Expanded(
+                      child: AppButton(
+                        text: 'Add to Cart',
+                        icon: Icons.shopping_bag_outlined,
+                        height: 48,
+                        variant: AppButtonVariant.primary,
+                        onPressed: () {
+                          _appState.addToCart(
+                            _product,
+                            size: _selectedSize,
+                            finish: _selectedFinish,
+                            quantity: _quantity,
+                          );
+                          AppNotificationUtils.showAddToCartSnackBar(
+                            context,
+                            productName: _product.name,
+                          );
+                        },
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 14),
-
-              // Add to Cart Button with Micro-Press Animation
-              Expanded(
-                child: AppButton(
-                  text: 'Add to Cart',
-                  icon: Icons.shopping_bag_outlined,
-                  height: 48,
-                  variant: AppButtonVariant.primary,
-                  onPressed: () {
-                    _appState.addToCart(
-                      _product,
-                      size: _selectedSize,
-                      finish: _selectedFinish,
-                      quantity: _quantity,
-                    );
-                    AppNotificationUtils.showAddToCartSnackBar(
-                      context,
-                      productName: _product.name,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
         ),
       ),
       ),

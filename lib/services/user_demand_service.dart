@@ -261,6 +261,7 @@ class UserDemandService extends ChangeNotifier {
     final scoredList = <RecommendedProduct>[];
 
     for (final product in allProducts) {
+      if (!product.isActive) continue;
       double score = 0.0;
       String? matchedReason;
 
