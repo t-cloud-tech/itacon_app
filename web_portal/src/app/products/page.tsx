@@ -10,15 +10,15 @@ import { StorageImage, tileThumbnailPath } from "@/components/catalogue/storage-
 import { db } from "@/lib/firebase";
 import { doc, getDoc, writeBatch } from "firebase/firestore";
 import { fetchAppTiles, SURFACE_FINISHES, matchesSurfaceFilter } from "@/lib/catalogue-service";
-import { 
-  Grid3X3, 
-  Search, 
-  Filter, 
-  Layers, 
-  Package, 
-  Weight, 
-  CheckCircle2, 
-  PlusCircle, 
+import {
+  Grid3X3,
+  Search,
+  Filter,
+  Layers,
+  Package,
+  Weight,
+  CheckCircle2,
+  PlusCircle,
   FileSpreadsheet,
   ArrowRight,
   Sparkles,
@@ -143,7 +143,7 @@ function ProductsContent() {
   };
 
   const filteredProducts = products.filter(p => {
-    const matchesSearch = 
+    const matchesSearch =
       (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (p.size && p.size.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -157,10 +157,10 @@ function ProductsContent() {
 
   return (
     <DashboardShell
-      title={role === "designer" ? "Designer Studio — Tile Catalogue" : "Tile & Ceramic Catalogue"}
+      title={role === "designer" ? "Tile Catalogue" : "Tile & Ceramic Catalogue"}
       subtitle={
         role === "designer"
-          ? "Master catalogue management — Add, curate & publish live tile models directly to the ITACON Mobile App"
+          ? "Master catalogue management - Add, curate & publish live tile models directly to the ITACON Mobile App"
           : "Read-only master product specifications, ready inventory, and packing metrics"
       }
     >
@@ -168,11 +168,10 @@ function ProductsContent() {
         {/* Toast Notification */}
         {toast && (
           <div
-            className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl border text-xs font-semibold flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 duration-200 ${
-              toast.type === "success"
-                ? "bg-slate-900 text-white border-emerald-500/50"
-                : "bg-rose-950 text-white border-rose-500/50"
-            }`}
+            className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl border text-xs font-semibold flex items-center space-x-2 animate-in fade-in slide-in-from-bottom-2 duration-200 ${toast.type === "success"
+              ? "bg-slate-900 text-white border-emerald-500/50"
+              : "bg-rose-950 text-white border-rose-500/50"
+              }`}
           >
             {toast.type === "success" ? (
               <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -299,11 +298,10 @@ function ProductsContent() {
             return (
               <div
                 key={tile.id}
-                className={`card-luxury overflow-hidden flex flex-col justify-between group transition-all duration-200 ${
-                  isTileActive
-                    ? "hover:border-orange-300"
-                    : "opacity-65 bg-slate-50/90 border-slate-300"
-                }`}
+                className={`card-luxury overflow-hidden flex flex-col justify-between group transition-all duration-200 ${isTileActive
+                  ? "hover:border-orange-300"
+                  : "opacity-65 bg-slate-50/90 border-slate-300"
+                  }`}
               >
                 <div>
                   {/* Tile Preview Header */}
@@ -393,11 +391,10 @@ function ProductsContent() {
                       disabled={isToggling}
                       onClick={() => handleToggleStatus(tile)}
                       title={isTileActive ? "Click to deactivate tile" : "Click to activate tile"}
-                      className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer ${
-                        isTileActive
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
-                          : "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20"
-                      }`}
+                      className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer ${isTileActive
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20"
+                        : "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20"
+                        }`}
                     >
                       {isToggling ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

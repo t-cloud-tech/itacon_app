@@ -17,7 +17,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ title = "Dashboard", subtitle = "Sales Activity & Quotation Overview" }: TopbarProps) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   return (
     <header className="h-16 bg-white border-b border-[#E2E8F0] px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs shrink-0">
@@ -34,14 +34,16 @@ export function Topbar({ title = "Dashboard", subtitle = "Sales Activity & Quota
           <span>Customer App Live Sync</span>
         </div>
 
-        {/* Quick New Quotation CTA */}
-        <Link
-          href="/quotations/new"
-          className="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Create Quotation</span>
-        </Link>
+        {/* Quick New Quotation CTA (hidden for designers) */}
+        {role !== "designer" && (
+          <Link
+            href="/quotations/new"
+            className="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Create Quotation</span>
+          </Link>
+        )}
       </div>
     </header>
   );
