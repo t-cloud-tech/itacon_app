@@ -77,7 +77,12 @@ class _FixingSolutionsScreenState extends State<FixingSolutionsScreen> {
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
-    final double cardAspectRatio = screenWidth < 360 ? 0.65 : (screenWidth < 400 ? 0.68 : 0.72);
+    final double textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final double cardAspectRatio = screenWidth < 360
+        ? (textScale > 1.2 ? 0.54 : 0.65)
+        : (screenWidth < 400
+            ? (textScale > 1.2 ? 0.58 : 0.68)
+            : (textScale > 1.2 ? 0.62 : 0.72));
     final filtered = _filteredProducts;
 
     return Scaffold(

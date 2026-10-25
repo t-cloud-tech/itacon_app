@@ -576,6 +576,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
                 // Right: Clear All (if active) + Sort + Filter Trigger
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     if (hasActiveFilters)
                       InkWell(
@@ -618,6 +619,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                           ),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.tune_rounded,
@@ -625,12 +627,15 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                               color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.textSubtle,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              activeCount > 0 ? 'Filter ($activeCount)' : 'Filter',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.textDark,
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                activeCount > 0 ? 'Filter ($activeCount)' : 'Filter',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: activeCount > 0 ? AppTheme.primaryNavy : AppTheme.textDark,
+                                ),
                               ),
                             ),
                           ],
@@ -829,19 +834,25 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                     Positioned(
                       top: 8,
                       left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryNavy.withValues(alpha: 0.88),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          product.surface,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
+                      right: 36,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryNavy.withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            product.surface,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
                           ),
                         ),
                       ),
@@ -888,7 +899,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
               // Product Details Block
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -909,12 +920,16 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                       children: [
                         const Icon(Icons.straighten_rounded, size: 12, color: AppTheme.textSubtle),
                         const SizedBox(width: 4),
-                        Text(
-                          product.size,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            color: AppTheme.textSubtle,
-                            height: 1.15,
+                        Expanded(
+                          child: Text(
+                            product.size,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: AppTheme.textSubtle,
+                              height: 1.15,
+                            ),
                           ),
                         ),
                       ],

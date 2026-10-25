@@ -278,12 +278,15 @@ class OrderSummaryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '₹${grandTotal.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: context.sp(17),
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.primaryNavy,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '₹${grandTotal.toStringAsFixed(0)}',
+                  style: TextStyle(
+                    fontSize: context.sp(17),
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.primaryNavy,
+                  ),
                 ),
               ),
             ],

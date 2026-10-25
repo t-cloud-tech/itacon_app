@@ -30,3 +30,19 @@
 
 # Preserve attributes for JSON/serialization reflection
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+
+# Image Picker & File Picker
+-keep class io.flutter.plugins.imagepicker.** { *; }
+-keep class com.mr.flutter.plugin.filepicker.** { *; }
+
+# Firebase Cloud Messaging & Background Messaging
+-keep class io.flutter.plugins.firebase.messaging.** { *; }
+-keep class com.google.firebase.messaging.** { *; }
+
+# Cached Network Image & OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# Google Fonts
+-keep class com.google.fonts.** { *; }
+

@@ -385,44 +385,51 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.request_quote_rounded, color: AppTheme.accentOrange, size: 28),
+                child: const Icon(Icons.request_quote_rounded, color: AppTheme.accentOrange, size: 24),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'PURCHASE ORDER ESTIMATE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        letterSpacing: 0.5,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: const Text(
+                        'PURCHASE ORDER ESTIMATE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Ref #: PO-EST-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              const SizedBox(width: 6),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppTheme.accentOrange,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$category TIER',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ],
@@ -440,10 +447,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Trade Account Details',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                  const Expanded(
+                    child: Text(
+                      'Trade Account Details',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -543,33 +555,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
 
                   // Rate & Line Total
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '₹${item.itemTotal.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
-                      ),
-                      Text(
-                        item.product.isAdhesive
-                            ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                        style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
-                      ),
-                      if (resolved.hasDiscount)
-                        Text(
-                          resolved.discountBadgeLabel,
-                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '₹${item.itemTotal.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
+                          ),
                         ),
-                    ],
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            item.product.isAdhesive
+                                ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                                : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                            style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                          ),
+                        ),
+                        if (resolved.hasDiscount)
+                          Text(
+                            resolved.discountBadgeLabel,
+                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             );
           }).toList(),
         ),
-        const SizedBox(height: 14),
-
         const SizedBox(height: 14),
 
         // User-wise Estimate Cost Summary Breakdown with Tonnage & Box Details
@@ -620,53 +639,99 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _cityController,
-                      decoration: const InputDecoration(
-                        labelText: 'City *',
-                        prefixIcon: Icon(Icons.location_city_outlined),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth < 300) {
+                    return Column(
+                      children: [
+                        TextFormField(
+                          controller: _cityController,
+                          decoration: const InputDecoration(
+                            labelText: 'City *',
+                            prefixIcon: Icon(Icons.location_city_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _stateController,
+                          decoration: const InputDecoration(
+                            labelText: 'State *',
+                            prefixIcon: Icon(Icons.map_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _pincodeController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Pincode *',
+                            prefixIcon: Icon(Icons.pin_drop_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _gstController,
+                          decoration: const InputDecoration(
+                            labelText: 'GSTIN (For Tax Invoice)',
+                            prefixIcon: Icon(Icons.receipt_long_outlined),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _cityController,
+                              decoration: const InputDecoration(
+                                labelText: 'City *',
+                                prefixIcon: Icon(Icons.location_city_outlined),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _stateController,
+                              decoration: const InputDecoration(
+                                labelText: 'State *',
+                                prefixIcon: Icon(Icons.map_outlined),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _stateController,
-                      decoration: const InputDecoration(
-                        labelText: 'State *',
-                        prefixIcon: Icon(Icons.map_outlined),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _pincodeController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Pincode *',
+                                prefixIcon: Icon(Icons.pin_drop_outlined),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _gstController,
+                              decoration: const InputDecoration(
+                                labelText: 'GSTIN (For Tax Invoice)',
+                                prefixIcon: Icon(Icons.receipt_long_outlined),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _pincodeController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Pincode *',
-                        prefixIcon: Icon(Icons.pin_drop_outlined),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _gstController,
-                      decoration: const InputDecoration(
-                        labelText: 'GSTIN (For Tax Invoice)',
-                        prefixIcon: Icon(Icons.receipt_long_outlined),
-                      ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -805,9 +870,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Order Items (${appState.cartItems.length})',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                  Expanded(
+                    child: Text(
+                      'Order Items (${appState.cartItems.length})',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   TextButton.icon(
                     onPressed: () => setState(() => _currentStep = 0),
@@ -856,19 +925,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Text(
                                 '${item.selectedSize} • ${item.selectedFinish}',
                                 style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      '${item.quantity} Boxes (${totalAreaSqFt.toStringAsFixed(1)} sq.ft)',
-                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '${item.quantity} Boxes (${totalAreaSqFt.toStringAsFixed(1)} sq.ft)',
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -877,21 +952,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         ),
 
+                        const SizedBox(width: 8),
+
                         // Resolved Price
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '₹${item.itemTotal.toStringAsFixed(0)}',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
-                            ),
-                            Text(
-                              item.product.isAdhesive
-                                  ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                                  : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                              style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
-                            ),
-                          ],
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  '₹${item.itemTotal.toStringAsFixed(0)}',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
+                                ),
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  item.product.isAdhesive
+                                      ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                                      : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                                  style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -913,12 +999,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.location_on_outlined, size: 18, color: AppTheme.primaryNavy),
-                      SizedBox(width: 6),
-                      Text('Shipping Address', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
-                    ],
+                  const Expanded(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.location_on_outlined, size: 18, color: AppTheme.primaryNavy),
+                        SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Shipping Address',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   TextButton(
                     onPressed: () => setState(() => _currentStep = 1),

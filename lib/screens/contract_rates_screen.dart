@@ -182,18 +182,24 @@ class _ContractRatesScreenState extends State<ContractRatesScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentOrange,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${profile.userCategory.toUpperCase()} RATE MATRIX',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentOrange,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${profile.userCategory.toUpperCase()} MATRIX',
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                           ),
                         ),
                       ),

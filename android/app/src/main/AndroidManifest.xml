@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Scoped for legacy Android 8-12 image picker access for payment receipts; Android 13+ uses Photo Picker -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- Android 13+ (API 33+) photo access when required by gallery pickers -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- Android 14+ (API 34+) partial photo access -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
 
     <application
         android:label="ITACON GRANITO"

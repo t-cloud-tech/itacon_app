@@ -7,11 +7,88 @@ import '../widgets/order_summary_card.dart';
 import '../widgets/interactive_pressable.dart';
 import '../widgets/app_product_image.dart';
 import '../utils/profile_validator.dart';
+import 'package:firebase_core/firebase_core.dart';
+import '../models/tile_product.dart';
+import '../services/firestore_service.dart';
+import '../services/product_catalog_service.dart';
+import '../services/storage_image_service.dart';
 import 'checkout_screen.dart';
+import 'product_detail_screen.dart';
 import 'profile/edit_profile_screen.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
+
+  Future<void> _openProductDetail(BuildContext context, CartItem item) async {
+    // Show existing modal progress loader
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryNavy),
+        ),
+      ),
+    );
+
+    TileProduct? freshProduct;
+    try {
+      if (Firebase.apps.isNotEmpty) {
+        freshProduct = await FirestoreService().getProductById(item.product.id);
+      }
+    } catch (e) {
+      debugPrint('[CartScreen] Error fetching fresh product from Firestore: $e');
+    }
+
+    if (freshProduct == null) {
+      final catalogMatch = ProductCatalogService.allCatalogProducts
+          .where((p) => p.id == item.product.id)
+          .firstOrNull;
+      if (Firebase.apps.isNotEmpty) {
+        freshProduct = (catalogMatch ?? item.product).copyWith(isActive: false);
+      } else {
+        freshProduct = catalogMatch ?? item.product;
+      }
+    }
+
+    // Dismiss loader
+    if (context.mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    if (!context.mounted) return;
+
+    // Update cart item's product representation if status, price, or images changed
+    if (freshProduct.isActive != item.product.isActive ||
+        freshProduct.basePrice != item.product.basePrice ||
+        freshProduct.images != item.product.images) {
+      AppStateService.instance.updateCartItemProduct(item, freshProduct);
+    }
+
+    // Pre-warm cache for images
+    StorageImageService.warmCache([
+      freshProduct.frontCardImage,
+      freshProduct.frontCardThumbnail,
+      ...freshProduct.resolvedFaceImages,
+      ...freshProduct.resolvedMockupImages,
+      ...freshProduct.resolvedFaceImages.map(StorageImageService.thumbnailPathFromOriginal),
+      ...freshProduct.resolvedMockupImages.map(StorageImageService.thumbnailPathFromOriginal),
+    ]);
+
+    // Open existing product detail screen
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailScreen(
+          product: freshProduct,
+          initialQuantity: item.quantity,
+          initialSize: item.selectedSize,
+          initialFinish: item.selectedFinish,
+        ),
+      ),
+    );
+  }
 
   void _showIncompleteProfileDialog(
     BuildContext context,
@@ -352,15 +429,20 @@ class CartScreen extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ClipRRect(
+                          AppPressable(
+                            onTap: () => _openProductDetail(context, item),
+                            scaleDown: 0.96,
                             borderRadius: BorderRadius.circular(context.r(10)),
-                            child: AppProductImage(
-                              imagePath: item.product.frontCardThumbnail,
-                              originalPath: item.product.frontCardImage,
-                              width: imgSize,
-                              height: imgSize,
-                              fit: BoxFit.cover,
-                              imageRole: ImageRole.collectionThumbnail,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(context.r(10)),
+                              child: AppProductImage(
+                                imagePath: item.product.frontCardThumbnail,
+                                originalPath: item.product.frontCardImage,
+                                width: imgSize,
+                                height: imgSize,
+                                fit: BoxFit.cover,
+                                imageRole: ImageRole.collectionThumbnail,
+                              ),
                             ),
                           ),
                           SizedBox(width: context.w(10)),
@@ -372,15 +454,20 @@ class CartScreen extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        item.product.name,
-                                        style: GoogleFonts.inter(
-                                          fontSize: context.sp(13.5),
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.textDark,
+                                      child: AppPressable(
+                                        onTap: () => _openProductDetail(context, item),
+                                        scaleDown: 0.98,
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: Text(
+                                          item.product.name,
+                                          style: GoogleFonts.inter(
+                                            fontSize: context.sp(13.5),
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.textDark,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     AppPressable(
@@ -395,59 +482,69 @@ class CartScreen extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                if (!item.product.isActive)
-                                  Container(
-                                    margin: EdgeInsets.only(top: context.h(4), bottom: context.h(2)),
-                                    padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(2.5)),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFEF2F2),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: const Color(0xFFFCA5A5)),
-                                    ),
-                                    child: Text(
-                                      'This product is currently unavailable',
-                                      style: GoogleFonts.inter(
-                                        fontSize: context.sp(10.5),
-                                        fontWeight: FontWeight.w700,
-                                        color: const Color(0xFFDC2626),
+                                AppPressable(
+                                  onTap: () => _openProductDetail(context, item),
+                                  scaleDown: 0.98,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (!item.product.isActive)
+                                        Container(
+                                          margin: EdgeInsets.only(top: context.h(4), bottom: context.h(2)),
+                                          padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(2.5)),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF2F2),
+                                            borderRadius: BorderRadius.circular(4),
+                                            border: Border.all(color: const Color(0xFFFCA5A5)),
+                                          ),
+                                          child: Text(
+                                            'This product is currently unavailable',
+                                            style: GoogleFonts.inter(
+                                              fontSize: context.sp(10.5),
+                                              fontWeight: FontWeight.w700,
+                                              color: const Color(0xFFDC2626),
+                                            ),
+                                          ),
+                                        ),
+                                      SizedBox(height: context.h(3)),
+                                      Wrap(
+                                        spacing: 4,
+                                        runSpacing: 4,
+                                        children: [
+                                          Container(
+                                            padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(2.5)),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade100,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              '${item.selectedSize} • ${item.selectedFinish}',
+                                              style: GoogleFonts.inter(
+                                                fontSize: context.sp(10.5),
+                                                color: AppTheme.textSubtle,
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: EdgeInsets.symmetric(horizontal: context.w(5), vertical: context.h(2.5)),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              '${item.itemWeightKg.toStringAsFixed(0)} kg',
+                                              style: GoogleFonts.inter(
+                                                fontSize: context.sp(10),
+                                                fontWeight: FontWeight.w700,
+                                                color: AppTheme.primaryNavy,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                SizedBox(height: context.h(3)),
-                                Wrap(
-                                  spacing: 4,
-                                  runSpacing: 4,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.symmetric(horizontal: context.w(6), vertical: context.h(2.5)),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        '${item.selectedSize} • ${item.selectedFinish}',
-                                        style: GoogleFonts.inter(
-                                          fontSize: context.sp(10.5),
-                                          color: AppTheme.textSubtle,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.symmetric(horizontal: context.w(5), vertical: context.h(2.5)),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryNavy.withValues(alpha: 0.08),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '${item.itemWeightKg.toStringAsFixed(0)} kg',
-                                        style: GoogleFonts.inter(
-                                          fontSize: context.sp(10),
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.primaryNavy,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
                                 ),
                                 SizedBox(height: context.h(6)),
                                 Row(
@@ -455,26 +552,30 @@ class CartScreen extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Flexible(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        alignment: Alignment.centerLeft,
-                                        child: Builder(
-                                          builder: (context) {
-                                            final resolved = PricingService.instance.resolvePrice(item.product);
-                                            return Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                if (resolved.hasDiscount) ...[
-                                                  Text(
-                                                    '₹${resolved.basePrice.toStringAsFixed(0)}',
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: context.sp(10.5),
-                                                      color: Colors.grey,
-                                                      decoration: TextDecoration.lineThrough,
+                                      child: AppPressable(
+                                        onTap: () => _openProductDetail(context, item),
+                                        scaleDown: 0.98,
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Builder(
+                                            builder: (context) {
+                                              final resolved = PricingService.instance.resolvePrice(item.product);
+                                              return Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (resolved.hasDiscount) ...[
+                                                    Text(
+                                                      '₹${resolved.basePrice.toStringAsFixed(0)}',
+                                                      style: GoogleFonts.inter(
+                                                        fontSize: context.sp(10.5),
+                                                        color: Colors.grey,
+                                                        decoration: TextDecoration.lineThrough,
+                                                      ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                ],
+                                                    const SizedBox(width: 4),
+                                                  ],
                                                   Text(
                                                     item.product.isAdhesive
                                                         ? '₹${item.effectiveUnitPrice.toStringAsFixed(0)}/bag'
@@ -485,9 +586,10 @@ class CartScreen extends StatelessWidget {
                                                       color: AppTheme.accentOrange,
                                                     ),
                                                   ),
-                                              ],
-                                            );
-                                          },
+                                                ],
+                                              );
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ),

@@ -1148,7 +1148,12 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 14),
+                      padding: EdgeInsets.fromLTRB(
+                        MediaQuery.of(context).size.width < 360 ? 12 : 20,
+                        24,
+                        MediaQuery.of(context).size.width < 360 ? 12 : 20,
+                        14,
+                      ),
                       child: Form(
                         key: _formKey,
                         child: SingleChildScrollView(
@@ -1282,8 +1287,9 @@ class _AuthScreenState extends State<AuthScreen> {
   // TIMELINE INDICATOR (Positioned BEFORE fields)
   // ===========================================================================
   Widget _buildTimelineIndicator() {
+    final screenWidth = MediaQuery.of(context).size.width;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40.0),
+      padding: EdgeInsets.symmetric(horizontal: screenWidth < 360 ? 8.0 : 40.0),
       child: Row(
         children: [
           _buildTimelineStep(stepNumber: 1, label: 'Account'),
@@ -1435,7 +1441,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 dropdownIconPosition: IconPosition.trailing,
                 dropdownIcon: const Icon(Icons.arrow_drop_down_rounded,
                     color: AppTheme.primaryNavy, size: 20),
-                flagsButtonMargin: const EdgeInsets.only(left: 6),
+                flagsButtonMargin: const EdgeInsets.only(left: 4),
                 disableLengthCheck: false,
                 style: const TextStyle(
                     fontSize: 13,
@@ -1453,7 +1459,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   filled: true,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 8),
+                      horizontal: 8, vertical: 8),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: Colors.grey.shade300),
@@ -1499,7 +1505,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     : _requestOtp,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
                     color: (_isRegSendingOtp || _regOtpCooldownSeconds > 0)
                         ? const Color(0xFF1B365D).withValues(alpha: 0.5)
@@ -1516,14 +1522,17 @@ class _AuthScreenState extends State<AuthScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : Text(
-                          _regOtpCooldownSeconds > 0
-                              ? 'Resend (${_regOtpCooldownSeconds}s)'
-                              : (_otpSent ? 'Resend' : 'Send OTP'),
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                      : FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _regOtpCooldownSeconds > 0
+                                ? 'Resend (${_regOtpCooldownSeconds}s)'
+                                : (_otpSent ? 'Resend' : 'Send OTP'),
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                 ),

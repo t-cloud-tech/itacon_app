@@ -3212,6 +3212,27 @@ class FirestoreService {
       return [];
     }
   }
+
+  /// Fetches a single product document fresh from Firestore ('products' then fallback to 'tiles')
+  Future<TileProduct?> getProductById(String productId) async {
+    try {
+      final doc = await _productsRef.doc(productId).get();
+      if (doc.exists && doc.data() != null) {
+        return TileProduct.fromMap(doc.data()!, doc.id);
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] Error fetching product $productId from products: $e');
+    }
+    try {
+      final doc = await _tilesRef.doc(productId).get();
+      if (doc.exists && doc.data() != null) {
+        return TileProduct.fromMap(doc.data()!, doc.id);
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] Error fetching product $productId from tiles: $e');
+    }
+    return null;
+  }
 }
 
 

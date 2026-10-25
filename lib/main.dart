@@ -63,6 +63,7 @@ class MyApp extends StatelessWidget {
       title: 'ITACON GRANITO',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.luxuryTheme,
+      themeMode: ThemeMode.light,
       scrollBehavior: const NoGlowScrollBehavior(),
       builder: (context, child) {
         final mediaQueryData = MediaQuery.of(context);

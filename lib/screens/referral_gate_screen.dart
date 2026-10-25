@@ -328,16 +328,21 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
                         ),
                       )
                     : const Row(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.bolt_rounded, color: Color(0xFFFF8F00)),
                           SizedBox(width: 8),
-                          Text(
-                            'Auto-Assign a Sales Executive',
-                            style: TextStyle(
-                                color: Color(0xFFFF8F00),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15),
+                          Flexible(
+                            child: Text(
+                              'Auto-Assign a Sales Executive',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: Color(0xFFFF8F00),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15),
+                            ),
                           ),
                         ],
                       ),

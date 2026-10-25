@@ -13,7 +13,7 @@ import '../utils/profile_validator.dart';
 
 /// Represents an item in the user's cart
 class CartItem {
-  final TileProduct product;
+  TileProduct product;
   final String selectedSize;
   final String selectedFinish;
   int quantity;
@@ -585,6 +585,12 @@ class AppStateService extends ChangeNotifier {
     } else {
       item.quantity = newQuantity;
     }
+    notifyListeners();
+    await _persistCart();
+  }
+
+  Future<void> updateCartItemProduct(CartItem item, TileProduct freshProduct) async {
+    item.product = freshProduct;
     notifyListeners();
     await _persistCart();
   }

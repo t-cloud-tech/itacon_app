@@ -90,20 +90,29 @@ class FavoritesScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Saved Products (${favList.length})',
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
+                      Expanded(
+                        child: Text(
+                          'Saved Products (${favList.length})',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textDark,
+                          ),
                         ),
                       ),
-                      Text(
-                        'Synced with your profile',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.green.shade700,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Synced with your profile',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -242,12 +251,16 @@ class FavoritesScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'Recommended For You',
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
+                Expanded(
+                  child: Text(
+                    'Recommended For You',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark,
+                    ),
                   ),
                 ),
               ],
@@ -262,7 +275,7 @@ class FavoritesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             SizedBox(
-              height: 250,
+              height: 250 + (MediaQuery.textScalerOf(context).scale(1.0) > 1.1 ? (MediaQuery.textScalerOf(context).scale(1.0) - 1.0) * 45 : 0.0),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 clipBehavior: Clip.none,
@@ -369,17 +382,22 @@ class FavoritesScreen extends StatelessWidget {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        product.isAdhesive
-                                            ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
-                                            : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.accentOrange,
-                                          height: 1.15,
+                                      Expanded(
+                                        child: Text(
+                                          product.isAdhesive
+                                              ? '₹${product.basePrice.toStringAsFixed(0)} / bag'
+                                              : '₹${product.basePrice.toStringAsFixed(0)} / sq ft',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.accentOrange,
+                                            height: 1.15,
+                                          ),
                                         ),
                                       ),
+                                      const SizedBox(width: 4),
                                       AppPressable(
                                         onTap: () {
                                           appState.addToCart(product);

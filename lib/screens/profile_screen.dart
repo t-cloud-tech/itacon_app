@@ -434,6 +434,9 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                         profile.name,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -467,6 +470,9 @@ class ProfileScreen extends StatelessWidget {
                       if (profile.email.isNotEmpty || profile.phone.isNotEmpty)
                         Text(
                           '${profile.email.isNotEmpty ? profile.email : "No Email"} • ${profile.phone}',
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 13,
                             color: Colors.white70,
@@ -516,6 +522,9 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           profile.companyName,
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -645,9 +654,13 @@ class ProfileScreen extends StatelessWidget {
                                   children: [
                                     const Icon(Icons.add_circle_outline, size: 12, color: AppTheme.accentOrange),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      '${item['title']} (+${item['points']})',
-                                      style: const TextStyle(fontSize: 11, color: AppTheme.textDark),
+                                    Flexible(
+                                      child: Text(
+                                        '${item['title']} (+${item['points']})',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 11, color: AppTheme.textDark),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -671,12 +684,17 @@ class ProfileScreen extends StatelessWidget {
                                   children: [
                                     const Icon(Icons.edit_outlined, size: 16, color: AppTheme.accentOrange),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      'Complete Pending Details',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.accentOrange,
+                                    Flexible(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          'Complete Pending Details',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.accentOrange,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],

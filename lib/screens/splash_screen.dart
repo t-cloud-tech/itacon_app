@@ -332,55 +332,69 @@ class _SplashScreenState extends State<SplashScreen>
                       opacity: _fadeAnimation,
                       child: SlideTransition(
                         position: _slideAnimation,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Spacer(flex: 2),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                ),
+                                child: IntrinsicHeight(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Spacer(flex: 2),
 
-                            // ITACON GRANITO Branding Logo (Relative units & locked aspect-ratio)
-                            _buildBrandingLogo(screenSize),
+                                      // ITACON GRANITO Branding Logo (Relative units & locked aspect-ratio)
+                                      _buildBrandingLogo(screenSize),
 
-                            SizedBox(
-                              height: (screenSize.height * 0.032).clamp(12.0, 30.0),
-                            ),
+                                      SizedBox(
+                                        height: (screenSize.height * 0.032).clamp(8.0, 30.0),
+                                      ),
 
-                            if (!_hasError) ...[
-                              // Tagline 1
-                              Text(
-                                'Right Choice. Right Time. Right Value.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize:
-                                      (screenSize.width * 0.046).clamp(16.0, 24.0),
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.6,
-                                  height: 1.2,
+                                      if (!_hasError) ...[
+                                        // Tagline 1
+                                        Text(
+                                          'Right Choice. Right Time. Right Value.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize:
+                                                (screenSize.width * 0.046).clamp(16.0, 24.0),
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.6,
+                                            height: 1.2,
+                                          ),
+                                        ),
+
+                                        SizedBox(
+                                          height: (screenSize.height * 0.012).clamp(4.0, 14.0),
+                                        ),
+
+                                        // Tagline 2
+                                        Text(
+                                          'Premium Surfaces for Every Space.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.85),
+                                            fontSize:
+                                                (screenSize.width * 0.036).clamp(13.0, 18.0),
+                                            fontWeight: FontWeight.w400,
+                                            letterSpacing: 0.4,
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        _buildErrorRetryCard(screenSize),
+                                      ],
+
+                                      const Spacer(flex: 3),
+                                    ],
+                                  ),
                                 ),
                               ),
-
-                              SizedBox(
-                                height: (screenSize.height * 0.012).clamp(6.0, 14.0),
-                              ),
-
-                              // Tagline 2
-                              Text(
-                                'Premium Surfaces for Every Space.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize:
-                                      (screenSize.width * 0.036).clamp(13.0, 18.0),
-                                  fontWeight: FontWeight.w400,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            ] else ...[
-                              _buildErrorRetryCard(screenSize),
-                            ],
-
-                            const Spacer(flex: 3),
-                          ],
+                            );
+                          },
                         ),
                       ),
                     ),

@@ -98,55 +98,62 @@ class ProfileTierCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accentOrange.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppTheme.accentOrange.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.stars_rounded,
-                            color: AppTheme.accentOrange,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'TRADE PARTNER TIER',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white60,
-                                letterSpacing: 1.1,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentOrange.withValues(alpha: 0.2),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppTheme.accentOrange.withValues(alpha: 0.5),
                               ),
                             ),
-                            Text(
-                              category.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
+                            child: const Icon(
+                              Icons.stars_rounded,
+                              color: AppTheme.accentOrange,
+                              size: 22,
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'TRADE PARTNER TIER',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white60,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                                Text(
+                                  category.toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
 
                     // Discount Pill
                     if (discountRatio > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
@@ -217,15 +224,20 @@ class ProfileTierCard extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'ASSIGNED SALES PERSON',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.white60,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.8,
+                          const Expanded(
+                            child: Text(
+                              'ASSIGNED SALES PERSON',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white60,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(

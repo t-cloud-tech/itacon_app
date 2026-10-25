@@ -14,11 +14,17 @@ import 'cart_screen.dart';
 class ProductDetailScreen extends StatefulWidget {
   final TileProduct? product;
   final bool initialMockupMode;
+  final int? initialQuantity;
+  final String? initialSize;
+  final String? initialFinish;
 
   const ProductDetailScreen({
     super.key,
     this.product,
     this.initialMockupMode = false,
+    this.initialQuantity,
+    this.initialSize,
+    this.initialFinish,
   });
 
   @override
@@ -88,9 +94,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           aspectRatio: '0.5',
         );
 
-    _selectedSize = _product.size;
-    _selectedFinish = _product.surface;
-    _quantity = 1;
+    if (widget.initialSize != null && widget.initialSize!.isNotEmpty) {
+      _selectedSize = widget.initialSize!;
+    } else {
+      _selectedSize = _product.size;
+    }
+
+    if (widget.initialFinish != null && widget.initialFinish!.isNotEmpty) {
+      _selectedFinish = widget.initialFinish!;
+    } else {
+      _selectedFinish = _product.surface.isNotEmpty ? _product.surface : _product.finish;
+    }
+
+    final existingCartItem = _matchingCartItem;
+    if (widget.initialQuantity != null && widget.initialQuantity! > 0) {
+      _quantity = widget.initialQuantity!;
+    } else if (existingCartItem != null) {
+      _quantity = existingCartItem.quantity;
+      if (widget.initialSize == null && existingCartItem.selectedSize.isNotEmpty) {
+        _selectedSize = existingCartItem.selectedSize;
+      }
+      if (widget.initialFinish == null && existingCartItem.selectedFinish.isNotEmpty) {
+        _selectedFinish = existingCartItem.selectedFinish;
+      }
+    } else {
+      _quantity = 1;
+    }
     _isMockupMode = widget.initialMockupMode;
 
     // Immediately pre-warm download URLs for this product's faces and mockups
@@ -102,6 +131,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     ]);
   }
 
+  CartItem? get _matchingCartItem {
+    final exact = _appState.cartItems.where((i) =>
+      i.product.id == _product.id &&
+      i.selectedSize == _selectedSize &&
+      i.selectedFinish == _selectedFinish
+    ).firstOrNull;
+    if (exact != null) return exact;
+    return _appState.cartItems.where((i) => i.product.id == _product.id).firstOrNull;
+  }
+
+  void _updateQuantity(int newQuantity) {
+    if (newQuantity < 1) return;
+    setState(() {
+      _quantity = newQuantity;
+    });
+    final item = _matchingCartItem;
+    if (item != null) {
+      _appState.setQuantity(item, newQuantity);
+    }
+  }
+
   void _showManualQuantityDialog() {
     final controller = TextEditingController(text: '$_quantity');
     showDialog(
@@ -109,7 +159,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Enter Box Quantity', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy)),
+          title: Text(
+            _product.isAdhesive ? 'Enter Bag Quantity' : 'Enter Box Quantity',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryNavy),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -118,8 +171,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 keyboardType: TextInputType.number,
                 autofocus: true,
                 decoration: InputDecoration(
-                  labelText: 'Quantity (Boxes)',
-                  suffixText: 'Boxes',
+                  labelText: _product.isAdhesive ? 'Quantity (Bags)' : 'Quantity (Boxes)',
+                  suffixText: _product.isAdhesive ? 'Bags' : 'Boxes',
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
@@ -148,9 +201,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               onPressed: () {
                 final parsed = int.tryParse(controller.text.trim());
                 if (parsed != null && parsed > 0) {
-                  setState(() {
-                    _quantity = parsed;
-                  });
+                  _updateQuantity(parsed);
                   Navigator.pop(dialogContext);
                 }
               },
@@ -301,7 +352,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             // Sleek Top View Control Bar (Zero Overlap with Tile Image)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.sizeOf(context).width < 360 ? 10 : 16,
+                vertical: 8,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border(
@@ -331,61 +385,69 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: AppTheme.primaryNavy,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Pinch to zoom',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade600,
+                      if (MediaQuery.sizeOf(context).width > 340) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          'Pinch to zoom',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
 
                   // View Toggle Switch: [ Tile View ] vs [ Mockup ]
                   if (!_product.isAdhesive)
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F4F8),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: AppTheme.borderSubtle.withValues(alpha: 0.8),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F4F8),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: AppTheme.borderSubtle.withValues(alpha: 0.8),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildModeTogglePill(
+                                label: 'Tile View',
+                                icon: Icons.grid_view_rounded,
+                                isSelected: !_isMockupMode,
+                                onTap: () {
+                                  if (_isMockupMode) {
+                                    setState(() {
+                                      _isMockupMode = false;
+                                      _currentImageIndex = 0;
+                                    });
+                                    _pageController.jumpToPage(0);
+                                  }
+                                },
+                              ),
+                              _buildModeTogglePill(
+                                label: 'Mockup',
+                                icon: Icons.chair_outlined,
+                                isSelected: _isMockupMode,
+                                onTap: () {
+                                  if (!_isMockupMode) {
+                                    setState(() {
+                                      _isMockupMode = true;
+                                      _currentImageIndex = 0;
+                                    });
+                                    _pageController.jumpToPage(0);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildModeTogglePill(
-                            label: 'Tile View',
-                            icon: Icons.grid_view_rounded,
-                            isSelected: !_isMockupMode,
-                            onTap: () {
-                              if (_isMockupMode) {
-                                setState(() {
-                                  _isMockupMode = false;
-                                  _currentImageIndex = 0;
-                                });
-                                _pageController.jumpToPage(0);
-                              }
-                            },
-                          ),
-                          _buildModeTogglePill(
-                            label: 'Mockup',
-                            icon: Icons.chair_outlined,
-                            isSelected: _isMockupMode,
-                            onTap: () {
-                              if (!_isMockupMode) {
-                                setState(() {
-                                  _isMockupMode = true;
-                                  _currentImageIndex = 0;
-                                });
-                                _pageController.jumpToPage(0);
-                              }
-                            },
-                          ),
-                        ],
                       ),
                     ),
                 ],
@@ -668,35 +730,79 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                         ),
                                       ),
                                     ],
+                                    ListenableBuilder(
+                                      listenable: _appState,
+                                      builder: (context, _) {
+                                        final inCart = _matchingCartItem;
+                                        if (inCart == null) return const SizedBox.shrink();
+                                        return Padding(
+                                          padding: const EdgeInsets.only(top: 5),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.35)),
+                                            ),
+                                            child: FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(Icons.shopping_bag_outlined, size: 12, color: AppTheme.accentOrange),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'In cart: ${inCart.quantity} ${_product.isAdhesive ? 'bags' : 'boxes'}',
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w700,
+                                                      color: AppTheme.accentOrange,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ],
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                   if (resolved.hasDiscount && !isAdhesive)
-                                    Text(
-                                      '₹${resolved.basePrice.toStringAsFixed(0)} / sq ft',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                        decoration: TextDecoration.lineThrough,
+                                  if (resolved.hasDiscount && !isAdhesive)
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        '₹${resolved.basePrice.toStringAsFixed(0)} / sq ft',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey,
+                                          decoration: TextDecoration.lineThrough,
+                                        ),
                                       ),
                                     ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                                     decoration: BoxDecoration(
                                       color: AppTheme.accentOrange.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: Text(
-                                      isAdhesive
-                                          ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
-                                          : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppTheme.accentOrange,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        isAdhesive
+                                            ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
+                                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.accentOrange,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -716,68 +822,86 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isAdhesive ? 'Bag Rate' : 'Cost Per Box',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF475569),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isAdhesive ? 'Bag Rate' : 'Cost Per Box',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF475569),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      isAdhesive
-                                          ? '₹${boxCost.toStringAsFixed(0)} / Bag'
-                                          : '₹${boxCost.toStringAsFixed(0)} / Box',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.primaryNavy,
+                                      FittedBox(
+                                        alignment: Alignment.centerLeft,
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          isAdhesive
+                                              ? '₹${boxCost.toStringAsFixed(0)} / Bag'
+                                              : '₹${boxCost.toStringAsFixed(0)} / Box',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primaryNavy,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      isAdhesive ? '(20 kg / Bag)' : '($pcsPerBox Pcs • $sqFtPerBox sq.ft / Box)',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFF475569),
+                                      Text(
+                                        isAdhesive ? '(20 kg / Bag)' : '($pcsPerBox Pcs • $sqFtPerBox sq.ft / Box)',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFF475569),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                                Container(width: 1, height: 32, color: AppTheme.borderSubtle),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      isAdhesive ? 'Total Order Weight ($_quantity Bags)' : 'Est. Coverage ($_quantity Boxes)',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF475569),
+                                Container(width: 1, height: 32, margin: const EdgeInsets.symmetric(horizontal: 8), color: AppTheme.borderSubtle),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        isAdhesive ? 'Total Weight ($_quantity Bags)' : 'Est. Coverage ($_quantity Boxes)',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF475569),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      isAdhesive
-                                          ? '${totalWeightKg.toStringAsFixed(0)} kg (${(totalWeightKg / 1000).toStringAsFixed(2)} Tons)'
-                                          : '${totalArea.toStringAsFixed(1)} sq.ft',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.accentOrange,
+                                      FittedBox(
+                                        alignment: Alignment.centerRight,
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          isAdhesive
+                                              ? '${totalWeightKg.toStringAsFixed(0)} kg (${(totalWeightKg / 1000).toStringAsFixed(2)} Tons)'
+                                              : '${totalArea.toStringAsFixed(1)} sq.ft',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.accentOrange,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      'Total: ₹${totalCost.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF475569),
+                                      Text(
+                                        'Total: ₹${totalCost.toStringAsFixed(0)}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: Color(0xFF475569),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -803,12 +927,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             children: [
                               const Icon(Icons.grid_view_rounded, color: AppTheme.primaryNavy, size: 20),
                               const SizedBox(width: 8),
-                              Text(
-                                'Suitable Tile Formats & Sizes',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primaryNavy,
+                              Expanded(
+                                child: Text(
+                                  'Suitable Tile Formats & Sizes',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.primaryNavy,
+                                  ),
                                 ),
                               ),
                             ],
@@ -843,12 +969,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             children: [
                               const Icon(Icons.build_circle_outlined, color: AppTheme.accentOrange, size: 20),
                               const SizedBox(width: 8),
-                              Text(
-                                'Application & Substrate Guide',
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primaryNavy,
+                              Expanded(
+                                child: Text(
+                                  'Application & Substrate Guide',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.primaryNavy,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1032,101 +1160,138 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
                 )
-              : Row(
-                  children: [
-                    // Quantity Controller with Tactile AppPressable
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.borderSubtle),
-                      ),
-                      child: Row(
-                        children: [
-                          AppPressable(
-                            onTap: _quantity > 1
-                                ? () {
-                                    setState(() {
-                                      _quantity--;
-                                    });
-                                  }
-                                : null,
-                            scaleDown: 0.85,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Icon(
-                                Icons.remove,
-                                size: 18,
-                                color: _quantity > 1 ? AppTheme.primaryNavy : Colors.grey.shade400,
-                              ),
+              : ListenableBuilder(
+                  listenable: _appState,
+                  builder: (context, _) {
+                    final matchingItem = _matchingCartItem;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (matchingItem != null) ...[
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentOrange.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.3)),
                             ),
-                          ),
-                          AppPressable(
-                            onTap: _showManualQuantityDialog,
-                            scaleDown: 0.94,
-                            borderRadius: BorderRadius.circular(6),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryNavy.withValues(alpha: 0.06),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    '$_quantity',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.primaryNavy,
-                                    ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.shopping_bag_outlined, size: 14, color: AppTheme.accentOrange),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'In cart: ${matchingItem.quantity} ${_product.isAdhesive ? 'bags' : 'boxes'}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.accentOrange,
                                   ),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.edit_outlined, size: 13, color: AppTheme.accentOrange),
-                                ],
-                              ),
-                            ),
-                          ),
-                          AppPressable(
-                            onTap: () {
-                              setState(() {
-                                _quantity++;
-                              });
-                            },
-                            scaleDown: 0.85,
-                            borderRadius: BorderRadius.circular(8),
-                            child: const Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: Icon(Icons.add, size: 18, color: AppTheme.primaryNavy),
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: 14),
+                        Row(
+                          children: [
+                            // Quantity Controller with Tactile AppPressable
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppTheme.borderSubtle),
+                              ),
+                              child: Row(
+                                children: [
+                                  AppPressable(
+                                    onTap: _quantity > 1
+                                        ? () => _updateQuantity(_quantity - 1)
+                                        : null,
+                                    scaleDown: 0.85,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Icon(
+                                        Icons.remove,
+                                        size: 18,
+                                        color: _quantity > 1 ? AppTheme.primaryNavy : Colors.grey.shade400,
+                                      ),
+                                    ),
+                                  ),
+                                  AppPressable(
+                                    onTap: _showManualQuantityDialog,
+                                    scaleDown: 0.94,
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryNavy.withValues(alpha: 0.06),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            '$_quantity',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppTheme.primaryNavy,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.edit_outlined, size: 13, color: AppTheme.accentOrange),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  AppPressable(
+                                    onTap: () => _updateQuantity(_quantity + 1),
+                                    scaleDown: 0.85,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(8.0),
+                                      child: Icon(Icons.add, size: 18, color: AppTheme.primaryNavy),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
 
-                    // Add to Cart Button with Micro-Press Animation
-                    Expanded(
-                      child: AppButton(
-                        text: 'Add to Cart',
-                        icon: Icons.shopping_bag_outlined,
-                        height: 48,
-                        variant: AppButtonVariant.primary,
-                        onPressed: () {
-                          _appState.addToCart(
-                            _product,
-                            size: _selectedSize,
-                            finish: _selectedFinish,
-                            quantity: _quantity,
-                          );
-                          AppNotificationUtils.showAddToCartSnackBar(
-                            context,
-                            productName: _product.name,
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+                            // Add to Cart / Update Cart Button with Micro-Press Animation
+                            Expanded(
+                              child: AppButton(
+                                text: matchingItem != null ? 'Update Cart' : 'Add to Cart',
+                                icon: matchingItem != null ? Icons.check_circle_outline : Icons.shopping_bag_outlined,
+                                height: 48,
+                                variant: AppButtonVariant.primary,
+                                onPressed: () {
+                                  if (matchingItem != null) {
+                                    _appState.setQuantity(matchingItem, _quantity);
+                                    AppNotificationUtils.showAddToCartSnackBar(
+                                      context,
+                                      productName: _product.name,
+                                    );
+                                  } else {
+                                    _appState.addToCart(
+                                      _product,
+                                      size: _selectedSize,
+                                      finish: _selectedFinish,
+                                      quantity: _quantity,
+                                    );
+                                    AppNotificationUtils.showAddToCartSnackBar(
+                                      context,
+                                      productName: _product.name,
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
         ),
       ),
@@ -1145,7 +1310,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeInOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.sizeOf(context).width < 360 ? 7 : 10,
+          vertical: 6,
+        ),
         decoration: BoxDecoration(
           color: isSelected ? AppTheme.primaryNavy : Colors.transparent,
           borderRadius: BorderRadius.circular(18),
@@ -1241,7 +1409,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return Container(
       height: 84,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
       decoration: BoxDecoration(
         color: AppTheme.backgroundColor,
         border: Border(
@@ -1251,8 +1419,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Row(
         children: [
           Container(
-            margin: const EdgeInsets.only(right: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             decoration: BoxDecoration(
               color: AppTheme.primaryNavy.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(8),
@@ -1371,6 +1539,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 18, color: AppTheme.primaryNavy),
             const SizedBox(width: 8),
@@ -1378,7 +1547,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         const SizedBox(width: 8),
-        Flexible(
+        Expanded(
           child: Text(
             value,
             textAlign: TextAlign.end,
@@ -1401,6 +1570,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         const Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.palette_outlined, size: 18, color: AppTheme.primaryNavy),
             SizedBox(width: 8),
@@ -1408,9 +1578,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         const SizedBox(width: 8),
-        Flexible(
+        Expanded(
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Container(
                 width: 14,
@@ -1442,19 +1613,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildTrustBadge(IconData icon, String text) {
-    return Column(
-      children: [
-        Icon(icon, color: AppTheme.accentOrange, size: 24),
-        const SizedBox(height: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textDark,
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppTheme.accentOrange, size: 24),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
