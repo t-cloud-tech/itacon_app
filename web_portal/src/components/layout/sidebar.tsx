@@ -17,6 +17,7 @@ import {
   Truck,
   UserCog,
   Wrench,
+  Palette,
   LogOut,
   ChevronRight
 } from "lucide-react";
@@ -34,6 +35,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Salespersons", href: "/salespersons", icon: UserCog },
+  { name: "Designers", href: "/designers", icon: Palette },
   { name: "Leads", href: "/leads", icon: UserCheck },
   { name: "Customers", href: "/customers", icon: Users },
   { name: "Opportunities", href: "/opportunities", icon: Target },

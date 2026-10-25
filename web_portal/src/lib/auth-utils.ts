@@ -133,10 +133,10 @@ export function buildUserProfileFromDoc(
 
 /**
  * Portal routes each staff role may open. Designers have no dashboard: they only manage the tile catalogue and fixing solutions;
- * Tile Catalogue and Fixing Solutions are designer-only; Salespersons page is admin-only. Anything not listed is open to admin/manager/salesperson.
+ * Tile Catalogue and Fixing Solutions are designer-only; Salespersons and Designers pages are admin-only. Anything not listed is open to admin/manager/salesperson.
  */
 const DESIGNER_PATHS: readonly string[] = ["/products", "/fixing-solutions"];
-const ADMIN_ONLY_PATHS: readonly string[] = ["/salespersons"];
+const ADMIN_ONLY_PATHS: readonly string[] = ["/salespersons", "/designers"];
 const DESIGNER_ONLY_PATHS: readonly string[] = ["/products", "/fixing-solutions"];
 
 function matchesPath(pathname: string, base: string): boolean {
