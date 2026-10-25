@@ -554,35 +554,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
 
+                  const SizedBox(width: 8),
+
                   // Rate & Line Total
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '₹${item.itemTotal.toStringAsFixed(0)}',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
-                          ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '₹${item.itemTotal.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
+                        textAlign: TextAlign.right,
+                      ),
+                      Text(
+                        item.product.isAdhesive
+                            ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                        style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                        textAlign: TextAlign.right,
+                      ),
+                      if (resolved.hasDiscount)
+                        Text(
+                          resolved.discountBadgeLabel,
+                          style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
+                          textAlign: TextAlign.right,
                         ),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            item.product.isAdhesive
-                                ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                                : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                            style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
-                          ),
-                        ),
-                        if (resolved.hasDiscount)
-                          Text(
-                            resolved.discountBadgeLabel,
-                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.green),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ],
               ),
