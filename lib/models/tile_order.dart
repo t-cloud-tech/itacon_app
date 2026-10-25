@@ -33,6 +33,7 @@ class OrderItem {
   final double? unitPrice; // Quoted unit rate (₹/Sq Ft or ₹/Bag), nullable when pending_rate
   final double? lineTotal; // Line total amount, nullable when pending_rate
   final String orderType; // ready_stock / made_to_order
+  final double? mrp; // MRP (₹/Sq Ft) for MRP linked quotations
 
   const OrderItem({
     required this.productId,
@@ -51,6 +52,7 @@ class OrderItem {
     this.unitPrice,
     this.lineTotal,
     this.orderType = 'ready_stock',
+    this.mrp,
   })  : quantityBoxes = quantityBoxes ?? quantity,
         quantitySqFt = quantitySqFt ?? (quantity * 15.5); // Default coverage approx 15.5 sq.ft/box
 
@@ -79,6 +81,7 @@ class OrderItem {
       'lineTotal': lineTotal,
       'totalPrice': lineTotal,
       'orderType': orderType,
+      if (mrp != null) 'mrp': mrp,
     };
   }
 
@@ -148,6 +151,7 @@ class OrderItem {
       unitPrice: uPrice,
       lineTotal: lTotal,
       orderType: map['orderType'] ?? 'ready_stock',
+      mrp: map['mrp'] != null && _asDouble(map['mrp']) > 0 ? _asDouble(map['mrp']) : null,
     );
   }
 }
@@ -247,6 +251,13 @@ class TileOrder {
   final String? paidPoDocumentPath; // Private Storage path: purchase_orders/{orderId}/paid_po.pdf
   final String? paidPoStatus; // 'generating', 'ready', 'failed'
   final DateTime? paidPoGeneratedAt;
+  final String quotationMode; // 'standard' or 'mrp' (MRP linked quotation)
+  final double basicAmount; // MRP linked: sum of boxes * MRP * sqft per box
+  final double insuranceAmount; // MRP linked: 0.35% of basic amount
+  final double basicPlusInsurance; // MRP linked: basic + insurance
+  final double packagingCharges; // MRP linked: (subtotal - estimated total) / 100
+
+  bool get isMrpLinked => quotationMode == 'mrp';
 
   const TileOrder({
     required this.id,
@@ -297,6 +308,11 @@ class TileOrder {
     this.paidPoDocumentPath,
     this.paidPoStatus,
     this.paidPoGeneratedAt,
+    this.quotationMode = 'standard',
+    this.basicAmount = 0.0,
+    this.insuranceAmount = 0.0,
+    this.basicPlusInsurance = 0.0,
+    this.packagingCharges = 0.0,
   })  : taxAmount = taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18),
         totalAmount = totalAmount ?? (subtotal - discount + (taxAmount ?? ((subtotal - discount > 0 ? subtotal - discount : 0.0) * 0.18))),
         orderId = orderId ?? id;
@@ -437,6 +453,13 @@ class TileOrder {
       if (paidPoDocumentPath != null) 'paidPoDocumentPath': paidPoDocumentPath,
       if (paidPoStatus != null) 'paidPoStatus': paidPoStatus,
       if (paidPoGeneratedAt != null) 'paidPoGeneratedAt': Timestamp.fromDate(paidPoGeneratedAt!),
+      if (isMrpLinked) ...{
+        'quotationMode': quotationMode,
+        'basicAmount': basicAmount,
+        'insuranceAmount': insuranceAmount,
+        'basicPlusInsurance': basicPlusInsurance,
+        'packagingCharges': packagingCharges,
+      },
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -566,6 +589,7 @@ class TileOrder {
                 unitPrice: newRate,
                 lineTotal: newTotal,
                 orderType: item.orderType,
+                mrp: item.mrp,
               );
             }
           }
@@ -646,6 +670,11 @@ class TileOrder {
       paidPoDocumentPath: pPoPath,
       paidPoStatus: pPoStatus,
       paidPoGeneratedAt: pPoGenAt,
+      quotationMode: (map['quotationMode'] ?? 'standard').toString(),
+      basicAmount: _asDouble(map['basicAmount']),
+      insuranceAmount: _asDouble(map['insuranceAmount']),
+      basicPlusInsurance: _asDouble(map['basicPlusInsurance']),
+      packagingCharges: _asDouble(map['packagingCharges']),
     );
   }
 
@@ -698,6 +727,11 @@ class TileOrder {
     String? paidPoDocumentPath,
     String? paidPoStatus,
     DateTime? paidPoGeneratedAt,
+    String? quotationMode,
+    double? basicAmount,
+    double? insuranceAmount,
+    double? basicPlusInsurance,
+    double? packagingCharges,
   }) {
     return TileOrder(
       id: id ?? this.id,
@@ -748,6 +782,11 @@ class TileOrder {
       paidPoDocumentPath: paidPoDocumentPath ?? this.paidPoDocumentPath,
       paidPoStatus: paidPoStatus ?? this.paidPoStatus,
       paidPoGeneratedAt: paidPoGeneratedAt ?? this.paidPoGeneratedAt,
+      quotationMode: quotationMode ?? this.quotationMode,
+      basicAmount: basicAmount ?? this.basicAmount,
+      insuranceAmount: insuranceAmount ?? this.insuranceAmount,
+      basicPlusInsurance: basicPlusInsurance ?? this.basicPlusInsurance,
+      packagingCharges: packagingCharges ?? this.packagingCharges,
     );
   }
 }

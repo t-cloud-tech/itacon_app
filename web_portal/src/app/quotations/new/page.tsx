@@ -402,6 +402,10 @@ function QuotationForm() {
             salespersonId: user?.userId || salesperson?.salesPersonId,
             salespersonName: user?.name || salesperson?.name,
             taxAmount: taxAmount,
+            quotationMode,
+            ...(isMrpMode
+              ? { basicAmount, insuranceAmount, basicPlusInsurance, packagingCharges }
+              : {}),
           }
         );
       }

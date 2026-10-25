@@ -947,6 +947,11 @@ export async function linkQuotationToOrder(
     salespersonId?: string;
     salespersonName?: string;
     taxAmount?: number;
+    quotationMode?: "standard" | "mrp";
+    basicAmount?: number;
+    insuranceAmount?: number;
+    basicPlusInsurance?: number;
+    packagingCharges?: number;
   }
 ): Promise<void> {
   const orderRef = doc(db, "orders", orderId);
@@ -1021,6 +1026,14 @@ export async function linkQuotationToOrder(
     rateQuotedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+
+  updatePayload.quotationMode = options?.quotationMode ?? "standard";
+  if (options?.quotationMode === "mrp") {
+    updatePayload.basicAmount = options.basicAmount ?? 0;
+    updatePayload.insuranceAmount = options.insuranceAmount ?? 0;
+    updatePayload.basicPlusInsurance = options.basicPlusInsurance ?? 0;
+    updatePayload.packagingCharges = options.packagingCharges ?? 0;
+  }
 
   if (options?.salespersonId) {
     updatePayload.salesPersonId = options.salespersonId;

@@ -1042,6 +1042,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             ? item.quantityBoxes * displayUnitPrice
                             : item.quantitySqFt * displayUnitPrice;
                       }
+                      if (order.isMrpLinked && item.mrp != null) {
+                        displayUnitPrice = item.mrp!;
+                        displayLineTotal = item.quantitySqFt * item.mrp!;
+                      }
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -1077,6 +1081,61 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildFinancialSummaryCard(TileOrder order) {
+    if (order.isMrpLinked) {
+      return Container(
+        decoration: AppTheme.luxuryCardDecoration,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildSummaryRow('Basic amount', order.basicAmount),
+            _buildSummaryRow('0.35% insurance', order.insuranceAmount),
+            _buildSummaryRow('Basic + 0.35%', order.basicPlusInsurance),
+            _buildSummaryRow('18% GST', order.taxAmount),
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      text: 'Estimated total',
+                      children: [
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.top,
+                          child: Text('*', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.primaryNavy,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '₹${order.totalAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.accentOrange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '*Premium packaging charges: ₹${order.packagingCharges.toStringAsFixed(2)}',
+                style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       decoration: AppTheme.luxuryCardDecoration,
       padding: const EdgeInsets.all(16),
