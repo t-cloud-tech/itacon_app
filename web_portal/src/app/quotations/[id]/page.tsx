@@ -510,7 +510,7 @@ export default function QuotationDetailPage() {
                   <th className="py-2.5 px-3">Size</th>
                   <th className="py-2.5 px-3 text-center">Boxes</th>
                   <th className="py-2.5 px-3 text-right">Coverage (Sqft)</th>
-                  <th className="py-2.5 px-3 text-right">Base Price (₹/sqft)</th>
+                  <th className="py-2.5 px-3 text-right">{quote.quotationMode === "mrp" ? "MRP (₹/SQ.FT)" : "Base Price (₹/sqft)"}</th>
                   <th className="py-2.5 px-3 text-center">Disc. %</th>
                   <th className="py-2.5 px-3 text-right rounded-r">Amount (₹)</th>
                 </tr>
@@ -526,14 +526,24 @@ export default function QuotationDetailPage() {
                     <td className="py-3 px-3 text-center font-bold text-slate-700">{item.quantityBoxes}</td>
                     <td className="py-3 px-3 text-right text-slate-600">{item.totalSqft}</td>
                     <td className="py-3 px-3 text-right text-slate-600">
-                      <div>₹{item.unitPrice}/sq.ft</div>
-                      {item.effectivePrice && (
-                        <div className="text-[10px] text-slate-400">₹{item.effectivePrice}/box</div>
+                      {quote.quotationMode === "mrp" ? (
+                        <div>₹{item.mrp ?? 0}/sq.ft</div>
+                      ) : (
+                        <>
+                          <div>₹{item.unitPrice}/sq.ft</div>
+                          {item.effectivePrice && (
+                            <div className="text-[10px] text-slate-400">₹{item.effectivePrice}/box</div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="py-3 px-3 text-center font-semibold text-emerald-600">{item.discountPercent}%</td>
                     <td className="py-3 px-3 text-right font-bold text-slate-900">
-                      ₹{Number(item.lineTotal).toLocaleString("en-IN")}
+                      ₹{Number(
+                        quote.quotationMode === "mrp"
+                          ? (item.quantityBoxes || 0) * (item.mrp || 0) * (item.sqftPerBox || 15.5)
+                          : item.lineTotal
+                      ).toLocaleString("en-IN")}
                     </td>
                   </tr>
                 ))}
@@ -552,6 +562,35 @@ export default function QuotationDetailPage() {
               </div>
             </div>
 
+            {quote.quotationMode === "mrp" ? (
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Basic amount:</span>
+                  <span className="font-semibold">₹{Number(quote.basicAmount || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>0.35% insurance:</span>
+                  <span className="font-semibold">₹{Number(quote.insuranceAmount || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Basic + 0.35%:</span>
+                  <span className="font-semibold">₹{Number(quote.basicPlusInsurance || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>18% GST:</span>
+                  <span className="font-semibold">₹{Number(quote.taxAmount || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm">
+                  <span className="font-extrabold text-[#0E274D]">Estimated total<sup className="text-[10px]">*</sup>:</span>
+                  <span className="text-xl font-black text-[#0E274D]">
+                    ₹{Number(quote.grandTotal).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  *Premium packaging charges: ₹{Number(quote.packagingCharges || 0).toLocaleString("en-IN")}
+                </p>
+              </div>
+            ) : (
             <div className="space-y-2 text-xs">
               <div className="flex justify-between text-slate-600">
                 <span>Products Subtotal:</span>
@@ -579,6 +618,7 @@ export default function QuotationDetailPage() {
                 </span>
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

@@ -157,6 +157,7 @@ export interface QuotationItem {
   discountPercent: number;
   effectivePrice: number;
   lineTotal: number;
+  mrp?: number;
 }
 
 export type QuotationStatus = 
@@ -214,6 +215,11 @@ export interface Quotation {
   remarks?: string;
   pricePerSqft?: number;
   rateThreshold?: number;
+  quotationMode?: "standard" | "mrp";
+  basicAmount?: number;
+  insuranceAmount?: number;
+  basicPlusInsurance?: number;
+  packagingCharges?: number;
   createdAt: string;
   updatedAt: string;
 }

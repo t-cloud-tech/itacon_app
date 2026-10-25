@@ -41,6 +41,8 @@ function QuotationForm() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(prefillCustomerId || "");
   const [paymentTerms, setPaymentTerms] = useState("30 Days Net");
   const [validityDays, setValidityDays] = useState(15);
+  const [quotationMode, setQuotationMode] = useState<"standard" | "mrp">("standard");
+  const isMrpMode = quotationMode === "mrp";
   const [linkedOrder, setLinkedOrder] = useState<ClientOrderPO | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(!!orderId);
 
@@ -234,6 +236,7 @@ function QuotationForm() {
       const qty = linkedOrder ? item.quantityBoxes : (field === "quantityBoxes" ? (parseInt(val, 10) || 0) : item.quantityBoxes);
       const uPrice = field === "unitPrice" ? (parseFloat(val) || 0) : item.unitPrice; // Rate per sq.ft
       const disc = field === "discountPercent" ? (parseFloat(val) || 0) : item.discountPercent;
+      if (field === "mrp") item.mrp = parseFloat(val) || 0;
 
       const sqftPerBox = item.sqftPerBox || 15.5;
       const weightPerBoxKg = 29;
@@ -284,8 +287,22 @@ function QuotationForm() {
   // Mandatory Admin Confirmation applies if cost < ₹26.50/sq.ft OR discount > 15%
   const requiresAdminConfirmation = isRateBelowThreshold || requiresSpecialApproval;
 
-  const taxAmount = Number(((subtotal + freightCharges) * (taxPercent / 100)).toFixed(2));
-  const grandTotal = Number((subtotal + freightCharges + taxAmount).toFixed(2));
+  // MRP-based quotation: Basic amount = sum of boxes * MRP * sqft per box
+  const mrpLineTotal = (i: QuotationItem) =>
+    Number(((i.quantityBoxes || 0) * (i.mrp || 0) * (i.sqftPerBox || 15.5)).toFixed(2));
+  const basicAmount = Number(items.reduce((sum, i) => sum + mrpLineTotal(i), 0).toFixed(2));
+  const insuranceAmount = Number((basicAmount * 0.0035).toFixed(2));
+  const basicPlusInsurance = Number((basicAmount + insuranceAmount).toFixed(2));
+  const mrpGstAmount = Number((basicPlusInsurance * 0.18).toFixed(2));
+  const estimatedTotal = Number((basicPlusInsurance + mrpGstAmount).toFixed(2));
+  const packagingCharges = Number(((subtotal - estimatedTotal) / 100).toFixed(2));
+
+  const taxAmount = isMrpMode
+    ? mrpGstAmount
+    : Number(((subtotal + freightCharges) * (taxPercent / 100)).toFixed(2));
+  const grandTotal = isMrpMode
+    ? estimatedTotal
+    : Number((subtotal + freightCharges + taxAmount).toFixed(2));
 
   // Determine active customer
   const foundCust = customers.find(c => c.id === selectedCustomerId);
@@ -347,8 +364,12 @@ function QuotationForm() {
         discountTotal,
         taxPercent,
         taxAmount,
-        shippingCharge: freightCharges,
+        shippingCharge: isMrpMode ? 0 : freightCharges,
         grandTotal,
+        quotationMode,
+        ...(isMrpMode
+          ? { basicAmount, insuranceAmount, basicPlusInsurance, packagingCharges }
+          : {}),
         totalBoxes,
         totalWeightTons,
         paymentTerms,
@@ -545,6 +566,20 @@ function QuotationForm() {
                 )}
               </div>
 
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Pricing Method
+                </label>
+                <select
+                  value={quotationMode}
+                  onChange={(e) => setQuotationMode(e.target.value as "standard" | "mrp")}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                >
+                  <option value="standard">Simple</option>
+                  <option value="mrp">MRP Linked (Reduced Basic)</option>
+                </select>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                   Payment Terms
@@ -647,7 +682,7 @@ function QuotationForm() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+                  <div className={`grid grid-cols-2 gap-3 pt-2 ${isMrpMode ? "sm:grid-cols-6" : "sm:grid-cols-5"}`}>
                     {/* BOXES - Read-only if linkedOrder */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
@@ -691,6 +726,24 @@ function QuotationForm() {
                       />
                     </div>
 
+                    {/* MRP - only for MRP linked quotations */}
+                    {isMrpMode && (
+                      <div>
+                        <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1">
+                          MRP (₹/sq.ft)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.mrp ?? ""}
+                          onChange={(e) => handleUpdateItem(idx, "mrp", e.target.value)}
+                          className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
+                          placeholder="MRP"
+                        />
+                      </div>
+                    )}
+
                     {/* DISCOUNT % - EDITABLE BY SALESPERSON */}
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1 flex items-center justify-between">
@@ -712,7 +765,7 @@ function QuotationForm() {
                     <div>
                       <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Line Total</label>
                       <span className="text-xs font-bold text-[#0E274D] block py-1.5">
-                        ₹{Number(item.lineTotal).toLocaleString("en-IN")}
+                        ₹{Number(isMrpMode ? mrpLineTotal(item) : item.lineTotal).toLocaleString("en-IN")}
                       </span>
                     </div>
 
@@ -763,6 +816,9 @@ function QuotationForm() {
               </div>
               <div className="text-right">
                 <span className="text-sm font-extrabold text-[#0E274D]">Subtotal: ₹{subtotal.toLocaleString("en-IN")}</span>
+                {isMrpMode && (
+                  <span className="block text-sm font-extrabold text-[#0E274D]">Basic amount: ₹{basicAmount.toLocaleString("en-IN")}</span>
+                )}
               </div>
             </div>
 
@@ -802,6 +858,7 @@ function QuotationForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Freight input and parameters */}
               <div className="space-y-4">
+                {!isMrpMode && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                     Estimated Freight / Transport Charge (₹)
@@ -814,6 +871,7 @@ function QuotationForm() {
                   />
                   <p className="text-[11px] text-slate-500 mt-1">Based on ~{totalWeightTons} Tons shipment weight</p>
                 </div>
+                )}
 
                 {/* DYNAMIC APPROVAL RULES BANNER */}
                 {isRateBelowThreshold ? (
@@ -871,6 +929,36 @@ function QuotationForm() {
               <div className="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Financial Summary</h3>
                 
+                {isMrpMode ? (
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between text-slate-600">
+                      <span>Basic amount:</span>
+                      <span className="font-semibold">₹{basicAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>0.35% insurance:</span>
+                      <span className="font-semibold">₹{insuranceAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>Basic + 0.35%:</span>
+                      <span className="font-semibold">₹{basicPlusInsurance.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-600">
+                      <span>18% GST:</span>
+                      <span className="font-semibold">₹{mrpGstAmount.toLocaleString("en-IN")}</span>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm">
+                      <span className="font-bold text-[#0E274D]">Estimated total<sup className="text-[10px]">*</sup>:</span>
+                      <span className="text-xl font-extrabold text-[#0E274D]">
+                        ₹{estimatedTotal.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      *Premium packaging charges: ₹{packagingCharges.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                ) : (
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between text-slate-600">
                     <span>Products Subtotal ({items.length} items):</span>
@@ -892,6 +980,7 @@ function QuotationForm() {
                     </span>
                   </div>
                 </div>
+                )}
 
                 <div className="pt-2 text-[11px] text-slate-400 flex items-center space-x-2">
                   <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
