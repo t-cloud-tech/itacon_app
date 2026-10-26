@@ -175,7 +175,8 @@ function getFormattedDeliveryAddress(order) {
       doc.text('Tile Product & Finish', 62, y + 5, { bold: true });
       doc.text('Size', 245, y + 5, { bold: true });
       doc.text('Quantity (Boxes / Sq.Ft)', 320, y + 5, { bold: true });
-      doc.text('Rate (Rs./Sq.Ft)', 425, y + 5, { bold: true });
+      const isMrpLinked = order.quotationMode === 'mrp';
+      doc.text(isMrpLinked ? 'MRP (Rs./Sq.Ft)' : 'Rate (Rs./Sq.Ft)', 425, y + 5, { bold: true });
       doc.text('Total (Rs.)', 495, y + 5, { bold: true, align: 'right', width: 55 });
 
       y += 20;
@@ -198,10 +199,15 @@ function getFormattedDeliveryAddress(order) {
         const sqft = item.quantitySqFt || (boxes * 15.5);
         doc.text(`${boxes} Boxes (${Number(sqft).toFixed(1)} sq.ft)`, 320, y + 5);
 
-        const unitRate = Number(item.unitPrice || item.ratePerSqFt || item.rate || item.price || 0);
+        const hasMrp = isMrpLinked && Number(item.mrp) > 0;
+        const unitRate = hasMrp
+          ? Number(item.mrp)
+          : Number(item.unitPrice || item.ratePerSqFt || item.rate || item.price || 0);
         doc.text(formatInr(unitRate), 425, y + 5);
 
-        const lineTotal = Number(item.lineTotal || item.totalPrice || item.total || (sqft * unitRate));
+        const lineTotal = hasMrp
+          ? Number(sqft) * unitRate
+          : Number(item.lineTotal || item.totalPrice || item.total || (sqft * unitRate));
         doc.text(formatInr(lineTotal), 485, y + 5, { align: 'right', width: 65 });
 
         y += 20;
@@ -226,6 +232,30 @@ function getFormattedDeliveryAddress(order) {
       const valW = 85;
 
       doc.fontSize(8.5).fillColor(textSubtle);
+      if (isMrpLinked) {
+        const basicAmount = Number(order.basicAmount || 0);
+        const insuranceAmount = Number(order.insuranceAmount || 0);
+        const basicPlusInsurance = Number(order.basicPlusInsurance || (basicAmount + insuranceAmount));
+        const packagingCharges = Number(order.packagingCharges || 0);
+        const mrpRows = [
+          ['Basic amount:', basicAmount],
+          ['0.35% insurance:', insuranceAmount],
+          ['Basic + 0.35%:', basicPlusInsurance],
+          ['18% GST:', taxAmount],
+        ];
+        mrpRows.forEach(([label, val], i) => {
+          if (i > 0) y += 14;
+          doc.fillColor(textSubtle).text(label, summaryX, y);
+          doc.fillColor(textDark).text(formatInr(val), valX, y, { align: 'right', width: valW });
+        });
+        y += 16;
+        doc.rect(summaryX - 10, y, 239, 24).fill('#F1F5F9');
+        doc.rect(summaryX - 10, y, 239, 24).strokeColor(borderSubtle).lineWidth(0.8).stroke();
+        doc.fillColor(primaryNavy).fontSize(9.5).text('Estimated total*:', summaryX, y + 6, { bold: true });
+        doc.fillColor(accentOrange).fontSize(10).text(formatInr(totalAmount), valX, y + 6, { bold: true, align: 'right', width: valW });
+        doc.fillColor(textSubtle).fontSize(7).text(`*Premium packaging charges: ${formatInr(packagingCharges)}`, summaryX, y + 28);
+        y += 10;
+      } else {
       doc.text('Subtotal:', summaryX, y);
       doc.fillColor(textDark).text(formatInr(subtotal), valX, y, { align: 'right', width: valW });
 
@@ -249,6 +279,7 @@ function getFormattedDeliveryAddress(order) {
       doc.rect(summaryX - 10, y, 239, 24).strokeColor(borderSubtle).lineWidth(0.8).stroke();
       doc.fillColor(primaryNavy).fontSize(9.5).text('Confirmed PO Grand Total:', summaryX, y + 6, { bold: true });
       doc.fillColor(accentOrange).fontSize(10).text(formatInr(totalAmount), valX, y + 6, { bold: true, align: 'right', width: valW });
+      }
 
       // =========================================================================
       // 6. VERIFIED PAYMENT AUDIT BOX
@@ -415,8 +446,31 @@ async function processPaidPoGeneration(orderId, orderData = null, options = {}) 
       }
     }
 
+    // 6b. Orders linked before MRP fields were synced: recover them from the quotation
+    let orderForPdf = currentOrder;
+    if (!currentOrder.quotationMode && currentOrder.quotationId) {
+      try {
+        const qDoc = await db.collection('quotations').doc(currentOrder.quotationId).get();
+        const q = qDoc.exists ? qDoc.data() : null;
+        if (q && q.quotationMode === 'mrp') {
+          orderForPdf = {
+            ...currentOrder,
+            quotationMode: 'mrp',
+            basicAmount: q.basicAmount,
+            insuranceAmount: q.insuranceAmount,
+            basicPlusInsurance: q.basicPlusInsurance,
+            packagingCharges: q.packagingCharges,
+            items: q.items || currentOrder.items,
+            orderItems: q.items || currentOrder.orderItems,
+          };
+        }
+      } catch (err) {
+        console.warn(`[PaidPO] Warning: could not load quotation ${currentOrder.quotationId}:`, err);
+      }
+    }
+
     // 7. Render PDF Buffer
-    const pdfBuffer = await createPaidPdfBuffer(currentOrder, submission, customerProfile);
+    const pdfBuffer = await createPaidPdfBuffer(orderForPdf, submission, customerProfile);
 
     // 8. Upload to Attempt-Specific Staging Object
     // Staging ensures an expired or slow generation worker cannot prematurely overwrite official output
