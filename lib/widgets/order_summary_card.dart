@@ -147,12 +147,18 @@ class OrderSummaryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '₹${subtotal.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: context.sp(13),
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDark,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '₹${subtotal.toStringAsFixed(0)}',
+                    style: TextStyle(
+                      fontSize: context.sp(13),
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -228,12 +234,19 @@ class OrderSummaryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Text(
-                  '- ₹${discountAmount.toStringAsFixed(0)}',
-                  style: TextStyle(
-                    fontSize: context.sp(12.5),
-                    color: Colors.green,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '- ₹${discountAmount.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        fontSize: context.sp(12.5),
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -245,15 +258,24 @@ class OrderSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '0.35% insurance',
-                  style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                Expanded(
+                  child: Text(
+                    '0.35% insurance',
+                    style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                  ),
                 ),
-                Text(
-                  '₹${insuranceAmount!.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: context.sp(12.5),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '₹${insuranceAmount!.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: context.sp(12.5),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -263,15 +285,24 @@ class OrderSummaryCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Basic + 0.35%',
-                    style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                  Expanded(
+                    child: Text(
+                      'Basic + 0.35%',
+                      style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                    ),
                   ),
-                  Text(
-                    '₹${basicPlusInsurance!.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: context.sp(12.5),
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        '₹${basicPlusInsurance!.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: context.sp(12.5),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -281,15 +312,24 @@ class OrderSummaryCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '18% GST',
-                  style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                Expanded(
+                  child: Text(
+                    '18% GST',
+                    style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                  ),
                 ),
-                Text(
-                  '₹${taxAmount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: context.sp(12.5),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '₹${taxAmount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: context.sp(12.5),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -305,11 +345,18 @@ class OrderSummaryCard extends StatelessWidget {
                     style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
                   ),
                 ),
-                Text(
-                  '₹${taxAmount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: context.sp(12.5),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '₹${taxAmount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: context.sp(12.5),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -337,14 +384,17 @@ class OrderSummaryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  '₹${grandTotal.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: context.sp(17),
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.accentOrange,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    '₹${grandTotal.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: context.sp(17),
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.accentOrange,
+                    ),
                   ),
                 ),
               ),
