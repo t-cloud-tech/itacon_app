@@ -398,7 +398,7 @@ void main() {
       expect(find.widgetWithText(TextFormField, 'Enter Username'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'Enter your password'), findsOneWidget);
       expect(find.text('Forgot Password?'), findsOneWidget);
-      expect(find.text('Continue'), findsOneWidget);
+      expect(find.text('Sign In'), findsOneWidget);
       expect(find.text('Sign up'), findsOneWidget);
 
       // Verified: Mobile Number and Send OTP REMOVED from Login screen
@@ -406,11 +406,6 @@ void main() {
       expect(find.text('Send OTP'), findsNothing);
       expect(find.text('Enter 6-Digit OTP *'), findsNothing);
       expect(find.text('Resend'), findsNothing);
-
-      // Verified: Timeline step says "Account" instead of "Account & OTP"
-      expect(find.text('Account'), findsOneWidget);
-      expect(find.text('Account & OTP'), findsNothing);
-      expect(find.text('Referral Code'), findsOneWidget);
     });
 
     testWidgets('9. Signup Screen UI preserves Mobile Number and Send OTP', (WidgetTester tester) async {

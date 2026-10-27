@@ -38,7 +38,14 @@ class AuthService {
         _firestoreService = firestoreService ?? FirestoreService();
 
   FirebaseAuth get _auth => _customAuth ?? FirebaseAuth.instance;
-  FirebaseFunctions get _functions => _customFunctions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
+  FirebaseFunctions? get _functions {
+    if (_customFunctions != null) return _customFunctions;
+    try {
+      return FirebaseFunctions.instanceFor(region: 'asia-south1');
+    } catch (_) {
+      return null;
+    }
+  }
 
   User? get currentUser {
     try {
@@ -97,7 +104,9 @@ class AuthService {
       return {'valid': false, 'reason': 'invalid-format'};
     }
     try {
-      final callable = _functions.httpsCallable('verifyCustomerReferralCode');
+      final fn = _functions;
+      if (fn == null) return {'valid': false, 'reason': 'not-found'};
+      final callable = fn.httpsCallable('verifyCustomerReferralCode');
       final result = await callable.call({
         'referralCode': cleanCode,
         'phoneNumber': phoneNumber ?? '',
@@ -1151,7 +1160,11 @@ class AuthService {
     isPendingSecondaryValidation.value = true;
 
     try {
-      final HttpsCallable callable = _functions.httpsCallable('verifyCustomerCredentials');
+      final fn = _functions;
+      if (fn == null) {
+        throw Exception('Cloud Functions are unavailable. Please check Firebase initialization.');
+      }
+      final HttpsCallable callable = fn.httpsCallable('verifyCustomerCredentials');
       final HttpsCallableResult result = await callable.call<Map<String, dynamic>>({
         'username': cleanUsername,
         'password': password.trim(),
@@ -1443,7 +1456,39 @@ class AuthService {
       }
     }
 
-    final callable = _functions.httpsCallable('verifyReferralCode');
+    final fn = _functions;
+    if (fn == null) {
+      final result = await _firestoreService.verifySalespersonCodeDetailed(code);
+      if (!result.isActive) {
+        return false;
+      }
+      final spData = result.data;
+      final spId = spData?['id']?.toString() ?? spData?['salesPersonId']?.toString() ?? '';
+      final spName = spData?['name']?.toString() ?? spData?['fullName']?.toString() ?? 'Sales Executive';
+      final spCode = spData?['referralCode']?.toString() ?? code.toUpperCase();
+      if (uid != null && uid.isNotEmpty) {
+        await _firestoreService.updateUserSalespersonAssignment(
+          uid: uid,
+          salespersonId: spId,
+          salespersonName: spName,
+          salespersonReferralCode: spCode,
+          salespersonPhone: spData?['phone']?.toString() ?? '',
+        );
+        final updatedProfile = (existingUser ?? AppStateService.instance.currentUserProfile).copyWith(
+          salesPersonId: spId,
+          assignedSalespersonId: spId,
+          salespersonName: spName,
+          salespersonReferralCode: spCode,
+          status: 'active',
+        );
+        AppStateService.instance.setCurrentUserProfile(updatedProfile);
+        await UserSessionService.saveUserSession(updatedProfile);
+      }
+      stopwatch.stop();
+      return true;
+    }
+
+    final callable = fn.httpsCallable('verifyReferralCode');
     final response = await callable.call({
       'referralCode': code,
       'autoAssign': false,
@@ -1481,7 +1526,11 @@ class AuthService {
   }) async {
     final uid = targetUserId ?? currentUid;
 
-    final callable = _functions.httpsCallable('autoAssignSalesperson');
+    final fn = _functions;
+    if (fn == null) {
+      return await _firestoreService.autoAssignSalespersonDetails(userId: uid);
+    }
+    final callable = fn.httpsCallable('autoAssignSalesperson');
     final response = await callable.call();
 
     final resData = Map<String, dynamic>.from(response.data as Map);

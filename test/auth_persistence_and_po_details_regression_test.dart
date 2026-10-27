@@ -340,11 +340,11 @@ void main() {
       expect(find.text('PO Details (ITC-PO-2026-RATE1)'), findsOneWidget);
       expect(find.text("Today's Quoted Rates Received"), findsOneWidget);
       expect(find.text('Calacatta White Gloss'), findsOneWidget);
-      expect(find.text('Subtotal'), findsOneWidget);
-      expect(find.text('Discount (Applied)'), findsOneWidget);
-      expect(find.text('18% GST (Tax)'), findsOneWidget);
-      expect(find.text('Final Total Amount'), findsOneWidget);
-      expect(find.text('₹56050.00'), findsOneWidget);
+      expect(find.text('Basic amount'), findsOneWidget);
+      expect(find.text('0.35% insurance'), findsOneWidget);
+      expect(find.text('18% GST'), findsOneWidget);
+      expect(find.textContaining('Estimated total'), findsOneWidget);
+      expect(find.text('₹59206.50'), findsOneWidget);
 
       // Quotation action buttons must be visible
       expect(find.text('Confirm & Finalize Order →'), findsOneWidget);
