@@ -170,6 +170,24 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // 3. Official Unpaid PO: purchase_orders/{orderId}/unpaid/{fileName}
+    //    Private access: strictly restricted to owning customer or authorized staff (admin/manager or assigned salesperson).
+    match /purchase_orders/{orderId}/unpaid/{fileName} {
+      allow read: if isAuthenticated() && (
+        isAdminOrManager() ||
+        (('userId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.userId == request.auth.uid) ||
+        (('customerId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.customerId == request.auth.uid) ||
+        (('salesPersonId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salesPersonId == request.auth.uid) ||
+        (('salespersonId' in firestore.get(/databases/(default)/documents/orders/$(orderId)).data) &&
+         firestore.get(/databases/(default)/documents/orders/$(orderId)).data.salespersonId == request.auth.uid)
+      );
+      // Strictly no client-side create, overwrite or delete: trusted Cloud Functions only!
+      allow write: if false;
+    }
+
     // Deny all other access by default
     match /{allPaths=**} {
       allow read, write: if false;

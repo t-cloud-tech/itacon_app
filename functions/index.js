@@ -54,11 +54,13 @@ const {
   generatePaidPurchaseOrderPdf,
   retryPaidPoGenerationCallable,
   getPaidPoDownloadUrlCallable,
+  generateUnpaidPoPdf,
 } = require('./generatePaidPurchaseOrderPdf');
 
 exports.generatePaidPurchaseOrderPdf = generatePaidPurchaseOrderPdf;
 exports.retryPaidPoGenerationCallable = retryPaidPoGenerationCallable;
 exports.getPaidPoDownloadUrlCallable = getPaidPoDownloadUrlCallable;
+exports.generateUnpaidPoPdf = generateUnpaidPoPdf;
 
 // Secure Business Defaulters Verification API Proxy
 const { checkBusinessDefaulterCallable } = require('./businessDefaultersEngine');

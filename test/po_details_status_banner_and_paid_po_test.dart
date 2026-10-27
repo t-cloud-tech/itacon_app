@@ -6,6 +6,7 @@ import 'package:itacon_app/models/user_profile.dart';
 import 'package:itacon_app/screens/order_details_screen.dart';
 import 'package:itacon_app/screens/orders_screen.dart';
 import 'package:itacon_app/services/app_state_service.dart';
+import 'package:itacon_app/utils/po_calculation.dart';
 
 void main() {
   setUp(() {
@@ -447,9 +448,9 @@ void main() {
       await tester.ensureVisible(find.text('Download Paid PO (PDF)'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Download Paid PO (PDF)'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Your Paid PO is being prepared. Please try again shortly.'), findsOneWidget);
+      expect(find.text('Preparing your PO...'), findsOneWidget);
     });
 
     test('11. TileOrder correctly serializes and deserializes Paid PO fields', () {
@@ -484,6 +485,160 @@ void main() {
       expect(deserialized.paidPoDocumentPath, 'purchase_orders/ORD_TEST_SER_01/paid_po.pdf');
       expect(deserialized.paidPoStatus, 'ready');
       expect(deserialized.isPaidPoReady, isTrue);
+    });
+
+    testWidgets('12. Unpaid PO displays Download Official PO and blocks unauthorized customer', (WidgetTester tester) async {
+      // 1. Order approved, payment pending
+      final unpaidOrder = TileOrder(
+        id: 'ORDER_UNPAID_01',
+        orderReference: 'ITC-PO-2026-UNP01',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'confirmed',
+        paymentStatus: 'pending',
+        orderType: 'ready_stock',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Unpaid order test',
+        subtotal: 50000.0,
+        taxAmount: 9000.0,
+        totalAmount: 59000.0,
+        items: const [],
+      );
+
+      AppStateService.instance.setCurrentUserProfile(
+        const UserProfile(
+          userId: 'USER_CUST_100',
+          name: 'Suresh Patel',
+          phone: '+919876543210',
+          companyName: 'Patel Ceramics',
+          email: 'suresh@patelceramics.com',
+          userCategory: 'Dealer',
+          role: 'customer',
+        ),
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(unpaidOrder));
+      await tester.pumpAndSettle();
+
+      // Flow B: Must show 'Download Official PO (PDF)', NOT 'Download Paid PO (PDF)'
+      expect(find.text('Download Official PO (PDF)'), findsOneWidget);
+      expect(find.text('Download Paid PO (PDF)'), findsNothing);
+
+      // 2. Unauthorized customer attempting to download
+      AppStateService.instance.setCurrentUserProfile(
+        const UserProfile(
+          userId: 'ANOTHER_CUSTOMER_999',
+          name: 'Intruder User',
+          phone: '+919999999999',
+          companyName: 'Other Firm',
+          email: 'intruder@other.com',
+          userCategory: 'Dealer',
+          role: 'customer',
+        ),
+      );
+
+      await tester.ensureVisible(find.text('Download Official PO (PDF)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download Official PO (PDF)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Access Denied: You may only download PO documents for your own account.'), findsOneWidget);
+    });
+
+    test('13. PO file naming format adheres strictly to PAID and UNPAID standards', () {
+      const orderRef = 'ITC-PO-2026-9095';
+      final sanitized = orderRef.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+
+      final paidFileName = '${sanitized}_PAID.pdf';
+      final unpaidFileName = '${sanitized}_UNPAID.pdf';
+
+      expect(paidFileName, 'ITC-PO-2026-9095_PAID.pdf');
+      expect(unpaidFileName, 'ITC-PO-2026-9095_UNPAID.pdf');
+      expect(paidFileName, isNot(equals(unpaidFileName)));
+    });
+
+    test('14. Shared PoCalculation: 9095 reference calculation matches exactly', () {
+      final calc = PoCalculation.calculateFromBasic(6510.00, packaging: 4.29);
+      expect(calc.basicAmount, 6510.00);
+      expect(calc.insuranceAmount, 22.79);
+      expect(calc.basicPlusInsurance, 6532.79);
+      expect(calc.taxAmount, 1175.90);
+      expect(calc.totalAmount, 7708.69);
+      expect(calc.packagingCharges, 4.29);
+    });
+
+    testWidgets('15. Shared PoCalculation: 5765 unpaid order displays identical breakdown lines and Amount to Pay', (WidgetTester tester) async {
+      final calc = PoCalculation.calculateFromBasic(1085.00);
+      expect(calc.basicAmount, 1085.00);
+      expect(calc.insuranceAmount, 3.80);
+      expect(calc.basicPlusInsurance, 1088.80);
+      expect(calc.taxAmount, 195.98);
+      expect(calc.totalAmount, 1284.78);
+      expect(calc.packagingCharges, 0.00);
+
+      final order5765 = TileOrder(
+        id: 'ORDER_5765',
+        orderReference: 'ITC-PO-2026-5765',
+        userId: 'USER_CUST_100',
+        customerName: 'Patel Ceramics',
+        userCategory: 'Dealer',
+        status: 'confirmed',
+        paymentStatus: 'payment_due',
+        orderType: 'ready_stock',
+        subtotal: 1085.0,
+        basicAmount: 1085.0,
+        insuranceAmount: 3.80,
+        basicPlusInsurance: 1088.80,
+        taxAmount: 195.98,
+        totalAmount: 1284.78,
+        quotationMode: 'mrp',
+        deliveryLocation: const {'address': 'Morbi, Gujarat'},
+        transportRequired: true,
+        remarks: 'Test unpaid order 5765',
+        items: const [
+          OrderItem(
+            productId: 'PROD_01',
+            productName: 'ALBANION IRON',
+            size: '600x1200 mm',
+            surface: 'Glossy',
+            quantity: 1,
+            quantityBoxes: 1,
+            quantitySqFt: 15.5,
+            moq: 10,
+            unitPrice: 35.0,
+            lineTotal: 542.5,
+          ),
+          OrderItem(
+            productId: 'PROD_02',
+            productName: 'ALBANION PLATINUM',
+            size: '600x1200 mm',
+            surface: 'Glossy',
+            quantity: 1,
+            quantityBoxes: 1,
+            quantitySqFt: 15.5,
+            moq: 10,
+            unitPrice: 35.0,
+            lineTotal: 542.5,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(createTestOrderDetailsWidget(order5765));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Basic amount'), findsOneWidget);
+      expect(find.text('₹1085.00'), findsOneWidget);
+      expect(find.text('0.35% insurance'), findsOneWidget);
+      expect(find.text('₹3.80'), findsOneWidget);
+      expect(find.text('Basic + 0.35%'), findsOneWidget);
+      expect(find.text('₹1088.80'), findsOneWidget);
+      expect(find.text('18% GST'), findsOneWidget);
+      expect(find.text('₹195.98'), findsOneWidget);
+      expect(find.text('₹1284.78'), findsAtLeast(1));
+      expect(find.text('*Premium packaging charges: ₹0.00'), findsOneWidget);
+      expect(find.text('Final Amount to Pay:'), findsOneWidget);
     });
   });
 }

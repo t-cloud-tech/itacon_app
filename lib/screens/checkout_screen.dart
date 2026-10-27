@@ -16,18 +16,20 @@ import 'order_details_screen.dart';
 import 'profile/edit_profile_screen.dart';
 import '../services/firestore_service.dart';
 import '../services/user_session_service.dart';
+import '../utils/po_calculation.dart';
 
 
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  final int initialStep;
+  const CheckoutScreen({super.key, this.initialStep = 0});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  int _currentStep = 0; // 0: PO Estimate, 1: Address, 2: Payment, 3: Review
+  late int _currentStep; // 0: PO Estimate, 1: Address, 2: Payment, 3: Review
   bool _isSubmitting = false;
 
   final ScrollController _scrollController = ScrollController();
@@ -45,6 +47,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _currentStep = widget.initialStep;
     final profile = AppStateService.instance.currentUserProfile;
     final street = (profile.address['line1'] ??
             profile.address['addressLine'] ??
@@ -171,7 +174,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   controller: _scrollController,
-                  padding: EdgeInsets.all(context.w(16)),
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    16,
+                    20,
+                    context.h(50).clamp(44.0, 56.0) + context.w(16) + 20,
+                  ),
                   child: IndexedStack(
                     index: _currentStep,
                     children: [
@@ -369,7 +377,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final activeWeightTons = activeWeightKg / 1000.0;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Official PO Estimate Header Banner
         Container(
@@ -610,7 +618,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ---------------------------------------------------------------------------
   Widget _buildAddressStep(UserProfile user) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
           'Shipping & Project Site Delivery Address',
@@ -752,7 +760,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // ---------------------------------------------------------------------------
   Widget _buildPaymentStep() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
           'Select Payment Method',
@@ -839,12 +847,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   // STEP 3: Comprehensive Final Order Review (With Product Images!)
   // ---------------------------------------------------------------------------
   Widget _buildReviewStep(AppStateService appState, UserProfile user) {
-    final netSubtotal = appState.subtotal;
-    final gstAmount = netSubtotal * 0.18;
-    final grandTotal = netSubtotal + gstAmount;
+    final calc = PoCalculation.calculateFromBasic(appState.subtotal);
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
           'Review Your Purchase Order',
@@ -859,7 +865,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         // 1. Visual Product Items Gallery Card (WITH PICTURES)
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: AppTheme.luxuryCardDecoration,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -877,12 +883,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   TextButton.icon(
                     onPressed: () => setState(() => _currentStep = 0),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                     icon: const Icon(Icons.edit_outlined, size: 14),
                     label: const Text('Edit Items', style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
-              const Divider(height: 12, color: AppTheme.borderSubtle),
+              const Divider(height: 16, color: AppTheme.borderSubtle),
 
               Column(
                 children: appState.cartItems.map((item) {
@@ -915,7 +927,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               Text(
                                 item.product.name,
                                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                                maxLines: 1,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 2),
@@ -951,30 +963,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                         const SizedBox(width: 8),
 
-                        // Resolved Price
-                        Flexible(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  '₹${item.itemTotal.toStringAsFixed(0)}',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
-                                ),
-                              ),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  item.product.isAdhesive
-                                      ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                                      : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                                  style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
-                                ),
-                              ),
-                            ],
-                          ),
+                        // Resolved Price (content-hugging, flush right)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '₹${item.itemTotal.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
+                              textAlign: TextAlign.right,
+                            ),
+                            Text(
+                              item.product.isAdhesive
+                                  ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                                  : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                              style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                              textAlign: TextAlign.right,
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -988,7 +994,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         // 2. Shipping Address & Delivery Summary Card
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: AppTheme.luxuryCardDecoration,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1015,10 +1021,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   TextButton(
                     onPressed: () => setState(() => _currentStep = 1),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                     child: const Text('Change', style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
               Text(
                 '${user.name} (${user.companyName.isNotEmpty ? user.companyName : "B2B Client"})',
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textDark),
@@ -1039,7 +1052,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         // 3. Payment Method Card
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: AppTheme.luxuryCardDecoration,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1067,6 +1080,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               TextButton(
                 onPressed: () => setState(() => _currentStep = 2),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
                 child: const Text('Change', style: TextStyle(fontSize: 12)),
               ),
             ],
@@ -1076,10 +1095,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         // 4. Final Total Summary Card with Tonnage & Box Details
         OrderSummaryCard(
-          subtotal: netSubtotal,
-          taxAmount: gstAmount,
+          subtotal: calc.basicAmount,
+          insuranceAmount: calc.insuranceAmount,
+          basicPlusInsurance: calc.basicPlusInsurance,
+          taxAmount: calc.taxAmount,
+          grandTotal: calc.totalAmount,
+          packagingCharges: calc.packagingCharges,
           freightFee: appState.freightFee,
-          grandTotal: grandTotal,
           totalBoxes: appState.totalBoxes,
           totalWeightTons: appState.totalWeightTons,
           totalWeightKg: appState.totalWeightKg,

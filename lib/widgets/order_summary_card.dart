@@ -12,6 +12,9 @@ class OrderSummaryCard extends StatelessWidget {
   final int totalBoxes;
   final double totalWeightTons;
   final double totalWeightKg;
+  final double? insuranceAmount;
+  final double? basicPlusInsurance;
+  final double? packagingCharges;
   final String title;
   final String? discountLabel;
   final VoidCallback? onActionButtonPressed;
@@ -24,6 +27,9 @@ class OrderSummaryCard extends StatelessWidget {
     this.freightFee = 0.0,
     this.taxAmount = 0.0,
     this.discountAmount = 0.0,
+    this.insuranceAmount,
+    this.basicPlusInsurance,
+    this.packagingCharges,
     required this.grandTotal,
     required this.totalBoxes,
     required this.totalWeightTons,
@@ -47,7 +53,7 @@ class OrderSummaryCard extends StatelessWidget {
     final formattedKg = _formatNumber(totalWeightKg);
 
     return Container(
-      padding: EdgeInsets.all(context.w(14)),
+      padding: const EdgeInsets.all(16),
       decoration: AppTheme.luxuryCardDecorationWithBorder(
         borderColor: AppTheme.primaryNavy.withValues(alpha: 0.2),
       ),
@@ -235,8 +241,61 @@ class OrderSummaryCard extends StatelessWidget {
             SizedBox(height: context.h(6)),
           ],
 
-          // GST / Tax Row (if applicable)
-          if (taxAmount > 0) ...[
+          if (insuranceAmount != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '0.35% insurance',
+                  style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                ),
+                Text(
+                  '₹${insuranceAmount!.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: context.sp(12.5),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: context.h(6)),
+            if (basicPlusInsurance != null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Basic + 0.35%',
+                    style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                  ),
+                  Text(
+                    '₹${basicPlusInsurance!.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: context.sp(12.5),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: context.h(6)),
+            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '18% GST',
+                  style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
+                ),
+                Text(
+                  '₹${taxAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontSize: context.sp(12.5),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: context.h(6)),
+          ] else if (taxAmount > 0) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -247,7 +306,7 @@ class OrderSummaryCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₹${taxAmount.toStringAsFixed(0)}',
+                  '₹${taxAmount.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: context.sp(12.5),
                     fontWeight: FontWeight.w600,
@@ -266,7 +325,7 @@ class OrderSummaryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  'ESTIMATED TOTAL VALUE',
+                  insuranceAmount != null ? 'ESTIMATED TOTAL*' : 'ESTIMATED TOTAL VALUE',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -281,16 +340,23 @@ class OrderSummaryCard extends StatelessWidget {
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
-                  '₹${grandTotal.toStringAsFixed(0)}',
+                  '₹${grandTotal.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: context.sp(17),
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.primaryNavy,
+                    color: AppTheme.accentOrange,
                   ),
                 ),
               ),
             ],
           ),
+          if (insuranceAmount != null) ...[
+            SizedBox(height: context.h(4)),
+            Text(
+              '*Premium packaging charges: ₹${(packagingCharges ?? 0.0).toStringAsFixed(2)}',
+              style: TextStyle(fontSize: context.sp(10), color: AppTheme.textSubtle),
+            ),
+          ],
 
           if (showActionButton && onActionButtonPressed != null) ...[
             SizedBox(height: context.h(14)),

@@ -68,6 +68,7 @@ assets/product_import/
 # Database backups
 database_backups/
 backups/
+scripts/backup/orders_backup_*.json
 
 # Mockup cleanup previews and backups
 backup_mockups/
