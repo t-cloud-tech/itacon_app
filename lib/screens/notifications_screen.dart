@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../theme/app_theme.dart';
 import '../models/notification_queue.dart';
 import '../services/firestore_service.dart';
@@ -7,7 +8,8 @@ import 'order_details_screen.dart';
 
 /// In-App Notification Center featuring Celebratory Cards for Festival & Event Greetings
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({super.key});
+  final Stream<List<NotificationQueueItem>>? notificationsStream;
+  const NotificationsScreen({super.key, this.notificationsStream});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -31,7 +33,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             icon: const Icon(Icons.done_all_rounded, color: AppTheme.primaryNavy),
             tooltip: 'Mark All as Read',
             onPressed: () async {
-              if (userId.isNotEmpty) {
+              if (userId.isNotEmpty && Firebase.apps.isNotEmpty) {
                 final messenger = ScaffoldMessenger.of(context);
                 // Seed sample festival greeting if empty and mark notifications read
                 await _firestoreService.seedDefaultFestivalGreetings();
@@ -51,7 +53,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: ResponsiveConstraint(
         maxContentWidth: 720,
         child: StreamBuilder<List<NotificationQueueItem>>(
-          stream: _firestoreService.getUserNotificationsStream(userId),
+          stream: widget.notificationsStream ??
+              (Firebase.apps.isNotEmpty
+                  ? _firestoreService.getUserNotificationsStream(userId)
+                  : Stream.value(_buildMockNotifications(userId))),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -66,14 +71,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             notifications = _buildMockNotifications(userId);
           }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: notifications.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 14),
-              itemBuilder: (context, index) {
-                final item = notifications[index];
-                return _buildNotificationCard(context, item, userId);
+            return RefreshIndicator(
+              onRefresh: () async {
+                setState(() {});
+                await Future.delayed(const Duration(milliseconds: 500));
               },
+              color: AppTheme.primaryNavy,
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: notifications.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 14),
+                itemBuilder: (context, index) {
+                  final item = notifications[index];
+                  return _buildNotificationCard(context, item, userId);
+                },
+              ),
             );
           },
         ),

@@ -536,6 +536,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
+    if (_isSaving) return;
     final rawEmail = _emailController.text.trim();
     if (rawEmail.isNotEmpty) {
       final emailRegex =

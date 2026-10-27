@@ -41,6 +41,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String _selectedFinish = 'Glossy';
   int _quantity = 1;
   bool _isMockupMode = false;
+  bool _isAddingToCart = false;
 
   final List<String> _sizes = const ['600x1200 mm', '600x600 mm'];
   final List<String> _finishes = const [
@@ -770,43 +771,48 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (resolved.hasDiscount && !isAdhesive)
-                                    FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        '₹${resolved.basePrice.toStringAsFixed(0)} / sq ft',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                          decoration: TextDecoration.lineThrough,
+                              ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.45),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (resolved.hasDiscount && !isAdhesive)
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          '₹${resolved.basePrice.toStringAsFixed(0)} / sq ft',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                            decoration: TextDecoration.lineThrough,
+                                          ),
+                                        ),
+                                      ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentOrange.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          isAdhesive
+                                              ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
+                                              : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.accentOrange,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.accentOrange.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        isAdhesive
-                                            ? '₹${resolved.unitPrice.toStringAsFixed(0)} / Bag + Tax'
-                                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppTheme.accentOrange,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -1176,20 +1182,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(color: AppTheme.accentOrange.withValues(alpha: 0.3)),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.shopping_bag_outlined, size: 14, color: AppTheme.accentOrange),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'In cart: ${matchingItem.quantity} ${_product.isAdhesive ? 'bags' : 'boxes'}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.accentOrange,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.shopping_bag_outlined, size: 14, color: AppTheme.accentOrange),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'In cart: ${matchingItem.quantity} ${_product.isAdhesive ? 'bags' : 'boxes'}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.accentOrange,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -1265,26 +1274,40 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 icon: matchingItem != null ? Icons.check_circle_outline : Icons.shopping_bag_outlined,
                                 height: 48,
                                 variant: AppButtonVariant.primary,
-                                onPressed: () {
-                                  if (matchingItem != null) {
-                                    _appState.setQuantity(matchingItem, _quantity);
-                                    AppNotificationUtils.showAddToCartSnackBar(
-                                      context,
-                                      productName: _product.name,
-                                    );
-                                  } else {
-                                    _appState.addToCart(
-                                      _product,
-                                      size: _selectedSize,
-                                      finish: _selectedFinish,
-                                      quantity: _quantity,
-                                    );
-                                    AppNotificationUtils.showAddToCartSnackBar(
-                                      context,
-                                      productName: _product.name,
-                                    );
-                                  }
-                                },
+                                isLoading: _isAddingToCart,
+                                onPressed: _isAddingToCart
+                                    ? null
+                                    : () async {
+                                        setState(() => _isAddingToCart = true);
+                                        try {
+                                          if (matchingItem != null) {
+                                            _appState.setQuantity(matchingItem, _quantity);
+                                            if (context.mounted) {
+                                              AppNotificationUtils.showAddToCartSnackBar(
+                                                context,
+                                                productName: _product.name,
+                                              );
+                                            }
+                                          } else {
+                                            await _appState.addToCart(
+                                              _product,
+                                              size: _selectedSize,
+                                              finish: _selectedFinish,
+                                              quantity: _quantity,
+                                            );
+                                            if (context.mounted) {
+                                              AppNotificationUtils.showAddToCartSnackBar(
+                                                context,
+                                                productName: _product.name,
+                                              );
+                                            }
+                                          }
+                                        } finally {
+                                          if (mounted) {
+                                            setState(() => _isAddingToCart = false);
+                                          }
+                                        }
+                                      },
                               ),
                             ),
                           ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -50,6 +51,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   bool _isSearchFocused = false;
   
   String _searchQuery = '';
+  Timer? _searchDebounceTimer;
   String _sortOption = 'default'; // 'default', 'price_asc', 'price_desc', 'name_asc'
 
   List<TileProduct> _allProducts = [];
@@ -75,12 +77,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
       }
     });
 
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text;
-        _displayedCount = _pageSize;
-      });
-    });
+    _searchController.addListener(_onSearchChanged);
 
     _scrollController.addListener(_onScroll);
 
@@ -195,8 +192,21 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     return [...tiles, ...adhesives];
   }
 
+  void _onSearchChanged() {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = _searchController.text;
+          _displayedCount = _pageSize;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchFocusNode.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -336,9 +346,11 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
   }
 
   void _clearAllFilters() {
+    _searchDebounceTimer?.cancel();
     setState(() {
       _activeFilter = ProductFilterCriteria();
       _searchController.clear();
+      _searchQuery = '';
       _sortOption = 'default';
       _displayedCount = _pageSize;
     });
@@ -392,6 +404,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
     if (_searchQuery.trim().isNotEmpty) {
       // If a search query is active, clear it first so user sees full collection
+      _searchDebounceTimer?.cancel();
       _searchController.clear();
       setState(() {
         _searchQuery = '';
@@ -651,62 +664,29 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
 
           // 4. Staggered Masonry Grid View matching physical tile proportions
           Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppTheme.primaryNavy,
-                    ),
-                  )
-                : _errorMessage != null && _allProducts.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.cloud_off_rounded,
-                                  size: 64, color: Colors.grey.shade400),
-                              const SizedBox(height: 16),
-                              Text(
-                                "Couldn't load tiles",
-                                style: GoogleFonts.inter(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.grey.shade700,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _errorMessage ?? 'Please check your connection and try again.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
-                                    fontSize: 13, color: AppTheme.textSubtle),
-                              ),
-                              const SizedBox(height: 16),
-                              AppButton(
-                                text: 'Retry',
-                                icon: Icons.refresh_rounded,
-                                variant: AppButtonVariant.primary,
-                                height: 42,
-                                fontSize: 13,
-                                onPressed: _loadProducts,
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : filtered.isEmpty
-                        ? Center(
+            child: RefreshIndicator(
+              onRefresh: _loadProducts,
+              color: AppTheme.primaryNavy,
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.primaryNavy,
+                      ),
+                    )
+                  : _errorMessage != null && _allProducts.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Center(
                             child: Padding(
                               padding: const EdgeInsets.all(24.0),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.style_outlined,
-                                      size: 64, color: Colors.grey.shade300),
+                                  Icon(Icons.cloud_off_rounded,
+                                      size: 64, color: Colors.grey.shade400),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'No tiles matching selected criteria',
+                                    "Couldn't load tiles",
                                     style: GoogleFonts.inter(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -715,57 +695,100 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Try resetting your multi-select surface or size filters.',
+                                    _errorMessage ?? 'Please check your connection and try again.',
                                     textAlign: TextAlign.center,
-                                    style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSubtle),
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13, color: AppTheme.textSubtle),
                                   ),
                                   const SizedBox(height: 16),
                                   AppButton(
-                                    text: 'Reset All Filters',
+                                    text: 'Retry',
                                     icon: Icons.refresh_rounded,
                                     variant: AppButtonVariant.primary,
                                     height: 42,
                                     fontSize: 13,
-                                    onPressed: _clearAllFilters,
+                                    onPressed: _loadProducts,
                                   ),
                                 ],
                               ),
                             ),
-                          )
-                        : Builder(
-                            builder: (context) {
-                              final displayedItems = filtered.take(_displayedCount).toList();
-                              return MasonryGridView.count(
-                                controller: _scrollController,
-                                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                                physics: const BouncingScrollPhysics(
-                                    parent: AlwaysScrollableScrollPhysics()),
-                                cacheExtent: 800,
-                                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                itemCount: displayedItems.length,
-                                itemBuilder: (context, index) {
-                                  // Lightweight nearby thumbnail URL pre-warming ahead of scroll
-                                  if (index + 2 < displayedItems.length) {
-                                    final nextUrls = displayedItems
-                                        .skip(index + 1)
-                                        .take(4)
-                                        .map((p) => p.frontCardThumbnail)
-                                        .where((path) => StorageImageService.getCachedUrl(path) == null)
-                                        .toList();
-                                    if (nextUrls.isNotEmpty) {
-                                      StorageImageService.warmCache(nextUrls);
-                                    }
-                                  }
-
-                                  final product = displayedItems[index];
-                                  return _buildLuxuryTileCard(context, product);
-                                },
-                              );
-                            },
                           ),
+                        )
+                      : filtered.isEmpty
+                          ? SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.style_outlined,
+                                          size: 64, color: Colors.grey.shade300),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'No tiles matching selected criteria',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Try resetting your multi-select surface or size filters.',
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSubtle),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      AppButton(
+                                        text: 'Reset All Filters',
+                                        icon: Icons.refresh_rounded,
+                                        variant: AppButtonVariant.primary,
+                                        height: 42,
+                                        fontSize: 13,
+                                        onPressed: _clearAllFilters,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Builder(
+                              builder: (context) {
+                                final displayedItems = filtered.take(_displayedCount).toList();
+                                return MasonryGridView.count(
+                                  controller: _scrollController,
+                                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                                  physics: const BouncingScrollPhysics(
+                                      parent: AlwaysScrollableScrollPhysics()),
+                                  cacheExtent: 800,
+                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 16,
+                                  crossAxisSpacing: 16,
+                                  itemCount: displayedItems.length,
+                                  itemBuilder: (context, index) {
+                                    // Lightweight nearby thumbnail URL pre-warming ahead of scroll
+                                    if (index + 2 < displayedItems.length) {
+                                      final nextUrls = displayedItems
+                                          .skip(index + 1)
+                                          .take(4)
+                                          .map((p) => p.frontCardThumbnail)
+                                          .where((path) => StorageImageService.getCachedUrl(path) == null)
+                                          .toList();
+                                      if (nextUrls.isNotEmpty) {
+                                        StorageImageService.warmCache(nextUrls);
+                                      }
+                                    }
+
+                                    final product = displayedItems[index];
+                                    return _buildLuxuryTileCard(context, product);
+                                  },
+                                );
+                              },
+                            ),
+            ),
           ),
         ],
       ),

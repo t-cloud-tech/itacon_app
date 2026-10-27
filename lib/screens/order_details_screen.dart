@@ -762,9 +762,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             top: false,
             child: ResponsiveConstraint(
               maxContentWidth: 720,
-              child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  setState(() {});
+                  await Future.delayed(const Duration(milliseconds: 500));
+                },
+                color: AppTheme.primaryNavy,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (snapshot.hasError) ...[
@@ -849,6 +856,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 ],
               ),
             ),
+          ),
           ),
           ),
         );

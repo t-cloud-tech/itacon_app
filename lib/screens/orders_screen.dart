@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../theme/app_theme.dart';
@@ -24,8 +25,25 @@ class _OrdersScreenState extends State<OrdersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String _searchQuery = '';
   bool _isNavigating = false;
+
+  Future<void> _refreshOrders() async {
+    setState(() {});
+    await Future.delayed(const Duration(milliseconds: 500));
+  }
+
+  void _onSearchChanged(String val) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _searchQuery = val.trim().toLowerCase();
+        });
+      }
+    });
+  }
 
   void _navigateToOrderDetails(TileOrder order) {
     if (_isNavigating || !mounted) return;
@@ -50,6 +68,7 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -143,11 +162,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: TextField(
                       controller: _searchController,
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val.trim().toLowerCase();
-                        });
-                      },
+                      onChanged: _onSearchChanged,
                       decoration: InputDecoration(
                         hintText: 'Search PO reference, product or client...',
                         prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.textSubtle),
@@ -222,47 +237,58 @@ class _OrdersScreenState extends State<OrdersScreen>
   }) {
     if (orders.isEmpty) {
       final isSearching = _searchQuery.isNotEmpty;
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                isSearching ? Icons.search_off_rounded : emptyIcon,
-                size: 64,
-                color: AppTheme.textLight.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                isSearching ? 'No Matching Orders' : emptyTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
+      return RefreshIndicator(
+        onRefresh: _refreshOrders,
+        color: AppTheme.primaryNavy,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Container(
+            alignment: Alignment.center,
+            height: MediaQuery.of(context).size.height * 0.5,
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isSearching ? Icons.search_off_rounded : emptyIcon,
+                  size: 64,
+                  color: AppTheme.textLight.withValues(alpha: 0.5),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                isSearching ? 'No orders match "$_searchQuery" under $tabName.' : emptySubtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textSubtle,
+                const SizedBox(height: 12),
+                Text(
+                  isSearching ? 'No Matching Orders' : emptyTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textDark,
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  isSearching ? 'No orders match "$_searchQuery" under $tabName.' : emptySubtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSubtle,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-      itemCount: orders.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
+    return RefreshIndicator(
+      onRefresh: _refreshOrders,
+      color: AppTheme.primaryNavy,
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+        itemCount: orders.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
         final order = orders[index];
         final String displayStatus;
         switch (order.status.toLowerCase()) {
@@ -506,6 +532,7 @@ class _OrdersScreenState extends State<OrdersScreen>
           ),
         );
       },
+    ),
     );
   }
 }

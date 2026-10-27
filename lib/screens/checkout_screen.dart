@@ -429,15 +429,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentOrange,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$category TIER',
-                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentOrange,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '$category TIER',
+                      maxLines: 1,
+                      style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -464,15 +470,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryNavy.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Tier: $category',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryNavy),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Tier: $category',
+                          maxLines: 1,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryNavy),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -565,22 +577,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(width: 8),
 
                   // Rate & Line Total
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '₹${item.itemTotal.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
-                        textAlign: TextAlign.right,
-                      ),
-                      Text(
-                        item.product.isAdhesive
-                            ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                            : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                        style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
-                        textAlign: TextAlign.right,
-                      ),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.w(110)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '₹${item.itemTotal.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            item.product.isAdhesive
+                                ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                                : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                            style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
                       if (resolved.hasDiscount)
                         Text(
                           resolved.discountBadgeLabel,
@@ -589,6 +611,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                     ],
                   ),
+                ),
                 ],
               ),
             );
@@ -964,23 +987,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const SizedBox(width: 8),
 
                         // Resolved Price (content-hugging, flush right)
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '₹${item.itemTotal.toStringAsFixed(0)}',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
-                              textAlign: TextAlign.right,
-                            ),
-                            Text(
-                              item.product.isAdhesive
-                                  ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
-                                  : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
-                              style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
-                              textAlign: TextAlign.right,
-                            ),
-                          ],
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: context.w(110)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '₹${item.itemTotal.toStringAsFixed(0)}',
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.accentOrange),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  item.product.isAdhesive
+                                      ? '₹${resolved.unitPrice.toStringAsFixed(0)} / bag'
+                                      : '₹${resolved.unitPrice.toStringAsFixed(0)} / sq ft',
+                                  style: const TextStyle(fontSize: 10, color: AppTheme.textSubtle),
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
