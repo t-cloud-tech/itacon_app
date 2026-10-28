@@ -1,12 +1,9 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
-import { useAuth } from "@/lib/auth-context";
-import { 
-  Bell, 
-  PlusCircle, 
-  Search, 
+import {
+  Bell,
+  Search,
   Smartphone,
   ExternalLink 
 } from "lucide-react";
@@ -17,8 +14,6 @@ interface TopbarProps {
 }
 
 export function Topbar({ title = "Dashboard", subtitle = "Sales Activity & Quotation Overview" }: TopbarProps) {
-  const { user, role } = useAuth();
-
   return (
     <header className="h-16 bg-white border-b border-[#E2E8F0] px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs shrink-0">
       <div>
@@ -33,17 +28,6 @@ export function Topbar({ title = "Dashboard", subtitle = "Sales Activity & Quota
           <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
           <span>Customer App Live Sync</span>
         </div>
-
-        {/* Quick New Quotation CTA (hidden for designers) */}
-        {role !== "designer" && (
-          <Link
-            href="/quotations/new"
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Create Quotation</span>
-          </Link>
-        )}
       </div>
     </header>
   );
