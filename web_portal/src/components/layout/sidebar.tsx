@@ -2,10 +2,10 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import {
-  Building2,
   LayoutDashboard,
   UserCheck,
   Users,
@@ -56,9 +56,14 @@ export function Sidebar() {
       <div className="flex flex-col min-h-0">
         {/* Brand Header */}
         <div className="px-5 py-4 flex items-center space-x-3 border-b border-white/10 shrink-0">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-[#E66A23] to-[#F59E0B] flex items-center justify-center shadow-md shadow-[#E66A23]/30 shrink-0">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
+          <Image
+            src="/ITACON_App_Logo.png"
+            alt="ITACON Granito"
+            width={40}
+            height={40}
+            priority
+            className="w-10 h-10 rounded-lg shrink-0"
+          />
           <div>
             <div className="font-bold text-lg leading-tight tracking-tight text-white whitespace-nowrap">ITACON GRANITO</div>
             <div className="text-[11px] font-medium text-orange-400 uppercase tracking-wider">

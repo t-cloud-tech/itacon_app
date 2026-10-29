@@ -1,22 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth, AuthException } from "@/lib/auth-context";
 import { homePathFor } from "@/lib/auth-utils";
-import { 
-  Building2, 
-  Lock, 
-  Mail, 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
-  AlertCircle, 
-  CheckCircle2, 
-  ShieldCheck, 
-  TrendingUp, 
-  FileSpreadsheet, 
-  Smartphone 
+import {
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  TrendingUp,
+  FileSpreadsheet,
+  Smartphone
 } from "lucide-react";
 
 export default function LoginPage() {
@@ -74,15 +74,20 @@ export default function LoginPage() {
       <div className="lg:w-1/2 bg-[#0E274D] text-white p-8 lg:p-14 flex flex-col justify-between relative overflow-hidden">
         {/* Subtle geometric background overlay */}
         <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
-        
+
         <div>
           {/* Logo & Company Name */}
           <div className="flex items-center space-x-3 mb-10">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#E66A23] to-[#F59E0B] flex items-center justify-center shadow-lg shadow-[#E66A23]/30">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
+            <Image
+              src="/ITACON_App_Logo.png"
+              alt="ITACON Granito"
+              width={44}
+              height={44}
+              priority
+              className="w-11 h-11 rounded-xl shrink-0"
+            />
             <div>
-              <span className="text-2xl font-bold tracking-tight text-white">ITACON</span>
+              <span className="text-2xl font-bold tracking-tight text-white">ITACON GRANITO</span>
               <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded bg-white/10 text-orange-400 uppercase tracking-wider">
                 Enterprise Portal
               </span>
@@ -132,7 +137,7 @@ export default function LoginPage() {
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Role-Based Secure Portal</span>
           </div>
-          <span>© {new Date().getFullYear()} ITACON Ceramic</span>
+          <span>© {new Date().getFullYear()} ITACON GRANITO</span>
         </div>
       </div>
 
