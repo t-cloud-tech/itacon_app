@@ -34,7 +34,14 @@ import {
   X
 } from "lucide-react";
 
-export type OrderStatusKey = "pending_rate" | "rate_quoted" | "confirmed" | "rejected";
+export type OrderStatusKey =
+  | "pending_rate"
+  | "rate_quoted"
+  | "confirmed"
+  | "rejected_customer"
+  | "rejected_salesperson"
+  | "sent_to_customer"
+  | "accepted";
 
 import { BASELINE_QUOTATIONS } from "@/lib/baseline-quotations";
 
@@ -67,7 +74,8 @@ function QuotationsContent() {
       if (paramStatus === "pending_rate") setStatusFilter("pending_approval");
       else if (paramStatus === "rate_quoted") setStatusFilter("sent_to_customer");
       else if (paramStatus === "confirmed") setStatusFilter("accepted");
-      else if (paramStatus === "rejected") setStatusFilter("rejected");
+      else if (paramStatus === "rejected_customer" || paramStatus === "rejected_salesperson") setStatusFilter(paramStatus);
+      else if (paramStatus === "sent_to_customer" || paramStatus === "accepted") setStatusFilter(paramStatus);
     }
   }, [paramTab, paramStatus]);
 
@@ -349,18 +357,33 @@ function QuotationsContent() {
         (q.salespersonName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (q.poNumber || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "pending_approval" && (q.status === "pending_approval" || q.status === "pending_admin_approval") && (q as any).adminApprovalStatus !== "approved" && (q as any).approvalStatus !== "approved" && (q as any).adminApprovalStatus !== "rejected" && (q as any).approvalStatus !== "rejected") ||
-        (statusFilter === "approved" && ((q.status === "approved" && ((q.pricePerSqft !== undefined && q.pricePerSqft < 26.50) || q.requiresSpecialApproval)) || (q as any).adminApprovalStatus === "approved" || (q as any).approvalStatus === "approved" || q.status === "pending_salesperson_review")) ||
-        (statusFilter === "admin_rejected" && ((q as any).adminApprovalStatus === "rejected" || (q as any).approvalStatus === "rejected" || (q.status === "pending_salesperson_review" && (q as any).adminApprovalStatus === "rejected"))) ||
-        (statusFilter === "sent_to_customer" && (q.status === "sent_to_customer" || q.status === "rate_quoted")) ||
-        (statusFilter === "confirm_order" && (q.status === "confirm_order" || q.status === ("confirm order" as any) || q.status === "accepted" || (q as any).paymentStatus === "paid")) ||
-        (statusFilter === "accepted" && (q.status === "accepted" || q.status === "confirm_order" || (q as any).paymentStatus === "paid")) ||
-        (statusFilter === "rejected_customer" && q.status === "rejected" && (q as any).changedByRole === "customer") ||
-        (statusFilter === "rejected_salesperson" && (q.status === "declined" || (q as any).salespersonApprovalStatus === "cancelled" || ((q as any).changedByRole === "salesperson" && (q as any).approvalStatus !== "rejected" && (q as any).adminApprovalStatus !== "rejected"))) ||
-        (statusFilter === "rejected" && (q.status === "declined" || q.status === "rejected")) ||
-        q.status === statusFilter;
+      // Filter on the exact label shown in the Status column so the two can never disagree
+      const matchesStatus = (() => {
+        if (statusFilter === "all") return true;
+        const label = getPOStatusLabel(q.status, {
+          adminApprovalStatus: (q as any).adminApprovalStatus || q.approvalStatus,
+          approvalStatus: q.approvalStatus,
+          salespersonApprovalStatus: (q as any).salespersonApprovalStatus,
+          changedByRole: (q as any).changedByRole,
+          rejectedBy: (q as any).rejectedBy,
+          pricePerSqft: q.pricePerSqft,
+          rateThreshold: q.rateThreshold,
+          requiresSpecialApproval: q.requiresSpecialApproval,
+          paymentStatus: (q as any).paymentStatus,
+          isPaid: (q as any).paymentStatus === "paid" || q.status === ("confirm_order" as any),
+        });
+        switch (statusFilter) {
+          case "confirm_order": return label === "Confirm Order";
+          case "pending_approval": return label === "Awaiting Admin Approval";
+          case "approved": return label === "Admin Approved - Sales Action Required";
+          case "admin_rejected": return label === "Admin Rejected - Sales Action Required";
+          case "sent_to_customer": return label === "Sent to Customer";
+          case "accepted": return label === "Converted to Order";
+          case "rejected_customer": return label === "Rejected by Customer";
+          case "rejected_salesperson": return label === "Rejected by Salesperson";
+          default: return q.status === statusFilter;
+        }
+      })();
 
       return matchesSearch && matchesStatus;
     });
@@ -497,7 +520,6 @@ function QuotationsContent() {
                 <option value="accepted">Converted to Order</option>
                 <option value="rejected_customer">Rejected by Customer</option>
                 <option value="rejected_salesperson">Rejected by Salesperson</option>
-                <option value="rejected">Rejected</option>
               </select>
             )}
 

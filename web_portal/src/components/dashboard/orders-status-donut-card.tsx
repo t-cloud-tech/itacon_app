@@ -19,8 +19,9 @@ import {
   shouldIncludeOrderForSalesperson
 } from "@/lib/order-service";
 import { useAuth } from "@/lib/auth-context";
+import { getRejectionActor } from "@/lib/po-status-helper";
 
-export type OrderStatusKey = "pending_rate" | "rate_quoted" | "confirmed" | "rejected";
+export type OrderStatusKey = "pending_rate" | "rate_quoted" | "confirmed" | "rejected_customer" | "rejected_salesperson";
 
 interface StatusItem {
   key: OrderStatusKey;
@@ -69,7 +70,8 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
     let pendingRate = 0;
     let rateQuoted = 0;
     let confirmed = 0;
-    let rejected = 0;
+    let rejectedCustomer = 0;
+    let rejectedSalesperson = 0;
 
     allMergedOrders.forEach((o) => {
       const s = (o.status || "").toLowerCase();
@@ -79,15 +81,18 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
         rateQuoted++;
       } else if (s === "confirmed" || s === "approved" || s === "dispatched" || s === "delivered" || s === "accepted" || s === "in_production") {
         confirmed++;
-      } else if (s === "rejected" || s === "cancelled" || s === "declined") {
-        rejected++;
+      } else if (s === "rejected") {
+        // Same actor rule as the Quotations status label; unknown actor defaults to customer
+        if (getRejectionActor(o) === "salesperson") rejectedSalesperson++;
+        else rejectedCustomer++;
+      } else if (s === "cancelled" || s === "declined") {
+        rejectedSalesperson++;
       }
     });
 
     const prCount = pendingRate;
     const rqCount = rateQuoted;
     const cfCount = confirmed;
-    const rjCount = rejected;
 
     const items: StatusItem[] = [
       {
@@ -124,12 +129,23 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
         icon: CheckCircle2,
       },
       {
-        key: "rejected",
-        label: "Rejected",
-        sublabel: "Declined by Customer or Salesperson",
-        count: rjCount,
+        key: "rejected_customer",
+        label: "Rejected by Customer",
+        sublabel: "Declined in App by Customer",
+        count: rejectedCustomer,
         color: "#EF4444", // Crimson
         textColor: "text-rose-700",
+        bgLight: "bg-rose-50",
+        borderLight: "border-rose-300",
+        icon: XCircle,
+      },
+      {
+        key: "rejected_salesperson",
+        label: "Rejected by Salesperson",
+        sublabel: "Declined by Salesperson",
+        count: rejectedSalesperson,
+        color: "#9F1239", // Deep Rose
+        textColor: "text-rose-900",
         bgLight: "bg-rose-50",
         borderLight: "border-rose-300",
         icon: XCircle,
@@ -146,7 +162,9 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
   // Donut SVG geometry math
   const size = 200;
   const strokeWidth = 28;
-  const radius = (size - strokeWidth) / 2;
+  const hoverExtra = 5;
+  // Leave room for the thicker hovered stroke and its shadow so it never clips at the viewBox edge
+  const radius = (size - (strokeWidth + hoverExtra) - 8) / 2;
   const circumference = 2 * Math.PI * radius;
 
   const donutSegments = useMemo(() => {
@@ -169,7 +187,9 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
   const activeHoverItem = hoveredKey ? donutSegments.find((s) => s.key === hoveredKey) : null;
 
   const confirmedCount = items.find((i) => i.key === "confirmed")?.count || 0;
-  const rejectedCount = items.find((i) => i.key === "rejected")?.count || 0;
+  const rejectedCount =
+    (items.find((i) => i.key === "rejected_customer")?.count || 0) +
+    (items.find((i) => i.key === "rejected_salesperson")?.count || 0);
   const closedDeals = confirmedCount + rejectedCount;
   const winRate = closedDeals > 0 ? ((confirmedCount / closedDeals) * 100).toFixed(1) : "0.0";
 
@@ -180,8 +200,8 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
       router.push("/quotations?tab=all&status=sent_to_customer");
     } else if (key === "confirmed") {
       router.push("/quotations?tab=all&status=accepted");
-    } else if (key === "rejected") {
-      router.push("/quotations?tab=all&status=rejected");
+    } else {
+      router.push(`/quotations?tab=all&status=${key}`);
     }
   };
 
@@ -216,10 +236,11 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
         {/* Donut Chart + Central Micro-Hub & Breakdown List */}
         <div className="py-6 flex flex-col lg:flex-row items-center justify-center gap-8">
           {/* Donut Visual */}
-          <div className="relative w-48 h-48 flex items-center justify-center select-none shrink-0">
+          <div className="w-full lg:w-[40%] flex items-center justify-center shrink-0">
+          <div className="relative w-64 h-64 lg:w-72 lg:h-72 flex items-center justify-center select-none shrink-0">
             <svg
               viewBox={`0 0 ${size} ${size}`}
-              className="w-full h-full transform -rotate-90 cursor-pointer"
+              className="w-full h-full transform -rotate-90 cursor-pointer overflow-visible"
             >
               {/* Background circle track */}
               <circle
@@ -242,7 +263,7 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
                     r={radius}
                     fill="none"
                     stroke={segment.color}
-                    strokeWidth={isHovered ? strokeWidth + 5 : strokeWidth}
+                    strokeWidth={isHovered ? strokeWidth + hoverExtra : strokeWidth}
                     strokeDasharray={segment.strokeDasharray}
                     strokeDashoffset={segment.strokeDashoffset}
                     className="transition-all duration-300 cursor-pointer"
@@ -264,7 +285,7 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 pointer-events-none">
               {activeHoverItem ? (
                 <div className="animate-fadeIn">
-                  <div className="text-2xl font-black text-[#0E274D] leading-none">
+                  <div className="text-3xl font-black text-[#0E274D] leading-none">
                     {activeHoverItem.count}
                   </div>
                   <div className="text-[11px] font-bold text-slate-700 mt-1 truncate max-w-[110px]">
@@ -289,7 +310,7 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
                 </div>
               ) : (
                 <div>
-                  <div className="text-2xl font-black text-[#0E274D] leading-none">
+                  <div className="text-3xl font-black text-[#0E274D] leading-none">
                     {total}
                   </div>
                   <div className="text-[11px] font-bold text-slate-500 mt-1 uppercase tracking-wider">
@@ -302,9 +323,10 @@ export function OrdersStatusDonutCard({ orders = [] }: OrdersStatusDonutCardProp
               )}
             </div>
           </div>
+          </div>
 
           {/* Quick Metrics & Interactive Status Capsules */}
-          <div className="flex-1 w-full space-y-2.5">
+          <div className="w-full lg:w-[60%] space-y-2.5">
             <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between px-1">
               <span>Click to View on Quotations Page</span>
               <span className="text-[10px] text-[#E66A23] font-bold flex items-center space-x-1">
