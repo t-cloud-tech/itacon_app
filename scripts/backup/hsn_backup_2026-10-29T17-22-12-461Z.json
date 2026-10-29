@@ -1,0 +1,2753 @@
+{
+  "createdAt": "2026-10-29T17:22:12.461Z",
+  "filterCategory": "ALL",
+  "overwrite": false,
+  "totalProducts": 305,
+  "products": [
+    {
+      "id": "O5b6jtBrylI7BJNZ2tWz",
+      "name": "DEMO",
+      "sku": "DEMO-001",
+      "productType": "Adhesives",
+      "tileCategory": "Tile Adhesives",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_ADH_LX01",
+      "name": "ITA LX-01 Tile Adhesive (Type-1 C1T, 20 kg)",
+      "sku": "ITA-LX-01",
+      "productType": "Adhesives",
+      "tileCategory": "Fixing Solutions",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_ADH_LX02",
+      "name": "ITA LX-02 Tile Adhesive (Type-2 C2T, 20 kg)",
+      "sku": "ITA-LX-02",
+      "productType": "Adhesives",
+      "tileCategory": "Fixing Solutions",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_ADH_LX03",
+      "name": "ITA LX-03 Tile Adhesive (Type-3 C2TE, 20 kg)",
+      "sku": "ITA-LX-03",
+      "productType": "Adhesives",
+      "tileCategory": "Fixing Solutions",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_ADH_LX03W",
+      "name": "ITA LX-03W White Tile Adhesive (Type-3 White C2TE)",
+      "sku": "ITA-LX-03W",
+      "productType": "Adhesives",
+      "tileCategory": "Fixing Solutions",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_ADH_LX04",
+      "name": "ITA LX-04 Tile Adhesive (Type-4 C2TES1)",
+      "sku": "ITA-LX-04",
+      "productType": "Adhesives",
+      "tileCategory": "Fixing Solutions",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_ADH_LX04W",
+      "name": "ITA LX-04 White Tile Adhesive (Type-4 White)",
+      "sku": "ITA-LX-04W",
+      "productType": "Adhesives",
+      "tileCategory": "Fixing Solutions",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_001",
+      "name": "ITA 001-ADLINE SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-001",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_002",
+      "name": "ITA 002-PERCIANO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-002",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_003",
+      "name": "ITA 003-MG SILVER SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-003",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_004",
+      "name": "ITA 004-MG VERSO SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-004",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_005",
+      "name": "ITA 005-MG OIKOS BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-005",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_006",
+      "name": "ITA 006-MG ASHER GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-006",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_007",
+      "name": "ITA 007-MG ASHER GRIS",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-007",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_008",
+      "name": "ITA 008-MG LEAVES BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-008",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_009",
+      "name": "ITA 009-MG LEAVES BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-009",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_010",
+      "name": "ITA 010-MG OMANI BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-010",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_011",
+      "name": "ITA 011-MG PIGUES NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-011",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_012",
+      "name": "ITA 012-MG SPANISH CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-012",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_013",
+      "name": "ITA 013-MG SPANISH GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-013",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_014",
+      "name": "ITA 014-DYNA CLASSIC IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-014",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_015",
+      "name": "ITA 015-ERIAM BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-015",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_016",
+      "name": "ITA 016-ERIAM NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-016",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_017",
+      "name": "ITA 017-LAVANTA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-017",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_018",
+      "name": "ITA 018-MORADIYA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-018",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_019",
+      "name": "ITA 019-MORADIYA IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-019",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_020",
+      "name": "ITA 020-VENUS",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-020",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_021",
+      "name": "ITA 021-MG AXOR BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-021",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_022",
+      "name": "ITA 022-MG AXOR GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-022",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_023",
+      "name": "ITA 023-MG KERRELL BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-023",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_024",
+      "name": "ITA 024-MG MORIS GOLD",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-024",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_025",
+      "name": "ITA 025-MG PANOZZO GREEN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-025",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_026",
+      "name": "ITA 026-MG OLKOS AQUA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-026",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_027",
+      "name": "ITA 027-BROOKS AQUA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-027",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_028",
+      "name": "ITA 028-MG BIJOX BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-028",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_029",
+      "name": "ITA 029-EMPRO PATARA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-029",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_030",
+      "name": "ITA 030-ICONIC WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-030",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_031",
+      "name": "ITA 031-MG ATOMOS GREEN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-031",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_032",
+      "name": "ITA 032-MG QUIPAR WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-032",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_033",
+      "name": "ITA 033-MG ELDORADO GOLD",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-033",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_034",
+      "name": "ITA 034-MG KERRELL AQUA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-034",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_035",
+      "name": "ITA 035-MG ATOMOS GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-035",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_036",
+      "name": "ITA 036-GRAND CLASSIC BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-036",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_037",
+      "name": "ITA 037-MG AMAZING NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-037",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_038",
+      "name": "ITA 038-MG ARISTONE WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-038",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_039",
+      "name": "ITA 039-MG AQUANE SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-039",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_040",
+      "name": "ITA 040-MG MAR STATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-040",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_041",
+      "name": "ITA 041-MG HYBRID GOLD",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-041",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_043",
+      "name": "ITA 043-STATUARIO GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-043",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_044",
+      "name": "ITA 044-MG MOTRICO ONYX SKY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-044",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_045",
+      "name": "ITA 045-MG ADRINA STATUARIO GOLD",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-045",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_046",
+      "name": "ITA 046-MG ABSTRACT BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-046",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_047",
+      "name": "ITA 047-MG ANTRESIT DOVE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-047",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_048",
+      "name": "ITA 048-MG ATOMOS BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-048",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_049",
+      "name": "ITA 049-DYNA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-049",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_050",
+      "name": "ITA 050-HARVEST BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-050",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_052",
+      "name": "ITA 052-GLITER CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-052",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_054",
+      "name": "ITA 054-MG ASHER BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-054",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_055",
+      "name": "ITA 055-TESSINO PIETRA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-055",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_056",
+      "name": "ITA 056-TESSINO PIETRA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-056",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_057",
+      "name": "IAT 057-ONYX REX PERLE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-057",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_058",
+      "name": "ITA 058-MG ASHER IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-058",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_059",
+      "name": "ITA 059-MG LIMA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-059",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_060",
+      "name": "Super White",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-060",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_061",
+      "name": "ITA 061-MG SF 1025",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-061",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_062",
+      "name": "ITA 062-MG MODERN BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-062",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_063",
+      "name": "ITA 063-MG MODERN GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-063",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_064",
+      "name": "ITA 064-OCEAN WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-064",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_00_065",
+      "name": "ITA 065-MG FLAKSH BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-00-065",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_066",
+      "name": "ADIGE CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-066",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_067",
+      "name": "ADIGE GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-067",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_068",
+      "name": "ADIGE LUREL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-068",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_069",
+      "name": "ADIGE MINK",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-069",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_070",
+      "name": "ALBANION BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-070",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_071",
+      "name": "ALBANION CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-071",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_072",
+      "name": "ALBANION IRON",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-072",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_073",
+      "name": "ALBANION PLATINUM",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-073",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_074",
+      "name": "AMARO CREAM",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-074",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_075",
+      "name": "AMIGO SMOKE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-075",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_076",
+      "name": "ANLAYA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-076",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_077",
+      "name": "ANTOLIA CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-077",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_078",
+      "name": "ANTRESIT GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-078",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_079",
+      "name": "ANTRESIT NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-079",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_080",
+      "name": "ARAVALI BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-080",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_081",
+      "name": "ARAVALI NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-081",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_082",
+      "name": "ARS BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-082",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_083",
+      "name": "ARS BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-083",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_084",
+      "name": "ARS CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-084",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_085",
+      "name": "ARS GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-085",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_086",
+      "name": "AZALIA IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-086",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_087",
+      "name": "AZALIA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-087",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_088",
+      "name": "AZALIA SILVER",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-088",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_089",
+      "name": "BAYAZ BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-089",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_090",
+      "name": "BISAZZA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-090",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_091",
+      "name": "BISAZZA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-091",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_092",
+      "name": "BOUTIQUE BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-092",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_093",
+      "name": "BRECCIA ARRORA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-093",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_094",
+      "name": "CARNICA ROYAL BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-094",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_095",
+      "name": "CARNICA ROYAL GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-095",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_096",
+      "name": "CICILIA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-096",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_097",
+      "name": "CRYSTAL TRAVERTINO BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-097",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_098",
+      "name": "CRYSTAL TRAVERTINO BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-098",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_099",
+      "name": "DAKOTA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-099",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_100",
+      "name": "DYNA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-100",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_101",
+      "name": "DYNA CAMRY DARK",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-101",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_102",
+      "name": "DYNA CAMRY LIGHT",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-102",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_103",
+      "name": "DYNA CHARMIS",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-103",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_104",
+      "name": "DYNA FANTASTICO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-104",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_105",
+      "name": "DYNA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-105",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_106",
+      "name": "DYNA_CLASSIC_IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-106",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_107",
+      "name": "ELENTA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-107",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_108",
+      "name": "ELENTA WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-108",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_109",
+      "name": "EMPRO PATARA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-109",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_110",
+      "name": "EMPRO PATARA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-110",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_111",
+      "name": "ERIAM BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-111",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_112",
+      "name": "ERIAM NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-112",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_113",
+      "name": "EXOTIC RIVER",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-113",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_114",
+      "name": "EXTRANAL STONE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-114",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_115",
+      "name": "FARON BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-115",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_116",
+      "name": "FARON BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-116",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_117",
+      "name": "FARON NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-117",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_118",
+      "name": "GILITER BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-118",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_119",
+      "name": "GILITER CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-119",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_120",
+      "name": "GOTTINA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-120",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_121",
+      "name": "GRAND CLASSIC BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-121",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_122",
+      "name": "GRAND CLASSIC BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-122",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_123",
+      "name": "HARVEST BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-123",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_124",
+      "name": "HARVEST BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-124",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_125",
+      "name": "ICOINC WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-125",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_126",
+      "name": "ILLUSION NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-126",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_127",
+      "name": "ILLUSION OCHRE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-127",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_128",
+      "name": "ILLUSION PEACH",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-128",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_129",
+      "name": "ILLUSION RIVER",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-129",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_130",
+      "name": "IMPERIAL GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-130",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_131",
+      "name": "IMPERIAL SMOKY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-131",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_132",
+      "name": "JERICO PULPIS BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-132",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_133",
+      "name": "JERICO PULPIS BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-133",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_134",
+      "name": "JERICO PULPIS BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-134",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_135",
+      "name": "JERICO PULPIS BRUNO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-135",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_136",
+      "name": "JERICO PULPIS CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-136",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_137",
+      "name": "JERICO PULPIS GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-137",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_138",
+      "name": "LAVANTA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-138",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_139",
+      "name": "LETINA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-139",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_140",
+      "name": "LIMA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-140",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_141",
+      "name": "LIMA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-141",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_142",
+      "name": "LIMA CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-142",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_143",
+      "name": "LIMA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-143",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_144",
+      "name": "LIME STONE CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-144",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_145",
+      "name": "MACAUBAS FANTASY BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-145",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_146",
+      "name": "MACAUBAS FANTASY GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-146",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_147",
+      "name": "MARKINA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-147",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_148",
+      "name": "MARMI AZURE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-148",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_149",
+      "name": "MARMI BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-149",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_150",
+      "name": "MARMI BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-150",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_151",
+      "name": "MARMI BRUNO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-151",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_152",
+      "name": "MELTONE BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-152",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_153",
+      "name": "MORADIYA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-153",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_154",
+      "name": "MORADIYA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-154",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_155",
+      "name": "MORADIYA IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-155",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_156",
+      "name": "MORADIYA WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-156",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_157",
+      "name": "ONYX OMANI BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-157",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_158",
+      "name": "ONYX OMANI SILVER",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-158",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_159",
+      "name": "PICASSO BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-159",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_160",
+      "name": "PICASSO GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-160",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_161",
+      "name": "PLAZMA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-161",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_162",
+      "name": "QUA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-162",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_163",
+      "name": "QUA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-163",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_164",
+      "name": "QUA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-164",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_165",
+      "name": "ROCK ARMANI BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-165",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_166",
+      "name": "ROCK ARMANI GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-166",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_167",
+      "name": "ROCK ROYAL BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-167",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_168",
+      "name": "ROCK ROYAL BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-168",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_169",
+      "name": "ROCK ROYAL BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-169",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_170",
+      "name": "ROCK ROYAL GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-170",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_171",
+      "name": "ROME GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-171",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_172",
+      "name": "ROME IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-172",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_173",
+      "name": "SATORI CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-173",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_174",
+      "name": "SATORI GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-174",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_175",
+      "name": "SHG HARVEST GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-175",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_176",
+      "name": "SHG HARVEST NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-176",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_177",
+      "name": "SHG MARKINA OLIVE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-177",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_178",
+      "name": "SHG_PLAZMA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-178",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_179",
+      "name": "SHG_TERACON BLACK",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-179",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_180",
+      "name": "SOFTY CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-180",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_181",
+      "name": "SONATA MINT",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-181",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_182",
+      "name": "TELER CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-182",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_183",
+      "name": "TELTOS BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-183",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_184",
+      "name": "TELTOS BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-184",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_185",
+      "name": "TERACON WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-185",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_186",
+      "name": "TESSINO PIETRA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-186",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_187",
+      "name": "TESSINO PIETRA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-187",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_188",
+      "name": "TESSINO PIETRA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-188",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_189",
+      "name": "TESSINO PIETRA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-189",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_190",
+      "name": "TOPAZ BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-190",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_191",
+      "name": "TOPAZ WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-191",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_192",
+      "name": "TRAVER GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-192",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_193",
+      "name": "TRAVER IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-193",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_194",
+      "name": "TRAVO BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-194",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_195",
+      "name": "TRAVO BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-195",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_196",
+      "name": "TRAVO BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-196",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_197",
+      "name": "TRAVO GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-197",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_198",
+      "name": "VELSA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-198",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_199",
+      "name": "VELSA GREEN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-199",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_200",
+      "name": "VELSA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-200",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_201",
+      "name": "VOLTERRA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-201",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_202",
+      "name": "WARM BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-202",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_203",
+      "name": "WHITE RET",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-203",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_204",
+      "name": "IND_1025_SF_MG",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-204",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_205",
+      "name": "MG ADRY STATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-205",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_206",
+      "name": "MG ALMERIA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-206",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_207",
+      "name": "MG ALMERIA WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-207",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_208",
+      "name": "MG AMAZING BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-208",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_209",
+      "name": "MG AMAZING MULTY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-209",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_210",
+      "name": "MG AMAZING NETURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-210",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_211",
+      "name": "MG AMBAR ONYX",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-211",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_212",
+      "name": "MG ANGEL NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-212",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_213",
+      "name": "MG ANTONY BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-213",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_214",
+      "name": "MG ANTRESIT BRIZO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-214",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_215",
+      "name": "MG ANTRESIT DOVE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-215",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_216",
+      "name": "MG AQUANE SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-216",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_217",
+      "name": "MG ARISTON MULTY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-217",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_218",
+      "name": "MG ARISTON WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-218",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_219",
+      "name": "MG ASHER BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-219",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_220",
+      "name": "MG ASHER GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-220",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_221",
+      "name": "MG ASHER GRIS",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-221",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_222",
+      "name": "MG ASHER IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-222",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_223",
+      "name": "MG AXOR BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-223",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_224",
+      "name": "MG AXOR GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-224",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_225",
+      "name": "MG BIJOX BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-225",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_226",
+      "name": "MG BIJOX GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-226",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_227",
+      "name": "MG BORGINI BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-227",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_228",
+      "name": "MG BORGINI GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-228",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_229",
+      "name": "MG BRATVI BLACK",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-229",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_230",
+      "name": "MG BRERA BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-230",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_231",
+      "name": "MG BRERA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-231",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_232",
+      "name": "MG BRERA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-232",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_233",
+      "name": "MG CARRA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-233",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_234",
+      "name": "MG CELESTIAL GREY STATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-234",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_235",
+      "name": "MG CHARM SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-235",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_236",
+      "name": "MG FLORENTINA BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-236",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_237",
+      "name": "MG FLORENTINA MULTY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-237",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_238",
+      "name": "MG HENRI BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-238",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_239",
+      "name": "MG HONESTA IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-239",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_240",
+      "name": "MG JAXON CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-240",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_241",
+      "name": "MG JAXON WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-241",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_242",
+      "name": "MG LEAVES BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-242",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_243",
+      "name": "MG LEAVES BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-243",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_244",
+      "name": "MG LEAVES NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-244",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_245",
+      "name": "MG LEMON ONYX",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-245",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_246",
+      "name": "MG LEROX WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-246",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_247",
+      "name": "MG LUSSO STATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-247",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_248",
+      "name": "MG MAR STATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-248",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_249",
+      "name": "MG MARAZZI GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-249",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_250",
+      "name": "MG MARBBLA STATURIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-250",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_251",
+      "name": "MG MARVELLA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-251",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_252",
+      "name": "MG MERCURY BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-252",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_253",
+      "name": "MG MERCURY BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-253",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_254",
+      "name": "MG MERCURY CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-254",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_255",
+      "name": "MG MERCURY FOSSIL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-255",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_256",
+      "name": "MG MERCURY GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-256",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_257",
+      "name": "MG MERCURY NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-257",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_258",
+      "name": "MG MERCURY STONE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-258",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_259",
+      "name": "MG MERCURY THUNDER",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-259",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_260",
+      "name": "MG MODERN BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-260",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_261",
+      "name": "MG MODERN GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-261",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_262",
+      "name": "MG MOTRICO ONYX SKY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-262",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_263",
+      "name": "MG MOTRICO ONYX WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-263",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_264",
+      "name": "MG MURAL ONYX",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-264",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_265",
+      "name": "MG NATURAL BOTTOCHINO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-265",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_266",
+      "name": "MG NOKTA BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-266",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_267",
+      "name": "MG NOKTA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-267",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_268",
+      "name": "MG OIKOS AQUA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-268",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_269",
+      "name": "MG OIKOS BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-269",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_270",
+      "name": "MG OMANI BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-270",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_271",
+      "name": "MG ONYX DELICATO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-271",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_272",
+      "name": "MG ONYX DELICATO BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-272",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_273",
+      "name": "MG ONYX FLORIM BLUE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-273",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_274",
+      "name": "MG ONYX FLORIM SEPIA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-274",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_275",
+      "name": "MG OPERA STATURIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-275",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_276",
+      "name": "MG PANOZZO GREEN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-276",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_277",
+      "name": "MG PIGUES NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-277",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_278",
+      "name": "MG PIGUES WHITE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-278",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_279",
+      "name": "MG RIVANA BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-279",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_280",
+      "name": "MG RIVANA BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-280",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_281",
+      "name": "MG RIVANA BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-281",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_282",
+      "name": "MG RIVANA GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-282",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_283",
+      "name": "MG RIVANA IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-283",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_284",
+      "name": "MG RIVANA NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-284",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_285",
+      "name": "MG RIVER GRANTE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-285",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_286",
+      "name": "MG ROSELL CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-286",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_287",
+      "name": "MG ROYAL BOTTOCHINO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-287",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_288",
+      "name": "MG SILVER STATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-288",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_289",
+      "name": "MG SPANISH CREMA",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-289",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_290",
+      "name": "MG SPANISH GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-290",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_291",
+      "name": "MG SPANISH NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-291",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_292",
+      "name": "MG SYDNEY BEIGE",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-292",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_293",
+      "name": "MG SYDNEY BIANCO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-293",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_294",
+      "name": "MG SYDNEY BROWN",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-294",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_295",
+      "name": "MG SYDNEY GREY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-295",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_296",
+      "name": "MG SYDNEY IVORY",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-296",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_297",
+      "name": "MG SYDNEY NATURAL",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-297",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_298",
+      "name": "MG SYDNEY YELLOW",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-298",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_299",
+      "name": "MG VANILLA ONYX",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-299",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "PROD_VIT_60120_8_50_GLO_MAR_WHIT_300",
+      "name": "MG VERSO SATUARIO",
+      "sku": "VIT-60120-8.50-GLO-MAR-WHIT-300",
+      "productType": "Vitrified",
+      "tileCategory": "",
+      "hsnCode": null,
+      "hsnCategory": null
+    },
+    {
+      "id": "XwUbmy40kKQjzPD3eKSy",
+      "name": "DEMO",
+      "sku": "DEMO-01",
+      "productType": "Vitrified",
+      "tileCategory": "Floor Tiles",
+      "hsnCode": null,
+      "hsnCategory": null
+    }
+  ]
+}

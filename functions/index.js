@@ -88,3 +88,7 @@ exports.onSalesPersonWrite = onSalesPersonWrite;
 // Staff-created customer accounts (admin / salesperson)
 const { createCustomerByStaff } = require('./createCustomerByStaff');
 exports.createCustomerByStaff = createCustomerByStaff;
+
+// Automatic Product HSN Code Assignment Trigger (2nd Gen, region: asia-south1)
+const { assignHsnCode } = require('./assignHsnCode');
+exports.assignHsnCode = assignHsnCode;

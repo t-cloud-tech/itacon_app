@@ -729,8 +729,16 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdminOrManager();
     }
-    match /config/{configId} {
+    match /config/homeBanner {
       allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+    match /config/hsnCodes {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
+    match /config/{configId} {
+      allow read: if isAuthenticated();
       allow write: if isAdminOrManager();
     }
 
