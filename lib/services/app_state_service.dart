@@ -236,6 +236,8 @@ class AppStateService extends ChangeNotifier {
     String? fcmToken,
     String? pincode,
     String? gstNumber,
+    bool? gstVerified,
+    DateTime? gstVerifiedAt,
     String? profilePhotoUrl,
     List<String>? showroomImages,
     Map<String, dynamic>? address,
@@ -261,6 +263,8 @@ class AppStateService extends ChangeNotifier {
       fcmToken: fcmToken ?? current.fcmToken,
       pincode: pincode ?? current.pincode,
       gstNumber: gstNumber ?? current.gstNumber,
+      gstVerified: gstVerified ?? current.gstVerified,
+      gstVerifiedAt: gstVerifiedAt ?? current.gstVerifiedAt,
       profilePhotoUrl: (profilePhotoUrl != null && profilePhotoUrl.isEmpty)
           ? ''
           : (profilePhotoUrl ?? current.profilePhotoUrl),
@@ -358,6 +362,9 @@ class AppStateService extends ChangeNotifier {
     }
     if (p.companyName.trim().isEmpty) {
       pending.add({'title': 'Company / Firm Name', 'field': 'companyName', 'points': '9%'});
+    }
+    if (p.userCategory.trim().isEmpty) {
+      pending.add({'title': 'User Category', 'field': 'userCategory', 'points': '8%'});
     }
     final street = (p.address['line1'] ??
             p.address['addressLine'] ??

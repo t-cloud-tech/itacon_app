@@ -729,6 +729,19 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdminOrManager();
     }
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isAdminOrManager();
+    }
+
+    // =========================================================================
+    // GST LOOKUP CACHE (populated strictly by server-side Cloud Functions)
+    // Readable only by admin / salesperson (isStaff); direct client writes denied.
+    // =========================================================================
+    match /gstLookups/{gstin} {
+      allow read: if isStaff();
+      allow write: if false;
+    }
 
     // =========================================================================
     // SECURITY NOTE:

@@ -83,6 +83,7 @@ flutter:
     - assets/images/
     - assets/images/Home/
     - assets/images/Home/Shop_by_space/
+    - assets/images/banners/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

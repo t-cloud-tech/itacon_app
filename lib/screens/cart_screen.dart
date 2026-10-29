@@ -15,6 +15,8 @@ import '../services/storage_image_service.dart';
 import 'checkout_screen.dart';
 import 'product_detail_screen.dart';
 import 'profile/edit_profile_screen.dart';
+import '../widgets/support_dialog.dart';
+import 'main_navigation_screen.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -364,9 +366,77 @@ class CartScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Cart'),
         actions: [
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert_rounded, color: AppTheme.primaryNavy),
-            onPressed: () {},
+            tooltip: 'More options',
+            elevation: 4,
+            color: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: AppTheme.borderSubtle, width: 1),
+            ),
+            offset: const Offset(0, 48),
+            onSelected: (value) {
+              if (!context.mounted) return;
+              if (value == 'orders') {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MainNavigationScreen(initialTab: 3),
+                  ),
+                  (route) => false,
+                );
+              } else if (value == 'support') {
+                showSupportDialog(context);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                value: 'orders',
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.inventory_2_outlined,
+                      size: 20,
+                      color: AppTheme.primaryNavy,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'My Orders',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'support',
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.headset_mic_outlined,
+                      size: 20,
+                      color: AppTheme.primaryNavy,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Help & Support',
+                      style: GoogleFonts.inter(
+                        color: AppTheme.textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

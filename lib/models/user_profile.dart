@@ -32,6 +32,8 @@ class UserProfile {
   final String? fcmToken; // Firebase Cloud Messaging Device Push Token
   final String pincode; // PIN code
   final String gstNumber; // GSTIN Number
+  final bool gstVerified; // Whether GST was verified from official records
+  final DateTime? gstVerifiedAt; // When GST was verified
   final String avatarUrl; // Avatar URL
   final String? profilePhotoUrl; // Profile photo URL
   final List<String> showroomImages; // Array of Firebase Storage URLs for showroom/display pictures
@@ -72,6 +74,8 @@ class UserProfile {
     this.fcmToken,
     this.pincode = '',
     this.gstNumber = '',
+    this.gstVerified = false,
+    this.gstVerifiedAt,
     this.avatarUrl = '',
     this.profilePhotoUrl,
     this.showroomImages = const [],
@@ -124,6 +128,8 @@ class UserProfile {
     String? fcmToken,
     String? pincode,
     String? gstNumber,
+    bool? gstVerified,
+    DateTime? gstVerifiedAt,
     String? avatarUrl,
     String? profilePhotoUrl,
     List<String>? showroomImages,
@@ -164,6 +170,8 @@ class UserProfile {
       fcmToken: fcmToken ?? this.fcmToken,
       pincode: pincode ?? this.pincode,
       gstNumber: gstNumber ?? this.gstNumber,
+      gstVerified: gstVerified ?? this.gstVerified,
+      gstVerifiedAt: gstVerifiedAt ?? this.gstVerifiedAt,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
       showroomImages: showroomImages ?? this.showroomImages,
@@ -229,6 +237,8 @@ class UserProfile {
       if (fcmToken != null && fcmToken!.isNotEmpty) 'fcmToken': fcmToken,
       'pincode': pincode,
       'gstNumber': gstNumber,
+      'gstVerified': gstVerified,
+      if (gstVerifiedAt != null) 'gstVerifiedAt': Timestamp.fromDate(gstVerifiedAt!),
       'avatarUrl': avatarUrl,
       'profilePhotoUrl': profilePhotoUrl ?? avatarUrl,
       'showroomImages': showroomImages,
@@ -321,17 +331,20 @@ class UserProfile {
     }
 
     final resolvedCompany = (map['companyName'] ??
+            map['firmName'] ??
             map['company'] ??
             map['businessName'] ??
+            map['firm_name'] ??
+            map['company_name'] ??
             '')
         .toString()
         .trim();
 
     return UserProfile(
       userId: docId,
-      name: (map['name'] ?? map['fullName'] ?? '').toString().trim(),
+      name: (map['name'] ?? map['fullName'] ?? map['displayName'] ?? map['full_name'] ?? '').toString().trim(),
       religion: (map['religion'] ?? '').toString().trim(),
-      dateOfBirth: (map['dateOfBirth'] ?? map['dob'] ?? '').toString().trim(),
+      dateOfBirth: (map['dateOfBirth'] ?? map['dob'] ?? map['birthDate'] ?? map['date_of_birth'] ?? '').toString().trim(),
       companyName: resolvedCompany,
       phone: rawPhone,
       countryCode: resolvedCountryCode,
@@ -357,7 +370,9 @@ class UserProfile {
       region: map['region'] ?? 'West India (Gujarat/Maharashtra)',
       fcmToken: map['fcmToken'] as String?,
       pincode: resolvedPincode,
-      gstNumber: (map['gstNumber'] ?? map['gstin'] ?? '').toString().trim(),
+      gstNumber: (map['gstNumber'] ?? map['gstin'] ?? map['gst'] ?? map['gst_number'] ?? '').toString().trim(),
+      gstVerified: map['gstVerified'] as bool? ?? false,
+      gstVerifiedAt: map['gstVerifiedAt'] is Timestamp ? (map['gstVerifiedAt'] as Timestamp).toDate() : null,
       avatarUrl: map['avatarUrl'] ?? map['profilePhotoUrl'] ?? '',
       profilePhotoUrl: map['profilePhotoUrl'] ?? map['avatarUrl'],
       showroomImages: List<String>.from(map['showroomImages'] ?? []),

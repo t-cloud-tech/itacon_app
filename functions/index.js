@@ -63,8 +63,9 @@ exports.getPaidPoDownloadUrlCallable = getPaidPoDownloadUrlCallable;
 exports.generateUnpaidPoPdf = generateUnpaidPoPdf;
 
 // Secure Business Defaulters Verification API Proxy
-const { checkBusinessDefaulterCallable } = require('./businessDefaultersEngine');
+const { checkBusinessDefaulterCallable, lookupGstDetails } = require('./businessDefaultersEngine');
 exports.checkBusinessDefaulterCallable = checkBusinessDefaulterCallable;
+exports.lookupGstDetails = lookupGstDetails;
 
 // Reliable Salesperson Client Sync Engine & Referral Verification (2nd Gen, region: asia-south1)
 const {

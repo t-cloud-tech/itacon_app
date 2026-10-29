@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../../services/gst_service.dart';
+import '../../widgets/interactive_pressable.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../services/app_state_service.dart';
@@ -39,6 +43,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _profilePhotoUrl;
   List<String> _showroomImages = [];
   bool _isSaving = false;
+  late final GstService _gstService;
+  bool _isGstLoading = false;
+  bool _gstVerified = false;
+  DateTime? _gstVerifiedAt;
+  String? _gstStatusWarning;
+  Timer? _gstDebounceTimer;
+  final Set<String> _autoFilledFields = {};
 
   final List<String> _categories = [
     'Dealer',
@@ -97,6 +108,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       _selectedCategory = matched.isNotEmpty ? matched.first : null;
     }
+    _gstService = GstService();
+    _gstVerified = profile.gstVerified;
+    _gstVerifiedAt = profile.gstVerifiedAt;
     _selectedRegion = profile.region.isNotEmpty ? profile.region : 'West India (Gujarat/Maharashtra)';
     _profilePhotoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     _showroomImages = List<String>.from(profile.showroomImages);
@@ -108,6 +122,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
+    _gstDebounceTimer?.cancel();
     _nameController.dispose();
     _dobController.dispose();
     _religionController.dispose();
@@ -583,6 +598,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         region: _selectedRegion,
         pincode: _pincodeController.text.trim(),
         gstNumber: _gstController.text.trim(),
+        gstVerified: _gstVerified,
+        gstVerifiedAt: _gstVerifiedAt,
         profilePhotoUrl: _profilePhotoUrl,
         showroomImages: _showroomImages,
         address: updatedAddr,
@@ -961,6 +978,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
                 hintText: 'Enter mobile number',
+                readOnly: true,
+                helperText: 'Registered mobile number cannot be changed (used for login)',
               ),
               const SizedBox(height: 14),
               _buildInputField(
@@ -976,6 +995,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 _companyController,
                 Icons.business_outlined,
                 hintText: 'Enter company or business name',
+                isVerifiedFromGst: _autoFilledFields.contains('companyName'),
+                onChanged: (_) {
+                  if (_autoFilledFields.contains('companyName')) {
+                    setState(() => _autoFilledFields.remove('companyName'));
+                  }
+                },
               ),
               const SizedBox(height: 14),
 
@@ -1025,6 +1050,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 _addressLineController,
                 Icons.home_outlined,
                 hintText: 'Enter your complete delivery address',
+                isVerifiedFromGst: _autoFilledFields.contains('address'),
+                onChanged: (_) {
+                  if (_autoFilledFields.contains('address')) {
+                    setState(() => _autoFilledFields.remove('address'));
+                  }
+                },
               ),
               const SizedBox(height: 14),
 
@@ -1036,6 +1067,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       _cityController,
                       Icons.location_city_outlined,
                       hintText: 'Enter city',
+                      isVerifiedFromGst: _autoFilledFields.contains('city'),
+                      onChanged: (_) {
+                        if (_autoFilledFields.contains('city')) {
+                          setState(() => _autoFilledFields.remove('city'));
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -1045,6 +1082,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       _stateController,
                       Icons.map_outlined,
                       hintText: 'Select state',
+                      isVerifiedFromGst: _autoFilledFields.contains('state'),
+                      onChanged: (_) {
+                        if (_autoFilledFields.contains('state')) {
+                          setState(() => _autoFilledFields.remove('state'));
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -1060,16 +1103,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       Icons.pin_drop_outlined,
                       keyboardType: TextInputType.number,
                       hintText: 'Enter 6-digit pincode',
+                      isVerifiedFromGst: _autoFilledFields.contains('pincode'),
+                      onChanged: (_) {
+                        if (_autoFilledFields.contains('pincode')) {
+                          setState(() => _autoFilledFields.remove('pincode'));
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _buildInputField(
-                      'GSTIN Number',
-                      _gstController,
-                      Icons.receipt_long_outlined,
-                      hintText: 'Enter GSTIN number (if applicable)',
-                    ),
+                    child: _buildGstField(),
                   ),
                 ],
               ),
@@ -1293,25 +1337,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
     String? hintText,
+    bool readOnly = false,
+    String? helperText,
+    bool isVerifiedFromGst = false,
+    ValueChanged<String>? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textDark,
-          ),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isVerifiedFromGst) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(color: const Color(0xFF10B981), width: 0.8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 10, color: Color(0xFF059669)),
+                    SizedBox(width: 2),
+                    Text(
+                      'Verified from GST records',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF059669),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           keyboardType: keyboardType,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: readOnly ? Colors.grey.shade700 : AppTheme.textDark,
+          ),
+          onChanged: (val) {
+            onChanged?.call(val);
+          },
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
+            suffixIcon: readOnly ? const Icon(Icons.lock_outline_rounded, size: 16, color: AppTheme.textSubtle) : null,
             hintText: hintText ?? 'Enter $label',
             hintStyle: const TextStyle(
               fontSize: 13,
@@ -1319,7 +1409,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               fontWeight: FontWeight.normal,
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1335,9 +1425,396 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
         ),
+        if (helperText != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            helperText,
+            style: const TextStyle(fontSize: 11, color: AppTheme.textSubtle),
+          ),
+        ],
       ],
     );
   }
+
+  void _onGstInputChanged(String gstin) {
+    _gstDebounceTimer?.cancel();
+    if (GstService.isValidGstFormat(gstin)) {
+      _gstDebounceTimer = Timer(const Duration(milliseconds: 800), () {
+        if (mounted && GstService.isValidGstFormat(_gstController.text)) {
+          _performGstAutoFill(_gstController.text.trim(), isAutoTrigger: true);
+        }
+      });
+    }
+  }
+
+  Future<void> _performGstAutoFill(String gstin, {bool isAutoTrigger = false}) async {
+    if (_isGstLoading) return;
+    setState(() {
+      _isGstLoading = true;
+      _gstStatusWarning = null;
+    });
+
+    try {
+      final result = await _gstService.lookupGst(gstin);
+
+      if (!mounted) return;
+
+      if (!result.success) {
+        setState(() => _isGstLoading = false);
+        if (result.error == 'not-found') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('GST number not found in official records. Please enter details manually.'),
+              backgroundColor: Color(0xFF1B365D),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Couldn't fetch GST details. Please enter details manually."),
+              backgroundColor: AppTheme.statusError,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Check inactive / cancelled
+      if (result.isCancelledOrInactive) {
+        setState(() {
+          _gstStatusWarning = 'This GST number is not active (${result.gstStatus})';
+        });
+      }
+
+      // Prepare fields to auto-fill
+      final incomingCompany = (result.companyName ?? '').trim();
+      final incomingAddress = (result.address ?? '').trim();
+      final incomingCity = (result.city ?? '').trim();
+      String incomingState = (result.state ?? '').trim();
+      if (incomingState.isEmpty && result.stateCode != null) {
+        incomingState = GstService.getStateNameFromCode(result.stateCode) ?? '';
+      }
+      final incomingPincode = (result.pincode ?? '').trim();
+
+      // Check for conflicts with existing non-empty values
+      final conflicts = <String, Map<String, String>>{};
+      if (incomingCompany.isNotEmpty &&
+          _companyController.text.trim().isNotEmpty &&
+          _companyController.text.trim().toLowerCase() != incomingCompany.toLowerCase()) {
+        conflicts['Company / Firm Name'] = {
+          'current': _companyController.text.trim(),
+          'gst': incomingCompany,
+        };
+      }
+      if (incomingAddress.isNotEmpty &&
+          _addressLineController.text.trim().isNotEmpty &&
+          _addressLineController.text.trim().toLowerCase() != incomingAddress.toLowerCase()) {
+        conflicts['Delivery Address'] = {
+          'current': _addressLineController.text.trim(),
+          'gst': incomingAddress,
+        };
+      }
+      if (incomingCity.isNotEmpty &&
+          _cityController.text.trim().isNotEmpty &&
+          _cityController.text.trim().toLowerCase() != incomingCity.toLowerCase()) {
+        conflicts['City'] = {
+          'current': _cityController.text.trim(),
+          'gst': incomingCity,
+        };
+      }
+      if (incomingState.isNotEmpty &&
+          _stateController.text.trim().isNotEmpty &&
+          _stateController.text.trim().toLowerCase() != incomingState.toLowerCase()) {
+        conflicts['State'] = {
+          'current': _stateController.text.trim(),
+          'gst': incomingState,
+        };
+      }
+      if (incomingPincode.isNotEmpty &&
+          _pincodeController.text.trim().isNotEmpty &&
+          _pincodeController.text.trim() != incomingPincode) {
+        conflicts['PIN Code'] = {
+          'current': _pincodeController.text.trim(),
+          'gst': incomingPincode,
+        };
+      }
+
+      bool shouldReplaceConflicts = true;
+      if (conflicts.isNotEmpty) {
+        final bool? confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.sync_problem_rounded, color: AppTheme.primaryNavy),
+                SizedBox(width: 8),
+                Text('Replace with GST details?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'The official GST records differ from details currently in your profile:',
+                    style: TextStyle(fontSize: 13, color: AppTheme.textDark),
+                  ),
+                  const SizedBox(height: 12),
+                  ...conflicts.entries.map((entry) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(entry.key, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                              const SizedBox(height: 2),
+                              Text('Current: ${entry.value['current']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                              Text('GST record: ${entry.value['gst']}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF059669))),
+                            ],
+                          ),
+                        ),
+                      )),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('No, Keep Current', style: TextStyle(color: AppTheme.textSubtle, fontWeight: FontWeight.bold)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryNavy,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Yes, Replace', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+
+        shouldReplaceConflicts = confirmed == true;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isGstLoading = false;
+        _gstVerified = true;
+        _gstVerifiedAt = DateTime.now();
+
+        // 1. Company Name
+        if (incomingCompany.isNotEmpty) {
+          if (_companyController.text.trim().isEmpty || (conflicts.containsKey('Company / Firm Name') && shouldReplaceConflicts)) {
+            _companyController.text = incomingCompany;
+            _autoFilledFields.add('companyName');
+          }
+        }
+
+        // 2. Address
+        if (incomingAddress.isNotEmpty) {
+          if (_addressLineController.text.trim().isEmpty || (conflicts.containsKey('Delivery Address') && shouldReplaceConflicts)) {
+            _addressLineController.text = incomingAddress;
+            _autoFilledFields.add('address');
+          }
+        }
+
+        // 3. City
+        if (incomingCity.isNotEmpty) {
+          if (_cityController.text.trim().isEmpty || (conflicts.containsKey('City') && shouldReplaceConflicts)) {
+            _cityController.text = incomingCity;
+            _autoFilledFields.add('city');
+          }
+        }
+
+        // 4. State
+        if (incomingState.isNotEmpty) {
+          if (_stateController.text.trim().isEmpty || (conflicts.containsKey('State') && shouldReplaceConflicts)) {
+            _stateController.text = incomingState;
+            _autoFilledFields.add('state');
+          }
+        }
+
+        // 5. Pincode
+        if (incomingPincode.isNotEmpty) {
+          if (_pincodeController.text.trim().isEmpty || (conflicts.containsKey('PIN Code') && shouldReplaceConflicts)) {
+            _pincodeController.text = incomingPincode;
+            _autoFilledFields.add('pincode');
+          }
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('GST details verified and loaded successfully!'),
+          backgroundColor: Color(0xFF059669),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isGstLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Couldn't fetch GST details. Please enter details manually."),
+            backgroundColor: AppTheme.statusError,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildGstField() {
+    final bool canTrigger = GstService.isValidGstFormat(_gstController.text);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Flexible(
+              child: Text(
+                'GSTIN Number',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textDark,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            AppPressable(
+              onTap: (_isGstLoading || !canTrigger)
+                  ? null
+                  : () => _performGstAutoFill(_gstController.text.trim()),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: canTrigger && !_isGstLoading
+                      ? AppTheme.primaryNavy
+                      : Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: _isGstLoading
+                    ? const SizedBox(
+                        width: 11,
+                        height: 11,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 1.5),
+                      )
+                    : const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.auto_fix_high_rounded, size: 11, color: Colors.white),
+                          SizedBox(width: 3),
+                          Text(
+                            'Auto-fill',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _gstController,
+          textCapitalization: TextCapitalization.characters,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+            LengthLimitingTextInputFormatter(15),
+            UpperCaseTextFormatter(),
+          ],
+          onChanged: (val) {
+            final uppercase = val.toUpperCase();
+            if (val != uppercase) {
+              _gstController.value = _gstController.value.copyWith(
+                text: uppercase,
+                selection: TextSelection.collapsed(offset: uppercase.length),
+              );
+            }
+            if (_gstStatusWarning != null) {
+              setState(() => _gstStatusWarning = null);
+            }
+            if (_gstVerified) {
+              setState(() {
+                _gstVerified = false;
+                _gstVerifiedAt = null;
+              });
+            }
+            setState(() {});
+            _onGstInputChanged(uppercase);
+          },
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.receipt_long_outlined, color: AppTheme.primaryNavy, size: 20),
+            suffixIcon: _gstVerified
+                ? const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF059669))
+                : null,
+            hintText: '15-digit GSTIN',
+            hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textSubtle, fontWeight: FontWeight.normal, letterSpacing: 0),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.borderSubtle),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primaryNavy, width: 1.5),
+            ),
+          ),
+        ),
+        if (_gstStatusWarning != null) ...[
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.amber.shade400),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 13, color: Colors.amber.shade900),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    _gstStatusWarning!,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.amber.shade900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
 
   Widget _buildAvatarImageWidget(String? photoUrl, String initials, {required double size}) {
     return AppAvatarImage(
@@ -1355,6 +1832,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       width: 100,
       height: 100,
       fit: BoxFit.cover,
+    );
+  }
+}
+
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }

@@ -21,6 +21,7 @@ import '../services/user_demand_service.dart';
 import '../services/product_catalog_service.dart';
 import '../services/storage_image_service.dart';
 import '../widgets/revolving_border_search_bar.dart';
+import '../widgets/home_banner_slideshow.dart';
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onNavigateTab;
@@ -1387,71 +1388,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Dark Navy Hero Banner with background image & gradient
   Widget _buildHeroBanner(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 180),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        image: const DecorationImage(
-          image: AssetImage('assets/images/splash_kitchen.jpg'),
-          fit: BoxFit.cover,
-        ),
-      ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            colors: [
-              AppTheme.primaryNavy.withValues(alpha: 0.95),
-              AppTheme.primaryNavy.withValues(alpha: 0.5),
-            ],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Strength. Elegance. Timeless.',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Premium Vitrified & Ceramic Surfaces Direct from Manufacturer',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 14),
-            AppButton(
-              text: 'Explore Collection →',
-              variant: AppButtonVariant.secondary,
-              height: 40,
-              fontSize: 13,
-              onPressed: () {
-                if (widget.onNavigateTab != null) {
-                  widget.onNavigateTab!(1);
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const ProductListingScreen()),
-                  );
-                }
-              },
-            ),
-          ],
-        ),
-      ),
+    return HomeBannerSlideshow(
+      onExplore: () {
+        if (widget.onNavigateTab != null) {
+          widget.onNavigateTab!(1);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => const ProductListingScreen()),
+          );
+        }
+      },
     );
   }
 

@@ -12,6 +12,8 @@ const {
   maskPhone,
   checkProxyRateLimit,
   userLookupCache,
+  processGstLookup,
+  GSTIN_PATTERN,
 } = require('./businessDefaultersEngine');
 
 // Mock in-memory Firestore
@@ -863,8 +865,259 @@ async function runTests() {
     console.log('✔ Test 26: Endpoint resolution normalizes base URL and full endpoint without duplication');
   }
 
+
+  // -------------------------------------------------------------------------
+  // ITACON GST LOOKUP AUTO-FILL UNIT & INTEGRATION TESTS
+  // -------------------------------------------------------------------------
+
+  // Test G1: Unauthenticated request throws 'unauthenticated'
+  {
+    let error;
+    try {
+      await processGstLookup({
+        data: { gst: '29EBXPS3467K1ZE' },
+        callerUid: null,
+      });
+    } catch (e) {
+      error = e;
+    }
+    assert(error, 'Must throw when unauthenticated');
+    assert.strictEqual(error.code, 'unauthenticated');
+    console.log('✔ Test G1: Unauthenticated GST lookup strictly rejected');
+  }
+
+  // Test G2: Invalid GST format returns { success: false, error: 'invalid-gst' }
+  {
+    const resShort = await processGstLookup({
+      data: { gst: '29EBXPS3467' },
+      callerUid: 'customer_1',
+    });
+    assert.strictEqual(resShort.success, false);
+    assert.strictEqual(resShort.error, 'invalid-gst');
+
+    const resInvalidPattern = await processGstLookup({
+      data: { gst: '29EBXPS3467K111' }, // 14th char must be Z
+      callerUid: 'customer_1',
+    });
+    assert.strictEqual(resInvalidPattern.success, false);
+    assert.strictEqual(resInvalidPattern.error, 'invalid-gst');
+    console.log('✔ Test G2: Invalid GSTIN format rejected with invalid-gst error code');
+  }
+
+  // Test G3: Valid GST lookup returns business fields and strictly hides credit risk data
+  {
+    const mockDb = {
+      collection: (col) => {
+        assert.strictEqual(col, 'gstLookups');
+        return {
+          doc: () => ({
+            get: async () => ({ exists: false }),
+            set: async () => {},
+          }),
+        };
+      },
+    };
+
+    const client = createMockHttpClient({
+      status: 200,
+      data: {
+        success: true,
+        exists: true,
+        isDefaulter: true, // Internal credit flag - MUST NOT LEAK
+        riskLevel: 'HIGH',  // Internal risk flag - MUST NOT LEAK
+        parties: [
+          {
+            companyName: 'Rajashree Ceramics',
+            gst: '29EBXPS3467K1ZE',
+            city: 'Mysore',
+            state: 'Karnataka',
+            address: 'Industrial Area, 570018',
+            phone: '******3210',
+          },
+        ],
+      },
+    });
+
+    const result = await processGstLookup({
+      data: { gst: '29ebxps3467k1ze' },
+      callerUid: 'customer_1',
+      firestoreDb: mockDb,
+      httpClient: client,
+      configOverride: validConfig,
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.gstin, '29EBXPS3467K1ZE');
+    assert.strictEqual(result.companyName, 'Rajashree Ceramics');
+    assert.strictEqual(result.city, 'Mysore');
+    assert.strictEqual(result.state, 'Karnataka');
+    assert.strictEqual(result.stateCode, '29');
+    assert.strictEqual(result.pan, 'EBXPS3467K');
+    assert.strictEqual(result.pincode, '570018');
+    assert.strictEqual(result.gstStatus, 'Active');
+
+    // PRIVACY VERIFICATION: Must NOT return credit risk fields to customers
+    assert.strictEqual(result.riskLevel, undefined, 'riskLevel must not be exposed to customers');
+    assert.strictEqual(result.isDefaulter, undefined, 'isDefaulter must not be exposed to customers');
+    assert.strictEqual(result.reportCount, undefined, 'reportCount must not be exposed to customers');
+    console.log('✔ Test G3: Valid GST returns business fields and strictly withholds credit risk fields');
+  }
+
+  // Test G4: Unknown GSTIN returns { success: false, error: 'not-found' }
+  {
+    let cachedDoc;
+    const mockDb = {
+      collection: () => ({
+        doc: () => ({
+          get: async () => ({ exists: false }),
+          set: async (data) => { cachedDoc = data; },
+        }),
+      }),
+    };
+
+    const client = createMockHttpClient({
+      status: 200,
+      data: {
+        success: true,
+        exists: false,
+        parties: [],
+      },
+    });
+
+    const result = await processGstLookup({
+      data: { gst: '27AAPCA1234A1Z5' },
+      callerUid: 'customer_1',
+      firestoreDb: mockDb,
+      httpClient: client,
+      configOverride: validConfig,
+    });
+
+    assert.strictEqual(result.success, false);
+    assert.strictEqual(result.error, 'not-found');
+    assert.strictEqual(result.gstStatus, 'Not found');
+    assert(cachedDoc, 'Negative lookup must be cached');
+    assert.strictEqual(cachedDoc.gstStatus, 'Not found');
+    console.log('✔ Test G4: Unknown GSTIN returns not-found and caches negative result');
+  }
+
+  // Test G5: 30-day cache hit avoids external HTTP call
+  {
+    let httpCallCount = 0;
+    const client = createMockHttpClient(() => {
+      httpCallCount++;
+      return { status: 200, data: {} };
+    });
+
+    const cachedData = {
+      companyName: 'Cached Tile Mart',
+      city: 'Ahmedabad',
+      state: 'Gujarat',
+      address: 'Ring Road, 380015',
+      stateCode: '24',
+      pan: 'AAACG1234F',
+      pincode: '380015',
+      gstStatus: 'Active',
+      cachedAt: { toMillis: () => Date.now() - (5 * 24 * 60 * 60 * 1000) }, // 5 days old
+    };
+
+    const mockDb = {
+      collection: () => ({
+        doc: () => ({
+          get: async () => ({ exists: true, data: () => cachedData }),
+        }),
+      }),
+    };
+
+    const result = await processGstLookup({
+      data: { gst: '24AAACG1234F1Z8' },
+      callerUid: 'customer_1',
+      firestoreDb: mockDb,
+      httpClient: client,
+      configOverride: validConfig,
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.cached, true);
+    assert.strictEqual(result.companyName, 'Cached Tile Mart');
+    assert.strictEqual(httpCallCount, 0, 'HTTP client must NOT be called on valid cache hit');
+    console.log('✔ Test G5: Valid cache hit (< 30 days) returns cached data without calling external API');
+  }
+
+  // Test G6: Expired cache (> 30 days) refreshes from external API
+  {
+    let httpCallCount = 0;
+    const client = createMockHttpClient(() => {
+      httpCallCount++;
+      return {
+        status: 200,
+        data: {
+          success: true,
+          exists: true,
+          parties: [{ companyName: 'Fresh Tile Mart', city: 'Surat', state: 'Gujarat', address: 'Varachha' }],
+        },
+      };
+    });
+
+    const expiredCachedData = {
+      companyName: 'Old Tile Mart',
+      gstStatus: 'Active',
+      cachedAt: { toMillis: () => Date.now() - (35 * 24 * 60 * 60 * 1000) }, // 35 days old
+    };
+
+    const mockDb = {
+      collection: () => ({
+        doc: () => ({
+          get: async () => ({ exists: true, data: () => expiredCachedData }),
+          set: async () => {},
+        }),
+      }),
+    };
+
+    const result = await processGstLookup({
+      data: { gst: '24AAACG1234F1Z8' },
+      callerUid: 'customer_1',
+      firestoreDb: mockDb,
+      httpClient: client,
+      configOverride: validConfig,
+    });
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.companyName, 'Fresh Tile Mart');
+    assert.strictEqual(httpCallCount, 1, 'HTTP client must be called when cache is expired');
+    console.log('✔ Test G6: Expired cache (> 30 days) invokes external API to refresh data');
+  }
+
+  // Test G7: Upstream timeout or network error returns { success: false, error: 'unavailable' }
+  {
+    const client = createMockHttpClient(() => {
+      const err = new Error('timeout of 10000ms exceeded');
+      err.code = 'ECONNABORTED';
+      throw err;
+    });
+
+    const mockDb = {
+      collection: () => ({
+        doc: () => ({
+          get: async () => ({ exists: false }),
+        }),
+      }),
+    };
+
+    const result = await processGstLookup({
+      data: { gst: '24AAACG1234F1Z8' },
+      callerUid: 'customer_1',
+      firestoreDb: mockDb,
+      httpClient: client,
+      configOverride: validConfig,
+    });
+
+    assert.strictEqual(result.success, false);
+    assert.strictEqual(result.error, 'unavailable');
+    console.log('✔ Test G7: Upstream network timeout handled gracefully with unavailable error code');
+  }
+
   console.log('\n======================================================');
-  console.log('ALL 30 BUSINESS DEFAULTERS BACKEND TESTS PASSED!');
+  console.log('ALL BUSINESS DEFAULTERS & GST LOOKUP BACKEND TESTS PASSED!');
   console.log('======================================================\n');
 }
 

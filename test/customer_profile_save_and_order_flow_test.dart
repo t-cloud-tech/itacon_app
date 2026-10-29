@@ -45,6 +45,8 @@ class MockFlowFirestoreService extends FirestoreService {
     String? region,
     String? pincode,
     String? gstNumber,
+    bool? gstVerified,
+    DateTime? gstVerifiedAt,
     String? profilePhotoUrl,
     List<String>? showroomImages,
     Map<String, dynamic>? address,

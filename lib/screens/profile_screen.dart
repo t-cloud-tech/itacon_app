@@ -10,6 +10,7 @@ import '../services/user_session_service.dart';
 import '../services/profile_photo_service.dart';
 import '../models/user_profile.dart';
 import '../widgets/profile_tier_card.dart';
+import '../widgets/support_dialog.dart';
 import 'orders_screen.dart';
 import 'favorites_screen.dart';
 import 'notifications_screen.dart';
@@ -762,7 +763,9 @@ class ProfileScreen extends StatelessWidget {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
                         }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
-                        _buildTile(Icons.headset_mic_outlined, 'Help & Support', () {}),
+                        _buildTile(Icons.headset_mic_outlined, 'Help & Support', () {
+                          showSupportDialog(context);
+                        }),
                         const Divider(height: 1, color: AppTheme.borderSubtle),
                         _buildTile(Icons.info_outline_rounded, 'About Us', () {}),
                         if (['salesperson', 'manager', 'admin', 'super_admin']
@@ -1033,6 +1036,7 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
     TextEditingController controller,
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
+    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1048,6 +1052,7 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
         const SizedBox(height: 6),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           keyboardType: keyboardType,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: AppTheme.primaryNavy, size: 20),
@@ -1211,7 +1216,7 @@ class _EditProfileBottomSheetState extends State<_EditProfileBottomSheet> {
                   const SizedBox(height: 14),
                   _buildTextField('Religion', _religionController, Icons.diversity_3_outlined),
                   const SizedBox(height: 14),
-                  _buildTextField('Mobile Number', _phoneController, Icons.phone_outlined, keyboardType: TextInputType.phone),
+                  _buildTextField('Mobile Number', _phoneController, Icons.phone_outlined, keyboardType: TextInputType.phone, readOnly: true),
                   const SizedBox(height: 14),
                   _buildTextField('Email Address', _emailController, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
                   const SizedBox(height: 14),

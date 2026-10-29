@@ -17,6 +17,7 @@ import '../screens/refer_and_earn_screen.dart';
 import '../screens/loyalty_benefits_screen.dart';
 import '../screens/business_defaulter_lookup_screen.dart';
 import 'app_avatar_image.dart';
+import 'support_dialog.dart';
 
 /// Luxury Side Navigation Drawer for ITACON GRANITO
 class AppNavigationDrawer extends StatelessWidget {
@@ -477,10 +478,10 @@ class AppNavigationDrawer extends StatelessWidget {
                     ),
                     _buildDrawerItem(
                       icon: Icons.headset_mic_outlined,
-                      title: 'Contact Support',
+                      title: 'Help & Support',
                       onTap: () {
                         _safeCloseDrawerAndNavigate(context, () {
-                          _showSupportDialog(context);
+                          showSupportDialog(context);
                         });
                       },
                     ),
@@ -809,53 +810,6 @@ class AppNavigationDrawer extends StatelessWidget {
     await UserSessionService.logout(context);
   }
 
-  void _showSupportDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.headset_mic_rounded, color: AppTheme.primaryNavy),
-            SizedBox(width: 8),
-            Text('ITACON Support', style: TextStyle(color: AppTheme.primaryNavy)),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Need assistance with your orders or tile inquiries?',
-              style: TextStyle(fontSize: 14, color: AppTheme.textDark),
-            ),
-            SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.phone_rounded, size: 18, color: AppTheme.accentOrange),
-                SizedBox(width: 8),
-                Text('+91 98765 43210', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.email_rounded, size: 18, color: AppTheme.accentOrange),
-                SizedBox(width: 8),
-                Text('support@itacongranito.com', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: AppTheme.primaryNavy)),
-          ),
-        ],
-      ),
-    );
-  }
 
   /// Navigates to the dedicated Refer & Earn screen.
   static void showReferAndEarnModal(BuildContext context, UserProfile user) {

@@ -516,6 +516,8 @@ class FirestoreService {
     String? region,
     String? pincode,
     String? gstNumber,
+    bool? gstVerified,
+    DateTime? gstVerifiedAt,
     String? profilePhotoUrl,
     List<String>? showroomImages,
     Map<String, dynamic>? address,
@@ -588,6 +590,8 @@ class FirestoreService {
 
       if (region != null && region.isNotEmpty) updateData['region'] = region.trim();
       if (gstNumber != null) updateData['gstNumber'] = gstNumber.trim();
+      if (gstVerified != null) updateData['gstVerified'] = gstVerified;
+      if (gstVerifiedAt != null) updateData['gstVerifiedAt'] = Timestamp.fromDate(gstVerifiedAt);
       if (profilePhotoUrl != null) {
         updateData['profilePhotoUrl'] = profilePhotoUrl;
         updateData['avatarUrl'] = profilePhotoUrl;
@@ -2670,6 +2674,35 @@ class FirestoreService {
 
   Future<void> setSystemConfig(String docId, Map<String, dynamic> config) async {
     await _systemConfigsRef.doc(docId).set(config, SetOptions(merge: true));
+  }
+
+  /// Fetches the list of slide image paths for the Home Screen hero banner slideshow.
+  /// Reads config/homeBanner, falls back to systemConfigs/homeBanner.
+  Future<List<String>?> getHomeBannerSlides() async {
+    try {
+      final doc = await _db.collection('config').doc('homeBanner').get();
+      if (doc.exists && doc.data() != null) {
+        final data = doc.data()!;
+        if (data['slides'] is List) {
+          final list = (data['slides'] as List).map((e) => e.toString()).toList();
+          if (list.isNotEmpty) return list;
+        }
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] Error reading config/homeBanner: ');
+    }
+
+    try {
+      final data = await getSystemConfig('homeBanner');
+      if (data != null && data['slides'] is List) {
+        final list = (data['slides'] as List).map((e) => e.toString()).toList();
+        if (list.isNotEmpty) return list;
+      }
+    } catch (e) {
+      debugPrint('[FirestoreService] Error reading systemConfigs/homeBanner: ');
+    }
+
+    return null;
   }
 
   /// Datastore for Customer Referral Codes (`customer_referrals` collection)

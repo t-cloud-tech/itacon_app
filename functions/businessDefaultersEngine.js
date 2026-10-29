@@ -94,7 +94,7 @@ const DEFAULT_PROD_API_BASE_URL = 'https://api.businessdefaulters.com/api/extern
  */
 function getApiConfig() {
   const envUrl = process.env.BUSINESS_DEFAULTERS_API_URL;
-  const envKey = process.env.BUSINESS_DEFAULTERS_API_KEY;
+  const envKey = process.env.BD_API_KEY || process.env.BUSINESS_DEFAULTERS_API_KEY;
 
   let configUrl;
   let configKey;
@@ -336,6 +336,237 @@ async function processDefaulterCheck({
 }
 
 /**
+ * Standard Indian GSTIN Regex Pattern:
+ * 2 digits (State Code) + 5 uppercase letters (PAN) + 4 digits + 1 letter +
+ * 1 alphanumeric entity code + 'Z' (Default 14th character) + 1 alphanumeric checksum
+ */
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Process GST entity lookup for customer auto-fill.
+ * - Authenticated user required.
+ * - Formats & validates GSTIN.
+ * - Checks 30-day Firestore cache in gstLookups/{gstin}.
+ * - Calls external API (10s timeout).
+ * - Returns ONLY business fields (companyName, address, city, state, stateCode, pan, pincode, gstStatus).
+ * - NEVER leaks credit/defaulter risk details to customers.
+ * - Returns clean error objects ('invalid-gst', 'not-found', 'unavailable') and never crashes.
+ */
+async function processGstLookup({
+  data,
+  callerUid,
+  firestoreDb,
+  httpClient = axios,
+  configOverride = null,
+}) {
+  if (!callerUid) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'Authentication is required to query GST details.'
+    );
+  }
+
+  const rawGst = data?.gstin || data?.gst;
+  const normalizedGst = normalizeGst(rawGst);
+
+  if (!normalizedGst || normalizedGst.length !== 15 || !GSTIN_PATTERN.test(normalizedGst)) {
+    return {
+      success: false,
+      error: 'invalid-gst',
+      message: 'Invalid GSTIN format. Must be a 15-character valid Indian GSTIN.',
+    };
+  }
+
+  const db = firestoreDb || admin.firestore();
+  const cacheDocRef = db.collection('gstLookups').doc(normalizedGst);
+  const now = Date.now();
+
+  // 1. Check 30-day Firestore cache
+  try {
+    const cacheSnap = await cacheDocRef.get();
+    if (cacheSnap.exists) {
+      const cached = cacheSnap.data() || {};
+      let cachedTimestamp = 0;
+      if (cached.cachedAt && typeof cached.cachedAt.toMillis === 'function') {
+        cachedTimestamp = cached.cachedAt.toMillis();
+      } else if (cached.cachedAt instanceof Date) {
+        cachedTimestamp = cached.cachedAt.getTime();
+      } else if (typeof cached.cachedAt === 'number') {
+        cachedTimestamp = cached.cachedAt;
+      }
+
+      if (cachedTimestamp && (now - cachedTimestamp < THIRTY_DAYS_MS)) {
+        if (cached.gstStatus === 'Not found') {
+          return {
+            success: false,
+            error: 'not-found',
+            gstStatus: 'Not found',
+            message: 'GSTIN not found in records.',
+            cached: true,
+          };
+        }
+        return {
+          success: true,
+          gstin: normalizedGst,
+          companyName: cached.companyName || '',
+          city: cached.city || '',
+          state: cached.state || '',
+          address: cached.address || '',
+          stateCode: cached.stateCode || normalizedGst.substring(0, 2),
+          pan: cached.pan || normalizedGst.substring(2, 12),
+          pincode: cached.pincode || '',
+          gstStatus: cached.gstStatus || 'Active',
+          cached: true,
+        };
+      }
+    }
+  } catch (_) {
+    // Non-blocking cache read failure
+  }
+
+  // 2. Resolve external API configuration
+  const config = configOverride || getApiConfig();
+  if (!config.apiUrl || !config.apiKey) {
+    return {
+      success: false,
+      error: 'unavailable',
+      message: 'GST verification service configuration missing.',
+    };
+  }
+
+  const targetEndpoint = config.apiUrl.endsWith('/check-defaulter')
+    ? config.apiUrl
+    : `${config.apiUrl}/check-defaulter`;
+
+  // 3. Dispatch external API call with 10s timeout
+  try {
+    const response = await httpClient.post(
+      targetEndpoint,
+      { gst: normalizedGst },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': config.apiKey,
+        },
+        timeout: 10000,
+      }
+    );
+
+    const resData = response.data || {};
+    const exists = Boolean(resData.exists);
+    const parties = Array.isArray(resData.parties) ? resData.parties : [];
+
+    if (!exists || parties.length === 0) {
+      // Cache negative lookup for 30 days
+      try {
+        await cacheDocRef.set({
+          gstin: normalizedGst,
+          gstStatus: 'Not found',
+          cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+          expiresAt: admin.firestore.Timestamp.fromMillis(now + THIRTY_DAYS_MS),
+          queriedBy: callerUid,
+        }, { merge: true });
+      } catch (_) {}
+
+      return {
+        success: false,
+        error: 'not-found',
+        gstStatus: 'Not found',
+        message: 'GSTIN not found in records.',
+      };
+    }
+
+    const party = parties[0] || {};
+    const companyName = String(party.companyName || '').trim();
+    const city = String(party.city || '').trim();
+    const state = String(party.state || '').trim();
+    let address = String(party.address || '').trim();
+    if (address === ',' || address === '-') address = '';
+
+    const stateCode = normalizedGst.substring(0, 2);
+    const pan = normalizedGst.substring(2, 12);
+
+    let pincode = '';
+    const pinMatch = address.match(/\b[1-9][0-9]{5}\b/);
+    if (pinMatch) {
+      pincode = pinMatch[0];
+    }
+
+    const gstStatus = party.status || resData.gstStatus || 'Active';
+
+    // Cache in Firestore gstLookups (admin/salesperson read only; written only by functions)
+    try {
+      await cacheDocRef.set({
+        gstin: normalizedGst,
+        companyName,
+        city,
+        state,
+        address,
+        stateCode,
+        pan,
+        pincode,
+        gstStatus,
+        cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: admin.firestore.Timestamp.fromMillis(now + THIRTY_DAYS_MS),
+        queriedBy: callerUid,
+        // Store risk telemetry internally for staff review:
+        riskLevel: resData.riskLevel || 'CLEAN',
+        isDefaulter: Boolean(resData.isDefaulter),
+      }, { merge: true });
+    } catch (_) {}
+
+    // Return ONLY the business fields to the customer (NO defaulter details)
+    return {
+      success: true,
+      gstin: normalizedGst,
+      companyName,
+      city,
+      state,
+      address,
+      stateCode,
+      pan,
+      pincode,
+      gstStatus,
+    };
+  } catch (error) {
+    if (error.response && error.response.status === 400) {
+      return {
+        success: false,
+        error: 'invalid-gst',
+        message: error.response.data?.message || 'Invalid GSTIN.',
+      };
+    }
+    // Network errors, timeouts, HTTP 5xx, 401, 403, 429 -> 'unavailable'
+    return {
+      success: false,
+      error: 'unavailable',
+      message: "Couldn't fetch GST details. Please enter details manually.",
+    };
+  }
+}
+
+/**
+ * Callable Cloud Function: lookupGstDetails
+ * Region: asia-south1
+ * Binds secrets: BD_API_KEY, BUSINESS_DEFAULTERS_API_KEY
+ */
+const lookupGstDetails = functions
+  .region('asia-south1')
+  .runWith({
+    secrets: ['BD_API_KEY', 'BUSINESS_DEFAULTERS_API_KEY'],
+    timeoutSeconds: 15,
+    memory: '256MB',
+  })
+  .https.onCall(async (data, context) => {
+    return processGstLookup({
+      data,
+      callerUid: context?.auth?.uid,
+    });
+  });
+
+/**
  * Callable Firebase Cloud Function: checkBusinessDefaulterCallable
  * Region: asia-south1
  * Binds Google Cloud Secret Manager secret: BUSINESS_DEFAULTERS_API_KEY
@@ -343,7 +574,7 @@ async function processDefaulterCheck({
 const checkBusinessDefaulterCallable = functions
   .region('asia-south1')
   .runWith({
-    secrets: ['BUSINESS_DEFAULTERS_API_KEY'],
+    secrets: ['BD_API_KEY', 'BUSINESS_DEFAULTERS_API_KEY'],
     timeoutSeconds: 30,
     memory: '256MB',
   })
@@ -356,6 +587,9 @@ const checkBusinessDefaulterCallable = functions
 
 module.exports = {
   checkBusinessDefaulterCallable,
+  lookupGstDetails,
+  processGstLookup,
+  GSTIN_PATTERN,
   processDefaulterCheck,
   normalizeGst,
   normalizePhone,
