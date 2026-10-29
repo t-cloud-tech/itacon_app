@@ -344,7 +344,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center space-x-3 shrink-0">
               <Link
-                href="/quotations"
+                href="/quotations?tab=pending_po"
                 className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
               >
                 <span>View PO Requests ({poRequests.length})</span>
@@ -360,10 +360,10 @@ export default function DashboardPage() {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Quick Actions:</span>
             <div className="flex flex-wrap gap-2">
               <Link
-                href="/quotations"
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold shadow-xs transition-colors"
+                href="/quotations?tab=pending_po"
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-3.5 h-3.5 text-slate-600" />
                 <span>Client POs ({poRequests.length})</span>
               </Link>
               {role !== "designer" && (
@@ -377,9 +377,9 @@ export default function DashboardPage() {
               )}
               <Link
                 href="/leads/new"
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#0E274D] hover:bg-[#1A2D5A] text-white text-xs font-semibold shadow-xs transition-colors"
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold transition-colors"
               >
-                <Users className="w-3.5 h-3.5" />
+                <Users className="w-3.5 h-3.5 text-slate-600" />
                 <span>Add Lead</span>
               </Link>
               <Link
