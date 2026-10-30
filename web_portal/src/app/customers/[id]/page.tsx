@@ -15,6 +15,7 @@ import {
 } from "@/lib/customer-service";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { Customer } from "@/types";
+import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
 import {
   ArrowLeft,
   Building2,
@@ -310,6 +311,10 @@ export default function CustomerDetailPage() {
                 Price Tier {customer.priceTier}
               </span>
             </div>
+          </div>
+
+          <div className="pt-6">
+            <DefaulterCheckCard gstNumber={customer.gstNumber} />
           </div>
 
           {/* Key Metrics Grid - 5 Column Layout */}

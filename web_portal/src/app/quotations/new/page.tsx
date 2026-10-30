@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Customer, QuotationItem } from "@/types";
 import { fetchLiveCustomers } from "@/lib/customer-service";
+import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
 import { fetchOrderById, linkQuotationToOrder, ClientOrderPO, MIN_RATE_PER_SQFT } from "@/lib/order-service";
 
 function QuotationForm() {
@@ -568,6 +569,10 @@ function QuotationForm() {
                     ))}
                   </select>
                 )}
+              </div>
+
+              <div className="md:col-span-2">
+                <DefaulterCheckCard gstNumber={selectedCust?.gstNumber} />
               </div>
 
               <div className="md:col-span-2">
