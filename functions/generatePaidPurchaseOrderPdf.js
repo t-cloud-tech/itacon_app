@@ -138,10 +138,37 @@ function drawUnpaidWatermark(doc) {
 }
 
 /**
+ * Sales rep display name: the name stored on the order, else the salesPersons / users
+ * record for the assigned id. Never returns the raw id.
+ */
+async function resolveSalesRepName(db, order) {
+  const stored = order.salespersonName || order.salesPersonName;
+  if (stored && String(stored).trim()) return String(stored).trim();
+
+  const spId = order.salesPersonId || order.salespersonId;
+  if (spId) {
+    for (const col of ['salesPersons', 'users']) {
+      try {
+        const snap = await db.collection(col).doc(String(spId)).get();
+        const data = snap && snap.exists ? (snap.data() || {}) : null;
+        const name = data && (data.name || data.fullName || data.displayName);
+        if (name && String(name).trim()) return String(name).trim();
+      } catch (err) {
+        console.warn(`[PaidPO] Warning: could not load ${col}/${spId}:`, err);
+      }
+    }
+  }
+  return 'Direct Factory';
+}
+
+/**
  * Adds hsnCode and tile grade to each order item from its product record
  * (products/{id}, falling back to tiles/{id}); values already on the item are kept.
  */
 async function enrichItemsWithProductDetails(db, order) {
+  const salesRepName = await resolveSalesRepName(db, order);
+  order = { ...order, salesRepName };
+
   const items = order.orderItems || order.items || [];
   if (!items.length) return order;
 
@@ -223,8 +250,8 @@ function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
       doc.rect(36, 36, 523, 72).strokeColor(borderSubtle).lineWidth(1).stroke();
 
       doc.fillColor(primaryNavy).fontSize(16).text('ITACON GRANITO PVT. LTD.', 48, 48, { bold: true });
-      doc.fontSize(8).fillColor(textSubtle).text('8-A National Highway, Ceramic Zone, Morbi - 363642, Gujarat, India', 48, 68);
-      doc.text('Email: orders@itacongranito.com | Phone: +91 98765 43210 | GSTIN: 24AABCI8920E1Z4', 48, 80);
+      doc.fontSize(8).fillColor(textSubtle).text('Survey no. 345P1P4, 345P2 and 345P4 behind Vento Ceramic, Morbi-Jetpar Road, at Rangpar, Morbi(GUJ)- 363642', 48, 68, { width: 360 });
+      doc.text('Email: info@itacongranito.com | Phone: 9374490901 | GSTIN: 24AAECI4020M1ZR', 48, 90, { width: 360, lineBreak: false });
 
       // Top-Right Official Paid Stamp or Unpaid Badge
       if (isPaid) {
@@ -283,10 +310,11 @@ function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
       doc.fillColor(primaryNavy).fontSize(9.5).text('FACTORY / DISPATCH WORKS:', 46, y + 8, { bold: true });
       doc.fontSize(8.5).fillColor(textDark);
       doc.text('ITACON Granito Dispatch Works (Unit 2)', 46, y + 22);
-      doc.text('Jetpar Road, Near Ceramic Plaza', 46, y + 34);
-      doc.text('Morbi, Gujarat - 363642, India', 46, y + 46);
-      doc.text('GSTIN: 24AABCI8920E1Z4 (Morbi Division)', 46, y + 58);
-      doc.text(`Sales Rep: ${order.salesPersonId || order.salespersonId || 'Direct Factory'}`, 46, y + 70);
+      const salesRepName = order.salesRepName || order.salespersonName || order.salesPersonName || 'Direct Factory';
+      doc.fontSize(7.5).text('Survey no. 345P1P4, 345P2 and 345P4 behind Vento Ceramic, Morbi-Jetpar Road, at Rangpar, Morbi(GUJ)- 363642', 46, y + 34, { width: 238, height: 22 });
+      doc.fontSize(8.5);
+      doc.text('GSTIN: 24AAECI4020M1ZR', 46, y + 58);
+      doc.text(`Sales Rep: ${salesRepName}`, 46, y + 70);
 
 function getFormattedDeliveryAddress(order) {
   if (typeof order.deliveryAddress === 'string' && order.deliveryAddress.trim()) {
