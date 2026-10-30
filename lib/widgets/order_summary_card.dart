@@ -260,7 +260,7 @@ class OrderSummaryCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '0.35% insurance',
+                    'Insurance',
                     style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
                   ),
                 ),
@@ -287,7 +287,7 @@ class OrderSummaryCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Basic + 0.35%',
+                      'Basic + insurance',
                       style: TextStyle(fontSize: context.sp(12.5), color: AppTheme.textSubtle),
                     ),
                   ),

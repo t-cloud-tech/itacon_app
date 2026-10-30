@@ -569,11 +569,11 @@ export default function QuotationDetailPage() {
                   <span className="font-semibold">₹{Number(quote.basicAmount || 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>0.35% insurance:</span>
+                  <span>Insurance:</span>
                   <span className="font-semibold">₹{Number(quote.insuranceAmount || 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Basic + 0.35%:</span>
+                  <span>Basic + insurance:</span>
                   <span className="font-semibold">₹{Number(quote.basicPlusInsurance || 0).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">

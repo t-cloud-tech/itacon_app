@@ -945,11 +945,11 @@ function QuotationForm() {
                       <span className="font-semibold">₹{basicAmount.toLocaleString("en-IN")}</span>
                     </div>
                     <div className="flex justify-between text-slate-600">
-                      <span>0.35% insurance:</span>
+                      <span>Insurance:</span>
                       <span className="font-semibold">₹{insuranceAmount.toLocaleString("en-IN")}</span>
                     </div>
                     <div className="flex justify-between text-slate-600">
-                      <span>Basic + 0.35%:</span>
+                      <span>Basic + insurance:</span>
                       <span className="font-semibold">₹{basicPlusInsurance.toLocaleString("en-IN")}</span>
                     </div>
                     <div className="flex justify-between text-slate-600">

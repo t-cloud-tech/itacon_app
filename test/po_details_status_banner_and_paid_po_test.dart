@@ -630,9 +630,9 @@ void main() {
 
       expect(find.text('Basic amount'), findsOneWidget);
       expect(find.text('₹1085.00'), findsOneWidget);
-      expect(find.text('0.35% insurance'), findsOneWidget);
+      expect(find.text('Insurance'), findsOneWidget);
       expect(find.text('₹3.80'), findsOneWidget);
-      expect(find.text('Basic + 0.35%'), findsOneWidget);
+      expect(find.text('Basic + insurance'), findsOneWidget);
       expect(find.text('₹1088.80'), findsOneWidget);
       expect(find.text('18% GST'), findsOneWidget);
       expect(find.text('₹195.98'), findsOneWidget);

@@ -137,6 +137,47 @@ function drawUnpaidWatermark(doc) {
   doc.fillOpacity(1.0);
 }
 
+/**
+ * Adds hsnCode and tile grade to each order item from its product record
+ * (products/{id}, falling back to tiles/{id}); values already on the item are kept.
+ */
+async function enrichItemsWithProductDetails(db, order) {
+  const items = order.orderItems || order.items || [];
+  if (!items.length) return order;
+
+  const cache = new Map();
+  const lookup = async (productId) => {
+    if (!productId) return null;
+    if (!cache.has(productId)) {
+      let data = null;
+      for (const col of ['products', 'tiles']) {
+        try {
+          const snap = await db.collection(col).doc(String(productId)).get();
+          if (snap && snap.exists) {
+            data = snap.data() || null;
+            if (data && data.hsnCode) break;
+          }
+        } catch (err) {
+          console.warn(`[PaidPO] Warning: could not load ${col}/${productId}:`, err);
+        }
+      }
+      cache.set(productId, data);
+    }
+    return cache.get(productId);
+  };
+
+  const enriched = [];
+  for (const item of items) {
+    const product = await lookup(item.productId || item.tileId);
+    enriched.push({
+      ...item,
+      hsnCode: item.hsnCode || (product && product.hsnCode) || '',
+      gradeLabel: item.gradeLabel || (product && (product.gradeLabel || product.grade)) || '',
+    });
+  }
+  return { ...order, orderItems: enriched, items: enriched };
+}
+
 function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
   // Server-side enforcement: Paid mode is allowed ONLY when payment status is verified paid!
   const isPaid = (options.isPaid !== false) && ((order.paymentStatus || '').toLowerCase() === 'paid');
@@ -187,11 +228,11 @@ function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
 
       // Top-Right Official Paid Stamp or Unpaid Badge
       if (isPaid) {
-        doc.rect(385, 46, 162, 52).fill(successBg);
-        doc.rect(385, 46, 162, 52).strokeColor(statusSuccess).lineWidth(1.5).stroke();
-        doc.fillColor(statusSuccess).fontSize(14).text('PAID', 390, 53, { align: 'center', width: 152, bold: true });
-        doc.fontSize(7.5).fillColor('#065F46').text('PAYMENT VERIFIED & CONFIRMED', 390, 71, { align: 'center', width: 152, bold: true });
-        doc.fontSize(7).text(`Date: ${formatDateOnly(order.paidAt || submission?.verifiedAt || new Date())}`, 390, 82, { align: 'center', width: 152 });
+        doc.rect(417, 53, 130, 38).fill(successBg);
+        doc.rect(417, 53, 130, 38).strokeColor(statusSuccess).lineWidth(1).stroke();
+        doc.fillColor(statusSuccess).fontSize(11).text('PAID', 420, 57, { align: 'center', width: 124, bold: true });
+        doc.fontSize(6).fillColor('#065F46').text('PAYMENT VERIFIED & CONFIRMED', 420, 70, { align: 'center', width: 124, bold: true });
+        doc.fontSize(6).text(`Date: ${formatDateOnly(order.paidAt || submission?.verifiedAt || new Date())}`, 420, 79, { align: 'center', width: 124 });
       } else {
         const isUnderVerification = (order.paymentStatus || '').toLowerCase() === 'pending_verification';
         const badgeBg = isUnderVerification ? '#FFFBEB' : '#FFF7ED';
@@ -291,8 +332,9 @@ function getFormattedDeliveryAddress(order) {
       doc.fillColor('#FFFFFF').fontSize(8.5);
       doc.text('#', 42, y + 5, { bold: true });
       doc.text('Tile Product & Finish', 62, y + 5, { bold: true });
+      doc.text('HSN', 182, y + 5, { bold: true });
       doc.text('Size', 245, y + 5, { bold: true });
-      doc.text('Quantity (Boxes / Sq.Ft)', 320, y + 5, { bold: true });
+      doc.text('Quantity (Boxes)', 320, y + 5, { bold: true });
       const isMrpLinked = order.quotationMode === 'mrp';
       doc.text(isPaid ? (isMrpLinked ? 'MRP (Rs./Sq.Ft)' : 'Rate (Rs./Sq.Ft)') : 'Rate (₹/Sq.Ft)', 425, y + 5, { bold: true });
       doc.text(isPaid ? 'Total (Rs.)' : 'Total (₹)', 495, y + 5, { bold: true, align: 'right', width: 55 });
@@ -308,14 +350,17 @@ function getFormattedDeliveryAddress(order) {
 
         const prodName = item.productName || item.tileName || 'Ceramic Tile Item';
         const finish = item.surface || item.finish || 'Standard';
-        doc.text(`${prodName} (${finish})`, 62, y + 5, { width: 178, ellipsis: true });
+        const grade = item.gradeLabel || item.grade || '';
+        doc.fontSize(6.5).text(`${prodName} (${finish})${grade ? ` - ${grade}` : ''}`, 62, y + 2.5, { width: 116, height: 18, lineGap: 0, ellipsis: true });
+        doc.fontSize(8);
+        doc.text(item.hsnCode || '-', 182, y + 5, { width: 60, lineBreak: false });
 
         const size = item.size || '600x1200';
         doc.text(size, 245, y + 5);
 
         const boxes = item.quantityBoxes || item.quantity || 0;
         const sqft = item.quantitySqFt || (boxes * 15.5);
-        doc.text(`${boxes} Boxes (${Number(sqft).toFixed(1)} sq.ft)`, 320, y + 5);
+        doc.text(`${boxes} Boxes`, 320, y + 5);
 
         const hasMrp = isPaid && isMrpLinked && Number(item.mrp) > 0;
         const unitRate = hasMrp
@@ -360,8 +405,8 @@ function getFormattedDeliveryAddress(order) {
 
         const mrpRows = [
           ['Basic amount:', basicAmount],
-          ['0.35% insurance:', insuranceAmount],
-          ['Basic + 0.35%:', basicPlusInsurance],
+          ['Insurance:', insuranceAmount],
+          ['Basic + insurance:', basicPlusInsurance],
           ['18% GST:', finalTaxAmount],
         ];
         mrpRows.forEach(([label, val], i) => {
@@ -640,6 +685,7 @@ async function processPaidPoGeneration(orderId, orderData = null, options = {}) 
     }
 
     // 7. Render PDF Buffer
+    orderForPdf = await enrichItemsWithProductDetails(db, orderForPdf);
     const pdfBuffer = await createPaidPdfBuffer(orderForPdf, submission, customerProfile);
 
     // 8. Upload to Attempt-Specific Staging Object
@@ -1127,7 +1173,7 @@ async function handleGenerateUnpaidPoPdf(data, context, options = {}) {
   } catch (_) {}
 
   // Generate PDF buffer using shared template with unpaid configuration
-  const pdfBuffer = await createPoPdfBuffer(orderData, null, customerProfile, {
+  const pdfBuffer = await createPoPdfBuffer(await enrichItemsWithProductDetails(db, orderData), null, customerProfile, {
     isPaid: false,
     bankConfig,
   });

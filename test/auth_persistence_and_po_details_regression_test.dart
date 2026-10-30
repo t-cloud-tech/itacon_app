@@ -341,7 +341,7 @@ void main() {
       expect(find.text("Today's Quoted Rates Received"), findsOneWidget);
       expect(find.text('Calacatta White Gloss'), findsOneWidget);
       expect(find.text('Basic amount'), findsOneWidget);
-      expect(find.text('0.35% insurance'), findsOneWidget);
+      expect(find.text('Insurance'), findsOneWidget);
       expect(find.text('18% GST'), findsOneWidget);
       expect(find.textContaining('Estimated total'), findsOneWidget);
       expect(find.text('₹59206.50'), findsOneWidget);

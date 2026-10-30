@@ -1235,8 +1235,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       child: Column(
         children: [
           _buildSummaryRow('Basic amount', calc.basicAmount),
-          _buildSummaryRow('0.35% insurance', calc.insuranceAmount),
-          _buildSummaryRow('Basic + 0.35%', calc.basicPlusInsurance),
+          _buildSummaryRow('Insurance', calc.insuranceAmount),
+          _buildSummaryRow('Basic + insurance', calc.basicPlusInsurance),
           _buildSummaryRow('18% GST', calc.taxAmount),
           const Divider(height: 20),
           Row(
