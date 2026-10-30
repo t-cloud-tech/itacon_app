@@ -303,8 +303,6 @@ function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
       // 3. VENDOR & CUSTOMER/BILLING DETAILS
       // =========================================================================
       y += 34;
-      doc.rect(36, y, 255, 96).strokeColor(borderSubtle).lineWidth(0.8).stroke();
-      doc.rect(299, y, 260, 96).strokeColor(borderSubtle).lineWidth(0.8).stroke();
 
       // Factory / Dispatch Works
       doc.fillColor(primaryNavy).fontSize(9.5).text('FACTORY / DISPATCH WORKS:', 46, y + 8, { bold: true });
@@ -346,16 +344,29 @@ function getFormattedDeliveryAddress(order) {
 
       doc.fillColor(primaryNavy).fontSize(9.5).text('BILL-TO / SHIP-TO CUSTOMER:', 309, y + 8, { bold: true });
       doc.fontSize(8.5).fillColor(textDark);
-      doc.text(`${cCompany ? `${cCompany} (${cName})` : cName}`, 309, y + 22, { bold: true });
-      doc.text(`Phone: ${cPhone || 'N/A'} | Category: ${order.userCategory || 'Dealer'}`, 309, y + 34);
-      doc.text(`Delivery: ${deliveryAddr.length > 55 ? deliveryAddr.substring(0, 52) + '...' : deliveryAddr}`, 309, y + 46);
-      doc.text(`State Code: ${order.stateCode || 'GJ'}`, 309, y + 58);
-      doc.text(`Customer GSTIN: ${cGst}`, 309, y + 70);
+      // Flow each line below the previous one so long names / delivery addresses wrap
+      // instead of overlapping, and size the boxes to fit the tallest content.
+      const custLines = [
+        `${cCompany ? `${cCompany} (${cName})` : cName}`,
+        `Phone: ${cPhone || 'N/A'} | Category: ${order.userCategory || 'Dealer'}`,
+        `Delivery: ${deliveryAddr}`,
+        `State Code: ${order.stateCode || 'GJ'}`,
+        `Customer GSTIN: ${cGst}`,
+      ];
+      let custY = y + 22;
+      custLines.forEach((line) => {
+        doc.text(line, 309, custY, { width: 240 });
+        custY += doc.heightOfString(line, { width: 240 }) + 2;
+      });
+
+      const boxH = Math.max(96, custY - y + 6);
+      doc.rect(36, y, 255, boxH).strokeColor(borderSubtle).lineWidth(0.8).stroke();
+      doc.rect(299, y, 260, boxH).strokeColor(borderSubtle).lineWidth(0.8).stroke();
 
       // =========================================================================
       // 4. ORDERED ITEMS BREAKDOWN TABLE
       // =========================================================================
-      y += 108;
+      y += boxH + 12;
       doc.rect(36, y, 523, 20).fill(primaryNavy);
       doc.fillColor('#FFFFFF').fontSize(8.5);
       doc.text('#', 42, y + 5, { bold: true });
