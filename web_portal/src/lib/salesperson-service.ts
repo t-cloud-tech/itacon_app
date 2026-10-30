@@ -46,10 +46,64 @@ export interface NewSalespersonInput {
   email: string;
   phone: string;
   password: string;
-  employeeId: string;
-  referralCode: string;
+  /** Optional: auto-generated as "SE IGPL-001" when blank. */
+  employeeId?: string;
+  /** Optional: auto-generated as "SALES-001" when blank. */
+  referralCode?: string;
   region: string;
   states: string[];
+}
+
+export const SALESPERSON_EMP_PREFIX = "SE IGPL-";
+export const SALESPERSON_REF_PREFIX = "SALES-";
+export const DESIGNER_EMP_PREFIX = "DD IGPL-";
+
+const formatSeq = (n: number) => String(n).padStart(3, "0");
+
+/** Parses the numeric suffix of "<prefix>NNN" values; returns null if the value is not in that format. */
+const parseSeq = (value: unknown, prefix: string): number | null => {
+  const val = String(value || "").trim().toUpperCase();
+  if (!val.startsWith(prefix)) return null;
+  const rest = val.slice(prefix.length);
+  return /^\d+$/.test(rest) ? parseInt(rest, 10) : null;
+};
+
+/**
+ * Next free sequence number for a collection: highest existing number of the `field` ("<prefix>NNN")
+ * + 1, starting at 1. Other values in the collection (older formats) are ignored.
+ */
+export async function getNextSequence(
+  collectionName: string,
+  field: string,
+  prefix: string
+): Promise<{ next: number; docs: any[] }> {
+  const snap = await getDocs(collection(db, collectionName));
+  const docs = snap.docs.map((d) => d.data());
+  let max = 0;
+  docs.forEach((data) => {
+    const n = parseSeq(data[field], prefix);
+    if (n !== null && n > max) max = n;
+  });
+  return { next: max + 1, docs };
+}
+
+/** Next salesperson identifiers, e.g. { employeeId: "SE IGPL-001", referralCode: "SALES-001" }. */
+export async function generateSalespersonIdentifiers(): Promise<{ employeeId: string; referralCode: string }> {
+  const { next, docs } = await getNextSequence("salesPersons", "employeeId", SALESPERSON_EMP_PREFIX);
+  // Keep the referral code unique: skip numbers whose SALES-NNN code is already in use
+  const usedRefs = new Set(
+    docs.map((d) => parseSeq(d.referralCode, SALESPERSON_REF_PREFIX)).filter((n): n is number => n !== null)
+  );
+  let seq = next;
+  while (usedRefs.has(seq)) seq++;
+  const padded = formatSeq(seq);
+  return { employeeId: `${SALESPERSON_EMP_PREFIX}${padded}`, referralCode: `${SALESPERSON_REF_PREFIX}${padded}` };
+}
+
+/** Next designer employee ID, e.g. "DD IGPL-001". */
+export async function generateDesignerEmployeeId(): Promise<string> {
+  const { next } = await getNextSequence("Designer", "employeeId", DESIGNER_EMP_PREFIX);
+  return `${DESIGNER_EMP_PREFIX}${formatSeq(next)}`;
 }
 
 /**
@@ -461,13 +515,18 @@ export async function fetchSalespersonDetailedActivity(
  */
 export async function createSalespersonAccount(
   input: NewSalespersonInput
-): Promise<{ success: boolean; uid: string; error?: string }> {
+): Promise<{ success: boolean; uid: string; employeeId?: string; referralCode?: string; error?: string }> {
   try {
     const cleanEmail = input.email.trim().toLowerCase();
     const cleanPhone = normalizePhone(input.phone);
     const cleanName = input.name.trim();
-    const cleanEmpId = input.employeeId.trim().toUpperCase();
-    const cleanRefCode = input.referralCode.trim().toUpperCase();
+    const generated = await generateSalespersonIdentifiers();
+    // Employee ID and referral code are always issued as a pair so they share the same number
+    const providedEmpId = (input.employeeId || "").trim().toUpperCase();
+    const providedRefCode = (input.referralCode || "").trim().toUpperCase();
+    const usePair = providedEmpId && providedRefCode;
+    const cleanEmpId = usePair ? providedEmpId : generated.employeeId;
+    const cleanRefCode = usePair ? providedRefCode : generated.referralCode;
     const cleanRegion = input.region.trim();
     const cleanPassword = input.password;
 
@@ -582,7 +641,7 @@ export async function createSalespersonAccount(
       updatedAt: nowIso,
     }, { merge: true });
 
-    return { success: true, uid: authedUid };
+    return { success: true, uid: authedUid, employeeId: cleanEmpId, referralCode: cleanRefCode };
   } catch (err: any) {
     console.error("createSalespersonAccount error:", err);
     return { success: false, uid: "", error: err.message || "Failed to create salesperson profile." };

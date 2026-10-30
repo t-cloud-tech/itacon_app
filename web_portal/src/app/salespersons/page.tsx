@@ -8,6 +8,7 @@ import {
   fetchLiveSalespersonsWithMetrics,
   fetchSalespersonDetailedActivity,
   createSalespersonAccount,
+  generateSalespersonIdentifiers,
   toggleSalespersonStatus,
   resetSalespersonPassword,
   SalespersonPerformanceMetrics,
@@ -177,19 +178,16 @@ export default function SalespersonsPage() {
     }
   };
 
-  // Handle auto-suggesting Employee ID and Referral Code when name changes
-  const handleNameChange = (name: string) => {
-    const nextEmpCount = salespersons.length + 101;
-    const cleanFirstName = name.trim().split(" ")[0] || "SP";
-    const suggestedRef = `SALES${cleanFirstName.toUpperCase().slice(0, 4)}${Math.floor(10 + Math.random() * 90)}`;
-    const suggestedEmp = `EMP-${nextEmpCount}`;
+  // Employee ID ("SE IGPL-001") and Referral Code ("SALES-001") are auto-generated; preview them when the modal opens
+  useEffect(() => {
+    if (!isAddModalOpen) return;
+    generateSalespersonIdentifiers()
+      .then((ids) => setNewForm((prev) => ({ ...prev, ...ids })))
+      .catch((err) => console.warn("Could not preview salesperson IDs:", err));
+  }, [isAddModalOpen]);
 
-    setNewForm((prev) => ({
-      ...prev,
-      name,
-      employeeId: prev.employeeId || suggestedEmp,
-      referralCode: prev.referralCode || suggestedRef,
-    }));
+  const handleNameChange = (name: string) => {
+    setNewForm((prev) => ({ ...prev, name }));
   };
 
   // Handle Create Salesperson Form Submission
@@ -209,8 +207,8 @@ export default function SalespersonsPage() {
         email: newForm.email,
         phone: newForm.phone,
         password: newForm.password,
-        employeeId: newForm.employeeId || `EMP-${Date.now().toString().slice(-4)}`,
-        referralCode: newForm.referralCode || `SALES${Math.floor(100 + Math.random() * 900)}`,
+        employeeId: newForm.employeeId,
+        referralCode: newForm.referralCode,
         region: newForm.region || "Western Region",
         states: statesArray.length > 0 ? statesArray : ["GJ"],
       };
@@ -226,8 +224,8 @@ export default function SalespersonsPage() {
         name: payload.name,
         email: payload.email,
         password: payload.password,
-        referralCode: payload.referralCode,
-        employeeId: payload.employeeId,
+        referralCode: res.referralCode || "",
+        employeeId: res.employeeId || "",
       });
 
       // Reload live salespersons list
@@ -1274,28 +1272,26 @@ export default function SalespersonsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Employee ID *
+                        Employee ID
                       </label>
                       <input
                         type="text"
-                        required
-                        placeholder="EMP-104"
+                        readOnly
+                        placeholder="Generating..."
                         value={newForm.employeeId}
-                        onChange={(e) => setNewForm({ ...newForm, employeeId: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                        Referral Code *
+                        Referral Code
                       </label>
                       <input
                         type="text"
-                        required
-                        placeholder="SALES104"
+                        readOnly
+                        placeholder="Generating..."
                         value={newForm.referralCode}
-                        onChange={(e) => setNewForm({ ...newForm, referralCode: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
                       />
                     </div>

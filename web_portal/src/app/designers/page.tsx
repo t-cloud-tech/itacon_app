@@ -12,6 +12,7 @@ import {
   DesignerRecord,
   DesignerTile,
 } from "@/lib/designer-service";
+import { generateDesignerEmployeeId } from "@/lib/salesperson-service";
 import {
   Palette,
   UserPlus,
@@ -91,6 +92,14 @@ export default function DesignersPage() {
     if (role === "admin") load();
   }, [role, load]);
 
+  // Preview the auto-generated Employee ID ("DD IGPL-001") when the add modal opens
+  useEffect(() => {
+    if (!isAddOpen) return;
+    generateDesignerEmployeeId()
+      .then((employeeId) => setForm((prev) => ({ ...prev, employeeId })))
+      .catch((err) => console.warn("Could not preview designer ID:", err));
+  }, [isAddOpen]);
+
   const openDetail = async (d: DesignerRecord) => {
     setSelected(d);
     setTiles([]);
@@ -135,31 +144,26 @@ export default function DesignersPage() {
     }
   };
 
-  const handleNameChange = (name: string) =>
-    setForm((prev) => ({
-      ...prev,
-      name,
-      employeeId: prev.employeeId || `DSN-${designers.length + 101}`,
-    }));
+  // Employee ID ("DD IGPL-001") is auto-generated on create
+  const handleNameChange = (name: string) => setForm((prev) => ({ ...prev, name }));
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateError(null);
     setIsCreating(true);
-    const employeeId = form.employeeId || `DSN-${Date.now().toString().slice(-4)}`;
     const res = await createDesignerAccount({
       name: form.name,
       email: form.email,
       phone: form.phone,
       password: form.password,
-      employeeId,
+      employeeId: form.employeeId,
     });
     setIsCreating(false);
     if (!res.success) {
       setCreateError(res.error || "Failed to create designer.");
       return;
     }
-    setCreated({ name: form.name, email: form.email.trim().toLowerCase(), password: form.password, employeeId });
+    setCreated({ name: form.name, email: form.email.trim().toLowerCase(), password: form.password, employeeId: res.employeeId || "" });
     setForm(EMPTY_FORM);
     await load();
   };
@@ -524,9 +528,9 @@ export default function DesignersPage() {
                     <label className="block text-xs font-semibold text-slate-700 mb-1">Employee ID</label>
                     <input
                       className={`${inputCls} font-mono`}
+                      readOnly
                       value={form.employeeId}
-                      onChange={(e) => setForm({ ...form, employeeId: e.target.value.toUpperCase() })}
-                      placeholder="DSN-101"
+                      placeholder="Generating..."
                     />
                   </div>
                   <div>

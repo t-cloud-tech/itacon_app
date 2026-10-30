@@ -1,6 +1,6 @@
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, setDoc, updateDoc, query, where } from "firebase/firestore";
-import { generateSaltHex, hashStaffPassword, normalizePhone } from "@/lib/salesperson-service";
+import { generateSaltHex, hashStaffPassword, normalizePhone, generateDesignerEmployeeId } from "@/lib/salesperson-service";
 
 export interface DesignerRecord {
   designerId: string;
@@ -28,7 +28,8 @@ export interface NewDesignerInput {
   email: string;
   phone: string;
   password: string;
-  employeeId: string;
+  /** Optional: auto-generated as "DD IGPL-001" when blank. */
+  employeeId?: string;
 }
 
 const toIso = (v: any): string | undefined => {
@@ -90,12 +91,12 @@ export async function fetchDesigners(): Promise<DesignerRecord[]> {
  */
 export async function createDesignerAccount(
   input: NewDesignerInput
-): Promise<{ success: boolean; uid: string; error?: string }> {
+): Promise<{ success: boolean; uid: string; employeeId?: string; error?: string }> {
   try {
     const email = input.email.trim().toLowerCase();
     const phone = normalizePhone(input.phone);
     const name = input.name.trim();
-    const employeeId = input.employeeId.trim().toUpperCase();
+    const employeeId = (input.employeeId || "").trim().toUpperCase() || (await generateDesignerEmployeeId());
 
     if (!name) throw new Error("Please enter the designer's full name.");
     if (!email || !email.includes("@")) throw new Error("Please enter a valid email address.");
@@ -171,7 +172,7 @@ export async function createDesignerAccount(
       { merge: true }
     );
 
-    return { success: true, uid };
+    return { success: true, uid, employeeId };
   } catch (err: any) {
     console.error("createDesignerAccount error:", err);
     return { success: false, uid: "", error: err.message || "Failed to create designer." };
