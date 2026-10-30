@@ -9,7 +9,7 @@
  * - tileAdhesive: 32149090
  *
  * Used by:
- * 1. scripts/applyHsnCodes.js (bulk batch processor)
+ * 1. scripts/applyHsnCodes.js & scripts/applyHsnAndGrade.js (bulk batch processor)
  * 2. functions/assignHsnCode.js (Cloud Function 2nd gen trigger on products/{id})
  */
 
@@ -126,9 +126,58 @@ function hasTileTypeChanged(before = {}, after = {}) {
   );
 }
 
+/**
+ * Resolves Grade and GradeLabel for a product based on surface finish and config/productGrades.
+ *
+ * Rules:
+ * 1. Adhesives: NO grade (return null).
+ * 2. Reads surface finish from data.surface (falling back to data.finish).
+ * 3. Case-insensitive and trimmed lookup in surfaceToGrade map from config/productGrades.
+ * 4. Returns { grade: 'PRE', gradeLabel: 'Premium' } if mapped, or null if unmapped / other surface.
+ *
+ * @param {Object} data - Product document data
+ * @param {Object} productGrades - Data from config/productGrades
+ * @returns {{ grade: string, gradeLabel: string } | null}
+ */
+function resolveProductGrade(data = {}, productGrades = null) {
+  if (!data || !productGrades || !productGrades.surfaceToGrade) return null;
+
+  // Rule: Adhesives get no grade
+  const id = String(data.id || data.productId || '').trim();
+  const sku = String(data.sku || '').toUpperCase().trim();
+  if (
+    data.isAdhesive === true ||
+    id.startsWith('PROD_ADH_') ||
+    /^ITA-LX-0[1-4]W?$/i.test(sku) ||
+    data.productLine === 'adhesives' ||
+    data.categoryId === 'CAT_ADHESIVES'
+  ) {
+    return null;
+  }
+
+  // Field used: surface (with fallback to finish)
+  const surfaceRaw = (data.surface !== undefined && data.surface !== null)
+    ? String(data.surface)
+    : (data.finish !== undefined && data.finish !== null ? String(data.finish) : '');
+
+  const normalizedSurface = surfaceRaw.toLowerCase().trim();
+  if (!normalizedSurface) return null;
+
+  const targetGrade = productGrades.surfaceToGrade[normalizedSurface];
+  if (!targetGrade) return null;
+
+  const gradesMap = productGrades.grades || {};
+  const gradeLabel = gradesMap[targetGrade] || 'Premium';
+
+  return {
+    grade: targetGrade,
+    gradeLabel: gradeLabel,
+  };
+}
+
 module.exports = {
   FIELDS_USED_FOR_TYPE_DETECTION,
   resolveHsnCategory,
   hasTileTypeChanged,
+  resolveProductGrade,
 };
-

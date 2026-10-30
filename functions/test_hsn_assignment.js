@@ -3,6 +3,7 @@ const {
   FIELDS_USED_FOR_TYPE_DETECTION,
   resolveHsnCategory,
   hasTileTypeChanged,
+  resolveProductGrade,
 } = require('./hsnMapping');
 
 console.log('Starting HSN Mapping & Assignment Tests...');
@@ -73,7 +74,47 @@ console.log('Starting HSN Mapping & Assignment Tests...');
   console.log('✔ Test 5: Tile type change detection verified');
 }
 
-console.log('\n====================================================');
-console.log('ALL HSN ASSIGNMENT TESTS PASSED!');
-console.log('====================================================\n');
+// 6. Product Grade Assignment Tests
+{
+  const mockGradesConfig = {
+    grades: { PRE: 'Premium' },
+    surfaceToGrade: {
+      'high gloss polish': 'PRE',
+      'glossy': 'PRE',
+      'high gloss': 'PRE',
+      'glossy / high gloss': 'PRE',
+      'glo': 'PRE',
+      'glossy ceramic': 'PRE',
+    },
+  };
 
+  // Glossy tile
+  const g1 = resolveProductGrade({ surface: 'Glossy' }, mockGradesConfig);
+  assert.deepStrictEqual(g1, { grade: 'PRE', gradeLabel: 'Premium' });
+
+  // High Gloss Polish tile
+  const g2 = resolveProductGrade({ surface: 'High Gloss Polish' }, mockGradesConfig);
+  assert.deepStrictEqual(g2, { grade: 'PRE', gradeLabel: 'Premium' });
+
+  // Fallback to finish field
+  const g3 = resolveProductGrade({ finish: 'GLOSSY' }, mockGradesConfig);
+  assert.deepStrictEqual(g3, { grade: 'PRE', gradeLabel: 'Premium' });
+
+  // Other surfaces: NO grade
+  assert.strictEqual(resolveProductGrade({ surface: 'Satin Matt' }, mockGradesConfig), null);
+  assert.strictEqual(resolveProductGrade({ surface: 'Carving Matt' }, mockGradesConfig), null);
+  assert.strictEqual(resolveProductGrade({ surface: 'Wood Embossed' }, mockGradesConfig), null);
+  assert.strictEqual(resolveProductGrade({ surface: 'Sugar Finish' }, mockGradesConfig), null);
+  assert.strictEqual(resolveProductGrade({ surface: 'Rustic Matt' }, mockGradesConfig), null);
+
+  // Adhesives: NO grade
+  assert.strictEqual(resolveProductGrade({ isAdhesive: true, surface: 'Glossy' }, mockGradesConfig), null);
+  assert.strictEqual(resolveProductGrade({ sku: 'ITA-LX-01', surface: 'TYPE-1 (C2T)' }, mockGradesConfig), null);
+  assert.strictEqual(resolveProductGrade({}, mockGradesConfig, 'PROD_ADH_LX02'), null);
+
+  console.log('✔ Test 6: Product Grade mapping & adhesive exclusion verified');
+}
+
+console.log('\n====================================================');
+console.log('ALL HSN & GRADE ASSIGNMENT TESTS PASSED!');
+console.log('====================================================\n');

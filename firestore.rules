@@ -737,6 +737,10 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdminOrManager();
     }
+    match /config/productGrades {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrManager();
+    }
     match /config/{configId} {
       allow read: if isAuthenticated();
       allow write: if isAdminOrManager();

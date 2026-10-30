@@ -1,7 +1,11 @@
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
-const { resolveHsnCategory, hasTileTypeChanged } = require('./hsnMapping');
+const {
+  resolveHsnCategory,
+  hasTileTypeChanged,
+  resolveProductGrade,
+} = require('./hsnMapping');
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -9,19 +13,37 @@ if (!admin.apps.length) {
 
 // In-memory cache for config/hsnCodes with a 5-minute TTL to reduce Firestore reads
 let cachedHsnCodes = null;
-let cacheTimestamp = 0;
+let hsnCacheTimestamp = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function getHsnCodes() {
   const now = Date.now();
-  if (cachedHsnCodes && (now - cacheTimestamp < CACHE_TTL_MS)) {
+  if (cachedHsnCodes && (now - hsnCacheTimestamp < CACHE_TTL_MS)) {
     return cachedHsnCodes;
   }
   const snap = await admin.firestore().collection('config').doc('hsnCodes').get();
   if (snap.exists) {
     cachedHsnCodes = snap.data() || {};
-    cacheTimestamp = now;
+    hsnCacheTimestamp = now;
     return cachedHsnCodes;
+  }
+  return null;
+}
+
+// In-memory cache for config/productGrades with a 5-minute TTL
+let cachedProductGrades = null;
+let gradeCacheTimestamp = 0;
+
+async function getProductGrades() {
+  const now = Date.now();
+  if (cachedProductGrades && (now - gradeCacheTimestamp < CACHE_TTL_MS)) {
+    return cachedProductGrades;
+  }
+  const snap = await admin.firestore().collection('config').doc('productGrades').get();
+  if (snap.exists) {
+    cachedProductGrades = snap.data() || {};
+    gradeCacheTimestamp = now;
+    return cachedProductGrades;
   }
   return null;
 }
@@ -29,13 +51,13 @@ async function getHsnCodes() {
 /**
  * assignHsnCode: 2nd Gen Firestore trigger on products/{id}
  *
- * Automatically assigns hsnCode & hsnCategory from config/hsnCodes when:
- * 1. A new product is created without an hsnCode.
- * 2. An existing product is updated such that its tile type changed,
- *    provided hsnManualOverride is not true.
+ * Automatically assigns hsnCode, hsnCategory, grade, & gradeLabel when:
+ * 1. A new product is created.
+ * 2. An existing product is updated such that its tile type or surface finish changed,
+ *    provided manual overrides (hsnManualOverride, gradeManualOverride) are not true.
  *
- * Prevents loops: skips write if hsnCode and hsnCategory already match target values.
- * Also mirrors the two fields to matching tiles/{id} document for consistency.
+ * Prevents loops: skips write if target values already match existing document fields.
+ * Also mirrors updated fields to matching tiles/{id} document for consistency.
  */
 exports.assignHsnCode = onDocumentWritten(
   {
@@ -52,50 +74,64 @@ exports.assignHsnCode = onDocumentWritten(
     const afterData = event.data.after.data() || {};
     const beforeData = event.data.before.exists ? event.data.before.data() : null;
 
-    const isMissingHsn = !afterData.hsnCode || !afterData.hsnCategory;
-    const typeChanged = beforeData ? hasTileTypeChanged(beforeData, afterData) : false;
-    const hasManualOverride = afterData.hsnManualOverride === true;
+    const updatePayload = {};
 
-    // Only proceed if hsnCode is missing, OR (type changed AND manual override is not enabled)
-    if (!isMissingHsn && (!typeChanged || hasManualOverride)) {
+    // =========================================================================
+    // A. HSN Code Assignment
+    // =========================================================================
+    const hasHsnManualOverride = afterData.hsnManualOverride === true;
+    if (!hasHsnManualOverride) {
+      const isMissingHsn = !afterData.hsnCode || !afterData.hsnCategory;
+      const typeChanged = beforeData ? hasTileTypeChanged(beforeData, afterData) : false;
+
+      if (isMissingHsn || typeChanged) {
+        const category = resolveHsnCategory(afterData, docId);
+        if (category) {
+          const hsnCodes = await getHsnCodes();
+          if (hsnCodes && hsnCodes[category]) {
+            const targetCode = hsnCodes[category];
+            if (afterData.hsnCode !== targetCode || afterData.hsnCategory !== category) {
+              updatePayload.hsnCode = targetCode;
+              updatePayload.hsnCategory = category;
+            }
+          }
+        }
+      }
+    }
+
+    // =========================================================================
+    // B. Product Grade Assignment
+    // =========================================================================
+    const hasGradeManualOverride = afterData.gradeManualOverride === true;
+    if (!hasGradeManualOverride) {
+      const isMissingGrade = !afterData.grade || !afterData.gradeLabel;
+      const surfaceChanged = beforeData
+        ? (beforeData.surface !== afterData.surface || beforeData.finish !== afterData.finish)
+        : false;
+
+      if (isMissingGrade || surfaceChanged) {
+        const productGrades = await getProductGrades();
+        if (productGrades) {
+          const resolvedGrade = resolveProductGrade(afterData, productGrades);
+          if (resolvedGrade) {
+            if (
+              afterData.grade !== resolvedGrade.grade ||
+              afterData.gradeLabel !== resolvedGrade.gradeLabel
+            ) {
+              updatePayload.grade = resolvedGrade.grade;
+              updatePayload.gradeLabel = resolvedGrade.gradeLabel;
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Infinite Loop Guard: Skip write if nothing changed
+    if (Object.keys(updatePayload).length === 0) {
       return;
     }
 
-    // 2. Decide HSN category using shared mapping logic
-    const category = resolveHsnCategory(afterData, docId);
-    if (!category) {
-      logger.warn(`[assignHsnCode] Could not determine HSN category for product ${docId}`, {
-        name: afterData.name || afterData.productName,
-        sku: afterData.sku,
-        productType: afterData.productType,
-      });
-      return;
-    }
-
-    // 3. Load active HSN codes from config/hsnCodes
-    const hsnCodes = await getHsnCodes();
-    if (!hsnCodes) {
-      logger.error('[assignHsnCode] config/hsnCodes not found in Firestore. Cannot assign HSN code.');
-      return;
-    }
-
-    const targetCode = hsnCodes[category];
-    if (!targetCode) {
-      logger.warn(`[assignHsnCode] No HSN code mapped in config/hsnCodes for category "${category}"`);
-      return;
-    }
-
-    // 4. Infinite Loop Guard: Skip if already up-to-date
-    if (afterData.hsnCode === targetCode && afterData.hsnCategory === category) {
-      return;
-    }
-
-    logger.info(`[assignHsnCode] Assigning HSN ${targetCode} (${category}) to product ${docId}`);
-
-    const updatePayload = {
-      hsnCode: targetCode,
-      hsnCategory: category,
-    };
+    logger.info(`[assignHsnCode] Updating product ${docId} with:`, updatePayload);
 
     // Update products/{id}
     await event.data.after.ref.update(updatePayload);
@@ -106,14 +142,19 @@ exports.assignHsnCode = onDocumentWritten(
       const tileSnap = await tileRef.get();
       if (tileSnap.exists) {
         const tileData = tileSnap.data() || {};
-        if (tileData.hsnCode !== targetCode || tileData.hsnCategory !== category) {
-          await tileRef.update(updatePayload);
-          logger.info(`[assignHsnCode] Mirrored HSN ${targetCode} (${category}) to tiles/${docId}`);
+        const tileUpdates = {};
+        for (const [k, v] of Object.entries(updatePayload)) {
+          if (tileData[k] !== v) {
+            tileUpdates[k] = v;
+          }
+        }
+        if (Object.keys(tileUpdates).length > 0) {
+          await tileRef.update(tileUpdates);
+          logger.info(`[assignHsnCode] Mirrored updates to tiles/${docId}:`, tileUpdates);
         }
       }
     } catch (tileErr) {
-      logger.warn(`[assignHsnCode] Failed to mirror HSN to tiles/${docId}:`, tileErr);
+      logger.warn(`[assignHsnCode] Failed to mirror updates to tiles/${docId}:`, tileErr);
     }
   }
 );
-
