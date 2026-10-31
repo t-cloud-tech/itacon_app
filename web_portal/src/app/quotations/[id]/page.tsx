@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateFirestoreCache } from "@/lib/firestore-cache";
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -347,12 +348,14 @@ export default function QuotationDetailPage() {
   const handleSendToApp = async () => {
     if (!quote) return;
     try {
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "quotations", quote.id), {
         status: "sent_to_customer",
         updatedAt: new Date().toISOString(),
       });
       if (quote.orderId) {
         try {
+          invalidateFirestoreCache();
           await updateDoc(doc(db, "orders", quote.orderId), {
             status: "rate_quoted",
             salespersonApprovalStatus: "released",

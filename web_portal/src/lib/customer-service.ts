@@ -1,4 +1,5 @@
 import { db, invokeCallable } from "@/lib/firebase";
+import { cachedGetDocs, invalidateFirestoreCache } from "@/lib/firestore-cache";
 import { collection, getDocs, doc, getDoc, setDoc, query, where } from "firebase/firestore";
 import { Customer, UserProfile, SalesPerson, UserRole } from "@/types";
 
@@ -21,7 +22,7 @@ export async function fetchLiveCustomers(
     // 1. Fetch from 'users' collection (primary ITACON customer datastore)
     // Note: Restricted to staff in security rules; errors are caught so dedicated 'customers' collection is also queried.
     try {
-      const usersSnap = await getDocs(collection(db, "users"));
+      const usersSnap = await cachedGetDocs(collection(db, "users"));
 
       usersSnap.docs.forEach((d) => {
         const data = d.data();
@@ -132,7 +133,7 @@ export async function fetchLiveCustomers(
 
       // 2. Also check if any dedicated documents exist in 'customers' collection
       try {
-        const custSnap = await getDocs(collection(db, "customers"));
+        const custSnap = await cachedGetDocs(collection(db, "customers"));
         custSnap.docs.forEach((d) => {
           const data = d.data();
           let isAllocated = false;
@@ -343,7 +344,7 @@ export async function fetchActiveSalespersonsList(): Promise<AllocatedSalesperso
   const map = new Map<string, AllocatedSalespersonInfo>();
 
   try {
-    const spSnap = await getDocs(collection(db, "salesPersons"));
+    const spSnap = await cachedGetDocs(collection(db, "salesPersons"));
     spSnap.docs.forEach((d) => {
       const data = d.data();
       if (data.status === "inactive" || data.isActive === false) return;
@@ -360,7 +361,7 @@ export async function fetchActiveSalespersonsList(): Promise<AllocatedSalesperso
   } catch (_) {}
 
   try {
-    const uSnap = await getDocs(query(collection(db, "users"), where("role", "==", "salesperson")));
+    const uSnap = await cachedGetDocs(query(collection(db, "users"), where("role", "==", "salesperson")));
     uSnap.docs.forEach((d) => {
       const data = d.data();
       if (data.status === "inactive" || data.isActive === false) return;
@@ -430,6 +431,7 @@ export async function updateCustomerAllocatedSalesperson(
 
     // Update in users collection
     try {
+      invalidateFirestoreCache();
       await setDoc(doc(db, "users", customerId), payload, { merge: true });
     } catch (uErr: any) {
       console.warn("Could not update users collection directly:", uErr?.message || uErr);
@@ -437,6 +439,7 @@ export async function updateCustomerAllocatedSalesperson(
 
     // Also update in customers collection if doc exists or to keep in sync
     try {
+      invalidateFirestoreCache();
       await setDoc(doc(db, "customers", customerId), payload, { merge: true });
     } catch (cErr: any) {
       console.warn("Could not update customers collection:", cErr?.message || cErr);

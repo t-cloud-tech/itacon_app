@@ -1,6 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 
@@ -17,7 +22,20 @@ const firebaseConfig = {
 // Initialize Firebase (singleton pattern for Next.js SSR/client)
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Offline-first cache (IndexedDB) so listeners and repeat visits render from local data
+// while the server catches up. Falls back to the default instance if already initialised
+// (hot reload) or if persistence is unavailable (SSR, private mode).
+function createDb() {
+  if (typeof window === "undefined") return getFirestore(app);
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch {
+    return getFirestore(app);
+  }
+}
+export const db = createDb();
 export const storage = getStorage(app);
 
 // Functions instance for asia-south1 (dedicated for staff authentication)

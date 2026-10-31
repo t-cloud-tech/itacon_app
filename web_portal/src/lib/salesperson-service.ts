@@ -1,4 +1,5 @@
 import { db } from "@/lib/firebase";
+import { cachedGetDocs, invalidateFirestoreCache } from "@/lib/firestore-cache";
 import { 
   collection, 
   getDocs, 
@@ -222,9 +223,20 @@ function isDateToday(dateVal: any): boolean {
 export async function fetchLiveSalespersonsWithMetrics(): Promise<SalespersonPerformanceMetrics[]> {
   const spMap = new Map<string, SalespersonPerformanceMetrics>();
 
+  // Start every independent collection read up front so they run in parallel;
+  // the sequential steps below then resolve from the shared in-flight promises.
+  [
+    collection(db, "salesPersons"),
+    query(collection(db, "users"), where("role", "==", "salesperson")),
+    collection(db, "orders"),
+    collection(db, "salesOrders"),
+    collection(db, "quotations"),
+    collection(db, "users"),
+  ].forEach((q) => cachedGetDocs(q).catch(() => {}));
+
   // 1. Fetch salespersons from 'salesPersons' collection
   try {
-    const spSnap = await getDocs(collection(db, "salesPersons"));
+    const spSnap = await cachedGetDocs(collection(db, "salesPersons"));
     spSnap.docs.forEach((d) => {
       const data = d.data();
       const id = d.id;
@@ -255,7 +267,7 @@ export async function fetchLiveSalespersonsWithMetrics(): Promise<SalespersonPer
 
   // 2. Fetch users with role == 'salesperson' from 'users' collection to capture any new staff
   try {
-    const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "salesperson")));
+    const usersSnap = await cachedGetDocs(query(collection(db, "users"), where("role", "==", "salesperson")));
     usersSnap.docs.forEach((d) => {
       const data = d.data();
       const spId = (data.salesPersonId || d.id).toString().trim();
@@ -313,8 +325,8 @@ export async function fetchLiveSalespersonsWithMetrics(): Promise<SalespersonPer
 
   // 4. Load all orders & salesOrders to attribute sales & metrics
   try {
-    const ordersSnap = await getDocs(collection(db, "orders"));
-    const salesOrdersSnap = await getDocs(collection(db, "salesOrders"));
+    const ordersSnap = await cachedGetDocs(collection(db, "orders"));
+    const salesOrdersSnap = await cachedGetDocs(collection(db, "salesOrders"));
 
     const combinedOrders: any[] = [];
     ordersSnap.docs.forEach((d) => combinedOrders.push({ id: d.id, ...d.data() }));
@@ -353,7 +365,7 @@ export async function fetchLiveSalespersonsWithMetrics(): Promise<SalespersonPer
 
   // 5. Load quotations count
   try {
-    const quotesSnap = await getDocs(collection(db, "quotations"));
+    const quotesSnap = await cachedGetDocs(collection(db, "quotations"));
     quotesSnap.docs.forEach((d) => {
       const qData = d.data();
       const qSpId = (qData.salespersonId || qData.salesPersonId || "").toString().trim();
@@ -368,7 +380,7 @@ export async function fetchLiveSalespersonsWithMetrics(): Promise<SalespersonPer
 
   // 6. Calculate assigned clients count from users collection
   try {
-    const usersSnap = await getDocs(collection(db, "users"));
+    const usersSnap = await cachedGetDocs(collection(db, "users"));
     usersSnap.docs.forEach((d) => {
       const uData = d.data();
       if (uData.role === "salesperson" || uData.role === "admin") return;
@@ -418,8 +430,8 @@ export async function fetchSalespersonDetailedActivity(
   const todayOrders: any[] = [];
 
   try {
-    const ordersSnap = await getDocs(collection(db, "orders"));
-    const salesOrdersSnap = await getDocs(collection(db, "salesOrders"));
+    const ordersSnap = await cachedGetDocs(collection(db, "orders"));
+    const salesOrdersSnap = await cachedGetDocs(collection(db, "salesOrders"));
 
     const combined: any[] = [];
     ordersSnap.docs.forEach((d) => combined.push({ id: d.id, ...d.data() }));
@@ -443,7 +455,7 @@ export async function fetchSalespersonDetailedActivity(
   // 2. Quotations
   const allQuotations: Quotation[] = [];
   try {
-    const quotesSnap = await getDocs(collection(db, "quotations"));
+    const quotesSnap = await cachedGetDocs(collection(db, "quotations"));
     quotesSnap.docs.forEach((d) => {
       const data = d.data();
       const docSpId = (data.salespersonId || data.salesPersonId || "").toString().trim();
@@ -458,7 +470,7 @@ export async function fetchSalespersonDetailedActivity(
   // 3. Assigned Customers
   const assignedClients: Customer[] = [];
   try {
-    const usersSnap = await getDocs(collection(db, "users"));
+    const usersSnap = await cachedGetDocs(collection(db, "users"));
     usersSnap.docs.forEach((d) => {
       const data = d.data();
       if (data.role === "salesperson" || data.role === "admin") return;
@@ -599,6 +611,7 @@ export async function createSalespersonAccount(
     const nowIso = new Date().toISOString();
 
     // 3. Create authoritative users/{uid} document
+    invalidateFirestoreCache();
     await setDoc(doc(db, "users", authedUid), {
       userId: authedUid,
       uid: authedUid,
@@ -622,6 +635,7 @@ export async function createSalespersonAccount(
     }, { merge: true });
 
     // 4. Create authoritative salesPersons/{uid} document
+    invalidateFirestoreCache();
     await setDoc(doc(db, "salesPersons", authedUid), {
       salesPersonId: authedUid,
       employeeId: cleanEmpId,
@@ -664,6 +678,7 @@ export async function resetSalespersonPassword(
     const passwordHash = await hashStaffPassword(newPassword, salt);
     const nowIso = new Date().toISOString();
 
+    invalidateFirestoreCache();
     await updateDoc(doc(db, "users", salesPersonId), {
       passwordHash,
       passwordSalt: salt,
@@ -690,6 +705,7 @@ export async function toggleSalespersonStatus(
 
     // Update salesPersons doc
     try {
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "salesPersons", salesPersonId), {
         status: newStatus,
         isActive,
@@ -699,6 +715,7 @@ export async function toggleSalespersonStatus(
 
     // Update users doc
     try {
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "users", salesPersonId), {
         status: newStatus,
         isActive,

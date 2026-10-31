@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateFirestoreCache } from "@/lib/firestore-cache";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -76,6 +77,7 @@ export default function LeadDetailPage() {
     if (!lead) return;
     setIsUpdatingStatus(true);
     try {
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "leads", lead.id), {
         status: newStatus,
         updatedAt: new Date().toISOString(),
@@ -94,6 +96,7 @@ export default function LeadDetailPage() {
     setIsConverting(true);
     try {
       const custNumber = `CUST-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      invalidateFirestoreCache();
       const docRef = await addDoc(collection(db, "customers"), {
         customerNumber: custNumber,
         name: lead.name,
@@ -114,6 +117,7 @@ export default function LeadDetailPage() {
       });
 
       // Update lead as converted
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "leads", lead.id), {
         status: "converted",
         convertedCustomerId: docRef.id,

@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateFirestoreCache } from "@/lib/firestore-cache";
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -727,6 +728,7 @@ function SalesOrdersContent() {
       } catch (callErr: any) {
         console.warn("Cloud function verify payment failed, falling back to direct Firestore update:", callErr);
         // Fallback direct Firestore update to ensure instantaneous verification
+        invalidateFirestoreCache();
         await updateDoc(doc(db, "paymentSubmissions", verifyingSub.id), {
           status: "verified",
           verifiedAt: new Date().toISOString(),
@@ -735,6 +737,7 @@ function SalesOrdersContent() {
         });
         if (verifyingSub.orderId) {
           try {
+            invalidateFirestoreCache();
             await updateDoc(doc(db, "orders", verifyingSub.orderId), {
               paymentStatus: "paid",
               paidAmount: verifyingSub.submittedAmount,
@@ -756,6 +759,7 @@ function SalesOrdersContent() {
             o.poNumber === verifyingSub.orderReference
           );
           if (matchingSalesOrder) {
+            invalidateFirestoreCache();
             await updateDoc(doc(db, "salesOrders", matchingSalesOrder.id), {
               paymentStatus: "paid",
               status: "confirmed",
@@ -772,6 +776,7 @@ function SalesOrdersContent() {
               const qRef = doc(db, "quotations", targetQuoteId);
               const qSnap = await getDoc(qRef);
               if (qSnap.exists()) {
+                invalidateFirestoreCache();
                 await updateDoc(qRef, {
                   status: "confirm_order",
                   paymentStatus: "paid",
@@ -784,6 +789,7 @@ function SalesOrdersContent() {
             try {
               const qSnapNum = await getDocs(query(qCol, where("quotationNumber", "==", targetQuoteNum)));
               if (!qSnapNum.empty) {
+                invalidateFirestoreCache();
                 await updateDoc(qSnapNum.docs[0].ref, {
                   status: "confirm_order",
                   paymentStatus: "paid",
@@ -840,6 +846,7 @@ function SalesOrdersContent() {
         }
       } catch (callErr: any) {
         console.warn("Cloud function reject payment failed, falling back to direct Firestore update:", callErr);
+        invalidateFirestoreCache();
         await updateDoc(doc(db, "paymentSubmissions", rejectingSub.id), {
           status: "rejected",
           rejectionReason: trimmedReason,
@@ -849,6 +856,7 @@ function SalesOrdersContent() {
         });
         if (rejectingSub.orderId) {
           try {
+            invalidateFirestoreCache();
             await updateDoc(doc(db, "orders", rejectingSub.orderId), {
               paymentStatus: "rejected",
               rejectionReason: trimmedReason,
@@ -869,6 +877,7 @@ function SalesOrdersContent() {
             o.poNumber === rejectingSub.orderReference
           );
           if (matchingSalesOrder) {
+            invalidateFirestoreCache();
             await updateDoc(doc(db, "salesOrders", matchingSalesOrder.id), {
               paymentStatus: "unpaid",
               updatedAt: new Date().toISOString(),

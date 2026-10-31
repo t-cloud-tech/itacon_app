@@ -1,4 +1,5 @@
 import { db } from "@/lib/firebase";
+import { cachedGetDocs, invalidateFirestoreCache } from "@/lib/firestore-cache";
 import { 
   collection, 
   getDocs, 
@@ -528,7 +529,7 @@ export async function fetchSalesPersonsMap(): Promise<Record<string, EnrichedSal
   const map: Record<string, EnrichedSalesPerson> = { ...DEFAULT_SALESPERSONS };
 
   try {
-    const snap = await getDocs(collection(db, "salesPersons"));
+    const snap = await cachedGetDocs(collection(db, "salesPersons"));
     snap.docs.forEach((docSnap) => {
       const data = docSnap.data();
       const id = docSnap.id;
@@ -546,7 +547,7 @@ export async function fetchSalesPersonsMap(): Promise<Record<string, EnrichedSal
       };
     });
 
-    const usersSnap = await getDocs(query(collection(db, "users"), where("role", "==", "salesperson")));
+    const usersSnap = await cachedGetDocs(query(collection(db, "users"), where("role", "==", "salesperson")));
     usersSnap.docs.forEach((docSnap) => {
       const data = docSnap.data();
       const spId = (data.salesPersonId || docSnap.id).toString().trim();
@@ -881,7 +882,7 @@ export async function fetchClientPORequests(
       allocatedIds = new Set(custs.map((c) => c.id));
     } catch (_) {}
 
-    const ordersSnap = await getDocs(collection(db, "orders"));
+    const ordersSnap = await cachedGetDocs(collection(db, "orders"));
 
     ordersSnap.docs.forEach((d) => {
       const order = parseClientOrderDoc(d);
@@ -1044,12 +1045,14 @@ export async function linkQuotationToOrder(
   }
 
   try {
+    invalidateFirestoreCache();
     await setDoc(orderRef, updatePayload, { merge: true });
 
     // Also update orderItems subcollection so any subcollection readers sync
     for (const it of formattedItems) {
       if (it.productId) {
         try {
+          invalidateFirestoreCache();
           await setDoc(doc(db, "orders", orderId, "orderItems", it.productId), it, { merge: true });
         } catch (_) {}
       }
@@ -1082,6 +1085,7 @@ export async function adminConfirmOrder(
 
   // Status transitions to 'pending_salesperson_review'.
   // DO NOT transition to 'confirmed' or 'rate_quoted' directly! Customer app remains protected.
+  invalidateFirestoreCache();
   await updateDoc(orderRef, {
     status: "pending_salesperson_review",
     adminApprovalStatus: "approved",
@@ -1095,6 +1099,7 @@ export async function adminConfirmOrder(
   if (quotationId) {
     try {
       const quoteRef = doc(db, "quotations", quotationId);
+      invalidateFirestoreCache();
       await updateDoc(quoteRef, {
         status: "pending_approval",
         approvalStatus: "approved",
@@ -1124,6 +1129,7 @@ export async function adminRejectOrder(
   const now = new Date().toISOString();
 
   // Status transitions to 'pending_salesperson_review' (NOT 'rejected' on customer app!).
+  invalidateFirestoreCache();
   await updateDoc(orderRef, {
     status: "pending_salesperson_review",
     adminApprovalStatus: "rejected",
@@ -1137,6 +1143,7 @@ export async function adminRejectOrder(
   if (quotationId) {
     try {
       const quoteRef = doc(db, "quotations", quotationId);
+      invalidateFirestoreCache();
       await updateDoc(quoteRef, {
         status: "rejected",
         approvalStatus: "rejected",
@@ -1161,6 +1168,7 @@ export async function salespersonReleaseOrderToApp(
   const now = new Date().toISOString();
 
   // Transitions status to 'rate_quoted' so customer can now see and confirm the PO on the mobile app
+  invalidateFirestoreCache();
   await updateDoc(orderRef, {
     status: "rate_quoted",
     salespersonApprovalStatus: "released",
@@ -1173,6 +1181,7 @@ export async function salespersonReleaseOrderToApp(
   if (quotationId) {
     try {
       const quoteRef = doc(db, "quotations", quotationId);
+      invalidateFirestoreCache();
       await updateDoc(quoteRef, {
         status: "sent_to_customer",
         updatedAt: now,
@@ -1183,6 +1192,7 @@ export async function salespersonReleaseOrderToApp(
   if (approvalRequestId) {
     try {
       const appRef = doc(db, "approvalRequests", approvalRequestId);
+      invalidateFirestoreCache();
       await updateDoc(appRef, {
         salespersonActionStatus: "released",
         salespersonReleasedAt: now,
@@ -1205,6 +1215,7 @@ export async function salespersonDeclineOrder(
   const orderRef = doc(db, "orders", orderId);
   const now = new Date().toISOString();
 
+  invalidateFirestoreCache();
   await updateDoc(orderRef, {
     status: "rejected",
     salespersonApprovalStatus: "cancelled",
@@ -1216,6 +1227,7 @@ export async function salespersonDeclineOrder(
   if (quotationId) {
     try {
       const quoteRef = doc(db, "quotations", quotationId);
+      invalidateFirestoreCache();
       await updateDoc(quoteRef, {
         status: "declined",
         remarks: reason,
@@ -1227,6 +1239,7 @@ export async function salespersonDeclineOrder(
   if (approvalRequestId) {
     try {
       const appRef = doc(db, "approvalRequests", approvalRequestId);
+      invalidateFirestoreCache();
       await updateDoc(appRef, {
         salespersonActionStatus: "cancelled",
         decisionNotes: reason,
@@ -1277,6 +1290,7 @@ export async function convertQuotationToSalesOrder(
       const existingDoc = existingSnap.docs[0];
       orderDocId = existingDoc.id;
       orderNumber = existingDoc.data().orderNumber || `ORD-2026-${orderDocId.slice(-4)}`;
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "salesOrders", orderDocId), {
         status: "confirmed",
         updatedAt: now,
@@ -1296,6 +1310,7 @@ export async function convertQuotationToSalesOrder(
       : `ORD-2026-${randNum}`;
 
     try {
+      invalidateFirestoreCache();
       const newDoc = await addDoc(salesOrdersRef, {
         orderNumber,
         quotationId: quotation.id,
@@ -1328,6 +1343,7 @@ export async function convertQuotationToSalesOrder(
   // 2. Update quotation document in 'quotations' collection to accepted
   try {
     const quoteRef = doc(db, "quotations", quotation.id);
+    invalidateFirestoreCache();
     await updateDoc(quoteRef, {
       status: "accepted",
       salesOrderId: orderDocId,
@@ -1342,6 +1358,7 @@ export async function convertQuotationToSalesOrder(
   if (quotation.orderId) {
     try {
       const orderRef = doc(db, "orders", quotation.orderId);
+      invalidateFirestoreCache();
       await updateDoc(orderRef, {
         status: "confirmed",
         salesOrderId: orderDocId,

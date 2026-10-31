@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateFirestoreCache } from "@/lib/firestore-cache";
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -350,6 +351,7 @@ function QuotationForm() {
         return sum + Math.max(0, undiscountedLineTotal - i.lineTotal);
       }, 0);
 
+      invalidateFirestoreCache();
       const docRef = await addDoc(collection(db, "quotations"), {
         quotationNumber: quoteNumber,
         orderId: linkedOrder ? linkedOrder.id : null,
@@ -413,6 +415,7 @@ function QuotationForm() {
 
       // If admin confirmation required, create an approval request record for Admin
       if (requiresAdminConfirmation) {
+        invalidateFirestoreCache();
         await addDoc(collection(db, "approvalRequests"), {
           referenceType: isRateBelowThreshold ? "low_rate_po" : "quotation",
           referenceId: docRef.id,

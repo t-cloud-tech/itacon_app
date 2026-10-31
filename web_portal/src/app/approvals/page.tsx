@@ -1,5 +1,6 @@
 "use client";
 
+import { invalidateFirestoreCache } from "@/lib/firestore-cache";
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -318,6 +319,7 @@ export default function ApprovalsPage() {
       : "action_required_revision";
 
     try {
+      invalidateFirestoreCache();
       await updateDoc(doc(db, "approvalRequests", approval.id), {
         status: decision,
         adminDecision: decision,
@@ -336,6 +338,7 @@ export default function ApprovalsPage() {
         }
       } else if (approval.referenceId) {
         try {
+          invalidateFirestoreCache();
           await updateDoc(doc(db, "quotations", approval.referenceId), {
             approvalStatus: decision,
             status: decision === "approved" ? "admin_approved" : "rejected_by_admin",
@@ -407,6 +410,7 @@ export default function ApprovalsPage() {
       if (approval.orderId) {
         await salespersonReleaseOrderToApp(approval.orderId, approval.referenceId, spName, approval.id);
       } else {
+        invalidateFirestoreCache();
         await updateDoc(doc(db, "approvalRequests", approval.id), {
           salespersonActionStatus: "released",
           salespersonReleasedAt: now,
@@ -463,6 +467,7 @@ export default function ApprovalsPage() {
         );
       } else {
         try {
+          invalidateFirestoreCache();
           await updateDoc(doc(db, "approvalRequests", approval.id), {
             salespersonActionStatus: "cancelled",
           });
