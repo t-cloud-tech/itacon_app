@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
+import { sortNewestFirst } from "@/lib/sort-utils";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy, updateDoc, doc } from "firebase/firestore";
 import { Opportunity, OpportunityStage } from "@/types";
@@ -140,7 +141,7 @@ export default function OpportunitiesPage() {
     }
   };
 
-  const filteredOpps = opportunities.filter(o => {
+  const filteredOpps = sortNewestFirst(opportunities, o => o.createdAt).filter(o => {
     const matchesSearch = 
       o.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||

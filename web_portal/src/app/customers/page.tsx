@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
+import { sortNewestFirst } from "@/lib/sort-utils";
 import { fetchLiveCustomers } from "@/lib/customer-service";
 import { Customer } from "@/types";
 import {
@@ -49,7 +50,7 @@ export default function CustomersPage() {
     loadLiveCustomers();
   }, [loadLiveCustomers]);
 
-  const filteredCustomers = customers.filter(c => {
+  const filteredCustomers = sortNewestFirst(customers, c => c.createdAt).filter(c => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       c.name.toLowerCase().includes(term) ||

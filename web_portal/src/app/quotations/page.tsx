@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
+import { sortNewestFirst } from "@/lib/sort-utils";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { Quotation, SalesOrder } from "@/types";
@@ -331,7 +332,7 @@ function QuotationsContent() {
 
   // Filtered quotations for the Generated Quotations table
   const filteredQuotations = useMemo(() => {
-    return mergedQuotations.filter((q) => {
+    return sortNewestFirst(mergedQuotations, (q) => q.createdAt).filter((q) => {
       // In salesperson role: strictly only show quotations belonging to this salesperson
       if (role === "salesperson") {
         const myIds = new Set<string>();
@@ -389,7 +390,7 @@ function QuotationsContent() {
     });
   }, [mergedQuotations, searchTerm, statusFilter, role, user, salesperson]);
 
-  const filteredPOs = poRequests.filter((po) => {
+  const filteredPOs = sortNewestFirst(poRequests, (po) => po.createdAt).filter((po) => {
     return (
       po.poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
       po.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||

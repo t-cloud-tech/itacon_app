@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
+import { sortNewestFirst } from "@/lib/sort-utils";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { Lead, LeadStatus, LeadSource } from "@/types";
@@ -123,7 +124,7 @@ export default function LeadsPage() {
     fetchLeads();
   }, [user, role]);
 
-  const filteredLeads = leads.filter((lead) => {
+  const filteredLeads = sortNewestFirst(leads, (lead) => lead.createdAt).filter((lead) => {
     const matchesSearch = 
       lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (lead.companyName && lead.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||

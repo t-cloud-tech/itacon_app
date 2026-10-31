@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
+import { sortNewestFirst } from "@/lib/sort-utils";
 import { db, storage, functions, invokeCallable } from "@/lib/firebase";
 import { collection, query, where, getDocs, getDoc, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
@@ -594,7 +595,7 @@ function SalesOrdersContent() {
 
 
   // Filtered Orders
-  const filteredOrders = allFactorySalesOrders.filter(o => {
+  const filteredOrders = sortNewestFirst(allFactorySalesOrders, o => o.createdAt).filter(o => {
     const term = searchTerm.toLowerCase().trim();
     const matchesSearch = 
       !term ||
@@ -613,7 +614,7 @@ function SalesOrdersContent() {
   });
 
   // Filtered Payments
-  const filteredPayments = paymentSubmissions.filter(p => {
+  const filteredPayments = sortNewestFirst(paymentSubmissions, p => (p as any).submittedAt).filter(p => {
     const matchesSearch =
       (p.orderReference?.toLowerCase() || "").includes(paymentSearch.toLowerCase()) ||
       (p.customerName?.toLowerCase() || "").includes(paymentSearch.toLowerCase()) ||
