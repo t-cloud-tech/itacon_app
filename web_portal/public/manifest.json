@@ -1,6 +1,6 @@
 {
-  "name": "ITACON Sales & Admin Portal",
-  "short_name": "ITACON Portal",
+  "name": "ITACON Management",
+  "short_name": "ITACON Management",
   "description": "Enterprise CRM & Quotation Workbench for ITACON Sales Executives and Administrators",
   "start_url": "/",
   "display": "standalone",

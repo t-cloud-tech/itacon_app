@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ITACON — Enterprise Sales & Admin Portal",
+  title: "ITACON Management",
   description: "ITACON Ceramic & Tiles B2B Salesperson Portal and Quotation Management System",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ITACON Portal",
+    title: "ITACON Management",
   },
 };
 
