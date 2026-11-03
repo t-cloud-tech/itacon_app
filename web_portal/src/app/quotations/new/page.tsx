@@ -1,7 +1,7 @@
 "use client";
 
 import { invalidateFirestoreCache } from "@/lib/firestore-cache";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -24,7 +24,9 @@ import {
   Lock
 } from "lucide-react";
 import { Customer, QuotationItem } from "@/types";
+import { PAYMENT_TERM_OPTIONS } from "@/lib/payment-terms";
 import { fetchLiveCustomers } from "@/lib/customer-service";
+import { fetchAppTiles, isAdhesiveProduct } from "@/lib/catalogue-service";
 import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
 import { fetchOrderById, linkQuotationToOrder, ClientOrderPO, MIN_RATE_PER_SQFT } from "@/lib/order-service";
 
@@ -49,64 +51,13 @@ function QuotationForm() {
   const [loadingOrder, setLoadingOrder] = useState(!!orderId);
 
   // Line items state
-  const [items, setItems] = useState<QuotationItem[]>([
-    {
-      productId: "prod-3",
-      productName: "Travertino Grigio Rustic",
-      sku: "ITA-TRAV-6012",
-      size: "600x1200 mm",
-      quantityBoxes: 98,
-      sqftPerBox: 15.5,
-      totalSqft: 1519,
-      weightKg: 2842,
-      unitPrice: 35, // Rate per sq.ft
-      discountPercent: 5,
-      effectivePrice: 515.38, // 35 * (1 - 0.05) * 15.5 = 515.375 per box
-      lineTotal: 50507,
-    }
-  ]);
+  const [items, setItems] = useState<QuotationItem[]>([]);
+  const [availableTiles, setAvailableTiles] = useState<any[]>([]);
+  const [loadingTiles, setLoadingTiles] = useState(true);
+  const [itemError, setItemError] = useState<{ [key: number]: string }>({});
+  const [designSearch, setDesignSearch] = useState<{ [key: number]: string }>({});
 
-  // Available tiles catalogue for adding items manually (if not from client PO)
-  const tileTemplates = [
-    {
-      productId: "prod-1",
-      productName: "Statuario White Marble Porcelain",
-      sku: "ITA-STAT-6012",
-      size: "600x1200 mm",
-      sqftPerBox: 15.5,
-      weightPerBoxKg: 29.5,
-      basePrice: 38,
-    },
-    {
-      productId: "prod-2",
-      productName: "Nero Marquina Grand Slab",
-      sku: "ITA-NERO-8016",
-      size: "800x1600 mm",
-      sqftPerBox: 27.56,
-      weightPerBoxKg: 54.0,
-      basePrice: 48,
-    },
-    {
-      productId: "prod-3",
-      productName: "Travertino Grigio Rustic",
-      sku: "ITA-TRAV-6012",
-      size: "600x1200 mm",
-      sqftPerBox: 15.5,
-      weightPerBoxKg: 29.0,
-      basePrice: 35,
-    },
-    {
-      productId: "prod-4",
-      productName: "Calacatta Gold Vitrified",
-      sku: "ITA-CALA-6060",
-      size: "600x600 mm",
-      sqftPerBox: 15.5,
-      weightPerBoxKg: 27.5,
-      basePrice: 32,
-    },
-  ];
-
-  const [freightCharges, setFreightCharges] = useState<number>(4500);
+  const [freightCharges, setFreightCharges] = useState<number>(0);
   const [taxPercent] = useState<number>(18);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -150,7 +101,8 @@ function QuotationForm() {
               const qty = Number(pi.quantityBoxes) || 1;
               const sqftPerBox = Number(pi.sqftPerBox) || 15.5;
               const sqft = Number(pi.quantitySqFt) || Number((qty * sqftPerBox).toFixed(2));
-              const weightKg = Number((qty * (pi.weightPerBoxKg || 29.0)).toFixed(1));
+              const boxWeightKg = Number(pi.weightPerBoxKg || 27.0);
+              const weightKg = Number((qty * boxWeightKg).toFixed(1));
 
               // Base price is per SQFT (e.g. 35/sqft). If legacy data has box price (> 150), convert to per sqft.
               let basePricePerSqft = Number(pi.basePrice) || 35;
@@ -173,6 +125,7 @@ function QuotationForm() {
                 quantityBoxes: qty,
                 sqftPerBox: sqftPerBox,
                 totalSqft: sqft,
+                boxWeightKg,
                 weightKg: weightKg,
                 unitPrice: basePricePerSqft, // Rate per sq.ft (e.g. 35)
                 discountPercent: disc,
@@ -196,65 +149,226 @@ function QuotationForm() {
     };
   }, [orderId]);
 
-  const handleAddItem = (templateIndex = 0) => {
-    // Adding custom items disabled when linked to a client PO
+  // Load real tiles from Firestore
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRealTiles() {
+      setLoadingTiles(true);
+      try {
+        const tiles = await fetchAppTiles(false);
+        const validTiles = tiles.filter(
+          (t) => !isAdhesiveProduct(t) && t.isActive !== false && t.isAdhesive !== true
+        );
+        if (isMounted) {
+          setAvailableTiles(validTiles);
+
+          // If opened with prefilled productId from catalogue and no items:
+          const prefillId = searchParams.get("productId");
+          if (prefillId && !orderId) {
+            const match = validTiles.find((t) => t.id === prefillId || t.sku === prefillId);
+            if (match) {
+              const sqftPerBox = Number(match.sqFtPerBox || match.packingDetails?.coverageSqFt || 15.5);
+              const boxWeightKg = Number(match.boxWeightKg || match.packingDetails?.boxWeightKg || match.weightPerBoxKg || 27.0);
+              let price = Number(match.basePrice || match.price || 35);
+              if (price > 150 && sqftPerBox > 0) price = Number((price / sqftPerBox).toFixed(2));
+              setItems([
+                {
+                  productId: match.id,
+                  productName: match.name || match.productName || "Tile",
+                  sku: match.sku || "",
+                  size: match.size || "600x1200 mm",
+                  surface: match.surface || match.finish || "Standard",
+                  finish: match.surface || match.finish || "Standard",
+                  quantityBoxes: 1,
+                  sqftPerBox,
+                  totalSqft: sqftPerBox,
+                  weightKg: boxWeightKg,
+                  boxWeightKg,
+                  pcsPerBox: Number(match.pcsPerBox || 2),
+                  unitPrice: price,
+                  discountPercent: 0,
+                  effectivePrice: Number((price * sqftPerBox).toFixed(2)),
+                  lineTotal: Number((price * sqftPerBox).toFixed(2)),
+                },
+              ]);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Could not load tiles from Firestore:", err);
+      } finally {
+        if (isMounted) setLoadingTiles(false);
+      }
+    }
+
+    loadRealTiles();
+    return () => {
+      isMounted = false;
+    };
+  }, [searchParams, orderId]);
+
+  // Distinct sizes from loaded real tiles
+  const distinctSizes: string[] = useMemo(() => {
+    const set = new Set<string>();
+    availableTiles.forEach((t) => {
+      if (t.size && typeof t.size === "string") {
+        set.add(t.size.trim());
+      }
+    });
+    return Array.from(set).sort();
+  }, [availableTiles]);
+
+  const handleAddItem = () => {
     if (linkedOrder) return;
-
-    const t = tileTemplates[templateIndex % tileTemplates.length];
-    const qty = 100;
-    const sqft = Number((qty * t.sqftPerBox).toFixed(2));
-    const weight = Number((qty * t.weightPerBoxKg).toFixed(1));
-    const disc = 0;
-    const basePricePerSqft = t.basePrice;
-    const effRateSqft = Number((basePricePerSqft * (1 - disc / 100)).toFixed(2));
-    const effPricePerBox = Number((effRateSqft * t.sqftPerBox).toFixed(2));
-    const total = Number((qty * effPricePerBox).toFixed(2));
-
-    setItems(prev => [
+    const defaultSize = distinctSizes.length > 0 ? distinctSizes[0] : "600x1200 mm";
+    setItems((prev) => [
       ...prev,
       {
-        productId: t.productId,
-        productName: t.productName,
-        sku: t.sku,
-        size: t.size,
-        quantityBoxes: qty,
-        sqftPerBox: t.sqftPerBox,
-        totalSqft: sqft,
-        weightKg: weight,
-        unitPrice: basePricePerSqft,
-        discountPercent: disc,
-        effectivePrice: effPricePerBox,
-        lineTotal: total,
-      }
+        productId: "",
+        productName: "",
+        sku: "",
+        size: defaultSize,
+        surface: "",
+        finish: "",
+        quantityBoxes: 1,
+        sqftPerBox: 15.5,
+        totalSqft: 15.5,
+        weightKg: 27,
+        boxWeightKg: 27,
+        pcsPerBox: 2,
+        unitPrice: 35,
+        discountPercent: 0,
+        effectivePrice: 542.5,
+        lineTotal: 542.5,
+      },
     ]);
   };
 
+  const handleSizeSelect = (index: number, newSize: string) => {
+    setItemError((prev) => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+    setDesignSearch((prev) => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+    setItems((prev) => {
+      const copy = [...prev];
+      copy[index] = {
+        ...copy[index],
+        size: newSize,
+        productId: "",
+        productName: "",
+        sku: "",
+      };
+      return copy;
+    });
+  };
+
+  const handleDesignSelect = (index: number, tileId: string) => {
+    if (!tileId) return;
+    const alreadyExists = items.some((it, i) => i !== index && it.productId === tileId);
+    if (alreadyExists) {
+      setItemError((prev) => ({
+        ...prev,
+        [index]: "This tile is already added. Update its quantity instead.",
+      }));
+      return;
+    }
+
+    const tile = availableTiles.find((t) => t.id === tileId);
+    if (!tile) return;
+
+    setItemError((prev) => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+
+    const sqftPerBox = Number(tile.sqFtPerBox || tile.packingDetails?.coverageSqFt || 15.5);
+    const boxWeightKg = Number(tile.boxWeightKg || tile.packingDetails?.boxWeightKg || tile.weightPerBoxKg || 27.0);
+    const pcsPerBox = Number(tile.pcsPerBox || tile.packingDetails?.pcsPerBox || 2);
+    let basePricePerSqft = Number(tile.basePrice || tile.price || 35);
+    if (basePricePerSqft > 150 && sqftPerBox > 0) {
+      basePricePerSqft = Number((basePricePerSqft / sqftPerBox).toFixed(2));
+    }
+
+    setItems((prev) => {
+      const copy = [...prev];
+      const current = copy[index] || {};
+      const boxes = current.quantityBoxes && current.quantityBoxes >= 1 ? current.quantityBoxes : 1;
+      const totalSqft = Number((boxes * sqftPerBox).toFixed(2));
+      const disc = current.discountPercent || 0;
+      const effRateSqft = Number((basePricePerSqft * (1 - disc / 100)).toFixed(2));
+      const effPricePerBox = Number((effRateSqft * sqftPerBox).toFixed(2));
+      const lineTotal = Number((totalSqft * effRateSqft).toFixed(2));
+      const weightKg = Number((boxes * boxWeightKg).toFixed(1));
+
+      copy[index] = {
+        productId: tile.id,
+        productName: tile.name || tile.productName || "Tile Design",
+        sku: tile.sku || "",
+        size: tile.size || current.size || "600x1200 mm",
+        surface: tile.surface || tile.finish || "Standard",
+        finish: tile.surface || tile.finish || "Standard",
+        quantityBoxes: boxes,
+        sqftPerBox,
+        totalSqft,
+        weightKg,
+        boxWeightKg,
+        pcsPerBox,
+        unitPrice: basePricePerSqft,
+        discountPercent: disc,
+        effectivePrice: effPricePerBox,
+        lineTotal,
+        roundUpNote: undefined,
+      };
+      return copy;
+    });
+  };
+
   const handleUpdateItem = (index: number, field: string, val: any) => {
-    setItems(prev => {
+    setItems((prev) => {
       const copy = [...prev];
       const item = { ...copy[index] };
-
-      // If linked to an order, box count is strictly locked to client order!
-      const qty = linkedOrder ? item.quantityBoxes : (field === "quantityBoxes" ? (parseInt(val, 10) || 0) : item.quantityBoxes);
-      const uPrice = field === "unitPrice" ? (parseFloat(val) || 0) : item.unitPrice; // Rate per sq.ft
-      const disc = field === "discountPercent" ? (parseFloat(val) || 0) : item.discountPercent;
-      if (field === "mrp") item.mrp = parseFloat(val) || 0;
-
       const sqftPerBox = item.sqftPerBox || 15.5;
-      const weightPerBoxKg = 29;
+      const boxWeightKg = item.boxWeightKg || 27.0;
 
-      item.quantityBoxes = qty;
-      item.unitPrice = uPrice;
-      item.discountPercent = disc;
-      item.totalSqft = Number((qty * sqftPerBox).toFixed(2));
-      item.weightKg = Number((qty * weightPerBoxKg).toFixed(1));
+      if (field === "quantityBoxes") {
+        if (linkedOrder) return copy;
+        const parsed = parseInt(val, 10);
+        const boxes = isNaN(parsed) || parsed < 1 ? 1 : Math.floor(parsed);
+        item.quantityBoxes = boxes;
+        item.totalSqft = Number((boxes * sqftPerBox).toFixed(2));
+        item.roundUpNote = undefined;
+      } else if (field === "totalSqft") {
+        if (linkedOrder) return copy;
+        const parsedSqft = parseFloat(val);
+        const inputSqft = isNaN(parsedSqft) || parsedSqft <= 0 ? sqftPerBox : parsedSqft;
+        const boxes = Math.max(1, Math.ceil(inputSqft / sqftPerBox));
+        const actualSqft = Number((boxes * sqftPerBox).toFixed(2));
+        item.quantityBoxes = boxes;
+        item.totalSqft = actualSqft;
+        item.roundUpNote = `Rounded up to ${boxes} boxes = ${actualSqft} sq.ft`;
+      } else if (field === "unitPrice") {
+        const parsed = parseFloat(val);
+        item.unitPrice = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+      } else if (field === "discountPercent") {
+        const parsed = parseFloat(val);
+        item.discountPercent = isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
+      } else if (field === "mrp") {
+        item.mrp = parseFloat(val) || 0;
+      }
 
-      // Correct calculation logic:
-      // Price per sqft * sqft per box = price per box (e.g. 35 x 15.5 = 542.50 per box)
-      const effectiveRateSqft = Number((uPrice * (1 - disc / 100)).toFixed(2));
-      const effectivePricePerBox = Number((effectiveRateSqft * sqftPerBox).toFixed(2));
-      item.effectivePrice = effectivePricePerBox; // 542.50 per box
-      item.lineTotal = Number((qty * effectivePricePerBox).toFixed(2)); // total = boxes * box price
+      // Live calculations
+      const effRateSqft = Number((item.unitPrice * (1 - (item.discountPercent || 0) / 100)).toFixed(2));
+      const effPricePerBox = Number((effRateSqft * sqftPerBox).toFixed(2));
+      item.effectivePrice = effPricePerBox;
+      item.lineTotal = Number((item.totalSqft * effRateSqft).toFixed(2));
+      item.weightKg = Number((item.quantityBoxes * boxWeightKg).toFixed(1));
 
       copy[index] = item;
       return copy;
@@ -263,7 +377,17 @@ function QuotationForm() {
 
   const handleRemoveItem = (index: number) => {
     if (linkedOrder) return; // Prevent deleting items from customer PO
-    setItems(prev => prev.filter((_, i) => i !== index));
+    setItemError((prev) => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+    setDesignSearch((prev) => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+    setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Totals calculations
@@ -601,11 +725,18 @@ function QuotationForm() {
                   onChange={(e) => setPaymentTerms(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
                 >
-                  <option value="Immediate / Advance">Immediate / 100% Advance</option>
-                  <option value="50% Advance, 50% Before Dispatch">50% Advance, 50% Before Dispatch</option>
-                  <option value="30 Days Net">30 Days Net</option>
-                  <option value="45 Days Net">45 Days Net</option>
-                  <option value="60 Days Net (Requires Credit Check)">60 Days Net (Requires Credit Check)</option>
+                  {PAYMENT_TERM_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                  {paymentTerms && !PAYMENT_TERM_OPTIONS.some((o) => o.value === paymentTerms) && (
+                    <option value={paymentTerms}>{paymentTerms}</option>
+                  )}
+
+
+
+
                 </select>
               </div>
 
@@ -651,15 +782,15 @@ function QuotationForm() {
                 <p className="text-xs text-slate-500 mt-0.5">
                   {linkedOrder
                     ? "Product details and box quantities are fixed to client order. Enter Base Price and Discount % to quote."
-                    : "Input box quantities to calculate coverage and transport weight"}
+                    : "Select real tiles from catalogue and input box or sq.ft quantities"}
                 </p>
               </div>
 
               {!linkedOrder && (
                 <button
                   type="button"
-                  onClick={() => handleAddItem(items.length)}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                  onClick={handleAddItem}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-gradient-to-r from-[#E66A23] to-[#F59E0B] hover:opacity-95 text-white text-xs font-semibold rounded-lg shadow-xs transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Tile Line Item</span>
@@ -667,145 +798,301 @@ function QuotationForm() {
               )}
             </div>
 
-            {/* Line items table */}
-            <div className="space-y-4">
-              {items.map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-[#0E274D]">{item.productName}</span>
-                      <span className="ml-2 text-[11px] font-mono text-slate-500">{item.size} • {item.sku}</span>
-                    </div>
+            {/* Line items list / empty state */}
+            {items.length === 0 ? (
+              <div className="p-12 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-3">
+                <Layers className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="text-sm font-semibold text-slate-700">
+                  No tiles added yet. Click &apos;Add Tile Line Item&apos; to start.
+                </p>
+                {!linkedOrder && (
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Tile Line Item</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {items.map((item, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                    {!item.productId ? (
+                      /* Selection Mode inside the new line item */
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="w-2 h-2 rounded-full bg-[#E66A23]" />
+                            <span className="text-xs font-bold text-[#0E274D]">Select Tile from Firestore Catalogue</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                            title="Remove"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
 
-                    {linkedOrder ? (
-                      <span className="text-[11px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-slate-400" />
-                        Client PO Item
-                      </span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* 1. Tile Size Dropdown */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1">
+                              1. Tile Size *
+                            </label>
+                            <select
+                              value={item.size || ""}
+                              onChange={(e) => handleSizeSelect(idx, e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-2 focus:ring-[#0E274D] focus:outline-none"
+                            >
+                              <option value="">-- Choose Tile Size --</option>
+                              {distinctSizes.map((s: string) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 2. Tile Design Dropdown (Searchable) */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1">
+                              2. Tile Design *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Filter designs by name or SKU..."
+                              disabled={!item.size}
+                              value={designSearch[idx] || ""}
+                              onChange={(e) => setDesignSearch((prev) => ({ ...prev, [idx]: e.target.value }))}
+                              className="w-full px-2.5 py-1 mb-1.5 border border-slate-200 rounded text-xs bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0E274D] disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            />
+                            <select
+                              value=""
+                              disabled={!item.size}
+                              onChange={(e) => handleDesignSelect(idx, e.target.value)}
+                              className={`w-full px-3 py-2 border rounded-lg text-xs font-medium focus:ring-2 focus:ring-[#0E274D] focus:outline-none ${
+                                !item.size
+                                  ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                  : "bg-white text-slate-800 border-slate-300"
+                              }`}
+                            >
+                              <option value="">
+                                {!item.size
+                                  ? "-- Select Tile Size First --"
+                                  : `-- Select Tile Design (${
+                                      availableTiles
+                                        .filter((t) => t.size === item.size)
+                                        .filter(
+                                          (t) =>
+                                            !designSearch[idx] ||
+                                            (t.name || t.productName || "")
+                                              .toLowerCase()
+                                              .includes(designSearch[idx].toLowerCase()) ||
+                                            (t.sku || "").toLowerCase().includes(designSearch[idx].toLowerCase())
+                                        ).length
+                                    } available) --`}
+                              </option>
+                              {availableTiles
+                                .filter((t) => t.size === item.size)
+                                .filter(
+                                  (t) =>
+                                    !designSearch[idx] ||
+                                    (t.name || t.productName || "")
+                                      .toLowerCase()
+                                      .includes(designSearch[idx].toLowerCase()) ||
+                                    (t.sku || "").toLowerCase().includes(designSearch[idx].toLowerCase())
+                                )
+                                .map((t) => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.name || t.productName} • {t.sku} • {t.surface || t.finish || "Standard"}
+                                  </option>
+                                ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {itemError[idx] && (
+                          <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-xs font-medium flex items-center space-x-2">
+                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>{itemError[idx]}</span>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(idx)}
-                        disabled={items.length <= 1}
-                        className="text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30 cursor-pointer"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      /* Configured Line Item */
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-xs font-bold text-[#0E274D]">
+                              {item.productName} {item.size} • {item.sku}
+                              {item.surface ? ` • ${item.surface}` : ""}
+                            </span>
+                          </div>
+
+                          {linkedOrder ? (
+                            <span className="text-[11px] font-medium text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              Client PO Item
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(idx)}
+                              className="text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                              title="Delete line item"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className={`grid grid-cols-2 sm:grid-cols-3 ${isMrpMode ? "lg:grid-cols-6" : "lg:grid-cols-5"} gap-3 pt-2`}>
+                          {/* 1. BOXES */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                              Boxes {linkedOrder && <span className="text-slate-400 font-normal">(Locked)</span>}
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={item.quantityBoxes}
+                              disabled={!!linkedOrder}
+                              readOnly={!!linkedOrder}
+                              onChange={(e) => handleUpdateItem(idx, "quantityBoxes", e.target.value)}
+                              className={`w-full px-2.5 py-1.5 border rounded text-xs font-bold ${
+                                linkedOrder
+                                  ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed"
+                                  : "bg-white text-slate-800 border-slate-200 focus:ring-1 focus:ring-[#0E274D]"
+                              }`}
+                              title={linkedOrder ? "Box count is fixed to customer PO request" : ""}
+                            />
+                          </div>
+
+                          {/* 2. SQ.FT */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                              Sq.ft {linkedOrder && <span className="text-slate-400 font-normal">(Locked)</span>}
+                            </label>
+                            <input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              value={item.totalSqft}
+                              disabled={!!linkedOrder}
+                              readOnly={!!linkedOrder}
+                              onChange={(e) => handleUpdateItem(idx, "totalSqft", e.target.value)}
+                              className={`w-full px-2.5 py-1.5 border rounded text-xs font-bold ${
+                                linkedOrder
+                                  ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed"
+                                  : "bg-white text-slate-800 border-slate-200 focus:ring-1 focus:ring-[#0E274D]"
+                              }`}
+                              title={linkedOrder ? "Area is fixed to customer PO request" : ""}
+                            />
+                            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                              {item.sqftPerBox || 15.5} sqft/box
+                            </span>
+                            {item.roundUpNote && (
+                              <span className="text-[10px] text-amber-700 font-medium block mt-0.5 leading-tight">
+                                {item.roundUpNote}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 3. BASE PRICE */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1 flex items-center justify-between">
+                              <span>Base Price (₹/sq.ft)</span>
+                              {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0.01"
+                              value={item.unitPrice}
+                              onChange={(e) => handleUpdateItem(idx, "unitPrice", e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
+                              placeholder="Rate (₹/sqft)"
+                            />
+                          </div>
+
+                          {/* MRP (if applicable) */}
+                          {isMrpMode && (
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1">
+                                MRP (₹/sq.ft)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.mrp ?? ""}
+                                onChange={(e) => handleUpdateItem(idx, "mrp", e.target.value)}
+                                className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
+                                placeholder="MRP"
+                              />
+                            </div>
+                          )}
+
+                          {/* 4. DISCOUNT % */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1 flex items-center justify-between">
+                              <span>Discount %</span>
+                              {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={item.discountPercent}
+                              onChange={(e) => handleUpdateItem(idx, "discountPercent", e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
+                              placeholder="0"
+                            />
+                          </div>
+
+                          {/* 5. LINE TOTAL */}
+                          <div>
+                            <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Line Total</label>
+                            <span className="text-xs font-bold text-[#0E274D] block py-1.5">
+                              ₹{Number(isMrpMode ? mrpLineTotal(item) : item.lineTotal).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+
+                          {/* RATE PER SQ. FT INDICATOR */}
+                          <div className={`col-span-2 sm:col-span-3 ${isMrpMode ? "lg:col-span-6" : "lg:col-span-5"} pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px]`}>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-slate-500">Effective Rate per Sq. Ft:</span>
+                              <strong className="text-[#0E274D] font-bold">
+                                ₹{(item.unitPrice * (1 - (item.discountPercent || 0) / 100)).toFixed(2)} / sq.ft
+                              </strong>
+                              <span className="text-slate-500 font-medium text-[11px]">(₹{item.effectivePrice.toFixed(2)}/box)</span>
+                            </div>
+                            {(item.unitPrice * (1 - (item.discountPercent || 0) / 100)) < MIN_RATE_PER_SQFT ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                                <ShieldAlert className="w-3 h-3 text-amber-700" />
+                                Rate &lt; ₹26.50 / sq.ft (Admin Confirmation Required)
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Rate &ge; ₹26.50 / sq.ft (Direct App Sync)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
-
-                  <div className={`grid grid-cols-2 gap-3 pt-2 ${isMrpMode ? "sm:grid-cols-6" : "sm:grid-cols-5"}`}>
-                    {/* BOXES - Read-only if linkedOrder */}
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                        Boxes {linkedOrder && <span className="text-slate-400 font-normal">(Locked)</span>}
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantityBoxes}
-                        disabled={!!linkedOrder}
-                        readOnly={!!linkedOrder}
-                        onChange={(e) => handleUpdateItem(idx, "quantityBoxes", e.target.value)}
-                        className={`w-full px-2.5 py-1.5 border rounded text-xs font-bold ${
-                          linkedOrder 
-                            ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed" 
-                            : "bg-white text-slate-800 border-slate-200"
-                        }`}
-                        title={linkedOrder ? "Box count is fixed to customer PO request" : ""}
-                      />
-                    </div>
-
-                    {/* COVERAGE - Calculated sqft */}
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Coverage</label>
-                      <span className="text-xs font-semibold text-slate-700 block py-1.5">{item.totalSqft} sqft</span>
-                    </div>
-
-                    {/* BASE PRICE - EDITABLE BY SALESPERSON */}
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1 flex items-center justify-between">
-                        <span>Base Price (₹/sq.ft)</span>
-                        {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.unitPrice}
-                        onChange={(e) => handleUpdateItem(idx, "unitPrice", e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
-                        placeholder="Rate (₹/sqft)"
-                      />
-                    </div>
-
-                    {/* MRP - only for MRP linked quotations */}
-                    {isMrpMode && (
-                      <div>
-                        <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1">
-                          MRP (₹/sq.ft)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.mrp ?? ""}
-                          onChange={(e) => handleUpdateItem(idx, "mrp", e.target.value)}
-                          className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
-                          placeholder="MRP"
-                        />
-                      </div>
-                    )}
-
-                    {/* DISCOUNT % - EDITABLE BY SALESPERSON */}
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1 flex items-center justify-between">
-                        <span>Discount %</span>
-                        {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="50"
-                        value={item.discountPercent}
-                        onChange={(e) => handleUpdateItem(idx, "discountPercent", e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
-                        placeholder="0"
-                      />
-                    </div>
-
-                    {/* LINE TOTAL - Dynamically calculated */}
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Line Total</label>
-                      <span className="text-xs font-bold text-[#0E274D] block py-1.5">
-                        ₹{Number(isMrpMode ? mrpLineTotal(item) : item.lineTotal).toLocaleString("en-IN")}
-                      </span>
-                    </div>
-
-                    {/* RATE PER SQ. FT INDICATOR */}
-                    <div className="col-span-2 sm:col-span-5 pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-slate-500">Effective Rate per Sq. Ft:</span>
-                        <strong className="text-[#0E274D] font-bold">
-                          ₹{(item.unitPrice * (1 - (item.discountPercent || 0) / 100)).toFixed(2)} / sq.ft
-                        </strong>
-                        <span className="text-slate-500 font-medium text-[11px]">(₹{item.effectivePrice.toFixed(2)}/box)</span>
-                      </div>
-                      {(item.unitPrice * (1 - (item.discountPercent || 0) / 100)) < MIN_RATE_PER_SQFT ? (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
-                          <ShieldAlert className="w-3 h-3 text-amber-700" />
-                          Rate &lt; ₹26.50 / sq.ft (Admin Confirmation Required)
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          Rate &ge; ₹26.50 / sq.ft (Direct App Sync)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* Live Metrics Capsule */}
             <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-700">
@@ -845,8 +1132,13 @@ function QuotationForm() {
 
               <button
                 type="button"
+                disabled={items.length === 0 || items.some((i) => !i.productId)}
                 onClick={() => setStep(3)}
-                className="flex items-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
+                className={`flex items-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all ${
+                  items.length === 0 || items.some((i) => !i.productId)
+                    ? "opacity-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
               >
                 <span>Continue to Taxes & Review</span>
                 <ArrowRight className="w-4 h-4" />

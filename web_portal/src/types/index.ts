@@ -1,4 +1,4 @@
-export type UserRole = "customer" | "salesperson" | "manager" | "admin" | "designer";
+export type UserRole = "customer" | "salesperson" | "manager" | "admin" | "superadmin" | "super_admin" | "designer";
 
 export interface UserProfile {
   userId: string;
@@ -71,6 +71,9 @@ export interface Lead {
   source: LeadSource;
   status: LeadStatus;
   assignedSalespersonId: string;
+  assignedSalespersonName?: string;
+  assignedBy?: string;
+  assignedAt?: string;
   requirementNotes?: string;
   designRequestId?: string;
   convertedCustomerId?: string;
@@ -82,6 +85,7 @@ export interface Customer {
   id: string;
   customerNumber: string;
   userId?: string;
+  username?: string;
   name: string;
   companyName: string;
   phone: string;
@@ -96,6 +100,9 @@ export interface Customer {
   creditLimit: number;
   paymentTerms: string;
   assignedSalespersonId: string;
+  assignedSalespersonName?: string;
+  assignedBy?: string;
+  assignedAt?: string;
   salesPersonId?: string;
   salespersonName?: string;
   salespersonPhone?: string;
@@ -118,6 +125,9 @@ export interface Opportunity {
   probability: number;
   expectedCloseDate: string;
   assignedSalespersonId: string;
+  assignedSalespersonName?: string;
+  assignedBy?: string;
+  assignedAt?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -149,6 +159,10 @@ export interface QuotationItem {
   category?: string;
   size?: string;
   finish?: string;
+  surface?: string;
+  boxWeightKg?: number;
+  pcsPerBox?: number;
+  roundUpNote?: string;
   quantityBoxes: number;
   sqftPerBox: number;
   totalSqft: number;

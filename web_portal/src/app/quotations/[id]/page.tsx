@@ -1,7 +1,7 @@
 "use client";
 
 import { invalidateFirestoreCache } from "@/lib/firestore-cache";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -11,6 +11,7 @@ import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "fireb
 import { Quotation } from "@/types";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { BASELINE_QUOTATIONS } from "@/lib/baseline-quotations";
+import { formatPaymentTerms } from "@/lib/payment-terms";
 import { 
   ArrowLeft, 
   Printer, 
@@ -490,7 +491,7 @@ export default function QuotationDetailPage() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Quotation For</span>
               <p className="text-sm font-bold text-[#0E274D]">{quote.customerName}</p>
               {quote.customerPhone && <p className="text-slate-600">Phone: {quote.customerPhone}</p>}
-              <p className="text-slate-500">Payment Terms: {quote.paymentTerms}</p>
+              <p className="text-slate-500">Payment Terms: {formatPaymentTerms(quote.paymentTerms)}</p>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">

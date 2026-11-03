@@ -80,7 +80,7 @@ async function resolveCaller({ firestoreDb, uid }) {
   const snap = await firestoreDb.collection('users').doc(uid).get();
   const data = snap.exists ? snap.data() || {} : {};
   const role = String(data.role || '').toLowerCase().trim();
-  if (!['admin', 'manager', 'salesperson'].includes(role)) {
+  if (!['admin', 'superadmin', 'super_admin', 'manager', 'salesperson'].includes(role)) {
     throw new functions.https.HttpsError('permission-denied', 'Only admins and salespersons can add customers.');
   }
   const status = String(data.status || 'active').toLowerCase();
@@ -126,6 +126,15 @@ async function processCreateCustomer({ firestoreDb, authAdmin, callerUid, data }
     throw new functions.https.HttpsError('invalid-argument', 'Enter a valid email address.');
   }
 
+  const rawGst = str(data.gstNumber, 20).toUpperCase();
+  if (!rawGst) {
+    throw new functions.https.HttpsError('invalid-argument', 'GST number is required.');
+  }
+  const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+  if (rawGst.length !== 15 || !GSTIN_PATTERN.test(rawGst)) {
+    throw new functions.https.HttpsError('invalid-argument', 'Enter a valid 15-character GST number.');
+  }
+
   // Salesperson: always themselves. Admin/manager: must pick one.
   let salesPersonId = caller.role === 'salesperson'
     ? callerUid
@@ -149,6 +158,12 @@ async function processCreateCustomer({ firestoreDb, authAdmin, callerUid, data }
   const phoneDup = await usersRef.where('phone', '==', phone).limit(1).get();
   if (!phoneDup.empty) {
     throw new functions.https.HttpsError('already-exists', 'A customer with this mobile number already exists.');
+  }
+
+  // Duplicate GST guard
+  const gstDup = await usersRef.where('gstNumber', '==', rawGst).limit(1).get();
+  if (!gstDup.empty) {
+    throw new functions.https.HttpsError('already-exists', 'A customer with this GST number already exists.');
   }
 
   let username = str(data.username, 40).toLowerCase();

@@ -8,6 +8,9 @@ import { sortNewestFirst } from "@/lib/sort-utils";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { Lead, LeadStatus, LeadSource } from "@/types";
+import { isAdminRole } from "@/lib/auth-utils";
+import { DeleteLeadModal } from "@/components/leads/delete-lead-modal";
+import { EditLeadModal } from "@/components/leads/edit-lead-modal";
 import { 
   UserCheck, 
   PlusCircle, 
@@ -19,7 +22,10 @@ import {
   Smartphone, 
   ArrowRight,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Pencil,
+  Trash2,
+  CheckCircle2
 } from "lucide-react";
 
 export default function LeadsPage() {
@@ -29,6 +35,10 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const isAdmin = isAdminRole(role);
 
   useEffect(() => {
     async function fetchLeads() {
@@ -160,6 +170,20 @@ export default function LeadsPage() {
       subtitle="Inbound inquiries from Customer App and field prospecting"
     >
       <div className="space-y-6 max-w-7xl mx-auto">
+        {toastMsg && (
+          <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold animate-fadeIn">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{toastMsg}</span>
+            </div>
+            <button
+              onClick={() => setToastMsg(null)}
+              className="text-emerald-600 hover:text-emerald-900 cursor-pointer text-base leading-none"
+            >
+              &times;
+            </button>
+          </div>
+        )}
         {/* Top Control Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex flex-1 items-center space-x-3 max-w-md">
@@ -223,9 +247,10 @@ export default function LeadsPage() {
                   <th className="py-3.5 px-5">Lead / Client</th>
                   <th className="py-3.5 px-5">Contact Details</th>
                   <th className="py-3.5 px-5">Location</th>
+                  {role !== "salesperson" && <th className="py-3.5 px-5">Assigned Rep</th>}
                   <th className="py-3.5 px-5">Source</th>
                   <th className="py-3.5 px-5">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  <th className="py-3.5 px-5 text-right whitespace-nowrap min-w-[240px]">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -270,6 +295,15 @@ export default function LeadsPage() {
                       </div>
                     </td>
 
+                    {role !== "salesperson" && (
+                      <td className="py-4 px-5">
+                        <div className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium">
+                          <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{lead.assignedSalespersonName || "Unassigned"}</span>
+                        </div>
+                      </td>
+                    )}
+
                     <td className="py-4 px-5">
                       {lead.source === "customer_app" ? (
                         <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -289,12 +323,12 @@ export default function LeadsPage() {
                       </span>
                     </td>
 
-                    <td className="py-4 px-5 text-right">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="py-4 px-5 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end space-x-1.5 whitespace-nowrap">
                         {lead.status !== "converted" && (
                           <Link
                             href={`/leads/${lead.id}`}
-                            className="px-2.5 py-1 text-xs font-semibold text-[#0E274D] bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                            className="px-2.5 py-1 text-xs font-semibold text-[#0E274D] bg-slate-100 hover:bg-slate-200 rounded transition-colors whitespace-nowrap"
                           >
                             Details &rarr;
                           </Link>
@@ -302,10 +336,34 @@ export default function LeadsPage() {
                         {lead.status === "converted" && lead.convertedCustomerId && (
                           <Link
                             href={`/customers/${lead.convertedCustomerId}`}
-                            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors"
+                            className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded transition-colors whitespace-nowrap"
                           >
                             View Customer
                           </Link>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setEditingLead(lead)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded transition-colors cursor-pointer whitespace-nowrap"
+                              title="Edit lead"
+                              aria-label={`Edit lead ${lead.name}`}
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setLeadToDelete(lead)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded transition-colors cursor-pointer whitespace-nowrap"
+                              title="Delete lead"
+                              aria-label={`Delete lead ${lead.name}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-600" />
+                              <span>Delete</span>
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -315,7 +373,31 @@ export default function LeadsPage() {
             </table>
           </div>
         </div>
-      </div>
+            </div>
+
+            {editingLead && (
+        <EditLeadModal
+          lead={editingLead}
+          onClose={() => setEditingLead(null)}
+          onUpdated={(updatedLead) => {
+            setLeads((prev) => prev.map((l) => (l.id === updatedLead.id ? updatedLead : l)));
+            setToastMsg("Lead updated");
+            setTimeout(() => setToastMsg(null), 4000);
+          }}
+        />
+      )}
+
+      {leadToDelete && (
+        <DeleteLeadModal
+          lead={leadToDelete}
+          onClose={() => setLeadToDelete(null)}
+          onDeleted={(deletedId) => {
+            setLeads((prev) => prev.filter((l) => l.id !== deletedId));
+            setToastMsg("Lead deleted");
+            setTimeout(() => setToastMsg(null), 4000);
+          }}
+        />
+      )}
     </DashboardShell>
   );
 }

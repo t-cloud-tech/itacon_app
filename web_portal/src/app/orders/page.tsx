@@ -1,7 +1,7 @@
 "use client";
 
 import { invalidateFirestoreCache } from "@/lib/firestore-cache";
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -13,6 +13,7 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 import { SalesOrder, OrderStatus, PaymentSubmissionRecord, Quotation } from "@/types";
 import { subscribeAllOrders, ClientOrderPO, getPOStatusLabel } from "@/lib/order-service";
+import { formatPaymentTerms } from "@/lib/payment-terms";
 import {
   Truck,
   Search,
@@ -1191,7 +1192,7 @@ function SalesOrdersContent() {
                           <div className="text-sm font-extrabold text-[#0E274D]">
                             ₹{Number(ord.grandTotal).toLocaleString("en-IN")}
                           </div>
-                          <p className="text-xs text-slate-500">{ord.paymentTerms}</p>
+                          <p className="text-xs text-slate-500">{formatPaymentTerms(ord.paymentTerms)}</p>
                         </td>
 
                         <td className="py-4 px-5">

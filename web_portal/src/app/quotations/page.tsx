@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -20,6 +20,7 @@ import {
   getPOStatusLabel,
   getPOStatusBadgeClass
 } from "@/lib/order-service";
+import { formatPaymentTerms } from "@/lib/payment-terms";
 import { 
   FileSpreadsheet, 
   PlusCircle, 
@@ -563,7 +564,7 @@ function QuotationsContent() {
                     key={po.id}
                     className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-[#E66A23]/50 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5"
                   >
-                    <div className="space-y-3 flex-1">
+                    <div className="space-y-3 flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2.5">
                         <span className="font-mono font-bold text-sm text-[#0E274D] bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
                           {po.poNumber}
@@ -594,13 +595,18 @@ function QuotationsContent() {
                         </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs">
-                        <div className="font-semibold text-slate-900">
-                          Client: <span className="text-[#0E274D] font-bold">{po.companyName || po.customerName}</span>
-                          {po.customerPhone && <span className="text-slate-500 ml-1.5 font-normal">({po.customerPhone})</span>}
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-base">
+                        <div className="flex items-center min-w-0 max-w-full sm:max-w-md md:max-w-lg">
+                          <span className="text-slate-700 font-medium shrink-0 mr-1.5">Client:</span>
+                          <span className="text-[#0E274D] font-semibold truncate" title={po.companyName || po.customerName}>
+                            {po.companyName || po.customerName}
+                          </span>
+                          {po.customerPhone && (
+                            <span className="text-slate-500 ml-1.5 font-normal shrink-0">({po.customerPhone})</span>
+                          )}
                         </div>
-                        <div className="text-slate-600 flex items-center space-x-1">
-                          <Layers className="w-3.5 h-3.5 text-slate-400" />
+                        <div className="text-slate-600 flex items-center space-x-1.5 shrink-0 font-medium">
+                          <Layers className="w-4 h-4 text-slate-400 shrink-0" />
                           <span>{po.totalBoxes} Boxes ({po.totalWeightTons} Tons)</span>
                         </div>
                       </div>
@@ -608,15 +614,15 @@ function QuotationsContent() {
                       {/* Items requested pill list */}
                       <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 space-y-1.5">
                         <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Requested Items from Mobile App:</div>
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           {po.items.map((it, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-xs text-slate-800">
-                              <div className="flex items-center space-x-2">
+                            <div key={idx} className="flex items-center justify-between text-sm text-slate-800 gap-2">
+                              <div className="flex items-center space-x-2 min-w-0">
                                 <span className="w-1.5 h-1.5 rounded-full bg-[#E66A23]" />
-                                <span className="font-medium text-slate-900">{it.productName}</span>
-                                <span className="text-slate-400 font-mono text-[11px]">{it.size}</span>
+                                <span className="font-medium text-slate-900 truncate" title={it.productName}>{it.productName}</span>
+                                <span className="text-slate-400 font-mono text-xs shrink-0">{it.size}</span>
                               </div>
-                              <div className="font-bold text-[#0E274D] bg-white px-2 py-0.5 rounded border border-slate-200 text-[11px]">
+                              <div className="font-bold text-[#0E274D] bg-white px-2.5 py-0.5 rounded border border-slate-200 text-xs shrink-0 whitespace-nowrap">
                                 {it.quantityBoxes} Boxes • {it.quantitySqFt} sqft
                               </div>
                             </div>
@@ -744,7 +750,7 @@ function QuotationsContent() {
                             <p className="font-extrabold text-[#0E274D]">
                               ₹{Number(q.grandTotal).toLocaleString("en-IN")}
                             </p>
-                            <span className="text-[11px] text-slate-400">{q.paymentTerms}</span>
+                            <span className="text-[11px] text-slate-400">{formatPaymentTerms(q.paymentTerms)}</span>
                           </div>
                         </td>
 

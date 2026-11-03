@@ -5,11 +5,13 @@ import { X, Copy, Check, UserPlus, KeyRound } from "lucide-react";
 import {
   createCustomerByStaff,
   fetchActiveSalespersonsList,
+  lookupGstDetails,
   AllocatedSalespersonInfo,
   CreatedCustomerCredentials,
   NewCustomerInput,
 } from "@/lib/customer-service";
 import { UserRole } from "@/types";
+import { isAdminRole } from "@/lib/auth-utils";
 
 const CATEGORIES = [
   { id: "dealer", label: "Tile Dealer / Showroom" },
@@ -19,6 +21,8 @@ const CATEGORIES = [
   { id: "retailer", label: "Retailer" },
   { id: "trader", label: "Trader" },
 ];
+
+const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
 const EMPTY: NewCustomerInput = {
   name: "",
@@ -53,10 +57,11 @@ function friendlyError(err: unknown): string {
 }
 
 export function AddCustomerModal({ role, onClose, onCreated }: Props) {
-  const isAdmin = role === "admin" || role === "manager";
+  const isAdmin = isAdminRole(role);
   const [form, setForm] = useState<NewCustomerInput>(EMPTY);
   const [salespersons, setSalespersons] = useState<AllocatedSalespersonInfo[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [lookingUpGst, setLookingUpGst] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<CreatedCustomerCredentials | null>(null);
   const [copied, setCopied] = useState(false);
@@ -70,16 +75,56 @@ export function AddCustomerModal({ role, onClose, onCreated }: Props) {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
+  const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15);
+    setForm((f) => ({ ...f, gstNumber: val }));
+    if (val.length === 15 && GSTIN_PATTERN.test(val)) {
+      triggerGstLookup(val);
+    }
+  };
+
+  const triggerGstLookup = async (gstin: string) => {
+    if (lookingUpGst) return;
+    setLookingUpGst(true);
+    try {
+      const res = await lookupGstDetails(gstin);
+      if (res && res.success) {
+        setForm((f) => ({
+          ...f,
+          companyName: (f.companyName || "").trim() ? f.companyName : (res.companyName || f.companyName),
+          address: (f.address || "").trim() ? f.address : (res.address || f.address),
+          city: (f.city || "").trim() ? f.city : (res.city || f.city),
+          state: (f.state || "").trim() && f.state !== "Gujarat" ? f.state : (res.state || f.state),
+          pincode: (f.pincode || "").trim() ? f.pincode : (res.pincode || f.pincode),
+        }));
+      }
+    } catch (_) {
+      // Non-blocking autofill
+    } finally {
+      setLookingUpGst(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!form.name.trim()) return setError("Customer name is required.");
     if (form.phone.replace(/\D/g, "").length < 10) return setError("Enter a valid 10-digit mobile number.");
+
+    const gst = (form.gstNumber || "").trim().toUpperCase();
+    if (!gst) return setError("GST number is required");
+    if (gst.length !== 15 || !GSTIN_PATTERN.test(gst)) {
+      return setError("Enter a valid 15-character GST number");
+    }
+
     if (isAdmin && !form.salesPersonId) return setError("Please assign a salesperson.");
 
     setSubmitting(true);
     try {
-      const result = await createCustomerByStaff(form);
+      const result = await createCustomerByStaff({
+        ...form,
+        gstNumber: gst,
+      });
       setCreated(result);
       onCreated();
     } catch (err) {
@@ -183,8 +228,26 @@ export function AddCustomerModal({ role, onClose, onCreated }: Props) {
                 <input className={inputCls} type="email" value={form.email} onChange={set("email")} placeholder="Optional" />
               </div>
               <div>
-                <label className={labelCls}>GST Number</label>
-                <input className={inputCls} value={form.gstNumber} onChange={set("gstNumber")} placeholder="Optional" />
+                <label className={labelCls}>GST Number *</label>
+                <div className="relative">
+                  <input
+                    className={`${inputCls} uppercase`}
+                    value={form.gstNumber}
+                    maxLength={15}
+                    onChange={handleGstChange}
+                    onBlur={() => {
+                      if (form.gstNumber && form.gstNumber.length === 15 && GSTIN_PATTERN.test(form.gstNumber)) {
+                        triggerGstLookup(form.gstNumber);
+                      }
+                    }}
+                    placeholder="e.g. 24AAAFT2820R1Z0"
+                  />
+                  {lookingUpGst && (
+                    <span className="absolute right-3 top-2.5 text-[10px] text-blue-600 font-semibold animate-pulse">
+                      Auto-filling…
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className={labelCls}>Address</label>

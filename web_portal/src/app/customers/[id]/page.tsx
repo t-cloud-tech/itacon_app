@@ -11,11 +11,17 @@ import {
   fetchLiveCustomerById,
   fetchActiveSalespersonsList,
   updateCustomerAllocatedSalesperson,
+  updateCustomerProfile,
+  lookupGstDetails,
   AllocatedSalespersonInfo
 } from "@/lib/customer-service";
+import { PAYMENT_TERM_OPTIONS, formatPaymentTerms } from "@/lib/payment-terms";
+import { isAdminRole } from "@/lib/auth-utils";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
 import { Customer } from "@/types";
+
 import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
+import { EditCustomerModal } from "@/components/customers/edit-customer-modal";
 import {
   ArrowLeft,
   Building2,
@@ -36,7 +42,8 @@ import {
   UserX,
   X,
   Check,
-  AlertCircle
+  AlertCircle,
+  Pencil,
 } from "lucide-react";
 
 export default function CustomerDetailPage() {
@@ -70,6 +77,9 @@ export default function CustomerDetailPage() {
   const [quotations, setQuotations] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+
+  const canEdit = isAdminRole(role);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     async function fetchCustomerData() {
@@ -256,6 +266,16 @@ export default function CustomerDetailPage() {
           </Link>
 
           <div className="flex items-center space-x-2">
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                <span>Edit Customer</span>
+              </button>
+            )}
             <Link
               href={`/quotations/new?customerId=${customer.id}&name=${encodeURIComponent(customer.companyName)}`}
               className="flex items-center space-x-1.5 px-4 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all"
@@ -325,7 +345,7 @@ export default function CustomerDetailPage() {
               <p className="text-lg font-bold text-[#0E274D] mt-0.5">
                 ₹{(customer.creditLimit / 100000).toFixed(2)} Lakhs
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Terms: {customer.paymentTerms}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Terms: {formatPaymentTerms(customer.paymentTerms)}</p>
             </div>
 
             {/* 2. Contact Phone */}
@@ -395,7 +415,7 @@ export default function CustomerDetailPage() {
                 )}
               </div>
 
-              {role === "admin" && (
+              {canEdit && (
                 <div className="pt-1.5 border-t border-slate-200/70 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Admin Access</span>
                   <button
@@ -420,6 +440,20 @@ export default function CustomerDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Edit Customer Modal */}
+        {showEditModal && customer && (
+          <EditCustomerModal
+            customer={customer}
+            role={role}
+            onClose={() => setShowEditModal(false)}
+            onUpdated={(updated) => {
+              setCustomer(updated);
+              setActionSuccessMsg("Customer updated");
+              setTimeout(() => setActionSuccessMsg(null), 5000);
+            }}
+          />
+        )}
 
         {/* Admin Salesperson Allocation / Reassignment Modal */}
         {isReassignModalOpen && (
@@ -664,8 +698,24 @@ export default function CustomerDetailPage() {
               ))}
             </div>
           )}
-        </div>
+                </div>
       </div>
+
+      {showEditModal && customer && (
+        <EditCustomerModal
+          customer={customer}
+          role={role}
+          onClose={() => setShowEditModal(false)}
+          onSaved={async () => {
+            setShowEditModal(false);
+            setActionSuccessMsg("Customer updated successfully.");
+            if (customerId) {
+              const updated = await fetchLiveCustomerById(customerId);
+              setCustomer(updated);
+            }
+          }}
+        />
+      )}
     </DashboardShell>
   );
 }

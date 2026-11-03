@@ -65,7 +65,24 @@ export class AuthException extends Error {
   }
 }
 
-export const ALLOWED_PORTAL_ROLES: readonly string[] = ["admin", "manager", "salesperson", "designer"];
+export const ALLOWED_PORTAL_ROLES: readonly string[] = [
+  "admin",
+  "superadmin",
+  "super_admin",
+  "manager",
+  "salesperson",
+  "designer",
+];
+
+/**
+ * Returns true if role is an administrative staff role (admin, superadmin, super_admin, manager).
+ * Case-insensitive, trims whitespace, handles string/null/undefined.
+ */
+export function isAdminRole(role?: string | null): boolean {
+  if (!role) return false;
+  const r = role.toLowerCase().trim();
+  return ["admin", "superadmin", "super_admin", "manager"].includes(r);
+}
 
 /**
  * Client-side user profile constructor and defense-in-depth role re-validator.
@@ -148,7 +165,7 @@ export function canAccessPath(role: UserRole | null, pathname: string): boolean 
   if (!role) return false;
   if (role === "designer") return DESIGNER_PATHS.some((p) => matchesPath(pathname, p));
   if (DESIGNER_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return false;
-  if (ADMIN_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return role === "admin";
+  if (ADMIN_ONLY_PATHS.some((p) => matchesPath(pathname, p))) return isAdminRole(role);
   return true;
 }
 

@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import { sortNewestFirst } from "@/lib/sort-utils";
 import { fetchLiveCustomers } from "@/lib/customer-service";
 import { Customer } from "@/types";
+import { formatPaymentTerms } from "@/lib/payment-terms";
+import { isAdminRole } from "@/lib/auth-utils";
 import {
   Users,
   Search,
@@ -19,8 +21,10 @@ import {
   Building,
   UserCheck,
   UserPlus,
+  Pencil,
 } from "lucide-react";
 import { AddCustomerModal } from "@/components/customers/add-customer-modal";
+import { EditCustomerModal } from "@/components/customers/edit-customer-modal";
 
 export default function CustomersPage() {
   const { user, role, salesperson } = useAuth();
@@ -30,7 +34,10 @@ export default function CustomersPage() {
   const [tierFilter, setTierFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const isAdmin = isAdminRole(role);
 
   const loadLiveCustomers = useCallback(async () => {
     setIsLoading(true);
@@ -68,12 +75,26 @@ export default function CustomersPage() {
     <DashboardShell
       title="Allocated Customers"
       subtitle={
-        role === "admin"
+        isAdmin
           ? "All registered clients and dealers across the ITACON ecosystem"
           : `Live customers allocated to your sales executive account (${salesperson?.referralCode || "SALES101"})`
       }
     >
       <div className="space-y-6 max-w-7xl mx-auto">
+        {toastMsg && (
+          <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold animate-fadeIn">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{toastMsg}</span>
+            </div>
+            <button
+              onClick={() => setToastMsg(null)}
+              className="text-emerald-600 hover:text-emerald-900 cursor-pointer"
+            >
+              &times;
+            </button>
+          </div>
+        )}
         {/* Live Status Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-white border border-slate-200/80 shadow-sm">
           <div className="flex items-center space-x-3">
@@ -89,7 +110,7 @@ export default function CustomersPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {role === "admin"
+                {isAdmin
                   ? `Showing all ${customers.length} registered customers in Firestore`
                   : `Showing ${customers.length} customer${customers.length === 1 ? "" : "s"} allocated to ${user?.name || "you"}`}
                 {" • "}
@@ -223,7 +244,7 @@ export default function CustomersPage() {
                     <th className="py-3.5 px-5">Allocated Salesperson</th>
                     <th className="py-3.5 px-5">Credit Terms</th>
                     <th className="py-3.5 px-5">Location</th>
-                    <th className="py-3.5 px-5 text-right">Actions</th>
+                    <th className="py-3.5 px-5 text-right whitespace-nowrap min-w-[210px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -313,7 +334,7 @@ export default function CustomersPage() {
                           <p className="font-bold text-slate-800">
                             ₹{(c.creditLimit / 100000).toFixed(1)}L Limit
                           </p>
-                          <p className="text-slate-500 font-medium">{c.paymentTerms}</p>
+                          <p className="text-slate-500 font-medium">{formatPaymentTerms(c.paymentTerms)}</p>
                         </div>
                       </td>
 
@@ -324,17 +345,28 @@ export default function CustomersPage() {
                         </div>
                       </td>
 
-                      <td className="py-4 px-5 text-right">
-                        <div className="flex items-center justify-end space-x-2">
+                      <td className="py-4 px-5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end space-x-1.5 whitespace-nowrap">
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingCustomer(c)}
+                              className="inline-flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded transition-colors cursor-pointer whitespace-nowrap"
+                              title="Edit Customer"
+                            >
+                              <Pencil className="w-3 h-3 text-slate-500" />
+                              <span>Edit</span>
+                            </button>
+                          )}
                           <Link
                             href={`/quotations/new?customerId=${c.id}&name=${encodeURIComponent(c.companyName)}`}
-                            className="px-2.5 py-1 text-xs font-semibold text-[#E66A23] bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded transition-colors"
+                            className="px-2.5 py-1 text-xs font-semibold text-[#E66A23] bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded transition-colors whitespace-nowrap"
                           >
                             New Quote
                           </Link>
                           <Link
                             href={`/customers/${c.id}`}
-                            className="px-2.5 py-1 text-xs font-semibold text-[#0E274D] bg-slate-100 hover:bg-slate-200 rounded transition-colors"
+                            className="px-2.5 py-1 text-xs font-semibold text-[#0E274D] bg-slate-100 hover:bg-slate-200 rounded transition-colors whitespace-nowrap"
                           >
                             Profile &rarr;
                           </Link>
@@ -354,6 +386,19 @@ export default function CustomersPage() {
           role={role}
           onClose={() => setShowAddModal(false)}
           onCreated={loadLiveCustomers}
+        />
+      )}
+
+      {editingCustomer && (
+        <EditCustomerModal
+          customer={editingCustomer}
+          role={role}
+          onClose={() => setEditingCustomer(null)}
+          onSaved={() => {
+            setEditingCustomer(null);
+            setToastMsg("Customer updated successfully.");
+            loadLiveCustomers();
+          }}
         />
       )}
     </DashboardShell>

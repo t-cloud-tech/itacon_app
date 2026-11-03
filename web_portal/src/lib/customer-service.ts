@@ -1,7 +1,8 @@
 import { db, invokeCallable } from "@/lib/firebase";
 import { cachedGetDocs, invalidateFirestoreCache } from "@/lib/firestore-cache";
-import { collection, getDocs, doc, getDoc, setDoc, query, where } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, setDoc, deleteDoc, addDoc, query, where, serverTimestamp, increment } from "firebase/firestore";
 import { Customer, UserProfile, SalesPerson, UserRole } from "@/types";
+import { isAdminRole } from "@/lib/auth-utils";
 
 /**
  * Fetches LIVE customers from Firestore allocated to the logged-in salesperson,
@@ -29,11 +30,11 @@ export async function fetchLiveCustomers(
         const userRole = (data.role || "").toLowerCase();
 
         // Exclude all staff accounts (admins, managers, salespersons, designers)
-        if (["salesperson", "admin", "manager", "designer"].includes(userRole) || data.designerId) return;
+        if (["salesperson", "admin", "superadmin", "super_admin", "manager", "designer"].includes(userRole) || data.designerId) return;
 
         let isAllocated = false;
 
-        if (role === "admin") {
+        if (isAdminRole(role)) {
           // Admin sees all registered customers
           isAllocated = true;
         } else {
@@ -95,11 +96,12 @@ export async function fetchLiveCustomers(
             (rawAssignedSpId && (rawAssignedSpId === d.id)) ||
             (rawSalesPhone && phone && rawSalesPhone.replace(/\D/g, "") === phone.replace(/\D/g, ""));
 
-          const assignedSpId = isSelf ? "" : (rawAssignedSpId || (role === "admin" ? "" : spId));
+          const assignedSpId = isSelf ? "" : (rawAssignedSpId || (isAdminRole(role) ? "" : spId));
 
           customersMap.set(d.id, {
             id: d.id,
             userId: d.id,
+            username: data.username || data.loginUsername || "",
             customerNumber: data.customerNumber || `CUST-${d.id.slice(-6).toUpperCase()}`,
             name,
             companyName,
@@ -138,7 +140,7 @@ export async function fetchLiveCustomers(
           const data = d.data();
           let isAllocated = false;
 
-          if (role === "admin") {
+          if (isAdminRole(role)) {
             isAllocated = true;
           } else {
             const docSpId = (data.assignedSalespersonId || data.salesPersonId || "").toString().trim();
@@ -160,11 +162,12 @@ export async function fetchLiveCustomers(
               (rawAssignedSpId && rawAssignedSpId === d.id) ||
               (rawSalesPhone && rawCustPhone && rawSalesPhone.replace(/\D/g, "") === rawCustPhone.replace(/\D/g, ""));
 
-            const assignedSpId = isSelf ? "" : (rawAssignedSpId || (role === "admin" ? "" : spId));
+            const assignedSpId = isSelf ? "" : (rawAssignedSpId || (isAdminRole(role) ? "" : spId));
 
             customersMap.set(d.id, {
               id: d.id,
               userId: d.id,
+              username: data.username || data.loginUsername || "",
               customerNumber: data.customerNumber || `CUST-${d.id.slice(-6).toUpperCase()}`,
               name: rawCustName,
               companyName: data.companyName || data.name || "Partner",
@@ -509,6 +512,7 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
           name,
           companyName,
           phone,
+          username: data.username || data.loginUsername || "",
           email: data.email || "",
           city: data.city || data.address?.city || "Gujarat",
           state: data.state || data.address?.state || "Gujarat",
@@ -574,8 +578,9 @@ export async function fetchLiveCustomerById(customerId: string): Promise<Custome
           }
         }
 
-        return { 
-          id: custSnap.id, 
+        return {
+          id: custSnap.id,
+          username: data.username || data.loginUsername || "", 
           ...data,
           assignedSalespersonId: assignedSalespersonId || "",
           salesPersonId: assignedSalespersonId || "",
@@ -631,4 +636,280 @@ export async function createCustomerByStaff(
     "asia-south1"
   );
   return res.data;
+}
+
+
+export interface GstLookupResult {
+  success: boolean;
+  gstin?: string;
+  companyName?: string;
+  city?: string;
+  state?: string;
+  address?: string;
+  pincode?: string;
+  error?: string;
+  message?: string;
+}
+
+export async function lookupGstDetails(gstin: string): Promise<GstLookupResult> {
+  try {
+    const res = await invokeCallable<{ gstin: string }, GstLookupResult>(
+      "lookupGstDetails",
+      { gstin: gstin.trim().toUpperCase() },
+      "asia-south1"
+    );
+    return res.data;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err?.code || "unavailable",
+      message: err?.message || "Could not fetch GST details.",
+    };
+  }
+}
+
+export const CUSTOMER_CATEGORY_CONFIG: Record<
+  string,
+  { id: string; label: string; collection: string }
+> = {
+  dealer: { id: "dealer", label: "Tile Dealer / Showroom", collection: "dealers" },
+  architect: { id: "architect", label: "Architect / Interior Designer", collection: "architects" },
+  builder: { id: "builder", label: "Builder / Contractor", collection: "builders" },
+  wholesaler: { id: "wholesaler", label: "Wholesaler / Distributor", collection: "wholesalers" },
+  retailer: { id: "retailer", label: "Retailer", collection: "retailers" },
+  trader: { id: "trader", label: "Trader", collection: "traders" },
+};
+
+export interface UpdateCustomerProfileInput {
+  customerId: string;
+  name: string;
+  companyName: string;
+  category: string;
+  priceTier: string;
+  email: string;
+  gstNumber: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  salesperson: {
+    salesPersonId: string;
+    name: string;
+    phone: string;
+    referralCode: string;
+  } | null;
+  creditLimit: number;
+  paymentTerms: string;
+  updatedBy: string;
+  updatedByName?: string;
+  updatedByRole?: string;
+}
+
+export async function updateCustomerProfile(
+  input: UpdateCustomerProfileInput
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { customerId } = input;
+    if (!customerId) return { success: false, error: "Customer ID is required." };
+    if (!input.name.trim()) return { success: false, error: "Customer name is required." };
+
+    // 1. Validate GSTIN
+    const rawGst = (input.gstNumber || "").trim().toUpperCase();
+    if (!rawGst) {
+      return { success: false, error: "GST number is required." };
+    }
+    const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (rawGst.length !== 15 || !GSTIN_PATTERN.test(rawGst)) {
+      return { success: false, error: "Enter a valid 15-character GST number." };
+    }
+
+    // 2. Duplicate GST check
+    const dupGstSnap = await getDocs(
+      query(collection(db, "users"), where("gstNumber", "==", rawGst))
+    );
+    const hasDup = dupGstSnap.docs.some((d) => d.id !== customerId);
+    if (hasDup) {
+      return { success: false, error: "A customer with this GST number already exists." };
+    }
+
+    // 3. Load existing user doc
+    const userDocRef = doc(db, "users", customerId);
+    const existingSnap = await getDoc(userDocRef);
+    const oldData = existingSnap.exists() ? existingSnap.data() || {} : {};
+
+    const rawOldCat = (oldData.userCategory || oldData.role || "dealer").toString().toLowerCase().trim();
+    const oldCatConfig = CUSTOMER_CATEGORY_CONFIG[rawOldCat] || CUSTOMER_CATEGORY_CONFIG.dealer;
+
+    const rawNewCat = (input.category || "dealer").toString().toLowerCase().trim();
+    const newCatConfig = CUSTOMER_CATEGORY_CONFIG[rawNewCat] || CUSTOMER_CATEGORY_CONFIG.dealer;
+
+    const oldSpId = (oldData.salesPersonId || oldData.assignedSalespersonId || "").toString().trim();
+    const newSpId = (input.salesperson?.salesPersonId || "").toString().trim();
+
+    // 4. Salesperson allocation change logic
+    if (oldSpId !== newSpId) {
+      if (oldSpId) {
+        try {
+          const oldSpRef = doc(db, "salesPersons", oldSpId);
+          await deleteDoc(doc(db, "salesPersons", oldSpId, "assigned_clients", customerId));
+          await setDoc(
+            oldSpRef,
+            {
+              assignedClientsCount: increment(-1),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Could not decrement old salesperson count:", e);
+        }
+      }
+
+      if (newSpId) {
+        try {
+          const newSpRef = doc(db, "salesPersons", newSpId);
+          await setDoc(doc(db, "salesPersons", newSpId, "assigned_clients", customerId), {
+            clientId: customerId,
+            name: input.name.trim(),
+            phone: oldData.phone || "",
+            email: input.email.trim() || "",
+            createdAt: oldData.createdAt || new Date().toISOString(),
+            isActive: true,
+          });
+          await setDoc(
+            newSpRef,
+            {
+              assignedClientsCount: increment(1),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Could not increment new salesperson count:", e);
+        }
+      }
+    }
+
+    // 5. Update users/{customerId}
+    const nowIso = new Date().toISOString();
+    const addressObj = {
+      line1: input.address.trim(),
+      city: input.city.trim(),
+      state: input.state.trim(),
+      pincode: input.pincode.trim(),
+    };
+
+    const userPayload: any = {
+      name: input.name.trim(),
+      companyName: input.companyName.trim(),
+      userCategory: newCatConfig.id,
+      role: newCatConfig.id,
+      priceTier: input.priceTier || "B",
+      email: input.email.trim(),
+      gstNumber: rawGst,
+      address: addressObj,
+      city: input.city.trim(),
+      state: input.state.trim(),
+      pincode: input.pincode.trim(),
+      creditLimit: Number(input.creditLimit) || 0,
+      paymentTerms: input.paymentTerms.trim(),
+      updatedAt: serverTimestamp(),
+      updatedAtIso: nowIso,
+      updatedBy: input.updatedBy,
+    };
+
+    if (input.salesperson && input.salesperson.salesPersonId) {
+      userPayload.salesPersonId = input.salesperson.salesPersonId;
+      userPayload.assignedSalespersonId = input.salesperson.salesPersonId;
+      userPayload.salespersonName = input.salesperson.name;
+      userPayload.salespersonPhone = input.salesperson.phone;
+      userPayload.salespersonReferralCode = input.salesperson.referralCode;
+    } else {
+      userPayload.salesPersonId = "";
+      userPayload.assignedSalespersonId = "";
+      userPayload.salespersonName = "";
+      userPayload.salespersonPhone = "";
+      userPayload.salespersonReferralCode = "";
+    }
+
+    await setDoc(userDocRef, userPayload, { merge: true });
+
+    // Also sync customers collection
+    try {
+      await setDoc(doc(db, "customers", customerId), userPayload, { merge: true });
+    } catch (_) {}
+
+    // 6. Category mirror doc handling
+    const mirrorPayload = {
+      ...userPayload,
+      categoryLabel: newCatConfig.label,
+      customerNumber: oldData.customerNumber || "CUST-" + customerId.slice(-6).toUpperCase(),
+      phone: oldData.phone || "",
+    };
+    delete mirrorPayload.salesPersonId;
+    delete mirrorPayload.assignedSalespersonId;
+    delete mirrorPayload.salespersonName;
+    delete mirrorPayload.salespersonPhone;
+    delete mirrorPayload.salespersonReferralCode;
+
+    if (oldCatConfig.collection !== newCatConfig.collection) {
+      try {
+        await deleteDoc(doc(db, oldCatConfig.collection, customerId));
+      } catch (_) {}
+      try {
+        await setDoc(doc(db, newCatConfig.collection, customerId), mirrorPayload, { merge: true });
+      } catch (_) {}
+    } else {
+      try {
+        await setDoc(doc(db, newCatConfig.collection, customerId), mirrorPayload, { merge: true });
+      } catch (_) {}
+    }
+
+    // 7. Audit log in customerEditLogs
+    const diff: Record<string, { old: any; new: any }> = {};
+    const checkFields: Array<{ key: string; oldVal: any; newVal: any }> = [
+      { key: "name", oldVal: oldData.name, newVal: userPayload.name },
+      { key: "companyName", oldVal: oldData.companyName, newVal: userPayload.companyName },
+      { key: "category", oldVal: rawOldCat, newVal: newCatConfig.id },
+      { key: "priceTier", oldVal: oldData.priceTier, newVal: userPayload.priceTier },
+      { key: "email", oldVal: oldData.email, newVal: userPayload.email },
+      { key: "gstNumber", oldVal: oldData.gstNumber, newVal: userPayload.gstNumber },
+      { key: "address", oldVal: typeof oldData.address === "string" ? oldData.address : oldData.address?.line1, newVal: input.address },
+      { key: "city", oldVal: oldData.city, newVal: userPayload.city },
+      { key: "state", oldVal: oldData.state, newVal: userPayload.state },
+      { key: "pincode", oldVal: oldData.pincode, newVal: userPayload.pincode },
+      { key: "salesPersonId", oldVal: oldSpId, newVal: newSpId },
+      { key: "creditLimit", oldVal: oldData.creditLimit, newVal: userPayload.creditLimit },
+      { key: "paymentTerms", oldVal: oldData.paymentTerms, newVal: userPayload.paymentTerms },
+    ];
+
+    checkFields.forEach(({ key, oldVal, newVal }) => {
+      if (String(oldVal ?? "").trim() !== String(newVal ?? "").trim()) {
+        diff[key] = { old: oldVal ?? null, new: newVal };
+      }
+    });
+
+    if (Object.keys(diff).length > 0) {
+      try {
+        await addDoc(collection(db, "customerEditLogs"), {
+          customerId,
+          customerNumber: oldData.customerNumber || customerId,
+          updatedBy: input.updatedBy,
+          updatedByName: input.updatedByName || "Admin",
+          updatedByRole: input.updatedByRole || "admin",
+          updatedAt: serverTimestamp(),
+          timestampIso: nowIso,
+          changes: diff,
+        });
+      } catch (logErr) {
+        console.warn("Could not write audit log:", logErr);
+      }
+    }
+
+    invalidateFirestoreCache();
+    return { success: true };
+  } catch (err: any) {
+    console.error("updateCustomerProfile error:", err);
+    return { success: false, error: err.message || "Failed to update customer profile." };
+  }
 }

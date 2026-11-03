@@ -22,7 +22,7 @@ import {
   ChevronRight
 } from "lucide-react";
 
-import { canAccessPath } from "@/lib/auth-utils";
+import { canAccessPath, isAdminRole } from "@/lib/auth-utils";
 
 interface NavItem {
   name: string;
@@ -67,7 +67,7 @@ export function Sidebar() {
           <div>
             <div className="font-bold text-lg leading-tight tracking-tight text-white whitespace-nowrap">ITACON GRANITO</div>
             <div className="text-[11px] font-medium text-orange-400 uppercase tracking-wider">
-              {role === "admin" ? "Admin Portal" : role === "designer" ? "Designer Studio" : "Salesperson Portal"}
+              {isAdminRole(role) ? "Admin Portal" : role === "designer" ? "Designer Studio" : "Salesperson Portal"}
             </div>
           </div>
         </div>
@@ -83,7 +83,7 @@ export function Sidebar() {
               <p className="text-xs text-slate-400 truncate">
                 {role === "designer"
                   ? designer?.employeeId || designer?.designation || "Designer"
-                  : salesperson?.employeeId || (role === "admin" ? "Super Admin" : "Executive")}
+                  : salesperson?.employeeId || (isAdminRole(role) ? "Super Admin" : "Executive")}
               </p>
             </div>
           </div>

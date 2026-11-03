@@ -6,6 +6,7 @@ export * from "./surface-finishes";
 // Mirrors the mobile app's TileProduct.isAdhesive
 export function isAdhesiveProduct(p: any): boolean {
   return (
+    p?.isAdhesive === true ||
     p?.productLine === "adhesives" ||
     p?.unit === "bag" ||
     p?.categoryId === "CAT_ADHESIVES" ||
@@ -30,6 +31,12 @@ export async function fetchAppTiles(includeInactive: boolean = false): Promise<a
     snap = await getDocs(query(collection(db, "products"), where("isActive", "==", true)));
     if (snap.empty) {
       snap = await getDocs(query(collection(db, "tiles"), where("isActive", "==", true)));
+      if (snap.empty) {
+        snap = await getDocs(collection(db, "products"));
+        if (snap.empty) {
+          snap = await getDocs(collection(db, "tiles"));
+        }
+      }
     }
   }
   return snap.docs

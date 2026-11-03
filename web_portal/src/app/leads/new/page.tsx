@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
@@ -9,10 +9,12 @@ import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ArrowLeft, Save, UserCheck, AlertCircle } from "lucide-react";
 import { LeadSource } from "@/types";
+import { fetchActiveSalespersonsList, AllocatedSalespersonInfo } from "@/lib/customer-service";
 
 export default function NewLeadPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin" || role === "manager";
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,9 +23,23 @@ export default function NewLeadPage() {
   const [city, setCity] = useState("Ahmedabad");
   const [state, setState] = useState("Gujarat");
   const [source, setSource] = useState<LeadSource>("manual");
+  const [salespersons, setSalespersons] = useState<AllocatedSalespersonInfo[]>([]);
+  const [assignedSalespersonId, setAssignedSalespersonId] = useState("");
   const [requirementNotes, setRequirementNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchActiveSalespersonsList()
+        .then((list) => {
+          setSalespersons(list);
+        })
+        .catch((err) => {
+          console.error("Could not fetch salespersons list:", err);
+        });
+    }
+  }, [isAdmin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,8 +50,27 @@ export default function NewLeadPage() {
       return;
     }
 
+    if (isAdmin && !assignedSalespersonId) {
+      setErrorMsg("Please select a salesperson.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      let targetSpId = user?.userId || "salesperson-1";
+      let targetSpName = user?.name || "Sales Executive";
+
+      if (isAdmin) {
+        const found = salespersons.find((s) => s.salesPersonId === assignedSalespersonId);
+        if (!found) {
+          setErrorMsg("Please select a valid active salesperson.");
+          setIsSubmitting(false);
+          return;
+        }
+        targetSpId = found.salesPersonId;
+        targetSpName = found.name;
+      }
+
       const leadNumber = `LD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
       await addDoc(collection(db, "leads"), {
         leadNumber,
@@ -47,8 +82,10 @@ export default function NewLeadPage() {
         state: state.trim(),
         source,
         status: "new",
-        assignedSalespersonId: user?.userId || "salesperson-1",
-        assignedSalespersonName: user?.name || "Sales Executive",
+        assignedSalespersonId: targetSpId,
+        assignedSalespersonName: targetSpName,
+        assignedBy: user?.userId || null,
+        assignedAt: new Date().toISOString(),
         requirementNotes: requirementNotes.trim() || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -195,6 +232,28 @@ export default function NewLeadPage() {
                   <option value="customer_app">Customer Mobile App</option>
                 </select>
               </div>
+
+              {/* Assign to Salesperson (Required for Admin) */}
+              {isAdmin && (
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Assign to Salesperson *
+                  </label>
+                  <select
+                    required
+                    value={assignedSalespersonId}
+                    onChange={(e) => setAssignedSalespersonId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                  >
+                    <option value="">-- Select a salesperson --</option>
+                    {salespersons.map((sp) => (
+                      <option key={sp.salesPersonId} value={sp.salesPersonId}>
+                        {sp.name}{sp.referralCode ? ` • ${sp.referralCode}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">

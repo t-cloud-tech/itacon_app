@@ -1,7 +1,7 @@
 "use client";
 
 import { invalidateFirestoreCache } from "@/lib/firestore-cache";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";

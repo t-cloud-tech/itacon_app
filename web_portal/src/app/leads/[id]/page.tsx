@@ -9,13 +9,16 @@ import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { Lead, LeadStatus } from "@/types";
+import { isAdminRole } from "@/lib/auth-utils";
+import { EditLeadModal } from "@/components/leads/edit-lead-modal";
 import { 
   ArrowLeft, 
   Phone, 
   Mail, 
   MapPin, 
   CheckCircle2, 
-  UserCheck, 
+  UserCheck,
+  Pencil, 
   CalendarClock, 
   FileSpreadsheet, 
   ArrowRight,
@@ -28,7 +31,10 @@ import {
 export default function LeadDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = isAdminRole(role);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
   const leadId = params?.id as string;
 
   const [lead, setLead] = useState<Lead | null>(null);
@@ -167,22 +173,50 @@ export default function LeadDetailPage() {
             <span>Back to Leads</span>
           </Link>
 
-          {lead.status !== "converted" ? (
-            <button
-              onClick={handleConvertToCustomer}
-              disabled={isConverting}
-              className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50"
-            >
-              <UserCheck className="w-4 h-4" />
-              <span>{isConverting ? "Converting..." : "Convert to Official Customer"}</span>
-            </button>
-          ) : (
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-full flex items-center space-x-1">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Converted to Customer</span>
-            </span>
-          )}
+          <div className="flex items-center space-x-2">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center space-x-1.5 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5 text-slate-500" />
+                <span>Edit Lead</span>
+              </button>
+            )}
+
+            {lead.status !== "converted" ? (
+              <button
+                onClick={handleConvertToCustomer}
+                disabled={isConverting}
+                className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer disabled:opacity-50"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>{isConverting ? "Converting..." : "Convert to Official Customer"}</span>
+              </button>
+            ) : (
+              <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-full flex items-center space-x-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Converted Customer</span>
+              </span>
+            )}
+          </div>
         </div>
+
+        {toastMsg && (
+          <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold animate-fadeIn">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>{toastMsg}</span>
+            </div>
+            <button
+              onClick={() => setToastMsg(null)}
+              className="text-emerald-600 hover:text-emerald-900 cursor-pointer text-base leading-none"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
         {/* Pipeline Stage Progression Banner */}
         <div className="card-luxury p-6">
@@ -304,7 +338,19 @@ export default function LeadDetailPage() {
             </div>
           </div>
         </div>
-      </div>
+            </div>
+
+      {showEditModal && lead && (
+        <EditLeadModal
+          lead={lead}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={(updatedLead) => {
+            setLead(updatedLead);
+            setToastMsg("Lead updated");
+            setTimeout(() => setToastMsg(null), 4000);
+          }}
+        />
+      )}
     </DashboardShell>
   );
 }
