@@ -28,7 +28,7 @@ import { PAYMENT_TERM_OPTIONS } from "@/lib/payment-terms";
 import { fetchLiveCustomers } from "@/lib/customer-service";
 import { fetchAppTiles, isAdhesiveProduct } from "@/lib/catalogue-service";
 import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
-import { fetchOrderById, linkQuotationToOrder, ClientOrderPO, MIN_RATE_PER_SQFT } from "@/lib/order-service";
+import { fetchOrderById, linkQuotationToOrder, fetchSalesPersonsMap, ClientOrderPO, MIN_RATE_PER_SQFT } from "@/lib/order-service";
 
 interface ClearableInputProps {
   value: number;
@@ -591,6 +591,23 @@ function QuotationForm() {
     setErrorMsg(null);
 
     try {
+      // Attribute the quote to the salesperson allocated to this customer, even when an admin creates it
+      let repId = user?.userId || salesperson?.salesPersonId || "sp-1";
+      let repName = user?.name || salesperson?.name || "Senior Sales Executive";
+      const assignedSpId = (selectedCust.assignedSalespersonId || "").toString().trim();
+      if (assignedSpId) {
+        try {
+          const spMap = await fetchSalesPersonsMap();
+          const assignedName = spMap[assignedSpId]?.name;
+          if (assignedName) {
+            repId = assignedSpId;
+            repName = assignedName;
+          }
+        } catch (err) {
+          console.warn("Could not resolve assigned salesperson:", err);
+        }
+      }
+
       const quoteNumber = `QT-2026-${Math.floor(100 + Math.random() * 900)}`;
       // If cost < 26.50 / sq.ft, status is strictly pending_admin_approval
       const quoteStatus = requiresAdminConfirmation ? "pending_admin_approval" : "approved";
@@ -609,8 +626,8 @@ function QuotationForm() {
         customerId: selectedCust.id,
         customerName: selectedCust.companyName || selectedCust.name,
         customerPhone: selectedCust.phone,
-        salespersonId: user?.userId || salesperson?.salesPersonId || "sp-1",
-        salespersonName: user?.name || salesperson?.name || "Senior Sales Executive",
+        salespersonId: repId,
+        salespersonName: repName,
         status: quoteStatus,
         items,
         subtotal,
@@ -652,8 +669,8 @@ function QuotationForm() {
           {
             requiresAdminConfirmation: requiresAdminConfirmation,
             pricePerSqft: avgRatePerSqft,
-            salespersonId: user?.userId || salesperson?.salesPersonId,
-            salespersonName: user?.name || salesperson?.name,
+            salespersonId: repId,
+            salespersonName: repName,
             taxAmount: taxAmount,
             quotationMode,
             ...(isMrpMode
@@ -671,8 +688,8 @@ function QuotationForm() {
           referenceId: docRef.id,
           referenceNumber: linkedOrder ? (linkedOrder.poNumber || quoteNumber) : quoteNumber,
           orderId: linkedOrder ? linkedOrder.id : null,
-          salespersonId: user?.userId || salesperson?.salesPersonId || "sp-1",
-          salespersonName: user?.name || salesperson?.name || "Sales Executive",
+          salespersonId: repId,
+          salespersonName: repName,
           customerId: selectedCust.id,
           customerName: selectedCust.companyName || selectedCust.name,
           discountRequested: maxDiscountGiven,

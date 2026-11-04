@@ -4,23 +4,24 @@ import { invalidateFirestoreCache } from "@/lib/firestore-cache";
 import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { Quotation } from "@/types";
-import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
+import { getPOStatusLabel, getPOStatusBadgeClass, fetchSalesPersonsMap } from "@/lib/order-service";
 import { BASELINE_QUOTATIONS } from "@/lib/baseline-quotations";
 import { formatPaymentTerms } from "@/lib/payment-terms";
-import { 
-  ArrowLeft, 
-  Printer, 
-  Share2, 
-  CheckCircle2, 
-  Smartphone, 
-  Building2, 
-  Truck, 
-  Weight, 
+import {
+  ArrowLeft,
+  Printer,
+  Share2,
+  CheckCircle2,
+  Smartphone,
+  Building2,
+  Truck,
+  Weight,
   FileSpreadsheet,
   AlertCircle
 } from "lucide-react";
@@ -33,6 +34,29 @@ export default function QuotationDetailPage() {
   const [quote, setQuote] = useState<Quotation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  // Salesperson allocated to the customer (shown even when an admin created the quote)
+  const [assignedRepName, setAssignedRepName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!quote?.customerId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const userSnap = await getDoc(doc(db, "users", quote.customerId));
+        const data = userSnap.exists() ? userSnap.data() : null;
+        const spId = (data?.assignedSalespersonId || data?.salesPersonId || "").toString().trim();
+        if (!spId) return;
+        const map = await fetchSalesPersonsMap();
+        const name = map[spId]?.name;
+        if (name && !cancelled) setAssignedRepName(name);
+      } catch (err) {
+        console.warn("Could not resolve customer's assigned salesperson:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [quote?.customerId]);
 
   useEffect(() => {
     async function fetchQuote() {
@@ -50,7 +74,7 @@ export default function QuotationDetailPage() {
           if (snap.exists()) {
             foundQuote = { id: snap.id, ...snap.data() } as Quotation;
           }
-        } catch (_) {}
+        } catch (_) { }
 
         // 2. If not found by doc id, query quotations collection by fields
         if (!foundQuote) {
@@ -69,18 +93,18 @@ export default function QuotationDetailPage() {
                 break;
               }
             }
-          } catch (_) {}
+          } catch (_) { }
         }
 
         // 3. Check baseline quotations
         if (!foundQuote) {
           const matchBaseline = BASELINE_QUOTATIONS.find(
-            b => b.id === cleanId || 
-                 b.id === quoteId || 
-                 b.quotationNumber?.toLowerCase() === cleanId.toLowerCase() || 
-                 b.orderId === cleanId || 
-                 b.poNumber?.toLowerCase() === cleanId.toLowerCase() ||
-                 (cleanId.startsWith("ORD-") && b.quotationNumber === cleanId.replace(/^ORD-/, "QT-"))
+            b => b.id === cleanId ||
+              b.id === quoteId ||
+              b.quotationNumber?.toLowerCase() === cleanId.toLowerCase() ||
+              b.orderId === cleanId ||
+              b.poNumber?.toLowerCase() === cleanId.toLowerCase() ||
+              (cleanId.startsWith("ORD-") && b.quotationNumber === cleanId.replace(/^ORD-/, "QT-"))
           );
           if (matchBaseline) {
             foundQuote = { ...matchBaseline };
@@ -117,7 +141,7 @@ export default function QuotationDetailPage() {
                   if (qDoc.exists()) {
                     foundQuote = { id: qDoc.id, ...qDoc.data() } as Quotation;
                   }
-                } catch (_) {}
+                } catch (_) { }
               }
 
               if (!foundQuote) {
@@ -164,7 +188,7 @@ export default function QuotationDetailPage() {
                 };
               }
             }
-          } catch (_) {}
+          } catch (_) { }
         }
 
         // 5. Check salesOrders collection in Firestore
@@ -197,7 +221,7 @@ export default function QuotationDetailPage() {
                   if (qDoc.exists()) {
                     foundQuote = { id: qDoc.id, ...qDoc.data() } as Quotation;
                   }
-                } catch (_) {}
+                } catch (_) { }
               }
 
               if (!foundQuote) {
@@ -231,7 +255,7 @@ export default function QuotationDetailPage() {
                 };
               }
             }
-          } catch (_) {}
+          } catch (_) { }
         }
 
         // 6. Check order status sync if orderId is attached or if salesOrder is paid
@@ -272,7 +296,7 @@ export default function QuotationDetailPage() {
                 }
               }
             }
-          } catch (_) {}
+          } catch (_) { }
           setQuote(foundQuote);
         } else {
           // Fallback baseline quotation
@@ -343,6 +367,25 @@ export default function QuotationDetailPage() {
   }, [quoteId, user]);
 
   const handlePrint = () => {
+    // Browsers use the page title as the default "Save as PDF" file name:
+    // "CUSTOMER NAME - QUOTATION NUMBER - DATE"
+    const originalTitle = document.title;
+    const parsedDate = quote?.createdAt ? new Date(quote.createdAt) : new Date();
+    const datePart = (isNaN(parsedDate.getTime()) ? new Date() : parsedDate).toISOString().split("T")[0];
+    const fileName = [quote?.customerName, quote?.quotationNumber, datePart]
+      .filter(Boolean)
+      .join(" - ")
+      .replace(/[\\/:*?"<>|]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    document.title = fileName || originalTitle;
+
+    const restoreTitle = () => {
+      document.title = originalTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
+    window.addEventListener("afterprint", restoreTitle);
+
     window.print();
   };
 
@@ -362,7 +405,7 @@ export default function QuotationDetailPage() {
             salespersonApprovalStatus: "released",
             updatedAt: new Date().toISOString(),
           });
-        } catch (_) {}
+        } catch (_) { }
       }
       setQuote(prev => prev ? { ...prev, status: "sent_to_customer" } : null);
       setActionSuccess("Quotation released and sent to customer!");
@@ -430,24 +473,29 @@ export default function QuotationDetailPage() {
         </div>
 
         {actionSuccess && (
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center space-x-2 text-xs font-bold text-emerald-800">
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center space-x-2 text-xs font-bold text-emerald-800 print:hidden">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             <span>{actionSuccess}</span>
           </div>
         )}
 
         {/* Printable Quotation Document Card */}
-        <div className="card-luxury p-8 sm:p-12 bg-white space-y-8 border shadow-sm">
+        <div className="card-luxury p-8 sm:p-12 bg-white space-y-8 border shadow-sm print:border-0 print:shadow-none print:p-0">
           {/* Header */}
           <div className="flex items-start justify-between border-b border-slate-200 pb-8">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-xl bg-[#0E274D] flex items-center justify-center text-white font-extrabold text-xl">
-                ITA
-              </div>
+              <Image
+                src="/ITACON_App_Logo.png"
+                alt="ITACON Granito"
+                width={48}
+                height={48}
+                priority
+                className="w-12 h-12 rounded-xl shrink-0"
+              />
               <div>
-                <h1 className="text-2xl font-black text-[#0E274D] tracking-tight">ITACON CERAMIC</h1>
+                <h1 className="text-2xl font-black text-[#0E274D] tracking-tight">ITACON GRANITO PVT. LTD.</h1>
                 <p className="text-xs text-slate-500 font-medium">B2B Architectural & Vitrified Tile Manufacturer</p>
-                <p className="text-[11px] text-slate-400">Morbi - Gujarat, India • GSTIN: 24AABCI8920E1Z4</p>
+                <p className="text-[11px] text-slate-400">Morbi - Gujarat, India • GSTIN: 24AAECI4020M1ZR</p>
               </div>
             </div>
 
@@ -496,7 +544,7 @@ export default function QuotationDetailPage() {
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Sales Representative</span>
-              <p className="text-sm font-bold text-[#0E274D]">{quote.salespersonName}</p>
+              <p className="text-sm font-bold text-[#0E274D]">{assignedRepName || quote.salespersonName}</p>
               <p className="text-slate-600">ITACON Enterprise Sales Division</p>
               <div className="flex items-center space-x-1 text-emerald-700 font-semibold pt-1">
                 <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
@@ -595,33 +643,33 @@ export default function QuotationDetailPage() {
                 </p>
               </div>
             ) : (
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between text-slate-600">
-                <span>Products Subtotal:</span>
-                <span className="font-semibold">₹{Number(quote.subtotal).toLocaleString("en-IN")}</span>
-              </div>
-              {quote.discountTotal > 0 && (
-                <div className="flex justify-between text-emerald-600">
-                  <span>Total Discount Applied:</span>
-                  <span className="font-semibold">-₹{Number(quote.discountTotal).toLocaleString("en-IN")}</span>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between text-slate-600">
+                  <span>Products Subtotal:</span>
+                  <span className="font-semibold">₹{Number(quote.subtotal).toLocaleString("en-IN")}</span>
                 </div>
-              )}
-              <div className="flex justify-between text-slate-600">
-                <span>Estimated Freight Charges:</span>
-                <span className="font-semibold">₹{Number(quote.shippingCharge || 0).toLocaleString("en-IN")}</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Goods & Services Tax (18% GST):</span>
-                <span className="font-semibold">₹{Number(quote.taxAmount || 0).toLocaleString("en-IN")}</span>
-              </div>
+                {quote.discountTotal > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Total Discount Applied:</span>
+                    <span className="font-semibold">-₹{Number(quote.discountTotal).toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-600">
+                  <span>Estimated Freight Charges:</span>
+                  <span className="font-semibold">₹{Number(quote.shippingCharge || 0).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Goods & Services Tax (18% GST):</span>
+                  <span className="font-semibold">₹{Number(quote.taxAmount || 0).toLocaleString("en-IN")}</span>
+                </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm">
-                <span className="font-extrabold text-[#0E274D]">Grand Total (INR):</span>
-                <span className="text-xl font-black text-[#0E274D]">
-                  ₹{Number(quote.grandTotal).toLocaleString("en-IN")}
-                </span>
+                <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm">
+                  <span className="font-extrabold text-[#0E274D]">Grand Total (INR):</span>
+                  <span className="text-xl font-black text-[#0E274D]">
+                    ₹{Number(quote.grandTotal).toLocaleString("en-IN")}
+                  </span>
+                </div>
               </div>
-            </div>
             )}
           </div>
         </div>

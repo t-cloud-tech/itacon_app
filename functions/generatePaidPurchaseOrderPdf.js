@@ -122,6 +122,23 @@ function parseTimestampMillis(val, fallbackNow = false) {
 }
 
 /**
+ * Download file name: "CUSTOMER NAME - PO NUMBER - DATE.pdf" (file-name-safe characters only).
+ */
+function buildPoDownloadFileName(order) {
+  const millis = parseTimestampMillis(order.createdAt || order.paidAt, true) || Date.now();
+  const datePart = new Date(millis).toISOString().split('T')[0];
+  const customer = order.companyName || order.customerName || order.customerId || '';
+  const poNumber = order.poNumber || order.orderReference || order.orderId || order.id || '';
+  const base = [customer, poNumber, datePart]
+    .filter((p) => p && String(p).trim())
+    .join(' - ')
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `${base || 'Purchase Order'}.pdf`;
+}
+
+/**
  * Renders the official Paid Purchase Order PDF in memory using PDFKit.
  */
 
@@ -1043,14 +1060,19 @@ async function handleGetPaidPoDownloadUrl(data, context, options = {}) {
   }
 
   // Generate 15-minute secure signed URL
+  // The browser / device saves the file under this name instead of "paid_po.pdf"
+  const downloadFileName = buildPoDownloadFileName({ ...orderData, id: orderId });
+  const asciiName = downloadFileName.replace(/[^ -~]/g, '_').replace(/"/g, '');
   const [signedUrl] = await file.getSignedUrl({
     action: 'read',
     expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    responseDisposition: `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(downloadFileName)}`,
   });
 
   return {
     success: true,
     downloadUrl: signedUrl,
+    downloadFileName,
     filePath,
     expiresInSeconds: 900,
   };

@@ -45,15 +45,21 @@ export function DashboardShell({ children, title, subtitle }: DashboardShellProp
   }
 
   return (
-    <div className="h-screen flex bg-[#F6F8FB] overflow-hidden">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <PushNotificationBanner />
-        <Topbar title={title} subtitle={subtitle} />
-        <main className="flex-1 p-8 overflow-y-auto">
+    <div className="h-screen flex bg-[#F6F8FB] overflow-hidden print:block print:h-auto print:overflow-visible print:bg-white">
+      <div className="contents print:hidden">
+        <Sidebar />
+      </div>
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
+        <div className="contents print:hidden">
+          <PushNotificationBanner />
+          <Topbar title={title} subtitle={subtitle} />
+        </div>
+        <main className="flex-1 p-8 overflow-y-auto print:p-0 print:overflow-visible">
           {children}
         </main>
-        <NotificationToast />
+        <div className="contents print:hidden">
+          <NotificationToast />
+        </div>
       </div>
     </div>
   );
