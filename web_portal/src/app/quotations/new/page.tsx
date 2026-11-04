@@ -546,7 +546,7 @@ function QuotationForm() {
   const basicPlusInsurance = Number((basicAmount + insuranceAmount).toFixed(2));
   const mrpGstAmount = Number((basicPlusInsurance * 0.18).toFixed(2));
   const estimatedTotal = Number((basicPlusInsurance + mrpGstAmount).toFixed(2));
-  const packagingCharges = Number(((subtotal - estimatedTotal) / 100).toFixed(2));
+  const packagingCharges = Number((subtotal - basicAmount).toFixed(2));
 
   const taxAmount = isMrpMode
     ? mrpGstAmount

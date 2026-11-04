@@ -81,8 +81,8 @@ class PoCalculation {
 
     // Packaging charges
     double finalPackaging = packaging;
-    if (finalPackaging <= 0 && originalSubtotal > estimatedTotal) {
-      finalPackaging = (((originalSubtotal - estimatedTotal) / 100.0) * 100).round() / 100.0;
+    if (finalPackaging <= 0 && originalSubtotal > basic) {
+      finalPackaging = ((originalSubtotal - basic) * 100).round() / 100.0;
     }
 
     return PoCalculationResult(
