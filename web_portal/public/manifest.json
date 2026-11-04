@@ -1,16 +1,28 @@
 {
   "name": "ITACON Management",
-  "short_name": "ITACON Management",
-  "description": "Enterprise CRM & Quotation Workbench for ITACON Sales Executives and Administrators",
+  "short_name": "ITACON",
+  "description": "ITACON Ceramic & Tiles B2B Salesperson Portal and Quotation Management System",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F6F8FB",
+  "orientation": "portrait-primary",
+  "background_color": "#0E274D",
   "theme_color": "#0E274D",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "/ITACON_App_Logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     }
   ]
 }

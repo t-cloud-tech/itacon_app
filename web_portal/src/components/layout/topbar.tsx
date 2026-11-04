@@ -1,12 +1,8 @@
 "use client";
 
 import React from "react";
-import {
-  Bell,
-  Search,
-  Smartphone,
-  ExternalLink 
-} from "lucide-react";
+import { Smartphone } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface TopbarProps {
   title?: string;
@@ -28,6 +24,9 @@ export function Topbar({ title = "Dashboard", subtitle = "Sales Activity & Quota
           <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
           <span>Customer App Live Sync</span>
         </div>
+
+        {/* Staff Notification Center Bell Icon */}
+        <NotificationBell />
       </div>
     </header>
   );

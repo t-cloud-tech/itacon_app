@@ -241,89 +241,113 @@ export default function LeadsPage() {
         {/* Leads Table Card */}
         <div className="card-luxury overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full table-fixed text-left text-sm min-w-[1000px]">
+              <colgroup>
+                {role !== "salesperson" ? (
+                  <>
+                    <col className="w-[19%]" />
+                    <col className="w-[15%]" />
+                    <col className="w-[11%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[9%]" />
+                    <col className="w-[24%]" />
+                  </>
+                ) : (
+                  <>
+                    <col className="w-[25%]" />
+                    <col className="w-[19%]" />
+                    <col className="w-[15%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[14%]" />
+                  </>
+                )}
+              </colgroup>
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  <th className="py-3.5 px-5">Lead / Client</th>
-                  <th className="py-3.5 px-5">Contact Details</th>
-                  <th className="py-3.5 px-5">Location</th>
-                  {role !== "salesperson" && <th className="py-3.5 px-5">Assigned Rep</th>}
-                  <th className="py-3.5 px-5">Source</th>
-                  <th className="py-3.5 px-5">Status</th>
-                  <th className="py-3.5 px-5 text-right whitespace-nowrap min-w-[240px]">Actions</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Lead / Client</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Contact Details</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Location</th>
+                  {role !== "salesperson" && <th className="py-3.5 px-4 whitespace-nowrap">Assigned Rep</th>}
+                  <th className="py-3.5 px-4 whitespace-nowrap">Source</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredLeads.map((lead) => (
                   <tr key={lead.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-4 px-5">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-[#0E274D] font-bold flex items-center justify-center text-sm">
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-[#0E274D] font-bold flex items-center justify-center text-sm shrink-0">
                           {lead.name.charAt(0)}
                         </div>
-                        <div>
-                          <Link href={`/leads/${lead.id}`} className="font-semibold text-[#0E274D] hover:underline flex items-center space-x-1.5">
-                            <span>{lead.name}</span>
+                        <div className="min-w-0 flex-1">
+                          <Link href={`/leads/${lead.id}`} className="font-semibold text-[#0E274D] hover:underline block truncate" title={lead.name}>
+                            {lead.name}
                           </Link>
                           {lead.companyName && (
-                            <p className="text-xs text-slate-500 font-medium">{lead.companyName}</p>
+                            <p className="text-xs text-slate-500 font-medium truncate" title={lead.companyName}>{lead.companyName}</p>
                           )}
-                          <span className="text-[11px] font-mono text-slate-400">{lead.leadNumber}</span>
+                          <span className="text-[11px] font-mono text-slate-400 block">{lead.leadNumber}</span>
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-4 px-5">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium">
-                          <Phone className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{lead.phone}</span>
+                    <td className="py-4 px-4">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium min-w-0">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate" title={lead.phone}>{lead.phone}</span>
                         </div>
                         {lead.email && (
-                          <div className="flex items-center space-x-1.5 text-xs text-slate-500">
-                            <Mail className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="truncate max-w-[180px]">{lead.email}</span>
+                          <div className="flex items-center space-x-1.5 text-xs text-slate-500 min-w-0">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate" title={lead.email}>{lead.email}</span>
                           </div>
                         )}
                       </div>
                     </td>
 
-                    <td className="py-4 px-5">
-                      <div className="flex items-center space-x-1.5 text-xs text-slate-600">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{lead.city}, {lead.state}</span>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center space-x-1.5 text-xs text-slate-600 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate" title={`${lead.city}, ${lead.state}`}>{lead.city}, {lead.state}</span>
                       </div>
                     </td>
 
                     {role !== "salesperson" && (
-                      <td className="py-4 px-5">
-                        <div className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium">
+                      <td className="py-4 px-4">
+                        <div className="flex items-center space-x-1.5 text-xs text-slate-700 font-medium min-w-0">
                           <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{lead.assignedSalespersonName || "Unassigned"}</span>
+                          <span className="truncate" title={lead.assignedSalespersonName || "Unassigned"}>
+                            {lead.assignedSalespersonName || "Unassigned"}
+                          </span>
                         </div>
                       </td>
                     )}
 
-                    <td className="py-4 px-5">
+                    <td className="py-4 px-4">
                       {lead.source === "customer_app" ? (
-                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <Smartphone className="w-3 h-3 text-emerald-600" />
+                        <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                          <Smartphone className="w-3 h-3 text-emerald-600 shrink-0" />
                           <span>Customer App</span>
                         </span>
                       ) : (
-                        <span className="text-xs font-medium text-slate-600 capitalize">
+                        <span className="text-xs font-medium text-slate-600 capitalize truncate block" title={lead.source.replace("_", " ")}>
                           {lead.source.replace("_", " ")}
                         </span>
                       )}
                     </td>
 
-                    <td className="py-4 px-5">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border ${getStatusBadge(lead.status)}`}>
+                    <td className="py-4 px-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border whitespace-nowrap ${getStatusBadge(lead.status)}`}>
                         {lead.status}
                       </span>
                     </td>
 
-                    <td className="py-4 px-5 text-right whitespace-nowrap">
+                    <td className="py-4 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end space-x-1.5 whitespace-nowrap">
                         {lead.status !== "converted" && (
                           <Link

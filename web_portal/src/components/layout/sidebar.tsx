@@ -18,6 +18,7 @@ import {
   UserCog,
   Wrench,
   Palette,
+  Bell,
   LogOut,
   ChevronRight
 } from "lucide-react";
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { name: "Quotations", href: "/quotations", icon: FileSpreadsheet },
   { name: "Approvals", href: "/approvals", icon: CheckSquare },
   { name: "Sales Orders", href: "/orders", icon: Truck },
+  { name: "Notifications", href: "/notifications", icon: Bell },
 ];
 
 export function Sidebar() {

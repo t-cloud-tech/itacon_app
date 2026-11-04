@@ -92,3 +92,23 @@ exports.createCustomerByStaff = createCustomerByStaff;
 // Automatic Product HSN Code Assignment Trigger (2nd Gen, region: asia-south1)
 const { assignHsnCode } = require('./assignHsnCode');
 exports.assignHsnCode = assignHsnCode;
+
+// ITACON Staff Notification Engine (Instant Triggers, Daily Reminders & FCM Web Push) (2nd Gen, region: asia-south1)
+const {
+  onClientAssignedNotification,
+  onOrderCreatedNotification,
+  onPaymentSubmissionNotification,
+  onLeadAssignedNotification,
+  dailyStaffRemindersScheduled,
+  runNotificationCheck,
+  sendPushOnStaffNotification,
+} = require('./staffNotificationEngine');
+
+exports.onClientAssignedNotification = onClientAssignedNotification;
+exports.onOrderCreatedNotification = onOrderCreatedNotification;
+exports.onPaymentSubmissionNotification = onPaymentSubmissionNotification;
+exports.onLeadAssignedNotification = onLeadAssignedNotification;
+exports.dailyStaffRemindersScheduled = dailyStaffRemindersScheduled;
+exports.runNotificationCheck = runNotificationCheck;
+exports.sendPushOnStaffNotification = sendPushOnStaffNotification;
+

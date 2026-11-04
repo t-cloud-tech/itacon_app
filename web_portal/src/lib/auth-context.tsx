@@ -16,6 +16,7 @@ import {
   type AuthErrorCode
 } from "./auth-utils";
 import { UserProfile, SalesPerson, Designer, UserRole } from "@/types";
+import { unregisterPushToken } from "@/lib/fcm-client";
 
 export { AuthException, type AuthErrorCode };
 

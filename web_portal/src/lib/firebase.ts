@@ -20,7 +20,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase (singleton pattern for Next.js SSR/client)
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 // Offline-first cache (IndexedDB) so listeners and repeat visits render from local data
 // while the server catches up. Falls back to the default instance if already initialised

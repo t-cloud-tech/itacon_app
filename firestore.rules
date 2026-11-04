@@ -492,6 +492,26 @@ service cloud.firestore {
     }
 
     // =========================================================================
+    // STAFF NOTIFICATIONS & FCM DEVICE TOKENS
+    // =========================================================================
+    match /staffNotifications/{notifId} {
+      allow read: if isAuthenticated() && resource.data.recipientUid == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.recipientUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      allow create, delete: if false;
+    }
+
+    match /staffDevices/{uid} {
+      allow read, write: if isAuthenticated() && request.auth.uid == uid;
+
+      match /tokens/{token} {
+        allow read, write: if isAuthenticated() && request.auth.uid == uid;
+      }
+    }
+
+
+    // =========================================================================
     // CUSTOMER DIRECTORY & CRM
     // =========================================================================
     match /customers/{customerId} {
@@ -774,8 +794,12 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdminOrManager();
     }
+    match /config/notificationSettings {
+      allow read: if isStaff();
+      allow write: if isAdminOrManager();
+    }
     match /config/{configId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && configId != 'notificationSettings';
       allow write: if isAdminOrManager();
     }
 

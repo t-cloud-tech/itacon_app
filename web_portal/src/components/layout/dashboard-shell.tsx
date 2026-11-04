@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/auth-context";
 import { canAccessPath, homePathFor } from "@/lib/auth-utils";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
+import { PushNotificationBanner } from "@/components/notifications/push-notification-banner";
+import { NotificationToast } from "@/components/notifications/notification-toast";
 
 interface DashboardShellProps {
   children: React.ReactNode;
@@ -46,10 +48,12 @@ export function DashboardShell({ children, title, subtitle }: DashboardShellProp
     <div className="h-screen flex bg-[#F6F8FB] overflow-hidden">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        <PushNotificationBanner />
         <Topbar title={title} subtitle={subtitle} />
         <main className="flex-1 p-8 overflow-y-auto">
           {children}
         </main>
+        <NotificationToast />
       </div>
     </div>
   );

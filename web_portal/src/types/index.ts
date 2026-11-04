@@ -343,3 +343,50 @@ export interface PaymentSubmissionRecord {
   rejectionReason?: string;
 }
 
+
+
+export type NotificationType =
+  | "customer_assigned"
+  | "po_request"
+  | "payment_submitted"
+  | "payment_verified"
+  | "payment_rejected"
+  | "lead_assigned"
+  | "po_approved_unpaid"
+  | "payment_overdue"
+  | "customer_inactive"
+  | "no_first_order"
+  | "follow_up_due"
+  | "admin_weekly_summary";
+
+export interface StaffNotification {
+  id: string;
+  recipientUid: string;
+  recipientRole: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  link: string;
+  refs?: {
+    customerId?: string;
+    orderId?: string;
+    leadId?: string;
+    quotationId?: string;
+    followUpId?: string;
+  };
+  priority: "normal" | "high";
+  read: boolean;
+  readAt?: string | null;
+  createdAt: string;
+  dedupeKey: string;
+}
+
+export interface NotificationSettings {
+  inactiveDays: number[];
+  firstOrderDays: number;
+  paymentPendingDays: number[];
+  adminPaymentEscalationDay: number;
+  dailyRunTime: string;
+  timezone: string;
+  retentionDays: number;
+}
