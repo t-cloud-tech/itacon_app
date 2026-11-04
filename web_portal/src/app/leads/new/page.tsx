@@ -10,6 +10,12 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ArrowLeft, Save, UserCheck, AlertCircle } from "lucide-react";
 import { LeadSource } from "@/types";
 import { fetchActiveSalespersonsList, AllocatedSalespersonInfo } from "@/lib/customer-service";
+import { ThemedSelect } from "@/components/ui/themed-select";
+import statesDistricts from "@/data/states_districts.json";
+
+const STATES_DISTRICTS = statesDistricts as Record<string, string[]>;
+const STATE_NAMES = Object.keys(STATES_DISTRICTS).sort((a, b) => a.localeCompare(b));
+const OTHER_DISTRICT = "other";
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -20,8 +26,10 @@ export default function NewLeadPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [city, setCity] = useState("Ahmedabad");
   const [state, setState] = useState("Gujarat");
+  const [city, setCity] = useState(STATES_DISTRICTS["Gujarat"]?.includes("Ahmedabad") ? "Ahmedabad" : "");
+  const [customCity, setCustomCity] = useState("");
+  const districts = STATES_DISTRICTS[state] || [];
   const [source, setSource] = useState<LeadSource>("manual");
   const [salespersons, setSalespersons] = useState<AllocatedSalespersonInfo[]>([]);
   const [assignedSalespersonId, setAssignedSalespersonId] = useState("");
@@ -47,6 +55,12 @@ export default function NewLeadPage() {
 
     if (!name.trim() || !phone.trim()) {
       setErrorMsg("Please provide at least the client's Name and Phone Number.");
+      return;
+    }
+
+    const finalCity = city === OTHER_DISTRICT ? customCity.trim() : city;
+    if (!state || !finalCity) {
+      setErrorMsg("Please select the State and City / District.");
       return;
     }
 
@@ -78,8 +92,8 @@ export default function NewLeadPage() {
         phone: phone.trim(),
         email: email.trim() || null,
         companyName: companyName.trim() || null,
-        city: city.trim(),
-        state: state.trim(),
+        city: finalCity,
+        state,
         source,
         status: "new",
         assignedSalespersonId: targetSpId,
@@ -187,50 +201,58 @@ export default function NewLeadPage() {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  City
+                  State
                 </label>
-                <input
-                  type="text"
-                  placeholder="Ahmedabad"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                <ThemedSelect
+                  value={state}
+                  onChange={(v) => {
+                    setState(v);
+                    setCity("");
+                    setCustomCity("");
+                  }}
+                  options={STATE_NAMES.map((n) => ({ value: n, label: n }))}
+                  placeholder="Select state"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  State
+                  City / District
                 </label>
-                <select
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-                >
-                  <option value="Gujarat">Gujarat</option>
-                  <option value="Maharashtra">Maharashtra</option>
-                  <option value="Rajasthan">Rajasthan</option>
-                  <option value="Madhya Pradesh">Madhya Pradesh</option>
-                  <option value="Karnataka">Karnataka</option>
-                  <option value="Other">Other</option>
-                </select>
+                <ThemedSelect
+                  value={city}
+                  onChange={setCity}
+                  disabled={!state}
+                  options={districts.map((d) => ({ value: d, label: d === OTHER_DISTRICT ? "Other" : d }))}
+                  placeholder={state ? "Select city / district" : "Select a state first"}
+                />
+                {city === OTHER_DISTRICT && (
+                  <input
+                    type="text"
+                    placeholder="Enter city / district"
+                    value={customCity}
+                    onChange={(e) => setCustomCity(e.target.value)}
+                    className="mt-2 w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                  />
+                )}
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                   Acquisition Source
                 </label>
-                <select
+                <ThemedSelect
                   value={source}
-                  onChange={(e) => setSource(e.target.value as LeadSource)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-                >
-                  <option value="manual">Manual Prospecting (Direct field visit)</option>
-                  <option value="referral">Referral from existing client</option>
-                  <option value="trade_fair">Exhibition / Expo / Trade Fair</option>
-                  <option value="website">Website Inbound</option>
-                  <option value="customer_app">Customer Mobile App</option>
-                </select>
+                  onChange={(v) => setSource(v as LeadSource)}
+                  options={[
+                    { value: "manual", label: "Manual Prospecting (Direct field visit)" },
+                    { value: "referral", label: "Referral from existing client" },
+                    { value: "trade_fair", label: "Exhibition / Expo / Trade Fair" },
+                    { value: "website", label: "Website Inbound" },
+                    { value: "customer_app", label: "Customer Mobile App" },
+                  ]}
+                  searchable={false}
+                />
               </div>
 
               {/* Assign to Salesperson (Required for Admin) */}
@@ -239,19 +261,15 @@ export default function NewLeadPage() {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
                     Assign to Salesperson *
                   </label>
-                  <select
-                    required
+                  <ThemedSelect
                     value={assignedSalespersonId}
-                    onChange={(e) => setAssignedSalespersonId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
-                  >
-                    <option value="">-- Select a salesperson --</option>
-                    {salespersons.map((sp) => (
-                      <option key={sp.salesPersonId} value={sp.salesPersonId}>
-                        {sp.name}{sp.referralCode ? ` • ${sp.referralCode}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setAssignedSalespersonId}
+                    options={salespersons.map((sp) => ({
+                      value: sp.salesPersonId,
+                      label: `${sp.name}${sp.referralCode ? ` • ${sp.referralCode}` : ""}`,
+                    }))}
+                    placeholder="-- Select a salesperson --"
+                  />
                 </div>
               )}
 
