@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { db, storage, functions, invokeCallable } from "@/lib/firebase";
 import { collection, query, where, getDocs, getDoc, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
 import { ref, getDownloadURL } from "firebase/storage";
@@ -613,6 +614,7 @@ function SalesOrdersContent() {
     const matchesPayment = orderPaymentFilter === "all" || o.paymentStatus === orderPaymentFilter;
     return matchesSearch && matchesStatus && matchesPayment;
   });
+  const orderPager = usePagination(filteredOrders, `${searchTerm}|${statusFilter}|${orderPaymentFilter}`);
 
   // Filtered Payments
   const filteredPayments = sortNewestFirst(paymentSubmissions, p => (p as any).submittedAt).filter(p => {
@@ -623,6 +625,7 @@ function SalesOrdersContent() {
     const matchesStatus = paymentFilter === "all" || p.status === paymentFilter;
     return matchesSearch && matchesStatus;
   });
+  const paymentPager = usePagination(filteredPayments, `${paymentSearch}|${paymentFilter}`);
 
   const pendingVerificationCount = paymentSubmissions.filter(
     p => p.status === "pending_verification"
@@ -1131,7 +1134,7 @@ function SalesOrdersContent() {
                       </td>
                     </tr>
                   ) : (
-                    filteredOrders.map((ord) => (
+                    orderPager.pageItems.map((ord) => (
                       <tr key={ord.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-5">
                           <Link
@@ -1218,6 +1221,7 @@ function SalesOrdersContent() {
                 </tbody>
               </table>
             </div>
+            <Pagination page={orderPager.page} totalPages={orderPager.totalPages} totalItems={orderPager.totalItems} pageSize={orderPager.pageSize} onPageChange={orderPager.setPage} />
           </div>
         )}
 
@@ -1254,7 +1258,7 @@ function SalesOrdersContent() {
                         </td>
                       </tr>
                     ) : (
-                      filteredPayments.map((sub) => (
+                      paymentPager.pageItems.map((sub) => (
                         <tr key={sub.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-4 px-5">
                             <Link
@@ -1356,6 +1360,7 @@ function SalesOrdersContent() {
                   </tbody>
                 </table>
               </div>
+              <Pagination page={paymentPager.page} totalPages={paymentPager.totalPages} totalItems={paymentPager.totalItems} pageSize={paymentPager.pageSize} onPageChange={paymentPager.setPage} />
             </div>
           </div>
         )}

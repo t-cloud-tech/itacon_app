@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
+import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { 
   fetchLiveSalespersonsWithMetrics,
   fetchSalespersonDetailedActivity,
@@ -279,7 +281,7 @@ export default function SalespersonsPage() {
 
   // Filtered Salespersons
   const filteredSalespersons = useMemo(() => {
-    return salespersons.filter((sp) => {
+    return sortNewestFirst(salespersons, (sp) => (sp as any).createdAt).filter((sp) => {
       const term = searchTerm.toLowerCase();
       const matchesSearch =
         sp.name.toLowerCase().includes(term) ||
@@ -295,6 +297,7 @@ export default function SalespersonsPage() {
       return matchesSearch && matchesStatus && matchesRegion;
     });
   }, [salespersons, searchTerm, statusFilter, regionFilter]);
+  const pager = usePagination(filteredSalespersons, `${searchTerm}|${statusFilter}|${regionFilter}`);
 
   // Access Control: Admin Only
   if (role !== "admin") {
@@ -513,7 +516,7 @@ export default function SalespersonsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {filteredSalespersons.map((sp) => {
+                  {pager.pageItems.map((sp) => {
                     const isSelected = selectedSp?.salesPersonId === sp.salesPersonId;
                     return (
                       <tr
@@ -657,6 +660,7 @@ export default function SalespersonsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination page={pager.page} totalPages={pager.totalPages} totalItems={pager.totalItems} pageSize={pager.pageSize} onPageChange={pager.setPage} />
           </div>
         )}
 

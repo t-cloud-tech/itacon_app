@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/auth-context";
 import { db } from "@/lib/firebase";
 import { collection, query, getDocs, orderBy, updateDoc, doc } from "firebase/firestore";
 import { ApprovalRequest, SalespersonActionStatus } from "@/types";
+import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { 
   adminConfirmOrder, 
   adminRejectOrder, 
@@ -294,13 +296,14 @@ export default function ApprovalsPage() {
 
   // Final list filtered by the 4 sub-tabs
   const displayApprovals = useMemo(() => {
-    return roleFilteredApprovals.filter(item => {
+    return sortNewestFirst(roleFilteredApprovals, item => item.createdAt || (item as any).timestamp).filter(item => {
       if (statusFilter === "pending") return item.status === "pending";
       if (statusFilter === "approved") return item.status === "approved" || item.adminDecision === "approved";
       if (statusFilter === "rejected") return item.status === "rejected" || item.adminDecision === "rejected";
       return true; // "all"
     });
   }, [roleFilteredApprovals, statusFilter]);
+  const pager = usePagination(displayApprovals, `${statusFilter}|${roleFilteredApprovals.length}`);
 
   // --------------------------------------------------------------------------
   // ADMIN ACTION: Accept / Confirm or Reject Rate Exception (< ₹26.50/sq.ft)
@@ -656,7 +659,7 @@ export default function ApprovalsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {displayApprovals.map((item) => {
+                  {pager.pageItems.map((item) => {
                     const isLowRate = item.referenceType === "low_rate_po" || (item.pricePerSqft && item.pricePerSqft < 26.50);
                     const isAdminApproved = item.adminDecision === "approved" || item.status === "approved";
                     const isAdminRejected = item.adminDecision === "rejected" || item.status === "rejected";
@@ -909,6 +912,7 @@ export default function ApprovalsPage() {
               </table>
             </div>
           )}
+          <Pagination page={pager.page} totalPages={pager.totalPages} totalItems={pager.totalItems} pageSize={pager.pageSize} onPageChange={pager.setPage} />
         </div>
       </div>
     </DashboardShell>

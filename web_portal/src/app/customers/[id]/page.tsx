@@ -18,6 +18,8 @@ import {
 import { PAYMENT_TERM_OPTIONS, formatPaymentTerms } from "@/lib/payment-terms";
 import { isAdminRole } from "@/lib/auth-utils";
 import { getPOStatusLabel, getPOStatusBadgeClass } from "@/lib/order-service";
+import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { Customer } from "@/types";
 
 import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
@@ -77,6 +79,9 @@ export default function CustomerDetailPage() {
   const [quotations, setQuotations] = useState<any[]>([]);
   const [opportunities, setOpportunities] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const quotePager = usePagination(sortNewestFirst(quotations, (q) => q.createdAt), String(customerId));
+  const oppPager = usePagination(sortNewestFirst(opportunities, (o) => o.createdAt), String(customerId));
+  const orderPager = usePagination(sortNewestFirst(orders, (o) => o.createdAt), String(customerId));
 
   const canEdit = isAdminRole(role);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -622,7 +627,7 @@ export default function CustomerDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {quotations.map((q) => (
+                  {quotePager.pageItems.map((q) => (
                     <tr key={q.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3.5 px-5 font-bold text-[#0E274D]">
                         <Link href={`/quotations/${q.id}`} className="hover:underline">
@@ -649,13 +654,14 @@ export default function CustomerDetailPage() {
                   ))}
                 </tbody>
               </table>
+              <Pagination page={quotePager.page} totalPages={quotePager.totalPages} totalItems={quotePager.totalItems} pageSize={quotePager.pageSize} onPageChange={quotePager.setPage} />
             </div>
           )}
 
           {/* Tab Content: Opportunities */}
           {activeTab === "opportunities" && (
             <div className="card-luxury p-5 space-y-3">
-              {opportunities.map((opp) => (
+              {oppPager.pageItems.map((opp) => (
                 <div key={opp.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-mono text-slate-400">{opp.oppNumber}</span>
@@ -674,13 +680,14 @@ export default function CustomerDetailPage() {
                   </div>
                 </div>
               ))}
+              <Pagination page={oppPager.page} totalPages={oppPager.totalPages} totalItems={oppPager.totalItems} pageSize={oppPager.pageSize} onPageChange={oppPager.setPage} />
             </div>
           )}
 
           {/* Tab Content: Orders */}
           {activeTab === "orders" && (
             <div className="card-luxury p-5 space-y-3">
-              {orders.map((ord) => (
+              {orderPager.pageItems.map((ord) => (
                 <div key={ord.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
                   <div>
                     <span className="text-xs font-mono text-slate-400">{ord.orderNumber}</span>
@@ -696,6 +703,7 @@ export default function CustomerDetailPage() {
                   </div>
                 </div>
               ))}
+              <Pagination page={orderPager.page} totalPages={orderPager.totalPages} totalItems={orderPager.totalItems} pageSize={orderPager.pageSize} onPageChange={orderPager.setPage} />
             </div>
           )}
                 </div>

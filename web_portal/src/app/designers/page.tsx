@@ -13,6 +13,8 @@ import {
   DesignerTile,
 } from "@/lib/designer-service";
 import { generateDesignerEmployeeId } from "@/lib/salesperson-service";
+import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import {
   Palette,
   UserPlus,
@@ -183,7 +185,7 @@ export default function DesignersPage() {
 
   const filtered = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return designers.filter((d) => {
+    return sortNewestFirst(designers, (d) => d.createdAt).filter((d) => {
       const matches =
         d.name.toLowerCase().includes(term) ||
         d.email.toLowerCase().includes(term) ||
@@ -192,6 +194,7 @@ export default function DesignersPage() {
       return matches && (statusFilter === "all" || d.status === statusFilter);
     });
   }, [designers, searchTerm, statusFilter]);
+  const pager = usePagination(filtered, `${searchTerm}|${statusFilter}`);
 
   if (role !== "admin") {
     return (
@@ -290,7 +293,7 @@ export default function DesignersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((d) => (
+                {pager.pageItems.map((d) => (
                   <tr key={d.designerId} onClick={() => openDetail(d)} className="hover:bg-orange-50/40 cursor-pointer">
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-3">
@@ -336,6 +339,7 @@ export default function DesignersPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={pager.page} totalPages={pager.totalPages} totalItems={pager.totalItems} pageSize={pager.pageSize} onPageChange={pager.setPage} />
           {!isLoading && filtered.length === 0 && (
             <p className="text-sm text-slate-500 text-center py-10">
               {designers.length === 0 ? "No designers on the platform yet. Use “Add Designer” to onboard one." : "No designers match your search."}

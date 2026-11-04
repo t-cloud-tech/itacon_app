@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { Lead, LeadStatus, LeadSource } from "@/types";
@@ -146,6 +147,7 @@ export default function LeadsPage() {
 
     return matchesSearch && matchesStatus && matchesSource;
   });
+  const pager = usePagination(filteredLeads, `${searchTerm}|${statusFilter}|${sourceFilter}`);
 
   const getStatusBadge = (status: LeadStatus) => {
     switch (status) {
@@ -276,7 +278,7 @@ export default function LeadsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredLeads.map((lead) => (
+                {pager.pageItems.map((lead) => (
                   <tr key={lead.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-3 min-w-0">
@@ -396,6 +398,7 @@ export default function LeadsPage() {
               </tbody>
             </table>
           </div>
+          <Pagination page={pager.page} totalPages={pager.totalPages} totalItems={pager.totalItems} pageSize={pager.pageSize} onPageChange={pager.setPage} />
         </div>
             </div>
 

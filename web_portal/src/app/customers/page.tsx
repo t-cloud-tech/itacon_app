@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { fetchLiveCustomers } from "@/lib/customer-service";
 import { Customer } from "@/types";
 import { formatPaymentTerms } from "@/lib/payment-terms";
@@ -70,6 +71,7 @@ export default function CustomersPage() {
 
     return matchesSearch && matchesCat && matchesTier;
   });
+  const pager = usePagination(filteredCustomers, `${searchTerm}|${categoryFilter}|${tierFilter}`);
 
   return (
     <DashboardShell
@@ -271,7 +273,7 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredCustomers.map((c) => (
+                  {pager.pageItems.map((c) => (
                     <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-4 px-4">
                         <div className="flex items-center space-x-3 min-w-0">
@@ -402,6 +404,7 @@ export default function CustomersPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination page={pager.page} totalPages={pager.totalPages} totalItems={pager.totalItems} pageSize={pager.pageSize} onPageChange={pager.setPage} />
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { useAuth } from "@/lib/auth-context";
 import { sortNewestFirst } from "@/lib/sort-utils";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { Quotation, SalesOrder } from "@/types";
@@ -392,6 +393,7 @@ function QuotationsContent() {
       return matchesSearch && matchesStatus;
     });
   }, [mergedQuotations, searchTerm, statusFilter, role, user, salesperson]);
+  const quotePager = usePagination(filteredQuotations, `${searchTerm}|${statusFilter}`);
 
   const filteredPOs = sortNewestFirst(poRequests, (po) => po.createdAt).filter((po) => {
     return (
@@ -400,6 +402,7 @@ function QuotationsContent() {
       po.companyName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+  const poPager = usePagination(filteredPOs, searchTerm);
 
   const handleTabChange = (tab: "all" | "pending_po") => {
     setActiveTab(tab);
@@ -561,7 +564,7 @@ function QuotationsContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {filteredPOs.map((po) => (
+                {poPager.pageItems.map((po) => (
                   <div
                     key={po.id}
                     className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-[#E66A23]/50 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5"
@@ -687,6 +690,7 @@ function QuotationsContent() {
                 ))}
               </div>
             )}
+            <Pagination page={poPager.page} totalPages={poPager.totalPages} totalItems={poPager.totalItems} pageSize={poPager.pageSize} onPageChange={poPager.setPage} className="mt-4 rounded-xl bg-white border" />
           </div>
         )}
 
@@ -720,7 +724,7 @@ function QuotationsContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredQuotations.map((q) => (
+                    {quotePager.pageItems.map((q) => (
                       <tr key={q.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-5">
                           <div>
@@ -806,6 +810,7 @@ function QuotationsContent() {
                 </table>
               </div>
             )}
+            <Pagination page={quotePager.page} totalPages={quotePager.totalPages} totalItems={quotePager.totalItems} pageSize={quotePager.pageSize} onPageChange={quotePager.setPage} />
           </div>
         )}
       </div>
