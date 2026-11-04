@@ -251,8 +251,10 @@ function QuotationsContent() {
           const totalVal = o.items?.reduce((sum, it) => {
             const sqftPerBox = it.sqftPerBox || 15.5;
             const ratePerSqft = (it.basePrice && it.basePrice > 150) ? (it.basePrice / sqftPerBox) : (it.basePrice || 35);
-            const boxPrice = ratePerSqft * sqftPerBox;
-            return sum + (it.lineTotal || (boxPrice * (it.quantityBoxes || 1)));
+            const totalSqft = it.totalSqft || it.quantitySqFt || Number(((it.quantityBoxes || 1) * sqftPerBox).toFixed(2));
+            const disc = it.discountPercent || 0;
+            const effRateSqft = Number((ratePerSqft * (1 - disc / 100)).toFixed(2));
+            return sum + (it.lineTotal || Number((totalSqft * effRateSqft).toFixed(2)));
           }, 0) || 50000;
 
           let quoteStatus: any = "pending_approval";
@@ -623,7 +625,7 @@ function QuotationsContent() {
                                 <span className="text-slate-400 font-mono text-xs shrink-0">{it.size}</span>
                               </div>
                               <div className="font-bold text-[#0E274D] bg-white px-2.5 py-0.5 rounded border border-slate-200 text-xs shrink-0 whitespace-nowrap">
-                                {it.quantityBoxes} Boxes • {it.quantitySqFt} sqft
+                                {it.quantityBoxes} Boxes • {it.totalSqft || it.quantitySqFt} sqft
                               </div>
                             </div>
                           ))}

@@ -398,7 +398,7 @@ function getFormattedDeliveryAddress(order) {
         doc.text(size, 245, y + 5);
 
         const boxes = item.quantityBoxes || item.quantity || 0;
-        const sqft = item.quantitySqFt || (boxes * 15.5);
+        const sqft = item.totalSqft || item.quantitySqFt || (boxes * (item.sqftPerBox || 15.5));
         doc.text(`${boxes} Boxes`, 320, y + 5);
 
         const hasMrp = isPaid && isMrpLinked && Number(item.mrp) > 0;

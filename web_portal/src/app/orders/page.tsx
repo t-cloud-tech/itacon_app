@@ -426,7 +426,7 @@ function SalesOrdersContent() {
 
         const poTotal = 
           (po as any).totalAmount || 
-          po.items?.reduce((s, it) => s + (it.lineTotal || (it.basePrice && it.quantityBoxes ? it.basePrice * it.quantityBoxes : 0)), 0) || 
+          po.items?.reduce((s, it) => { const sqft = it.totalSqft || it.quantitySqFt || ((it.quantityBoxes || 1) * (it.sqftPerBox || 15.5)); return s + (it.lineTotal || (it.basePrice ? it.basePrice * sqft : 0)); }, 0) || 
           50000;
 
         list.push({

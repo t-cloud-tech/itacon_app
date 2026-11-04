@@ -172,6 +172,8 @@ export interface QuotationItem {
   effectivePrice: number;
   lineTotal: number;
   mrp?: number;
+  catalogueSqftPerBox?: number;
+  catalogueBasePrice?: number;
 }
 
 export type QuotationStatus = 

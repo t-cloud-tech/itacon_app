@@ -133,7 +133,7 @@ function createPdfBuffer(order) {
         doc.text(`${item.productName || item.tileName || 'Tile Item'} (${item.size || '600x1200'} ${item.surface || ''})`, 70, y + 6);
 
         const boxes = item.quantityBoxes || item.quantity || 0;
-        const sqFt = item.quantitySqFt || (boxes * 15.5);
+        const sqFt = item.totalSqft || item.quantitySqFt || (boxes * (item.sqftPerBox || 15.5));
         doc.text(`${boxes} Boxes (${sqFt.toFixed(1)} sq.ft)`, 280, y + 6);
 
         const rate = item.unitPrice || 0;

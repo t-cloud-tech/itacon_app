@@ -26,6 +26,7 @@ export interface ClientOrderItem {
   color?: string;
   quantityBoxes: number;
   quantitySqFt: number;
+  totalSqft?: number;
   sqftPerBox: number;
   weightPerBoxKg?: number;
   unit?: string;
@@ -582,7 +583,7 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
   const items: ClientOrderItem[] = rawItems.map((item: any) => {
     const qtyBoxes = Number(item.quantityBoxes || item.quantity || 1);
     const sqftPerBox = Number(item.sqftPerBox) || 15.5;
-    const totalSqft = Number(item.quantitySqFt || (qtyBoxes * sqftPerBox));
+    const totalSqft = Number(item.totalSqft || item.quantitySqFt || (qtyBoxes * sqftPerBox));
     const weightKg = Number(item.weightKg || (qtyBoxes * (item.weightPerBoxKg || 29.0)));
 
     return {
@@ -594,6 +595,7 @@ export function parseClientOrderDoc(d: { id: string; data: () => any }): ClientO
       color: item.color || "Standard",
       quantityBoxes: qtyBoxes,
       quantitySqFt: totalSqft,
+      totalSqft: totalSqft,
       sqftPerBox: sqftPerBox,
       weightPerBoxKg: Number(item.weightPerBoxKg) || 29.0,
       unit: item.unit || "box",
@@ -994,6 +996,7 @@ export async function linkQuotationToOrder(
       quantityBoxes: qtyBoxes,
       quantity: qtyBoxes,
       quantitySqFt: totalSqft,
+      totalSqft: totalSqft,
       sqftPerBox: sqftPerBox,
       unit: item.unit || (isBag ? 'bag' : 'box'),
       moq: Number(item.moq || 10),

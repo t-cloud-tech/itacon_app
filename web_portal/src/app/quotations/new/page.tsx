@@ -30,6 +30,87 @@ import { fetchAppTiles, isAdhesiveProduct } from "@/lib/catalogue-service";
 import { DefaulterCheckCard } from "@/components/customers/defaulter-check-card";
 import { fetchOrderById, linkQuotationToOrder, ClientOrderPO, MIN_RATE_PER_SQFT } from "@/lib/order-service";
 
+interface ClearableInputProps {
+  value: number;
+  isIntegerOnly?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  onChangeNumber: (val: number) => void;
+  onBlurValidate: (rawText: string) => number;
+  className?: string;
+  placeholder?: string;
+  title?: string;
+}
+
+function ClearableInput({
+  value,
+  isIntegerOnly = false,
+  disabled,
+  readOnly,
+  onChangeNumber,
+  onBlurValidate,
+  className,
+  placeholder,
+  title,
+}: ClearableInputProps) {
+  const [text, setText] = useState<string>(() => {
+    if (value === undefined || value === null) return "";
+    return String(value);
+  });
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setText(value !== undefined && value !== null ? String(value) : "");
+    }
+  }, [value, isFocused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value;
+    if (isIntegerOnly) {
+      // Whole numbers only: no minus, no decimals, no letters
+      raw = raw.replace(/\D/g, "");
+    } else {
+      // Positive decimals: digits and at most one decimal point
+      raw = raw.replace(/[^\d.]/g, "");
+      const parts = raw.split(".");
+      if (parts.length > 2) {
+        raw = parts[0] + "." + parts.slice(1).join("");
+      }
+    }
+    setText(raw);
+    if (raw === "") {
+      onChangeNumber(0);
+    } else {
+      const parsed = isIntegerOnly ? parseInt(raw, 10) : parseFloat(raw);
+      onChangeNumber(isNaN(parsed) ? 0 : parsed);
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    const validatedNum = onBlurValidate(text);
+    setText(String(validatedNum));
+    onChangeNumber(validatedNum);
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode={isIntegerOnly ? "numeric" : "decimal"}
+      value={text}
+      disabled={disabled}
+      readOnly={readOnly}
+      onChange={handleChange}
+      onFocus={() => setIsFocused(true)}
+      onBlur={handleBlur}
+      className={className}
+      placeholder={placeholder}
+      title={title}
+    />
+  );
+}
+
 function QuotationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -324,55 +405,97 @@ function QuotationForm() {
         discountPercent: disc,
         effectivePrice: effPricePerBox,
         lineTotal,
+        catalogueSqftPerBox: sqftPerBox,
+        catalogueBasePrice: basePricePerSqft,
         roundUpNote: undefined,
       };
       return copy;
     });
   };
 
-  const handleUpdateItem = (index: number, field: string, val: any) => {
+  const handleResetSqft = (index: number) => {
+    if (linkedOrder) return;
     setItems((prev) => {
       const copy = [...prev];
       const item = { ...copy[index] };
-      const sqftPerBox = item.sqftPerBox || 15.5;
+      const resetSqft = item.catalogueSqftPerBox ?? 15.5;
+      item.sqftPerBox = resetSqft;
+      const boxes = item.quantityBoxes || 0;
+      item.totalSqft = Number((boxes * resetSqft).toFixed(2));
+      const effRateSqft = Number((item.unitPrice * (1 - (item.discountPercent || 0) / 100)).toFixed(2));
+      item.effectivePrice = Number((effRateSqft * resetSqft).toFixed(2));
+      item.lineTotal = Number((item.totalSqft * effRateSqft).toFixed(2));
+      copy[index] = item;
+      return copy;
+    });
+  };
+
+  const handleUpdateItem = (index: number, field: string, val: number) => {
+    setItems((prev) => {
+      const copy = [...prev];
+      const item = { ...copy[index] };
       const boxWeightKg = item.boxWeightKg || 27.0;
 
       if (field === "quantityBoxes") {
         if (linkedOrder) return copy;
-        const parsed = parseInt(val, 10);
-        const boxes = isNaN(parsed) || parsed < 1 ? 1 : Math.floor(parsed);
-        item.quantityBoxes = boxes;
-        item.totalSqft = Number((boxes * sqftPerBox).toFixed(2));
-        item.roundUpNote = undefined;
-      } else if (field === "totalSqft") {
+        item.quantityBoxes = val;
+      } else if (field === "sqftPerBox") {
         if (linkedOrder) return copy;
-        const parsedSqft = parseFloat(val);
-        const inputSqft = isNaN(parsedSqft) || parsedSqft <= 0 ? sqftPerBox : parsedSqft;
-        const boxes = Math.max(1, Math.ceil(inputSqft / sqftPerBox));
-        const actualSqft = Number((boxes * sqftPerBox).toFixed(2));
-        item.quantityBoxes = boxes;
-        item.totalSqft = actualSqft;
-        item.roundUpNote = `Rounded up to ${boxes} boxes = ${actualSqft} sq.ft`;
+        item.sqftPerBox = val;
       } else if (field === "unitPrice") {
-        const parsed = parseFloat(val);
-        item.unitPrice = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+        item.unitPrice = val;
       } else if (field === "discountPercent") {
-        const parsed = parseFloat(val);
-        item.discountPercent = isNaN(parsed) ? 0 : Math.min(100, Math.max(0, parsed));
+        item.discountPercent = val;
       } else if (field === "mrp") {
-        item.mrp = parseFloat(val) || 0;
+        item.mrp = val;
       }
 
-      // Live calculations
+      // Calculations:
+      // Line total area = Boxes * Sq.ft/Box
+      // Line Total (₹) = Boxes * Sq.ft/Box * Base Price * (1 - Discount% / 100)
+      const boxes = item.quantityBoxes || 0;
+      const sqftPerBox = item.sqftPerBox || 0;
+      const totalSqft = Number((boxes * sqftPerBox).toFixed(2));
+      item.totalSqft = totalSqft;
+
       const effRateSqft = Number((item.unitPrice * (1 - (item.discountPercent || 0) / 100)).toFixed(2));
       const effPricePerBox = Number((effRateSqft * sqftPerBox).toFixed(2));
       item.effectivePrice = effPricePerBox;
-      item.lineTotal = Number((item.totalSqft * effRateSqft).toFixed(2));
-      item.weightKg = Number((item.quantityBoxes * boxWeightKg).toFixed(1));
+      item.lineTotal = Number((totalSqft * effRateSqft).toFixed(2));
+      item.weightKg = Number((boxes * boxWeightKg).toFixed(1));
 
       copy[index] = item;
       return copy;
     });
+  };
+
+  const handleProceedToStep3 = () => {
+    setItems((prev) =>
+      prev.map((it) => {
+        const boxes = Math.max(1, it.quantityBoxes || 1);
+        const sqftPerBox = it.sqftPerBox > 0 ? it.sqftPerBox : (it.catalogueSqftPerBox || 15.5);
+        const unitPrice = it.unitPrice > 0 ? it.unitPrice : (it.catalogueBasePrice || 35);
+        const disc = Math.min(100, Math.max(0, it.discountPercent || 0));
+        const totalSqft = Number((boxes * sqftPerBox).toFixed(2));
+        const effRateSqft = Number((unitPrice * (1 - disc / 100)).toFixed(2));
+        const effPricePerBox = Number((effRateSqft * sqftPerBox).toFixed(2));
+        const lineTotal = Number((totalSqft * effRateSqft).toFixed(2));
+        const boxWeightKg = it.boxWeightKg || 27.0;
+        const weightKg = Number((boxes * boxWeightKg).toFixed(1));
+        return {
+          ...it,
+          quantityBoxes: boxes,
+          sqftPerBox,
+          unitPrice,
+          discountPercent: disc,
+          totalSqft,
+          effectivePrice: effPricePerBox,
+          lineTotal,
+          weightKg,
+        };
+      })
+    );
+    setStep(3);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -414,8 +537,10 @@ function QuotationForm() {
   const requiresAdminConfirmation = isRateBelowThreshold || requiresSpecialApproval;
 
   // MRP-based quotation: Basic amount = sum of boxes * MRP * sqft per box
-  const mrpLineTotal = (i: QuotationItem) =>
-    Number(((i.quantityBoxes || 0) * (i.mrp || 0) * (i.sqftPerBox || 15.5)).toFixed(2));
+  const mrpLineTotal = (i: QuotationItem) => {
+    const lineArea = i.totalSqft || ((i.quantityBoxes || 0) * (i.sqftPerBox || 15.5));
+    return Number((lineArea * (i.mrp || 0)).toFixed(2));
+  };
   const basicAmount = Number(items.reduce((sum, i) => sum + mrpLineTotal(i), 0).toFixed(2));
   const insuranceAmount = Number((basicAmount * 0.0035).toFixed(2));
   const basicPlusInsurance = Number((basicAmount + insuranceAmount).toFixed(2));
@@ -471,7 +596,8 @@ function QuotationForm() {
       const quoteStatus = requiresAdminConfirmation ? "pending_admin_approval" : "approved";
       const discountTotal = items.reduce((sum, i) => {
         const sqftPerBox = i.sqftPerBox || 15.5;
-        const undiscountedLineTotal = (i.quantityBoxes || 0) * (i.unitPrice * sqftPerBox);
+        const lineArea = i.totalSqft || ((i.quantityBoxes || 0) * sqftPerBox);
+        const undiscountedLineTotal = lineArea * i.unitPrice;
         return sum + Math.max(0, undiscountedLineTotal - i.lineTotal);
       }, 0);
 
@@ -957,14 +1083,16 @@ function QuotationForm() {
                             <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                               Boxes {linkedOrder && <span className="text-slate-400 font-normal">(Locked)</span>}
                             </label>
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
+                            <ClearableInput
                               value={item.quantityBoxes}
+                              isIntegerOnly={true}
                               disabled={!!linkedOrder}
                               readOnly={!!linkedOrder}
-                              onChange={(e) => handleUpdateItem(idx, "quantityBoxes", e.target.value)}
+                              onChangeNumber={(n) => handleUpdateItem(idx, "quantityBoxes", n)}
+                              onBlurValidate={(raw) => {
+                                const parsed = parseInt(raw, 10);
+                                return isNaN(parsed) || parsed < 1 ? 1 : parsed;
+                              }}
                               className={`w-full px-2.5 py-1.5 border rounded text-xs font-bold ${
                                 linkedOrder
                                   ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed"
@@ -974,34 +1102,39 @@ function QuotationForm() {
                             />
                           </div>
 
-                          {/* 2. SQ.FT */}
+                          {/* 2. SQ.FT / BOX */}
                           <div>
                             <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
-                              Sq.ft {linkedOrder && <span className="text-slate-400 font-normal">(Locked)</span>}
+                              SQ.FT / BOX {linkedOrder && <span className="text-slate-400 font-normal">(Locked)</span>}
                             </label>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              value={item.totalSqft}
+                            <ClearableInput
+                              value={item.sqftPerBox}
+                              isIntegerOnly={false}
                               disabled={!!linkedOrder}
                               readOnly={!!linkedOrder}
-                              onChange={(e) => handleUpdateItem(idx, "totalSqft", e.target.value)}
+                              onChangeNumber={(n) => handleUpdateItem(idx, "sqftPerBox", n)}
+                              onBlurValidate={(raw) => {
+                                const parsed = parseFloat(raw);
+                                return isNaN(parsed) || parsed <= 0 ? (item.catalogueSqftPerBox ?? 15.5) : parsed;
+                              }}
                               className={`w-full px-2.5 py-1.5 border rounded text-xs font-bold ${
                                 linkedOrder
                                   ? "bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed"
                                   : "bg-white text-slate-800 border-slate-200 focus:ring-1 focus:ring-[#0E274D]"
                               }`}
-                              title={linkedOrder ? "Area is fixed to customer PO request" : ""}
+                              title={linkedOrder ? "Sq.ft / box is fixed to customer PO request" : ""}
                             />
-                            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
-                              {item.sqftPerBox || 15.5} sqft/box
-                            </span>
-                            {item.roundUpNote && (
-                              <span className="text-[10px] text-amber-700 font-medium block mt-0.5 leading-tight">
-                                {item.roundUpNote}
-                              </span>
-                            )}
+                            {item.catalogueSqftPerBox !== undefined &&
+                              Math.abs(item.sqftPerBox - item.catalogueSqftPerBox) > 0.001 &&
+                              !linkedOrder && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetSqft(idx)}
+                                  className="text-[10px] text-blue-600 hover:text-blue-800 underline font-medium block mt-0.5 cursor-pointer text-left"
+                                >
+                                  Reset to {item.catalogueSqftPerBox}
+                                </button>
+                              )}
                           </div>
 
                           {/* 3. BASE PRICE */}
@@ -1010,12 +1143,14 @@ function QuotationForm() {
                               <span>Base Price (₹/sq.ft)</span>
                               {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
                             </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0.01"
+                            <ClearableInput
                               value={item.unitPrice}
-                              onChange={(e) => handleUpdateItem(idx, "unitPrice", e.target.value)}
+                              isIntegerOnly={false}
+                              onChangeNumber={(n) => handleUpdateItem(idx, "unitPrice", n)}
+                              onBlurValidate={(raw) => {
+                                const parsed = parseFloat(raw);
+                                return isNaN(parsed) || parsed <= 0 ? (item.catalogueBasePrice ?? 35) : parsed;
+                              }}
                               className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
                               placeholder="Rate (₹/sqft)"
                             />
@@ -1027,12 +1162,14 @@ function QuotationForm() {
                               <label className="text-[10px] uppercase font-bold text-slate-700 block mb-1">
                                 MRP (₹/sq.ft)
                               </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={item.mrp ?? ""}
-                                onChange={(e) => handleUpdateItem(idx, "mrp", e.target.value)}
+                              <ClearableInput
+                                value={item.mrp ?? 0}
+                                isIntegerOnly={false}
+                                onChangeNumber={(n) => handleUpdateItem(idx, "mrp", n)}
+                                onBlurValidate={(raw) => {
+                                  const parsed = parseFloat(raw);
+                                  return isNaN(parsed) || parsed < 0 ? 0 : parsed;
+                                }}
                                 className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
                                 placeholder="MRP"
                               />
@@ -1045,13 +1182,16 @@ function QuotationForm() {
                               <span>Discount %</span>
                               {linkedOrder && <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">Edit</span>}
                             </label>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.1"
+                            <ClearableInput
                               value={item.discountPercent}
-                              onChange={(e) => handleUpdateItem(idx, "discountPercent", e.target.value)}
+                              isIntegerOnly={false}
+                              onChangeNumber={(n) => handleUpdateItem(idx, "discountPercent", n)}
+                              onBlurValidate={(raw) => {
+                                const parsed = parseFloat(raw);
+                                if (isNaN(parsed) || parsed < 0) return 0;
+                                if (parsed > 100) return 100;
+                                return parsed;
+                              }}
                               className="w-full px-2.5 py-1.5 bg-white border border-[#0E274D] focus:ring-2 focus:ring-[#0E274D] rounded text-xs font-bold text-slate-900"
                               placeholder="0"
                             />
@@ -1133,7 +1273,7 @@ function QuotationForm() {
               <button
                 type="button"
                 disabled={items.length === 0 || items.some((i) => !i.productId)}
-                onClick={() => setStep(3)}
+                onClick={handleProceedToStep3}
                 className={`flex items-center space-x-2 px-5 py-2.5 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all ${
                   items.length === 0 || items.some((i) => !i.productId)
                     ? "opacity-50 cursor-not-allowed"
