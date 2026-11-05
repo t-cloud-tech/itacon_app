@@ -184,6 +184,31 @@ async function resolveSalesRepName(db, order) {
 }
 
 /**
+ * Display name of the staff member who verified the payment. Submissions store only the
+ * staff UID in `verifiedBy`, so look it up in users / salesPersons. Never returns the raw id.
+ */
+async function resolveVerifierName(db, submission) {
+  if (!submission) return null;
+  const stored = submission.verifiedByName;
+  if (stored && String(stored).trim()) return String(stored).trim();
+
+  const uid = submission.verifiedBy;
+  if (uid && String(uid).trim()) {
+    for (const col of ['users', 'salesPersons']) {
+      try {
+        const snap = await db.collection(col).doc(String(uid)).get();
+        const data = snap && snap.exists ? (snap.data() || {}) : null;
+        const name = data && (data.name || data.fullName || data.displayName);
+        if (name && String(name).trim()) return String(name).trim();
+      } catch (err) {
+        console.warn(`[PaidPO] Warning: could not load ${col}/${uid}:`, err);
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Adds hsnCode and tile grade to each order item from its product record
  * (products/{id}, falling back to tiles/{id}); values already on the item are kept.
  */
@@ -499,7 +524,7 @@ function getFormattedDeliveryAddress(order) {
         const verifiedPaidAmt = Number(order.paidAmount || submission?.submittedAmount || totalAmount);
         const paidDateStr = formatDateTime(submission?.paymentDate || order.paidAt || new Date());
         const verifiedAtStr = formatDateTime(submission?.verifiedAt || order.paidAt || new Date());
-        const verifiedByStaff = submission?.verifiedBy || 'Authorized Accounts Team';
+        const verifiedByStaff = submission?.verifiedByName || 'Authorized Accounts Team';
 
         doc.text(`Payment Mode: Bank Wire / RTGS Transfer`, 48, y + 24);
         doc.text(`Bank UTR / Transaction ID: ${utrRef}`, 48, y + 36, { bold: true });
@@ -507,7 +532,7 @@ function getFormattedDeliveryAddress(order) {
 
         doc.text(`Verified Amount Paid: ${formatInr(verifiedPaidAmt)} (IN FULL)`, 290, y + 24, { bold: true });
         doc.text(`Accounts Verification Date: ${verifiedAtStr}`, 290, y + 36);
-        doc.text(`Verified By Staff ID: ${verifiedByStaff}`, 290, y + 48);
+        doc.text(`Verified By: ${verifiedByStaff}`, 290, y + 48);
 
         doc.fillColor(statusSuccess).fontSize(7.5).text(
           '[AUDIT CONFIRMED] Transaction reconciled with factory accounts. Production and dispatch authorization granted.',
@@ -658,6 +683,12 @@ async function processPaidPoGeneration(orderId, orderData = null, options = {}) 
       if (!qSnap.empty) {
         submission = qSnap.docs[0].data();
       }
+    }
+
+    // 4b. Resolve verifying staff name (submission only holds the staff UID)
+    if (submission) {
+      const verifierName = await resolveVerifierName(db, submission);
+      if (verifierName) submission = { ...submission, verifiedByName: verifierName };
     }
 
     // 5. Verification of Authoritative Payment Data

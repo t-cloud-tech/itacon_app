@@ -43,6 +43,7 @@ class PoCalculation {
 
     double packaging = 0.0;
     if (order.packagingCharges > 0) {
+      // Already stored by the quotation as (subtotal - basic amount) / 100.
       packaging = order.packagingCharges;
     }
 
@@ -82,7 +83,8 @@ class PoCalculation {
     // Packaging charges
     double finalPackaging = packaging;
     if (finalPackaging <= 0 && originalSubtotal > basic) {
-      finalPackaging = ((originalSubtotal - basic) * 100).round() / 100.0;
+      // Premium packaging charges = (subtotal - basic amount) / 100
+      finalPackaging = (((originalSubtotal - basic) / 100.0) * 100).round() / 100.0;
     }
 
     return PoCalculationResult(

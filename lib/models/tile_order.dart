@@ -273,7 +273,7 @@ class TileOrder {
   final double basicAmount; // MRP linked: sum of boxes * MRP * sqft per box
   final double insuranceAmount; // MRP linked: 0.35% of basic amount
   final double basicPlusInsurance; // MRP linked: basic + insurance
-  final double packagingCharges; // MRP linked: subtotal - basic amount
+  final double packagingCharges; // MRP linked: (subtotal - basic amount) / 100
 
   bool get isMrpLinked => quotationMode == 'mrp';
 
