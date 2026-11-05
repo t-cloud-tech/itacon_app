@@ -73,11 +73,27 @@ function SalesOrdersContent() {
     }
   }, [tabParam, searchParam]);
 
+  // Reset the payment filter to "All Payments" as soon as the user leaves the Sales Orders tab,
+  // so the Factory Sales Orders badge goes back to the full count.
+  useEffect(() => {
+    if (activeTab !== "sales_orders") {
+      setOrderPaymentFilter("all");
+    }
+  }, [activeTab]);
+
   // Payment Verification State
   const [paymentSubmissions, setPaymentSubmissions] = useState<PaymentSubmissionRecord[]>([]);
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
   const [paymentSearch, setPaymentSearch] = useState("");
   const [isLoadingPayments, setIsLoadingPayments] = useState(true);
+
+  // Reset the payment verification filter/search as soon as the user leaves the Payment Verification tab.
+  useEffect(() => {
+    if (activeTab !== "payments") {
+      setPaymentFilter("all");
+      setPaymentSearch("");
+    }
+  }, [activeTab]);
 
   // Proof Modal State
   const [viewingProof, setViewingProof] = useState<PaymentSubmissionRecord | null>(null);
@@ -602,7 +618,7 @@ function SalesOrdersContent() {
 
 
   // Filtered Orders
-  const filteredOrders = sortNewestFirst(allFactorySalesOrders, o => o.createdAt).filter(o => {
+  const searchAndStatusOrders = sortNewestFirst(allFactorySalesOrders, o => o.createdAt).filter(o => {
     const term = searchTerm.toLowerCase().trim();
     const matchesSearch = 
       !term ||
@@ -616,9 +632,11 @@ function SalesOrdersContent() {
       statusFilter === "all" || 
       o.status === statusFilter ||
       (statusFilter === "confirmed" && (o.status === "confirmed" || (o.status as any) === "processing" || (o.status as any) === "rate_quoted" || (o.status as any) === "pending_salesperson_review"));
-    const matchesPayment = orderPaymentFilter === "all" || o.paymentStatus === orderPaymentFilter;
-    return matchesSearch && matchesStatus && matchesPayment;
+    return matchesSearch && matchesStatus;
   });
+  const filteredOrders = searchAndStatusOrders.filter(
+    o => orderPaymentFilter === "all" || o.paymentStatus === orderPaymentFilter
+  );
   const orderPager = usePagination(filteredOrders, `${searchTerm}|${statusFilter}|${orderPaymentFilter}`);
 
   // Filtered Payments
@@ -1008,7 +1026,7 @@ function SalesOrdersContent() {
               <Truck className="w-3.5 h-3.5" />
               <span>Factory Sales Orders</span>
               <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
-                {allFactorySalesOrders.length}
+                {orderPaymentFilter === "all" ? allFactorySalesOrders.length : filteredOrders.length}
               </span>
             </button>
 
@@ -1021,7 +1039,11 @@ function SalesOrdersContent() {
             >
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Payment Verification</span>
-              {pendingVerificationCount > 0 ? (
+              {paymentFilter !== "all" ? (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                  {filteredPayments.length}
+                </span>
+              ) : pendingVerificationCount > 0 ? (
                 <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-white animate-bounce">
                   {pendingVerificationCount}
                 </span>
