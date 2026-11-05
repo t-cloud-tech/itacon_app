@@ -34,6 +34,7 @@ class OrderItem {
   final double? lineTotal; // Line total amount, nullable when pending_rate
   final String orderType; // ready_stock / made_to_order
   final double? mrp; // MRP (₹/Sq Ft) for MRP linked quotations
+  final String? image; // Optional image path/URL saved directly on the order item
 
   const OrderItem({
     required this.productId,
@@ -53,12 +54,27 @@ class OrderItem {
     this.lineTotal,
     this.orderType = 'ready_stock',
     this.mrp,
+    this.image,
   })  : quantityBoxes = quantityBoxes ?? quantity,
         quantitySqFt = quantitySqFt ?? (quantity * 15.5); // Default coverage approx 15.5 sq.ft/box
 
   String get tileId => productId;
   String get tileName => productName;
   double? get totalPrice => lineTotal;
+
+  bool get isAdhesive {
+    final u = unit.toLowerCase();
+    final sz = size.toLowerCase();
+    final pName = productName.toLowerCase();
+    final s = sku.toUpperCase();
+    final pId = productId.toUpperCase();
+    return u == 'bag' ||
+        sz.contains('bag') ||
+        sz.contains('20 kg') ||
+        pName.contains('adhesive') ||
+        s.startsWith('ITA-LX') ||
+        pId.startsWith('PROD_ADH');
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -82,6 +98,7 @@ class OrderItem {
       'totalPrice': lineTotal,
       'orderType': orderType,
       if (mrp != null) 'mrp': mrp,
+      if (image != null && image!.isNotEmpty) 'image': image,
     };
   }
 
@@ -152,6 +169,7 @@ class OrderItem {
       lineTotal: lTotal,
       orderType: map['orderType'] ?? 'ready_stock',
       mrp: map['mrp'] != null && _asDouble(map['mrp']) > 0 ? _asDouble(map['mrp']) : null,
+      image: (map['image'] ?? map['imageUrl'] ?? map['imagePath'] ?? map['thumbnail'] ?? map['thumbnailUrl'])?.toString(),
     );
   }
 }
@@ -590,6 +608,7 @@ class TileOrder {
                 lineTotal: newTotal,
                 orderType: item.orderType,
                 mrp: item.mrp,
+                image: item.image,
               );
             }
           }

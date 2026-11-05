@@ -349,8 +349,10 @@ export interface PaymentSubmissionRecord {
 
 export type NotificationType =
   | "customer_assigned"
+  | "customer_unassigned_24h"
   | "po_request"
   | "payment_submitted"
+  | "payment_action_verify"
   | "payment_verified"
   | "payment_rejected"
   | "lead_assigned"
@@ -359,12 +361,14 @@ export type NotificationType =
   | "customer_inactive"
   | "no_first_order"
   | "follow_up_due"
-  | "admin_weekly_summary";
+  | "admin_weekly_summary"
+  | "system_alert";
 
 export interface StaffNotification {
   id: string;
   recipientUid: string;
   recipientRole: string;
+  audience?: "admin" | "salesperson";
   type: NotificationType;
   title: string;
   body: string;

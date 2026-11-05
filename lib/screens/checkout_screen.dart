@@ -10,7 +10,7 @@ import '../services/pricing_service.dart';
 import '../services/order_service.dart';
 import '../models/tile_order.dart';
 import '../widgets/order_summary_card.dart';
-import '../widgets/app_product_image.dart';
+import '../widgets/order_item_thumbnail.dart';
 import '../utils/profile_validator.dart';
 import 'order_details_screen.dart';
 import 'profile/edit_profile_screen.dart';
@@ -522,16 +522,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: Row(
                 children: [
                   // Product Thumbnail Picture
-                  ClipRRect(
+                  OrderItemThumbnail(
+                    product: item.product,
+                    size: 55,
                     borderRadius: BorderRadius.circular(8),
-                    child: AppProductImage(
-                      imagePath: item.product.frontCardThumbnail,
-                      originalPath: item.product.frontCardImage,
-                      width: 55,
-                      height: 55,
-                      fit: BoxFit.cover,
-                      imageRole: ImageRole.collectionThumbnail,
-                    ),
                   ),
                   const SizedBox(width: 12),
 
@@ -929,16 +923,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     child: Row(
                       children: [
                         // Item Picture Thumbnail
-                        ClipRRect(
+                        OrderItemThumbnail(
+                          product: item.product,
+                          size: 60,
                           borderRadius: BorderRadius.circular(8),
-                          child: AppProductImage(
-                            imagePath: item.product.frontCardThumbnail,
-                            originalPath: item.product.frontCardImage,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                            imageRole: ImageRole.collectionThumbnail,
-                          ),
                         ),
                         const SizedBox(width: 12),
 

@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../models/tile_order.dart';
 import '../services/firestore_service.dart';
 import '../services/app_state_service.dart';
+import '../widgets/order_item_thumbnail.dart';
 import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class _OrdersScreenState extends State<OrdersScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode(skipTraversal: true);
   Timer? _searchDebounce;
   String _searchQuery = '';
   bool _isNavigating = false;
@@ -69,6 +71,7 @@ class _OrdersScreenState extends State<OrdersScreen>
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _searchFocusNode.dispose();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -162,6 +165,8 @@ class _OrdersScreenState extends State<OrdersScreen>
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: TextField(
                       controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      autofocus: false,
                       onChanged: _onSearchChanged,
                       decoration: InputDecoration(
                         hintText: 'Search PO reference, product or client...',
@@ -171,6 +176,8 @@ class _OrdersScreenState extends State<OrdersScreen>
                                 icon: const Icon(Icons.clear_rounded, color: AppTheme.textSubtle),
                                 onPressed: () {
                                   _searchController.clear();
+                                  _searchFocusNode.unfocus();
+                                  FocusManager.instance.primaryFocus?.unfocus();
                                   setState(() => _searchQuery = '');
                                 },
                               )
@@ -432,15 +439,22 @@ class _OrdersScreenState extends State<OrdersScreen>
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                    if (order.items.isNotEmpty)
+                      OrderItemThumbnail(
+                        orderItem: order.items.first,
+                        size: 50,
                         borderRadius: BorderRadius.circular(10),
+                      )
+                    else
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryNavy.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.inventory_2_rounded, color: AppTheme.primaryNavy),
                       ),
-                      child: const Icon(Icons.inventory_2_rounded, color: AppTheme.primaryNavy),
-                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(

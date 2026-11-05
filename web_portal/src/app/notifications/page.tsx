@@ -37,11 +37,15 @@ function getNotificationIcon(type: NotificationType) {
     case "customer_inactive":
     case "no_first_order":
       return <Users className="w-5 h-5 text-blue-600" />;
+    case "customer_unassigned_24h":
+      return <Users className="w-5 h-5 text-amber-600" />;
     case "po_request":
     case "po_approved_unpaid":
       return <FileSpreadsheet className="w-5 h-5 text-amber-600" />;
     case "payment_submitted":
       return <IndianRupee className="w-5 h-5 text-emerald-600" />;
+    case "payment_action_verify":
+      return <IndianRupee className="w-5 h-5 text-purple-600" />;
     case "payment_verified":
       return <IndianRupee className="w-5 h-5 text-emerald-600" />;
     case "payment_rejected":
@@ -53,6 +57,8 @@ function getNotificationIcon(type: NotificationType) {
       return <Clock className="w-5 h-5 text-orange-600" />;
     case "admin_weekly_summary":
       return <Sparkles className="w-5 h-5 text-indigo-600" />;
+    case "system_alert":
+      return <AlertTriangle className="w-5 h-5 text-red-600" />;
     default:
       return <Bell className="w-5 h-5 text-slate-500" />;
   }

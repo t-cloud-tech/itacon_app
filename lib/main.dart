@@ -53,6 +53,38 @@ class NoGlowScrollBehavior extends ScrollBehavior {
   }
 }
 
+/// Global navigator observer that ensures any active search focus or software keyboard
+/// is cleanly dismissed whenever a route is pushed, popped, removed, or replaced.
+class _UnfocusNavigatorObserver extends NavigatorObserver {
+  void _unfocus() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _unfocus();
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _unfocus();
+    super.didPop(route, previousRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _unfocus();
+    super.didRemove(route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _unfocus();
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -65,6 +97,9 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.luxuryTheme,
       themeMode: ThemeMode.light,
       scrollBehavior: const NoGlowScrollBehavior(),
+      navigatorObservers: [
+        _UnfocusNavigatorObserver(),
+      ],
       builder: (context, child) {
         final mediaQueryData = MediaQuery.of(context);
         final constrainedTextScaler = mediaQueryData.textScaler.clamp(
@@ -73,7 +108,13 @@ class MyApp extends StatelessWidget {
         );
         return MediaQuery(
           data: mediaQueryData.copyWith(textScaler: constrainedTextScaler),
-          child: child ?? const SizedBox.shrink(),
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: const SplashScreen(),

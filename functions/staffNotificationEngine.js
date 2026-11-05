@@ -4,16 +4,25 @@
  * ITACON Management Portal — Notification Engine (2nd Gen, region: asia-south1)
  *
  * Provides:
- * 1. Instant Event Triggers:
- *    - onClientAssignedNotification: Customer assigned / reassigned / unassigned
+ * 1. RBAC Recipient Resolution:
+ *    - resolveRecipients(db, type, refs): Centralized recipient routing adhering to:
+ *      * RULE A: Active admins get all notifications across all customers, leads, orders, and payments.
+ *      * RULE B: Employees (salespersons) get ONLY their own assigned items.
+ *      * RULE C: Designers get NO sales/customer/payment/lead notifications.
+ *      * ADMIN-ONLY types: Strictly forbidden for non-admins (enforced with error logging).
+ *      * DEDUPLICATION: If an admin is also the assigned salesperson, exactly ONE copy is sent.
+ *      * Never broadcasts to "all salespersons" or "all staff".
+ * 2. Instant Event Triggers:
+ *    - onClientAssignedNotification: Customer assigned / reassigned (NEVER on document CREATE / signup)
  *    - onOrderCreatedNotification: New PO Request (Awaiting Quote) & lastOrderAt updates
  *    - onPaymentSubmissionNotification: Payment submitted (UTR), verified, or rejected
  *    - onLeadAssignedNotification: Admin assigns or reassigns lead to salesperson
- * 2. Scheduled Daily Reminders & Cleanup:
+ * 3. Scheduled Daily Reminders & Cleanup:
  *    - dailyStaffRemindersScheduled (Every day at 09:00 Asia/Kolkata)
  *    - runNotificationCheck: Admin callable with { dryRun: true }
- * 3. Web Push Notification Trigger:
- *    - sendPushOnStaffNotification (FCM push to staff devices with automatic token pruning)
+ * 4. Web Push Notification Trigger:
+ *    - sendPushOnStaffNotification: FCM push using production PORTAL_BASE_URL (never localhost),
+ *      skipping & pruning localhost tokens, and grouping bursts (>3 within 60s for admins).
  */
 
 const { onDocumentWritten, onDocumentCreated } = require('firebase-functions/v2/firestore');
@@ -27,6 +36,22 @@ if (!admin.apps.length) {
 }
 
 const REGION = 'asia-south1';
+
+/**
+ * Production Portal Base URL used for push notification deep links.
+ * Always absolute production URL for FCM clicks; relative paths stored in Firestore docs.
+ */
+const PORTAL_BASE_URL = (process.env.PORTAL_BASE_URL || 'https://portal.itacon.in').replace(/\/$/, '');
+
+/**
+ * Admin-only notification types that must NEVER be dispatched to any employee or non-admin.
+ */
+const ADMIN_ONLY_TYPES = new Set([
+  'customer_unassigned_24h',
+  'payment_action_verify',
+  'admin_weekly_summary',
+  'system_alert',
+]);
 
 /**
  * Parses any Firestore timestamp, string, or number to a JavaScript Date object.
@@ -59,6 +84,34 @@ function getKolkataDateString(date = new Date()) {
 }
 
 /**
+ * Helper to check whether a role string or category belongs to an admin-level user.
+ * Recognizes: admin, superadmin, super_admin, manager.
+ */
+function isAdminRole(role, userCategory) {
+  const r = (role || '').toLowerCase().trim();
+  const c = (userCategory || '').toLowerCase().trim();
+  return (
+    r === 'admin' ||
+    r === 'superadmin' ||
+    r === 'super_admin' ||
+    r === 'manager' ||
+    c === 'admin' ||
+    c === 'manager'
+  );
+}
+
+/**
+ * Helper to check whether user is a designer.
+ * RULE C: Designers get NO sales/customer/payment/lead notifications.
+ */
+function isDesignerUser(data) {
+  if (!data) return false;
+  const r = (data.role || '').toLowerCase().trim();
+  const c = (data.userCategory || '').toLowerCase().trim();
+  return r === 'designer' || c === 'designer' || Boolean(data.designerId);
+}
+
+/**
  * Checks if a user is a staff member.
  */
 function isStaffUser(data) {
@@ -84,20 +137,21 @@ function isStaffUser(data) {
  * Fetches all active admin UIDs from the users collection.
  */
 async function getActiveAdminUids(db) {
-  const adminsSnap = await db.collection('users')
-    .where('role', 'in', ['admin', 'superadmin', 'super_admin', 'manager'])
-    .get();
-
+  const usersSnap = await db.collection('users').get();
   const admins = [];
-  adminsSnap.docs.forEach((doc) => {
+
+  usersSnap.docs.forEach((doc) => {
     const data = doc.data() || {};
     const status = (data.status || 'active').toLowerCase().trim();
     if (status !== 'inactive' && status !== 'blocked') {
-      admins.push({
-        uid: doc.id,
-        name: data.name || data.fullName || 'Administrator',
-        role: data.role || 'admin',
-      });
+      if (isAdminRole(data.role, data.userCategory)) {
+        admins.push({
+          uid: doc.id,
+          name: data.name || data.fullName || 'Administrator',
+          role: data.role || 'admin',
+          audience: 'admin',
+        });
+      }
     }
   });
 
@@ -105,8 +159,181 @@ async function getActiveAdminUids(db) {
 }
 
 /**
+ * Centralized Recipient Resolution Function used across ALL triggers and daily scheduled jobs.
+ *
+ * Enforces:
+ * - RULE A: Admins get EVERYTHING across all customers, leads, orders, and payments.
+ * - RULE B: Employees (salespersons) get ONLY their own assigned items.
+ * - RULE C: Designers get NO sales/customer/payment/lead notifications.
+ * - ADMIN-ONLY types: Strictly forbidden for non-admins (refuses & logs error).
+ * - DEDUPLICATION: If an admin is also the assigned salesperson, exactly ONE copy is delivered.
+ * - CURRENT DATA: Always evaluates current salesperson assignment at send time.
+ * - NO BROADCAST: Never broadcasts to all salespersons or all staff.
+ * - CUSTOMER WITHOUT SALESPERSON: Routes to admins only.
+ *
+ * @param {admin.firestore.Firestore} db
+ * @param {string} type Notification type
+ * @param {object} refs Entity references and payload data
+ * @returns {Promise<Array<{ uid: string, role: string, audience: 'admin'|'salesperson', name?: string, assignedSpName?: string }>>}
+ */
+async function resolveRecipients(db, type, refs = {}) {
+  const recipientsMap = new Map();
+
+  // 1. RULE A — Admins get everything
+  const activeAdmins = await getActiveAdminUids(db);
+  for (const adminUser of activeAdmins) {
+    recipientsMap.set(adminUser.uid, {
+      uid: adminUser.uid,
+      role: adminUser.role,
+      audience: 'admin',
+      name: adminUser.name,
+    });
+  }
+
+  // 2. Admin-only notification type check
+  if (ADMIN_ONLY_TYPES.has(type)) {
+    if (refs.salespersonId || refs.salesPersonId || refs.newSpId) {
+      logger.error(`[resolveRecipients] Security violation: Attempted to send admin-only notification '${type}' to employee (${refs.salespersonId || refs.salesPersonId || refs.newSpId}). Blocked.`);
+    }
+    return Array.from(recipientsMap.values());
+  }
+
+  // 3. RULE B — Resolve the CURRENT assigned salesperson for this specific entity
+  let spId = '';
+
+  if (refs.newSpId) {
+    spId = String(refs.newSpId).trim();
+  } else if (refs.salespersonId || refs.salesPersonId) {
+    spId = String(refs.salespersonId || refs.salesPersonId).trim();
+  } else if (refs.customerData) {
+    spId = String(refs.customerData.salesPersonId || refs.customerData.assignedSalespersonId || '').trim();
+  } else if (refs.customerId) {
+    try {
+      const cDoc = await db.collection('users').doc(refs.customerId).get();
+      if (cDoc.exists) {
+        const cData = cDoc.data() || {};
+        spId = String(cData.salesPersonId || cData.assignedSalespersonId || '').trim();
+      }
+    } catch (err) {
+      logger.warn(`[resolveRecipients] Error fetching customer ${refs.customerId}:`, err);
+    }
+  } else if (refs.orderData) {
+    // Current customer assignment takes precedence if order belongs to a customer
+    const custId = refs.orderData.userId || refs.orderData.customerId;
+    if (custId) {
+      try {
+        const cDoc = await db.collection('users').doc(custId).get();
+        if (cDoc.exists) {
+          const cData = cDoc.data() || {};
+          spId = String(cData.salesPersonId || cData.assignedSalespersonId || '').trim();
+        }
+      } catch (err) {
+        logger.warn(`[resolveRecipients] Error fetching customer ${custId} for order:`, err);
+      }
+    }
+    if (!spId) {
+      spId = String(refs.orderData.salesPersonId || refs.orderData.salespersonId || '').trim();
+    }
+  } else if (refs.orderId) {
+    try {
+      const oDoc = await db.collection('orders').doc(refs.orderId).get();
+      if (oDoc.exists) {
+        const oData = oDoc.data() || {};
+        const custId = oData.userId || oData.customerId;
+        if (custId) {
+          const cDoc = await db.collection('users').doc(custId).get();
+          if (cDoc.exists) {
+            const cData = cDoc.data() || {};
+            spId = String(cData.salesPersonId || cData.assignedSalespersonId || '').trim();
+          }
+        }
+        if (!spId) {
+          spId = String(oData.salesPersonId || oData.salespersonId || '').trim();
+        }
+      }
+    } catch (err) {
+      logger.warn(`[resolveRecipients] Error fetching order ${refs.orderId}:`, err);
+    }
+  } else if (refs.leadData) {
+    spId = String(refs.leadData.assignedSalespersonId || refs.leadData.salesPersonId || refs.leadData.salespersonId || '').trim();
+  } else if (refs.leadId) {
+    try {
+      const lDoc = await db.collection('leads').doc(refs.leadId).get();
+      if (lDoc.exists) {
+        const lData = lDoc.data() || {};
+        spId = String(lData.assignedSalespersonId || lData.salesPersonId || lData.salespersonId || '').trim();
+      }
+    } catch (err) {
+      logger.warn(`[resolveRecipients] Error fetching lead ${refs.leadId}:`, err);
+    }
+  } else if (refs.followUpData) {
+    spId = String(refs.followUpData.salespersonId || refs.followUpData.salesPersonId || '').trim();
+  } else if (refs.followUpId) {
+    try {
+      const fuDoc = await db.collection('followUps').doc(refs.followUpId).get();
+      if (fuDoc.exists) {
+        const fuData = fuDoc.data() || {};
+        spId = String(fuData.salespersonId || fuData.salesPersonId || '').trim();
+      }
+    } catch (err) {
+      logger.warn(`[resolveRecipients] Error fetching followUp ${refs.followUpId}:`, err);
+    }
+  }
+
+  // If customer or entity has no salesperson assigned -> admins only!
+  if (!spId) {
+    return Array.from(recipientsMap.values());
+  }
+
+  // If the assigned salesperson is ALREADY an admin -> ONE copy (no duplicate)
+  if (recipientsMap.has(spId)) {
+    return Array.from(recipientsMap.values());
+  }
+
+  // 4. Validate salesperson account in Firestore
+  try {
+    const spDoc = await db.collection('users').doc(spId).get();
+    if (spDoc.exists) {
+      const spData = spDoc.data() || {};
+      const status = (spData.status || 'active').toLowerCase().trim();
+
+      if (status === 'inactive' || status === 'blocked') {
+        logger.info(`[resolveRecipients] Salesperson ${spId} is ${status}; skipping notification.`);
+        return Array.from(recipientsMap.values());
+      }
+
+      // RULE C — Designers get NO sales/customer/payment/lead notifications
+      if (isDesignerUser(spData)) {
+        logger.warn(`[resolveRecipients] User ${spId} is a designer; designers cannot receive ${type} notifications.`);
+        return Array.from(recipientsMap.values());
+      }
+
+      const spName = spData.name || spData.fullName || 'Sales Representative';
+
+      // Propagate assigned salesperson name to admin notification copies
+      for (const adminEntry of recipientsMap.values()) {
+        adminEntry.assignedSpName = spName;
+      }
+
+      recipientsMap.set(spId, {
+        uid: spId,
+        role: spData.role || 'salesperson',
+        audience: 'salesperson',
+        name: spName,
+      });
+    } else {
+      logger.warn(`[resolveRecipients] Salesperson ${spId} user doc does not exist.`);
+    }
+  } catch (err) {
+    logger.error(`[resolveRecipients] Error verifying salesperson ${spId}:`, err);
+  }
+
+  return Array.from(recipientsMap.values());
+}
+
+/**
  * Atomically creates a staff notification document if a duplicate dedupeKey does not exist.
- * Deterministic doc ID: `${recipientUid}_${dedupeKey}` ensures zero duplicate writes.
+ * Enforces audience tags, relative links only, and admin-only type protection.
  */
 async function createNotificationIfNew(db, notifData, dryRun = false) {
   if (!notifData.recipientUid || !notifData.dedupeKey) {
@@ -114,13 +341,25 @@ async function createNotificationIfNew(db, notifData, dryRun = false) {
     return null;
   }
 
+  const audience = notifData.audience || (isAdminRole(notifData.recipientRole) ? 'admin' : 'salesperson');
+
+  // Enforce admin-only type protection
+  if (audience !== 'admin' && ADMIN_ONLY_TYPES.has(notifData.type)) {
+    logger.error(`[NotificationEngine:Security] Attempted to create admin-only notification '${notifData.type}' for non-admin recipient ${notifData.recipientUid}. Blocked.`);
+    return null;
+  }
+
+  // Enforce strictly RELATIVE links only (never full URLs, never localhost)
+  let relativeLink = (notifData.link || '/').replace(/^https?:\/\/[^\/]+/, '');
+  if (!relativeLink.startsWith('/')) relativeLink = '/' + relativeLink;
+
   // Safe doc ID: replace slashes and spaces
   const safeDedupe = String(notifData.dedupeKey).replace(/[\/\s]/g, '_');
   const docId = `${notifData.recipientUid}_${safeDedupe}`;
   const notifRef = db.collection('staffNotifications').doc(docId);
 
   if (dryRun) {
-    return { id: docId, ...notifData, isDryRun: true };
+    return { id: docId, ...notifData, link: relativeLink, audience, isDryRun: true };
   }
 
   const existingDoc = await notifRef.get();
@@ -130,11 +369,12 @@ async function createNotificationIfNew(db, notifData, dryRun = false) {
 
   const payload = {
     recipientUid: notifData.recipientUid,
-    recipientRole: notifData.recipientRole || 'salesperson',
+    recipientRole: notifData.recipientRole || (audience === 'admin' ? 'admin' : 'salesperson'),
+    audience,
     type: notifData.type,
     title: notifData.title,
     body: notifData.body,
-    link: notifData.link || '/',
+    link: relativeLink,
     refs: notifData.refs || {},
     priority: notifData.priority || 'normal',
     read: false,
@@ -154,8 +394,13 @@ async function createNotificationIfNew(db, notifData, dryRun = false) {
 
 /**
  * Trigger: onClientAssignedNotification
- * Fires when a customer document in users/{userId} is written.
- * Notifies the assigned salesperson ("New customer: <firm>") or admins if unassigned.
+ * Fires when a customer document in users/{userId} is updated.
+ *
+ * RULES:
+ * 1. Do NOT send any notification when a user document is CREATED (customer is onboarding).
+ * 2. Send "New customer assigned: <firm>" ONLY when salesperson field changes from empty -> salesperson,
+ *    or on reassignment (Salesperson A -> Salesperson B).
+ * 3. On reassignment, ONLY the new salesperson is notified (+ all admins). Old salesperson gets nothing.
  */
 exports.onClientAssignedNotification = onDocumentWritten(
   {
@@ -169,55 +414,69 @@ exports.onClientAssignedNotification = onDocumentWritten(
     const after = event.data.after.data();
     const before = event.data.before ? event.data.before.data() : null;
 
-    if (!after || isStaffUser(after)) {
+    // RULE 1.1: Do NOT send any notification when a user document is CREATED
+    if (!before || !after) {
+      return;
+    }
+
+    if (isStaffUser(after)) {
       return; // Skip staff profiles
     }
 
     const newSpId = (after.salesPersonId || after.assignedSalespersonId || '').toString().trim();
-    const oldSpId = before ? (before.salesPersonId || before.assignedSalespersonId || '').toString().trim() : '';
+    const oldSpId = (before.salesPersonId || before.assignedSalespersonId || '').toString().trim();
+
+    // RULE 1.2: Send ONLY when salesperson link is actually set (empty -> salesperson, or reassigned)
+    const hasSpChanged = Boolean(newSpId) && newSpId !== oldSpId;
+    if (!hasSpChanged) {
+      return;
+    }
 
     const firmName = after.companyName || after.businessName || after.firmName || after.name || after.fullName || 'New Client';
-    const isNew = !before;
-    const hasSpChanged = isNew ? Boolean(newSpId) : (newSpId && newSpId !== oldSpId);
+    const isReassigned = Boolean(oldSpId);
 
-    if (hasSpChanged) {
+    const recipients = await resolveRecipients(db, 'customer_assigned', {
+      customerId: userId,
+      customerData: after,
+      newSpId,
+    });
+
+    for (const r of recipients) {
+      const isAdmin = r.audience === 'admin';
+      const title = isAdmin
+        ? (isReassigned ? 'Customer Reassigned' : 'New Customer Assigned')
+        : (isReassigned ? 'Customer Reassigned to You' : 'New Customer Assigned');
+
+      const body = isAdmin
+        ? (isReassigned
+            ? `Customer ${firmName} reassigned to ${r.uid === newSpId ? 'you' : (r.assignedSpName || 'salesperson')}`
+            : `New customer assigned: ${firmName} (${r.assignedSpName || 'salesperson'})`)
+        : (isReassigned
+            ? `Customer ${firmName} reassigned to you`
+            : `New customer: ${firmName}`);
+
       await createNotificationIfNew(db, {
-        recipientUid: newSpId,
-        recipientRole: 'salesperson',
+        recipientUid: r.uid,
+        recipientRole: r.role,
+        audience: r.audience,
         type: 'customer_assigned',
-        title: 'New Customer Assigned',
-        body: `New customer: ${firmName}`,
+        title,
+        body,
         link: `/customers/${userId}`,
         refs: { customerId: userId },
         priority: 'normal',
         dedupeKey: `custAssigned_${userId}_${newSpId}`,
       });
-      logger.info(`[NotificationEngine:CustomerAssigned] Notified salesperson ${newSpId} for customer ${userId}`);
-    } else if (isNew && !newSpId) {
-      // Customer registered with no salesperson -> notify admins
-      const admins = await getActiveAdminUids(db);
-      for (const adminUser of admins) {
-        await createNotificationIfNew(db, {
-          recipientUid: adminUser.uid,
-          recipientRole: adminUser.role,
-          type: 'customer_assigned',
-          title: 'New Unassigned Customer',
-          body: `New customer with no salesperson: ${firmName}`,
-          link: `/customers/${userId}`,
-          refs: { customerId: userId },
-          priority: 'normal',
-          dedupeKey: `custUnassigned_${userId}`,
-        });
-      }
-      logger.info(`[NotificationEngine:CustomerAssigned] Notified admins for unassigned customer ${userId}`);
     }
+
+    logger.info(`[NotificationEngine:CustomerAssigned] Notified ${recipients.length} recipients for customer ${userId} assigned to ${newSpId}`);
   }
 );
 
 /**
  * Trigger: onOrderCreatedNotification
  * Fires when an order in orders/{orderId} is written.
- * 1. If Awaiting Quote (pending_rate / submitted / pending_quote): notifies salesperson + admins.
+ * 1. If Awaiting Quote (pending_rate / submitted / pending_quote): notifies assigned salesperson + all admins.
  * 2. Updates customer's lastOrderAt field.
  */
 exports.onOrderCreatedNotification = onDocumentWritten(
@@ -265,17 +524,27 @@ exports.onOrderCreatedNotification = onDocumentWritten(
     const transitionedToAwaiting = !before || (isAwaitingQuote && oldStatus !== status);
 
     if (isAwaitingQuote && transitionedToAwaiting) {
-      const spId = (after.salesPersonId || after.salespersonId || '').toString().trim();
+      const recipients = await resolveRecipients(db, 'po_request', {
+        orderId,
+        customerId,
+        orderData: after,
+      });
+
       const dedupeKey = `poRequest_${orderId}_awaitingQuote`;
+      for (const r of recipients) {
+        const isAdmin = r.audience === 'admin';
+        const title = isAdmin ? 'New Client PO Request' : 'New PO Request';
+        const body = isAdmin
+          ? `New PO from ${clientName} (${orderRef}) — Awaiting Quote`
+          : `PO Request for ${clientName} (${orderRef}) — Awaiting Quote`;
 
-      // Notify assigned salesperson
-      if (spId) {
         await createNotificationIfNew(db, {
-          recipientUid: spId,
-          recipientRole: 'salesperson',
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
           type: 'po_request',
-          title: 'New PO Request',
-          body: `PO Request for ${clientName} (${orderRef}) — Awaiting Quote`,
+          title,
+          body,
           link: `/orders?search=${encodeURIComponent(orderRef)}`,
           refs: { orderId, customerId },
           priority: 'normal',
@@ -283,22 +552,7 @@ exports.onOrderCreatedNotification = onDocumentWritten(
         });
       }
 
-      // Notify admins
-      const admins = await getActiveAdminUids(db);
-      for (const adminUser of admins) {
-        await createNotificationIfNew(db, {
-          recipientUid: adminUser.uid,
-          recipientRole: adminUser.role,
-          type: 'po_request',
-          title: 'New Client PO Request',
-          body: `New PO from ${clientName} (${orderRef}) — Awaiting Quote`,
-          link: `/orders?search=${encodeURIComponent(orderRef)}`,
-          refs: { orderId, customerId },
-          priority: 'normal',
-          dedupeKey,
-        });
-      }
-      logger.info(`[NotificationEngine:PORequest] Dispatched awaiting quote notification for order ${orderId}`);
+      logger.info(`[NotificationEngine:PORequest] Dispatched awaiting quote notification for order ${orderId} to ${recipients.length} recipients`);
     }
   }
 );
@@ -306,9 +560,9 @@ exports.onOrderCreatedNotification = onDocumentWritten(
 /**
  * Trigger: onPaymentSubmissionNotification
  * Fires when paymentSubmissions/{subId} is written.
- * - Created (pending_verification): Salesperson + Admins (High priority for admins: "Verify payment")
- * - Status verified: Salesperson
- * - Status rejected: Salesperson (High priority)
+ * - Created / pending_verification: Assigned salesperson ('payment_submitted') + Admins ('payment_action_verify' high priority)
+ * - Status verified: Assigned salesperson + Admins ('payment_verified')
+ * - Status rejected: Assigned salesperson + Admins ('payment_rejected' high priority)
  */
 exports.onPaymentSubmissionNotification = onDocumentWritten(
   {
@@ -348,79 +602,92 @@ exports.onPaymentSubmissionNotification = onDocumentWritten(
     const utr = after.utrNumber || after.utrNormalized || 'UTR';
     const status = (after.status || 'pending_verification').toLowerCase().trim();
     const oldStatus = before ? (before.status || '').toLowerCase().trim() : '';
+    const paymentLink = `/orders?tab=payments&search=${encodeURIComponent(utr)}`;
 
     // CASE 1: Payment Submitted (Newly created or entered pending_verification)
     if (status === 'pending_verification' && (!before || oldStatus !== 'pending_verification')) {
-      const link = `/orders?tab=payments&search=${encodeURIComponent(utr)}`;
+      const recipients = await resolveRecipients(db, 'payment_submitted', {
+        orderId,
+        customerId: after.customerId,
+        salespersonId: spId,
+      });
 
-      // 1. Notify salesperson
-      if (spId) {
+      for (const r of recipients) {
+        const isAdmin = r.audience === 'admin';
+        // Admins receive the high-priority action alert to verify payment
+        const title = isAdmin ? 'Verify Payment' : 'Payment Submitted';
+        const body = isAdmin
+          ? `₹${amount} submitted for ${customerName} (UTR: ${utr}). Please verify.`
+          : `Payment of ₹${amount} (UTR: ${utr}) submitted for Order ${orderRef}`;
+        const type = isAdmin ? 'payment_action_verify' : 'payment_submitted';
+        const priority = isAdmin ? 'high' : 'normal';
+        const dedupeKey = isAdmin ? `paySubmittedAdmin_${subId}` : `paySubmitted_${subId}`;
+
         await createNotificationIfNew(db, {
-          recipientUid: spId,
-          recipientRole: 'salesperson',
-          type: 'payment_submitted',
-          title: 'Payment Submitted',
-          body: `Payment of ₹${amount} (UTR: ${utr}) submitted for Order ${orderRef}`,
-          link,
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
+          type,
+          title,
+          body,
+          link: paymentLink,
           refs: { orderId, customerId: after.customerId },
-          priority: 'normal',
-          dedupeKey: `paySubmitted_${subId}`,
+          priority,
+          dedupeKey,
         });
       }
-
-      // 2. Notify admins (high priority)
-      const admins = await getActiveAdminUids(db);
-      for (const adminUser of admins) {
-        await createNotificationIfNew(db, {
-          recipientUid: adminUser.uid,
-          recipientRole: adminUser.role,
-          type: 'payment_submitted',
-          title: 'Verify Payment',
-          body: `₹${amount} submitted for ${customerName} (UTR: ${utr}). Please verify.`,
-          link,
-          refs: { orderId, customerId: after.customerId },
-          priority: 'high',
-          dedupeKey: `paySubmittedAdmin_${subId}`,
-        });
-      }
-      logger.info(`[NotificationEngine:Payment] Notified payment submission ${subId}`);
+      logger.info(`[NotificationEngine:Payment] Notified payment submission ${subId} to ${recipients.length} recipients`);
     }
 
     // CASE 2: Payment Verified
     if (status === 'verified' && oldStatus !== 'verified') {
-      if (spId) {
+      const recipients = await resolveRecipients(db, 'payment_verified', {
+        orderId,
+        customerId: after.customerId,
+        salespersonId: spId,
+      });
+
+      for (const r of recipients) {
         await createNotificationIfNew(db, {
-          recipientUid: spId,
-          recipientRole: 'salesperson',
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
           type: 'payment_verified',
           title: 'Payment Verified',
           body: `Payment of ₹${amount} verified for Order ${orderRef}`,
-          link: `/orders?tab=payments&search=${encodeURIComponent(utr)}`,
+          link: paymentLink,
           refs: { orderId, customerId: after.customerId },
           priority: 'normal',
           dedupeKey: `payVerified_${subId}`,
         });
       }
-      logger.info(`[NotificationEngine:PaymentVerified] Notified salesperson ${spId} for ${subId}`);
+      logger.info(`[NotificationEngine:PaymentVerified] Notified payment verification ${subId} to ${recipients.length} recipients`);
     }
 
     // CASE 3: Payment Rejected
     if (status === 'rejected' && oldStatus !== 'rejected') {
       const reason = after.rejectionReason ? ` Reason: ${after.rejectionReason}` : '';
-      if (spId) {
+      const recipients = await resolveRecipients(db, 'payment_rejected', {
+        orderId,
+        customerId: after.customerId,
+        salespersonId: spId,
+      });
+
+      for (const r of recipients) {
         await createNotificationIfNew(db, {
-          recipientUid: spId,
-          recipientRole: 'salesperson',
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
           type: 'payment_rejected',
           title: 'Payment Rejected',
           body: `Payment of ₹${amount} rejected for Order ${orderRef}.${reason}`,
-          link: `/orders?tab=payments&search=${encodeURIComponent(utr)}`,
+          link: paymentLink,
           refs: { orderId, customerId: after.customerId },
           priority: 'high',
           dedupeKey: `payRejected_${subId}`,
         });
       }
-      logger.info(`[NotificationEngine:PaymentRejected] Notified salesperson ${spId} for ${subId}`);
+      logger.info(`[NotificationEngine:PaymentRejected] Notified payment rejection ${subId} to ${recipients.length} recipients`);
     }
   }
 );
@@ -428,7 +695,8 @@ exports.onPaymentSubmissionNotification = onDocumentWritten(
 /**
  * Trigger: onLeadAssignedNotification
  * Fires when leads/{leadId} is written.
- * Notifies the new salesperson when a lead is assigned or reassigned.
+ * Notifies the new salesperson when a lead is assigned or reassigned (+ all admins).
+ * Old salesperson gets nothing.
  */
 exports.onLeadAssignedNotification = onDocumentWritten(
   {
@@ -456,18 +724,36 @@ exports.onLeadAssignedNotification = onDocumentWritten(
       const leadName = after.name || 'New Lead';
       const company = after.companyName ? ` (${after.companyName})` : '';
 
-      await createNotificationIfNew(db, {
-        recipientUid: newSpId,
-        recipientRole: 'salesperson',
-        type: 'lead_assigned',
-        title: isReassigned ? 'Lead Reassigned to You' : 'New Lead Assigned',
-        body: `Lead: ${leadName}${company}`,
-        link: `/leads/${leadId}`,
-        refs: { leadId },
-        priority: 'normal',
-        dedupeKey: `leadAssign_${leadId}_${newSpId}`,
+      const recipients = await resolveRecipients(db, 'lead_assigned', {
+        leadId,
+        leadData: after,
+        newSpId,
       });
-      logger.info(`[NotificationEngine:LeadAssigned] Notified salesperson ${newSpId} for lead ${leadId}`);
+
+      for (const r of recipients) {
+        const isAdmin = r.audience === 'admin';
+        const title = isAdmin
+          ? (isReassigned ? 'Lead Reassigned' : 'New Lead Assigned')
+          : (isReassigned ? 'Lead Reassigned to You' : 'New Lead Assigned');
+        const body = isAdmin
+          ? `Lead: ${leadName}${company} (assigned to ${r.assignedSpName || 'salesperson'})`
+          : `Lead: ${leadName}${company}`;
+
+        await createNotificationIfNew(db, {
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
+          type: 'lead_assigned',
+          title,
+          body,
+          link: `/leads/${leadId}`,
+          refs: { leadId },
+          priority: 'normal',
+          dedupeKey: `leadAssign_${leadId}_${newSpId}`,
+        });
+      }
+
+      logger.info(`[NotificationEngine:LeadAssigned] Notified ${recipients.length} recipients for lead ${leadId} assigned to ${newSpId}`);
     }
   }
 );
@@ -478,7 +764,7 @@ exports.onLeadAssignedNotification = onDocumentWritten(
 
 /**
  * Core daily reminder checks implementation.
- * Runs both during scheduled 09:00 IST invocation AND via the runNotificationCheck callable.
+ * Runs during scheduled 09:00 IST invocation AND via the runNotificationCheck callable.
  */
 async function executeDailyNotificationCheck(options = {}) {
   const dryRun = Boolean(options.dryRun);
@@ -509,6 +795,7 @@ async function executeDailyNotificationCheck(options = {}) {
 
   const generatedNotifications = [];
   const counts = {
+    customerUnassigned24h: 0,
     poApprovedUnpaid: 0,
     paymentOverdue: 0,
     customerInactive: 0,
@@ -518,7 +805,55 @@ async function executeDailyNotificationCheck(options = {}) {
     total: 0,
   };
 
-  const admins = await getActiveAdminUids(db);
+  // ---------------------------------------------------------------------------
+  // 0. Customers registered > 24 hours ago who are STILL unassigned (ADMINS ONLY)
+  // ---------------------------------------------------------------------------
+  try {
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const usersSnap = await db.collection('users').get();
+
+    for (const doc of usersSnap.docs) {
+      const user = doc.data() || {};
+      if (isStaffUser(user)) continue;
+
+      const spId = (user.salesPersonId || user.assignedSalespersonId || '').toString().trim();
+      if (spId) continue; // Already assigned
+
+      const createdDate = parseDate(user.createdAt);
+      if (!createdDate || createdDate > twentyFourHoursAgo) continue; // Under 24h old
+
+      const custId = doc.id;
+      const firm = user.companyName || user.businessName || user.firmName || user.name || 'Client';
+
+      const recipients = await resolveRecipients(db, 'customer_unassigned_24h', {
+        customerId: custId,
+        customerData: user,
+      });
+
+      for (const r of recipients) {
+        const n = await createNotificationIfNew(db, {
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
+          type: 'customer_unassigned_24h',
+          title: 'Customer Still Unassigned (24h+)',
+          body: `Customer ${firm} registered 24h+ ago with no salesperson assigned.`,
+          link: `/customers/${custId}`,
+          refs: { customerId: custId },
+          priority: 'normal',
+          dedupeKey: `custUnassigned24h_${custId}`,
+          skipIndividualPush: true,
+        }, dryRun);
+
+        if (n) {
+          generatedNotifications.push(n);
+          counts.customerUnassigned24h++;
+        }
+      }
+    }
+  } catch (err) {
+    logger.error('[DailyNotificationCheck:Unassigned24h] Error:', err);
+  }
 
   // ---------------------------------------------------------------------------
   // A. PO approved but no payment submitted for 2, 5, or 7 days
@@ -540,7 +875,6 @@ async function executeDailyNotificationCheck(options = {}) {
       if (!orderDate) continue;
 
       const elapsedDays = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
-      const spId = (order.salesPersonId || order.salespersonId || '').toString().trim();
       const orderRef = order.orderReference || order.poNumber || doc.id;
       const firm = order.companyName || order.customerName || 'Client';
 
@@ -548,47 +882,35 @@ async function executeDailyNotificationCheck(options = {}) {
         const isEscalation = elapsedDays >= settings.adminPaymentEscalationDay;
         const priority = isEscalation ? 'high' : 'normal';
 
-        // Notify Salesperson
-        if (spId) {
+        const recipients = await resolveRecipients(db, 'po_approved_unpaid', {
+          orderId: doc.id,
+          customerId: order.userId || order.customerId,
+          orderData: order,
+        });
+
+        for (const r of recipients) {
+          const isAdmin = r.audience === 'admin';
+          const title = isAdmin && isEscalation
+            ? `Payment Pending Escalation (Day ${elapsedDays})`
+            : `Payment Pending (Day ${elapsedDays})`;
+
           const n = await createNotificationIfNew(db, {
-            recipientUid: spId,
-            recipientRole: 'salesperson',
+            recipientUid: r.uid,
+            recipientRole: r.role,
+            audience: r.audience,
             type: 'po_approved_unpaid',
-            title: `Payment Pending (Day ${elapsedDays})`,
+            title,
             body: `Order ${orderRef} for ${firm} approved ${elapsedDays} days ago; payment not received.`,
             link: `/orders?search=${encodeURIComponent(orderRef)}`,
             refs: { orderId: doc.id, customerId: order.userId || order.customerId },
             priority,
-            dedupeKey: `payPending_${doc.id}_day${elapsedDays}`,
+            dedupeKey: isAdmin ? `payPendingAdmin_${doc.id}_day${elapsedDays}` : `payPending_${doc.id}_day${elapsedDays}`,
             skipIndividualPush: true,
           }, dryRun);
 
           if (n) {
             generatedNotifications.push(n);
             counts.poApprovedUnpaid++;
-          }
-        }
-
-        // Notify Admins on Day 7 escalation
-        if (isEscalation) {
-          for (const a of admins) {
-            const n = await createNotificationIfNew(db, {
-              recipientUid: a.uid,
-              recipientRole: a.role,
-              type: 'po_approved_unpaid',
-              title: `Payment Pending Escalation (Day ${elapsedDays})`,
-              body: `Order ${orderRef} for ${firm} approved ${elapsedDays} days ago and unpaid.`,
-              link: `/orders?search=${encodeURIComponent(orderRef)}`,
-              refs: { orderId: doc.id, customerId: order.userId || order.customerId },
-              priority: 'high',
-              dedupeKey: `payPendingAdmin_${doc.id}_day${elapsedDays}`,
-              skipIndividualPush: true,
-            }, dryRun);
-
-            if (n) {
-              generatedNotifications.push(n);
-              counts.poApprovedUnpaid++;
-            }
           }
         }
       }
@@ -629,39 +951,28 @@ async function executeDailyNotificationCheck(options = {}) {
         const unpaidAmount = Number(order.grandTotal || order.totalAmount || 0).toLocaleString('en-IN');
         const orderRef = order.orderReference || order.poNumber || doc.id;
         const firm = order.companyName || order.customerName || 'Client';
-        const spId = (order.salesPersonId || order.salespersonId || '').toString().trim();
 
-        const notifPayload = {
-          type: 'payment_overdue',
-          title: 'Payment Overdue',
-          body: `Payment overdue: ₹${unpaidAmount} since ${dueDateFormatted} (${overdueDays} days late) for ${firm}`,
-          link: `/orders?search=${encodeURIComponent(orderRef)}`,
-          refs: { orderId: doc.id, customerId: order.userId || order.customerId },
-          priority: 'high',
-          dedupeKey: `overdue_${doc.id}_${todayYmd}`,
-          skipIndividualPush: true,
-        };
+        const recipients = await resolveRecipients(db, 'payment_overdue', {
+          orderId: doc.id,
+          customerId: order.userId || order.customerId,
+          orderData: order,
+        });
 
-        // Notify salesperson
-        if (spId) {
+        for (const r of recipients) {
           const n = await createNotificationIfNew(db, {
-            ...notifPayload,
-            recipientUid: spId,
-            recipientRole: 'salesperson',
+            recipientUid: r.uid,
+            recipientRole: r.role,
+            audience: r.audience,
+            type: 'payment_overdue',
+            title: 'Payment Overdue',
+            body: `Payment overdue: ₹${unpaidAmount} since ${dueDateFormatted} (${overdueDays} days late) for ${firm}`,
+            link: `/orders?search=${encodeURIComponent(orderRef)}`,
+            refs: { orderId: doc.id, customerId: order.userId || order.customerId },
+            priority: 'high',
+            dedupeKey: `overdue_${doc.id}_${todayYmd}`,
+            skipIndividualPush: true,
           }, dryRun);
-          if (n) {
-            generatedNotifications.push(n);
-            counts.paymentOverdue++;
-          }
-        }
 
-        // Notify admins
-        for (const a of admins) {
-          const n = await createNotificationIfNew(db, {
-            ...notifPayload,
-            recipientUid: a.uid,
-            recipientRole: a.role,
-          }, dryRun);
           if (n) {
             generatedNotifications.push(n);
             counts.paymentOverdue++;
@@ -686,9 +997,6 @@ async function executeDailyNotificationCheck(options = {}) {
 
       const custId = doc.id;
       const firm = user.companyName || user.businessName || user.firmName || user.name || 'Client';
-      const spId = (user.salesPersonId || user.assignedSalespersonId || '').toString().trim();
-      const recipients = spId ? [{ uid: spId, role: 'salesperson' }] : admins;
-
       const lastOrderDate = parseDate(user.lastOrderAt);
 
       if (lastOrderDate) {
@@ -706,10 +1014,16 @@ async function executeDailyNotificationCheck(options = {}) {
         else if (inactiveDays >= 30) milestone = 30;
 
         if (milestone > 0) {
+          const recipients = await resolveRecipients(db, 'customer_inactive', {
+            customerId: custId,
+            customerData: user,
+          });
+
           for (const r of recipients) {
             const n = await createNotificationIfNew(db, {
               recipientUid: r.uid,
               recipientRole: r.role,
+              audience: r.audience,
               type: 'customer_inactive',
               title: `No Order in ${milestone} Days`,
               body: `No order in ${milestone} days: ${firm}`,
@@ -733,10 +1047,16 @@ async function executeDailyNotificationCheck(options = {}) {
           const joinedDays = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
           // Between day 7 and day 14
           if (joinedDays >= settings.firstOrderDays && joinedDays < settings.firstOrderDays + 7) {
+            const recipients = await resolveRecipients(db, 'no_first_order', {
+              customerId: custId,
+              customerData: user,
+            });
+
             for (const r of recipients) {
               const n = await createNotificationIfNew(db, {
                 recipientUid: r.uid,
                 recipientRole: r.role,
+                audience: r.audience,
                 type: 'no_first_order',
                 title: 'No First Order Yet',
                 body: `No first order yet: ${firm}`,
@@ -773,29 +1093,34 @@ async function executeDailyNotificationCheck(options = {}) {
       const status = (fu.status || 'scheduled').toLowerCase().trim();
       if (status !== 'scheduled') continue;
 
-      const spId = (fu.salespersonId || '').toString().trim();
-      if (!spId) continue;
-
       const target = fu.targetName || 'Client Follow-up';
       const type = (fu.type || 'activity').toUpperCase();
       const time = fu.dueTime ? ` at ${fu.dueTime}` : '';
 
-      const n = await createNotificationIfNew(db, {
-        recipientUid: spId,
-        recipientRole: 'salesperson',
-        type: 'follow_up_due',
-        title: 'Follow-up Due Today',
-        body: `${type}: ${target}${time}`,
-        link: '/follow-ups',
-        refs: { followUpId: doc.id },
-        priority: 'normal',
-        dedupeKey: `followUp_${doc.id}_${todayYmd}`,
-        skipIndividualPush: true,
-      }, dryRun);
+      const recipients = await resolveRecipients(db, 'follow_up_due', {
+        followUpId: doc.id,
+        followUpData: fu,
+      });
 
-      if (n) {
-        generatedNotifications.push(n);
-        counts.followUpDue++;
+      for (const r of recipients) {
+        const n = await createNotificationIfNew(db, {
+          recipientUid: r.uid,
+          recipientRole: r.role,
+          audience: r.audience,
+          type: 'follow_up_due',
+          title: 'Follow-up Due Today',
+          body: `${type}: ${target}${time}`,
+          link: '/follow-ups',
+          refs: { followUpId: doc.id },
+          priority: 'normal',
+          dedupeKey: `followUp_${doc.id}_${todayYmd}`,
+          skipIndividualPush: true,
+        }, dryRun);
+
+        if (n) {
+          generatedNotifications.push(n);
+          counts.followUpDue++;
+        }
       }
     }
   } catch (err) {
@@ -803,17 +1128,20 @@ async function executeDailyNotificationCheck(options = {}) {
   }
 
   // ---------------------------------------------------------------------------
-  // E. Mondays: Admin Weekly Account Digest Summary
+  // E. Mondays: Admin Weekly Account Digest Summary (ADMINS ONLY)
   // ---------------------------------------------------------------------------
   const kolkataDay = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getDay();
   const isMonday = kolkataDay === 1;
 
   if (isMonday) {
     const summaryText = `${inactiveCustomersCount} customers inactive 30+ days, ${overdueOrdersCount} payments overdue`;
-    for (const a of admins) {
+    const recipients = await resolveRecipients(db, 'admin_weekly_summary', {});
+
+    for (const r of recipients) {
       const n = await createNotificationIfNew(db, {
-        recipientUid: a.uid,
-        recipientRole: a.role,
+        recipientUid: r.uid,
+        recipientRole: r.role,
+        audience: r.audience,
         type: 'admin_weekly_summary',
         title: 'Weekly Account Digest',
         body: summaryText,
@@ -860,7 +1188,6 @@ async function executeDailyNotificationCheck(options = {}) {
     // -------------------------------------------------------------------------
     // G. Grouped Push Notifications for Daily Reminders
     // -------------------------------------------------------------------------
-    // Instead of sending 5 individual pushes, send ONE consolidated push per recipient
     const recipientGroups = new Map();
     generatedNotifications.forEach((notif) => {
       const uid = notif.recipientUid;
@@ -874,7 +1201,37 @@ async function executeDailyNotificationCheck(options = {}) {
         const tokensSnap = await db.collection('staffDevices').doc(uid).collection('tokens').get();
         if (tokensSnap.empty) continue;
 
-        const tokens = tokensSnap.docs.map((d) => d.id);
+        // Skip any token registered from localhost / 127.0.0.1
+        const validTokens = [];
+        const invalidTokens = [];
+
+        for (const tDoc of tokensSnap.docs) {
+          const tData = tDoc.data() || {};
+          const origin = (tData.origin || '').toLowerCase();
+          const hostname = (tData.hostname || '').toLowerCase();
+          if (
+            origin.includes('localhost') ||
+            origin.includes('127.0.0.1') ||
+            hostname.includes('localhost') ||
+            hostname.includes('127.0.0.1')
+          ) {
+            invalidTokens.push(tDoc.id);
+          } else {
+            validTokens.push(tDoc.id);
+          }
+        }
+
+        if (invalidTokens.length > 0) {
+          const batch = db.batch();
+          invalidTokens.forEach((tId) => {
+            batch.delete(db.collection('staffDevices').doc(uid).collection('tokens').doc(tId));
+          });
+          await batch.commit();
+          logger.info(`[DailyNotificationCheck:FCM] Pruned ${invalidTokens.length} localhost tokens for user ${uid}`);
+        }
+
+        if (validTokens.length === 0) continue;
+
         const count = notifs.length;
         const highPriority = notifs.some((n) => n.priority === 'high');
 
@@ -884,13 +1241,14 @@ async function executeDailyNotificationCheck(options = {}) {
           : notifs.map((n) => n.title).slice(0, 3).join(' • ') + (count > 3 ? ` (+${count - 3} more)` : '');
 
         const message = {
-          tokens,
+          tokens: validTokens,
           notification: {
             title: pushTitle,
             body: pushBody,
           },
           data: {
             link: '/notifications',
+            clickUrl: `${PORTAL_BASE_URL}/notifications`,
             type: 'daily_reminder_digest',
             priority: highPriority ? 'high' : 'normal',
           },
@@ -899,7 +1257,7 @@ async function executeDailyNotificationCheck(options = {}) {
               Urgency: highPriority ? 'high' : 'normal',
             },
             fcmOptions: {
-              link: '/notifications',
+              link: `${PORTAL_BASE_URL}/notifications`,
             },
           },
         };
@@ -914,8 +1272,8 @@ async function executeDailyNotificationCheck(options = {}) {
               errCode === 'messaging/registration-token-not-registered' ||
               errCode === 'messaging/invalid-registration-token'
             ) {
-              await db.collection('staffDevices').doc(uid).collection('tokens').doc(tokens[idx]).delete();
-              logger.info(`[NotificationEngine:FCM] Pruned invalid token ${tokens[idx]} for user ${uid}`);
+              await db.collection('staffDevices').doc(uid).collection('tokens').doc(validTokens[idx]).delete();
+              logger.info(`[NotificationEngine:FCM] Pruned invalid token ${validTokens[idx]} for user ${uid}`);
             }
           }
         });
@@ -937,6 +1295,7 @@ async function executeDailyNotificationCheck(options = {}) {
       isMonday,
     },
     sampleNotifications: generatedNotifications.slice(0, 5),
+    generatedNotifications,
   };
 }
 
@@ -995,6 +1354,9 @@ exports.runNotificationCheck = onCall(
  * Trigger: sendPushOnStaffNotification
  * Fires when a new notification is added to staffNotifications/{notifId}.
  * Sends instant push notification to recipient's registered web devices.
+ * - Deep link clickUrl uses production PORTAL_BASE_URL (never localhost).
+ * - Skips and prunes any tokens registered from localhost or 127.0.0.1.
+ * - Groups notifications for admins if > 3 arrive within 60 seconds.
  */
 exports.sendPushOnStaffNotification = onDocumentCreated(
   {
@@ -1022,18 +1384,76 @@ exports.sendPushOnStaffNotification = onDocumentCreated(
         return; // User has no registered devices for web push
       }
 
-      const tokens = tokensSnap.docs.map((d) => d.id);
+      // Filter out and delete tokens registered from localhost or 127.0.0.1
+      const validTokens = [];
+      const invalidTokenIds = [];
+
+      for (const tDoc of tokensSnap.docs) {
+        const tData = tDoc.data() || {};
+        const origin = (tData.origin || '').toLowerCase();
+        const hostname = (tData.hostname || '').toLowerCase();
+
+        if (
+          origin.includes('localhost') ||
+          origin.includes('127.0.0.1') ||
+          hostname.includes('localhost') ||
+          hostname.includes('127.0.0.1')
+        ) {
+          invalidTokenIds.push(tDoc.id);
+        } else {
+          validTokens.push(tDoc.id);
+        }
+      }
+
+      // Prune localhost tokens immediately
+      if (invalidTokenIds.length > 0) {
+        const batch = db.batch();
+        invalidTokenIds.forEach((tId) => {
+          batch.delete(db.collection('staffDevices').doc(uid).collection('tokens').doc(tId));
+        });
+        await batch.commit();
+        logger.info(`[NotificationEngine:FCM] Pruned ${invalidTokenIds.length} localhost tokens for user ${uid}`);
+      }
+
+      if (validTokens.length === 0) {
+        return;
+      }
+
       const isHigh = notif.priority === 'high';
+      const relativeLink = notif.link || '/';
+      const fullClickUrl = `${PORTAL_BASE_URL}${relativeLink}`;
+
+      // Admin Push Grouping:
+      // Group many alerts (e.g. "8 new notifications") instead of one pop-up each,
+      // when more than 3 arrive within a minute for an admin.
+      let pushTitle = notif.title || 'ITACON Management';
+      let pushBody = notif.body || '';
+      let clickUrl = fullClickUrl;
+
+      if (notif.audience === 'admin' || notif.recipientRole === 'admin') {
+        const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+        const recentSnap = await db.collection('staffNotifications')
+          .where('recipientUid', '==', uid)
+          .where('createdAt', '>=', oneMinuteAgo)
+          .get();
+
+        if (recentSnap.size > 3) {
+          pushTitle = `${recentSnap.size} new notifications`;
+          pushBody = `Latest: ${notif.title} — ${notif.body} (+${recentSnap.size - 1} more)`;
+          clickUrl = `${PORTAL_BASE_URL}/notifications`;
+        }
+      }
 
       const message = {
-        tokens,
+        tokens: validTokens,
         notification: {
-          title: notif.title || 'ITACON Management',
-          body: notif.body || '',
+          title: pushTitle,
+          body: pushBody,
         },
         data: {
           notifId: notifId,
-          link: notif.link || '/',
+          link: relativeLink,
+          clickUrl: clickUrl,
           type: notif.type || 'general',
           priority: notif.priority || 'normal',
         },
@@ -1042,7 +1462,7 @@ exports.sendPushOnStaffNotification = onDocumentCreated(
             Urgency: isHigh ? 'high' : 'normal',
           },
           fcmOptions: {
-            link: notif.link || '/',
+            link: clickUrl,
           },
         },
       };
@@ -1057,18 +1477,22 @@ exports.sendPushOnStaffNotification = onDocumentCreated(
             errCode === 'messaging/registration-token-not-registered' ||
             errCode === 'messaging/invalid-registration-token'
           ) {
-            await db.collection('staffDevices').doc(uid).collection('tokens').doc(tokens[idx]).delete();
-            logger.info(`[NotificationEngine:FCM] Pruned invalid token ${tokens[idx]} for user ${uid}`);
+            await db.collection('staffDevices').doc(uid).collection('tokens').doc(validTokens[idx]).delete();
+            logger.info(`[NotificationEngine:FCM] Pruned invalid token ${validTokens[idx]} for user ${uid}`);
           }
         }
       });
 
-      logger.info(`[NotificationEngine:FCM] Sent instant push for ${notifId} to ${response.successCount}/${tokens.length} devices.`);
+      logger.info(`[NotificationEngine:FCM] Sent instant push for ${notifId} to ${response.successCount}/${validTokens.length} devices.`);
     } catch (err) {
       logger.error(`[NotificationEngine:FCM] Failed sending push for ${notifId}:`, err);
     }
   }
 );
 
-// Export core function for direct invocation by tests or CLI
+// Export core functions and helpers for direct invocation by tests or CLI
 exports.executeDailyNotificationCheck = executeDailyNotificationCheck;
+exports.resolveRecipients = resolveRecipients;
+exports.isAdminRole = isAdminRole;
+exports.isDesignerUser = isDesignerUser;
+exports.createNotificationIfNew = createNotificationIfNew;

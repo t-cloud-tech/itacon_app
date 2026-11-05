@@ -30,7 +30,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
   bool _isLoading = true;
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
+  final FocusNode _searchFocusNode = FocusNode(skipTraversal: true);
   bool _isSearchFocused = false;
   String _searchQuery = '';
 
@@ -248,6 +248,7 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                         TextField(
                           controller: _searchController,
                           focusNode: _searchFocusNode,
+                          autofocus: false,
                           onChanged: (val) => setState(() => _searchQuery = val),
                           style: const TextStyle(color: Colors.black87, fontSize: 14),
                           decoration: InputDecoration(
@@ -259,6 +260,8 @@ class _ProductCatalogueScreenState extends State<ProductCatalogueScreen> {
                                     icon: const Icon(Icons.clear_rounded, size: 18),
                                     onPressed: () {
                                       _searchController.clear();
+                                      _searchFocusNode.unfocus();
+                                      FocusManager.instance.primaryFocus?.unfocus();
                                       setState(() => _searchQuery = '');
                                     },
                                   )

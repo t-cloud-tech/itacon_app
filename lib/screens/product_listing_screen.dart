@@ -67,7 +67,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     _searchQuery = widget.initialSearchQuery ?? '';
     _searchController = TextEditingController(text: _searchQuery);
     _scrollController = ScrollController();
-    _searchFocusNode = FocusNode();
+    _searchFocusNode = FocusNode(skipTraversal: true);
 
     _searchFocusNode.addListener(() {
       if (mounted && _isSearchFocused != _searchFocusNode.hasFocus) {
@@ -393,7 +393,7 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
     if (hasSearchFocus || isKeyboardOpen) {
       // Dismiss keyboard and clear focus first, keeping user on current screen
       _searchFocusNode.unfocus();
-      FocusScope.of(context).unfocus();
+      FocusManager.instance.primaryFocus?.unfocus();
       if (_isSearchFocused) {
         setState(() {
           _isSearchFocused = false;
@@ -500,27 +500,63 @@ class _ProductListingScreenState extends State<ProductListingScreen> {
             Container(
               color: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: AppRevolvingBorderSearchBar(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                hintText: 'Search tiles by name, size, surface, color...',
-                onFocusChanged: (focused) {
-                  if (mounted && _isSearchFocused != focused) {
-                    setState(() {
-                      _isSearchFocused = focused;
-                    });
-                  }
-                },
-                onSubmitted: (query) {
-                  if (query.trim().isNotEmpty) {
-                    _appState.recordSearchQuery(query.trim());
-                  }
-                },
-                onClear: () {
-                  setState(() {
-                    _searchQuery = '';
-                  });
-                },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AppRevolvingBorderSearchBar(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      hintText: 'Search tiles by name, size, surface, color...',
+                      onFocusChanged: (focused) {
+                        if (mounted && _isSearchFocused != focused) {
+                          setState(() {
+                            _isSearchFocused = focused;
+                          });
+                        }
+                      },
+                      onSubmitted: (query) {
+                        if (query.trim().isNotEmpty) {
+                          _appState.recordSearchQuery(query.trim());
+                        }
+                      },
+                      onClear: () {
+                        setState(() {
+                          _searchQuery = '';
+                        });
+                      },
+                    ),
+                  ),
+                  if (_isSearchFocused || _searchFocusNode.hasFocus || _searchQuery.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    AppPressable(
+                      onTap: () {
+                        _searchDebounceTimer?.cancel();
+                        _searchController.clear();
+                        _searchFocusNode.unfocus();
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        setState(() {
+                          _searchQuery = '';
+                          _isSearchFocused = false;
+                        });
+                      },
+                      scaleDown: 0.92,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        height: 48,
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          'Cancel',
+                          style: GoogleFonts.inter(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.accentOrange,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
 

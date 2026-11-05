@@ -1350,12 +1350,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Flexible(
               child: Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: AppTheme.textDark,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             if (isVerifiedFromGst) ...[
@@ -1679,56 +1680,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Flexible(
-              child: Text(
-                'GSTIN Number',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            AppPressable(
-              onTap: (_isGstLoading || !canTrigger)
-                  ? null
-                  : () => _performGstAutoFill(_gstController.text.trim()),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: canTrigger && !_isGstLoading
-                      ? AppTheme.primaryNavy
-                      : Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: _isGstLoading
-                    ? const SizedBox(
-                        width: 11,
-                        height: 11,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 1.5),
-                      )
-                    : const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.auto_fix_high_rounded, size: 11, color: Colors.white),
-                          SizedBox(width: 3),
-                          Text(
-                            'Auto-fill',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-          ],
+        const Text(
+          'GSTIN Number',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textDark,
+          ),
         ),
         const SizedBox(height: 6),
         TextField(
@@ -1764,8 +1722,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             prefixIcon: const Icon(Icons.receipt_long_outlined, color: AppTheme.primaryNavy, size: 20),
             suffixIcon: _gstVerified
                 ? const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF059669))
-                : null,
-            hintText: '15-digit GSTIN',
+                : (canTrigger
+                    ? AppPressable(
+                        onTap: (_isGstLoading || !canTrigger)
+                            ? null
+                            : () => _performGstAutoFill(_gstController.text.trim()),
+                        child: _isGstLoading
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(color: AppTheme.primaryNavy, strokeWidth: 1.5),
+                                ),
+                              )
+                            : const Tooltip(
+                                message: 'Auto-fill business details from GST',
+                                child: Icon(Icons.auto_fix_high_rounded, size: 18, color: AppTheme.primaryNavy),
+                              ),
+                      )
+                    : null),
+            hintText: 'Enter GSTIN number (if applicable)',
             hintStyle: const TextStyle(fontSize: 12, color: AppTheme.textSubtle, fontWeight: FontWeight.normal, letterSpacing: 0),
             filled: true,
             fillColor: Colors.white,

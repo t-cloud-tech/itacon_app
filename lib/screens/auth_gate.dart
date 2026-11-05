@@ -121,7 +121,7 @@ class AuthGate extends StatelessWidget {
               debugPrint('[AUTH] Auth state resolved: authenticated=false');
               debugPrint('[AUTH] UID present=false');
             }
-            return const AuthScreen(initialMode: AuthViewMode.login);
+            return const AuthScreen(initialMode: AuthViewMode.choice);
           },
         );
       },

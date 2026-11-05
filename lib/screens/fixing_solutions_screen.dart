@@ -16,6 +16,7 @@ class FixingSolutionsScreen extends StatefulWidget {
 class _FixingSolutionsScreenState extends State<FixingSolutionsScreen> {
   final AppStateService _appState = AppStateService.instance;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode(skipTraversal: true);
   final Map<String, String> _selectedWeights = {};
 
   String _searchQuery = '';
@@ -35,6 +36,7 @@ class _FixingSolutionsScreenState extends State<FixingSolutionsScreen> {
 
   @override
   void dispose() {
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -167,6 +169,8 @@ class _FixingSolutionsScreenState extends State<FixingSolutionsScreen> {
                   ),
                   child: TextField(
                     controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    autofocus: false,
                     decoration: InputDecoration(
                       hintText: 'Search adhesives, grades, applications...',
                       hintStyle: GoogleFonts.inter(
@@ -181,7 +185,11 @@ class _FixingSolutionsScreenState extends State<FixingSolutionsScreen> {
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
                               icon: const Icon(Icons.clear, size: 18, color: AppTheme.textSubtle),
-                              onPressed: () => _searchController.clear(),
+                              onPressed: () {
+                                _searchController.clear();
+                                _searchFocusNode.unfocus();
+                                FocusManager.instance.primaryFocus?.unfocus();
+                              },
                             )
                           : null,
                       border: InputBorder.none,

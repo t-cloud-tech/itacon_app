@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _internalScaffoldKey = GlobalKey<ScaffoldState>();
   GlobalKey<ScaffoldState> get _scaffoldKey => widget.scaffoldKey ?? _internalScaffoldKey;
   final TextEditingController _searchController = TextEditingController();
+  late final FocusNode _searchFocusNode;
   String _searchQuery = '';
   bool _isSearchFocused = false;
   List<TileProduct> _trendingProducts = [];
@@ -128,6 +129,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _searchFocusNode = FocusNode(skipTraversal: true);
+    _searchFocusNode.addListener(() {
+      if (mounted && _isSearchFocused != _searchFocusNode.hasFocus) {
+        setState(() {
+          _isSearchFocused = _searchFocusNode.hasFocus;
+        });
+      }
+    });
+
     _searchController.addListener(() {
       if (_searchQuery != _searchController.text) {
         setState(() {
@@ -159,6 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -226,7 +237,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (didPop) return;
         if (isSearchActive) {
           _searchController.clear();
-          FocusScope.of(context).unfocus();
+          _searchFocusNode.unfocus();
+          FocusManager.instance.primaryFocus?.unfocus();
           setState(() {
             _searchQuery = '';
             _isSearchFocused = false;
@@ -235,6 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Scaffold(
       key: _scaffoldKey,
+      onDrawerChanged: (isOpen) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
       drawer: widget.onOpenDrawer != null
           ? null
           : AppNavigationDrawer(
@@ -252,6 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context) => Center(
             child: AppPressable(
               onTap: () {
+                FocusManager.instance.primaryFocus?.unfocus();
                 if (widget.onOpenDrawer != null) {
                   widget.onOpenDrawer!();
                 } else {
@@ -1413,6 +1429,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Expanded(
           child: AppRevolvingBorderSearchBar(
             controller: _searchController,
+            focusNode: _searchFocusNode,
             hintText: 'Search tiles by name, size, surface, color...',
             onFocusChanged: (focused) {
               if (_isSearchFocused != focused) {
@@ -1443,7 +1460,8 @@ class _HomeScreenState extends State<HomeScreen> {
           AppPressable(
             onTap: () {
               _searchController.clear();
-              FocusScope.of(context).unfocus();
+              _searchFocusNode.unfocus();
+              FocusManager.instance.primaryFocus?.unfocus();
               setState(() {
                 _searchQuery = '';
                 _isSearchFocused = false;

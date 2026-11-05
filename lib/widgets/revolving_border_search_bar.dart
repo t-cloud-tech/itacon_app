@@ -79,7 +79,7 @@ class _AppRevolvingBorderSearchBarState
     if (widget.focusNode != null) {
       _focusNode = widget.focusNode!;
     } else {
-      _focusNode = FocusNode();
+      _focusNode = FocusNode(skipTraversal: true);
       _ownsFocusNode = true;
     }
 
@@ -158,7 +158,7 @@ class _AppRevolvingBorderSearchBarState
                 child: TextField(
                   controller: widget.controller,
                   focusNode: _focusNode,
-                  autofocus: widget.autoFocus,
+                  autofocus: false,
                   textInputAction: TextInputAction.search,
                   onChanged: widget.onChanged,
                   onSubmitted: widget.onSubmitted,

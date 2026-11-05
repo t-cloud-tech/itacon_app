@@ -1,7 +1,4 @@
-import 'dart:io';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:itacon_app/models/tile_product.dart';
 import 'package:itacon_app/models/user_profile.dart';

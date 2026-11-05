@@ -23,6 +23,34 @@ async function getMessagingClient() {
 }
 
 /**
+ * Validates whether push registration is permitted for this environment.
+ * Rejects localhost, loopback addresses, and non-whitelisted preview domains.
+ */
+export function isPushRegistrationAllowed(): boolean {
+  if (typeof window === "undefined") return false;
+  const hostname = window.location.hostname.toLowerCase();
+  
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("10.") ||
+    hostname.endsWith(".local")
+  ) {
+    return false;
+  }
+
+  // Preview domains (Vercel) only allowed if explicitly enabled
+  const isVercelPreview = hostname.endsWith(".vercel.app");
+  if (isVercelPreview && process.env.NEXT_PUBLIC_ALLOW_PREVIEW_PUSH !== "true") {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Registers the web push service worker and retrieves an FCM registration token.
  * Saves the token to staffDevices/{uid}/tokens/{token}.
  */
@@ -31,6 +59,14 @@ export async function requestAndRegisterPushToken(
 ): Promise<{ success: boolean; token?: string; error?: string }> {
   if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
     return { success: false, error: "Push notifications are not supported in this browser." };
+  }
+
+  if (!isPushRegistrationAllowed()) {
+    console.warn("[FCMClient] Push registration blocked: running on localhost or disallowed preview origin:", window.location.origin);
+    return {
+      success: false,
+      error: "Push notifications are disabled on localhost and non-production environments.",
+    };
   }
 
   try {
@@ -70,6 +106,8 @@ export async function requestAndRegisterPushToken(
         token,
         userAgent: navigator.userAgent,
         platform: navigator.platform,
+        origin: window.location.origin,
+        hostname: window.location.hostname,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       },
@@ -138,6 +176,10 @@ export function getPushNotificationState(): {
   enabled: boolean;
 } {
   if (typeof window === "undefined" || !("Notification" in window)) {
+    return { supported: false, permission: "unsupported", enabled: false };
+  }
+
+  if (!isPushRegistrationAllowed()) {
     return { supported: false, permission: "unsupported", enabled: false };
   }
 

@@ -67,7 +67,7 @@ class UserSessionService {
       if (navState != null) {
         navState.pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) => const AuthScreen(initialMode: AuthViewMode.login),
+            builder: (_) => const AuthScreen(initialMode: AuthViewMode.choice),
           ),
           (route) => false,
         );

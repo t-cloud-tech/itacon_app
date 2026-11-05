@@ -378,7 +378,7 @@ class _HomeBannerSlideshowState extends State<HomeBannerSlideshow>
                               ? _buildSlideImage(_slides.first, effectiveCacheWidth)
                               : PageView.builder(
                                   controller: _pageController,
-                                  reverse: true, // Animates viewport left -> right
+                                  reverse: false, // Animates viewport right -> left (next slide enters from right)
                                   physics: const BouncingScrollPhysics(),
                                   itemCount: _kLoopCount,
                                   onPageChanged: (page) {
@@ -403,15 +403,15 @@ class _HomeBannerSlideshowState extends State<HomeBannerSlideshow>
                     ),
                   ),
 
-                  // 2. Fixed Dark Navy Gradient Overlay (preserves text readability across all pictures)
+                  // 2. Fixed Dark Navy Gradient Overlay (lighter 55% -> 10% opacity for vibrant photo visibility)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              AppTheme.primaryNavy.withValues(alpha: 0.95),
-                              AppTheme.primaryNavy.withValues(alpha: 0.5),
+                              AppTheme.primaryNavy.withValues(alpha: 0.55),
+                              AppTheme.primaryNavy.withValues(alpha: 0.10),
                             ],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
@@ -428,21 +428,36 @@ class _HomeBannerSlideshowState extends State<HomeBannerSlideshow>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           'Strength. Elegance. Timeless.',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.3,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                offset: const Offset(0, 1),
+                                blurRadius: 8,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Premium Vitrified & Ceramic Surfaces Direct from Manufacturer',
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: Colors.white.withValues(alpha: 0.92),
                             fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                offset: const Offset(0, 1),
+                                blurRadius: 6,
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 14),

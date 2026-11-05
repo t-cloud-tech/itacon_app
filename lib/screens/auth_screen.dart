@@ -342,9 +342,15 @@ class _AuthScreenState extends State<AuthScreen> {
       canPop: _viewMode == AuthViewMode.choice,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && _viewMode != AuthViewMode.choice) {
-          setState(() {
-            _viewMode = AuthViewMode.choice;
-          });
+          if (_viewMode == AuthViewMode.signup && _signupStep > 1) {
+            setState(() {
+              _signupStep--;
+            });
+          } else {
+            setState(() {
+              _viewMode = AuthViewMode.choice;
+            });
+          }
         }
       },
       child: Scaffold(

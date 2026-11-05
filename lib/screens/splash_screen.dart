@@ -132,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen>
     // CASE B: Confirmed unauthenticated user in FirebaseAuth -> Root Login
     // -------------------------------------------------------------------------
     if (currentUser == null || currentUser.uid.isEmpty) {
-      debugPrint('[SplashScreen] Confirmed unauthenticated state. Routing to Login.');
+      debugPrint('[SplashScreen] Confirmed unauthenticated state. Routing to Welcome screen.');
 
       final elapsedMs = DateTime.now().difference(startTime).inMilliseconds;
       final remainingMs = widget.minDurationMs - elapsedMs;
@@ -141,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       if (!mounted) return;
-      _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.login));
+      _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.choice));
       return;
     }
 
@@ -501,7 +501,7 @@ class _SplashScreenState extends State<SplashScreen>
             onPressed: () async {
               await UserSessionService.clearUserSession();
               if (!mounted) return;
-              _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.login));
+              _navigateToScreen(const AuthScreen(initialMode: AuthViewMode.choice));
             },
             child: Text(
               'Sign In with Another Account',

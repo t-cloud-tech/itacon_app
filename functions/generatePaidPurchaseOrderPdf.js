@@ -46,6 +46,11 @@ function calculatePoAmounts(order) {
   let packaging = 0;
   if (order.packagingCharges !== undefined && order.packagingCharges !== null && Number(order.packagingCharges) > 0) {
     packaging = Number(order.packagingCharges);
+  } else {
+    const originalSubtotal = Number(order.subtotal || 0);
+    if (originalSubtotal > basic) {
+      packaging = Math.round((originalSubtotal - basic) * 100) / 100;
+    }
   }
 
   // Preserve paid order stored total if already verified paid
@@ -148,7 +153,7 @@ function buildPoDownloadFileName(order) {
 function drawUnpaidWatermark(doc) {
   doc.save();
   doc.rotate(-45, { origin: [297.5, 421] });
-  doc.fontSize(80).fillColor('#94A3B8').fillOpacity(0.12);
+  doc.font('Helvetica-Bold').fontSize(80).fillColor('#94A3B8').fillOpacity(0.12);
   doc.text('UNPAID', 47.5, 380, { align: 'center', width: 500 });
   doc.restore();
   doc.fillOpacity(1.0);
@@ -236,19 +241,16 @@ function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
       doc.on('data', (chunk) => buffers.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(buffers)));
 
-      if (!isPaid && hasNotoSans) {
-        doc.registerFont('NotoSans', notoRegularPath);
-        doc.registerFont('NotoSans-Bold', notoBoldPath);
-      }
-
-      const regularFont = (!isPaid && hasNotoSans) ? 'NotoSans' : 'Helvetica';
-      const boldFont = (!isPaid && hasNotoSans) ? 'NotoSans-Bold' : 'Helvetica-Bold';
-      const useRupeeSymbol = (!isPaid && hasNotoSans);
+      // Reference font setup: Helvetica standard PostScript font family ensures identical,
+      // reliable rendering, 100% clean pdftotext extraction, and exact parity across both apps.
+      const regularFont = 'Helvetica';
+      const boldFont = 'Helvetica-Bold';
+      const useRupeeSymbol = false;
 
       if (!isPaid) {
-        drawUnpaidWatermark(doc, boldFont);
+        drawUnpaidWatermark(doc);
         doc.on('pageAdded', () => {
-          drawUnpaidWatermark(doc, boldFont);
+          drawUnpaidWatermark(doc);
         });
       }
 
@@ -297,7 +299,7 @@ function createPoPdfBuffer(order, submission, customerProfile, options = {}) {
       // 2. DOCUMENT TITLE & IDENTIFIERS BAR
       // =========================================================================
       let y = 120;
-      doc.fillColor(primaryNavy).fontSize(13).text(isPaid ? 'OFFICIAL PAID PURCHASE ORDER' : 'OFFICIAL PURCHASE ORDER (ESTIMATE)', 36, y, { bold: true });
+      doc.fillColor(primaryNavy).fontSize(13).text('OFFICIAL PURCHASE ORDER', 36, y, { bold: true });
       y += 18;
 
       doc.rect(36, y, 523, 24).fill('#F1F5F9');
@@ -392,11 +394,18 @@ function getFormattedDeliveryAddress(order) {
       doc.text('Size', 245, y + 5, { bold: true });
       doc.text('Quantity (Boxes)', 320, y + 5, { bold: true });
       const isMrpLinked = order.quotationMode === 'mrp';
-      doc.text(isPaid ? (isMrpLinked ? 'MRP (Rs./Sq.Ft)' : 'Rate (Rs./Sq.Ft)') : 'Rate (₹/Sq.Ft)', 425, y + 5, { bold: true });
-      doc.text(isPaid ? 'Total (Rs.)' : 'Total (₹)', 495, y + 5, { bold: true, align: 'right', width: 55 });
+      const items = order.orderItems || order.items || [];
+      const mrpSum = items.reduce((sum, it) => {
+        const b = it.quantityBoxes || it.quantity || 0;
+        const s = it.totalSqft || it.quantitySqFt || (b * (it.sqftPerBox || 15.5));
+        return sum + (s * (Number(it.mrp) || 0));
+      }, 0);
+      const hasMrp = isMrpLinked && items.some((it) => Number(it.mrp) > 0) && Math.abs(calc.basicAmount - mrpSum) < 1;
+      const rateHeader = hasMrp ? 'MRP (Rs./Sq.Ft)' : 'Rate (Rs./Sq.Ft)';
+      doc.text(rateHeader, 425, y + 5, { bold: true });
+      doc.text('Total (Rs.)', 495, y + 5, { bold: true, align: 'right', width: 55 });
 
       y += 20;
-      const items = order.orderItems || order.items || [];
       items.forEach((item, idx) => {
         const bg = idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
         doc.rect(36, y, 523, 20).fill(bg);
@@ -418,16 +427,15 @@ function getFormattedDeliveryAddress(order) {
         const sqft = item.totalSqft || item.quantitySqFt || (boxes * (item.sqftPerBox || 15.5));
         doc.text(`${boxes} Boxes`, 320, y + 5);
 
-        const hasMrp = isPaid && isMrpLinked && Number(item.mrp) > 0;
         const unitRate = hasMrp
           ? Number(item.mrp)
           : Number(item.unitPrice || item.ratePerSqFt || item.rate || item.price || 0);
-        doc.text(formatInr(unitRate, useRupeeSymbol), 425, y + 5);
+        doc.text(formatInr(unitRate, false), 425, y + 5);
 
         const lineTotal = hasMrp
           ? Number(sqft) * unitRate
           : Number(item.lineTotal || item.totalPrice || item.total || (sqft * unitRate));
-        doc.text(formatInr(lineTotal, useRupeeSymbol), 485, y + 5, { align: 'right', width: 65 });
+        doc.text(formatInr(lineTotal, false), 485, y + 5, { align: 'right', width: 65 });
 
         y += 20;
       });
@@ -451,57 +459,31 @@ function getFormattedDeliveryAddress(order) {
       const valW = 95;
 
       doc.fontSize(8.5).fillColor(textSubtle);
-      if (isMrpLinked || !isPaid) {
-        const basicAmount = (!isPaid ? calc.basicAmount : Number(order.basicAmount || 0));
-        const insuranceAmount = (!isPaid ? calc.insuranceAmount : Number(order.insuranceAmount || 0));
-        const basicPlusInsurance = (!isPaid ? calc.basicPlusInsurance : Number(order.basicPlusInsurance || (basicAmount + insuranceAmount)));
-        const finalTaxAmount = (!isPaid ? calc.taxAmount : taxAmount);
-        const finalTotalAmount = (!isPaid ? calc.totalAmount : totalAmount);
-        const packagingCharges = (!isPaid ? calc.packagingCharges : Number(order.packagingCharges || 0));
+      const basicAmount = calc.basicAmount;
+      const insuranceAmount = calc.insuranceAmount;
+      const basicPlusInsurance = calc.basicPlusInsurance;
+      const finalTaxAmount = calc.taxAmount;
+      const finalTotalAmount = calc.totalAmount;
+      const packagingCharges = calc.packagingCharges;
 
-        const mrpRows = [
-          ['Basic amount:', basicAmount],
-          ['Insurance:', insuranceAmount],
-          ['Basic + insurance:', basicPlusInsurance],
-          ['18% GST:', finalTaxAmount],
-        ];
-        mrpRows.forEach(([label, val], i) => {
-          if (i > 0) y += 14;
-          doc.font(regularFont).fillColor(textSubtle).text(label, summaryX, y);
-          doc.font(boldFont).fillColor(textDark).text(formatInr(val, useRupeeSymbol), valX, y, { align: 'right', width: valW });
-        });
-        y += 16;
-        doc.rect(summaryX - 10, y, 239, 24).fill('#F1F5F9');
-        doc.rect(summaryX - 10, y, 239, 24).strokeColor(borderSubtle).lineWidth(0.8).stroke();
-        doc.fillColor(primaryNavy).font(boldFont).fontSize(9.5).text('Estimated total*:', summaryX, y + 6);
-        doc.fillColor(accentOrange).font(boldFont).fontSize(10).text(formatInr(finalTotalAmount, useRupeeSymbol), valX, y + 6, { align: 'right', width: valW });
-        doc.fillColor(textSubtle).font(regularFont).fontSize(7).text(`*Premium packaging charges: ${formatInr(packagingCharges, useRupeeSymbol)}`, summaryX, y + 28);
-        y += 10;
-      } else {
-        doc.text('Subtotal:', summaryX, y);
-        doc.fillColor(textDark).text(formatInr(subtotal), valX, y, { align: 'right', width: valW });
-
-        if (discount > 0) {
-          y += 14;
-          doc.fillColor(textSubtle).text('Applied Discount:', summaryX, y);
-          doc.fillColor(statusSuccess).text(`- ${formatInr(discount)}`, valX, y, { align: 'right', width: valW });
-        }
-
-        y += 14;
-        if (isInterState) {
-          doc.fillColor(textSubtle).text('IGST (18%):', summaryX, y);
-          doc.fillColor(textDark).text(formatInr(taxAmount), valX, y, { align: 'right', width: valW });
-        } else {
-          doc.fillColor(textSubtle).text('CGST (9%) + SGST (9%):', summaryX, y);
-          doc.fillColor(textDark).text(formatInr(taxAmount), valX, y, { align: 'right', width: valW });
-        }
-
-        y += 16;
-        doc.rect(summaryX - 10, y, 239, 24).fill('#F1F5F9');
-        doc.rect(summaryX - 10, y, 239, 24).strokeColor(borderSubtle).lineWidth(0.8).stroke();
-        doc.fillColor(primaryNavy).fontSize(9.5).text('Confirmed PO Grand Total:', summaryX, y + 6, { bold: true });
-        doc.fillColor(accentOrange).fontSize(10).text(formatInr(totalAmount), valX, y + 6, { bold: true, align: 'right', width: valW });
-      }
+      const mrpRows = [
+        ['Basic amount:', basicAmount],
+        ['Insurance:', insuranceAmount],
+        ['Basic + insurance:', basicPlusInsurance],
+        ['18% GST:', finalTaxAmount],
+      ];
+      mrpRows.forEach(([label, val], i) => {
+        if (i > 0) y += 14;
+        doc.font(regularFont).fillColor(textSubtle).text(label, summaryX, y);
+        doc.font(boldFont).fillColor(textDark).text(formatInr(val, false), valX, y, { align: 'right', width: valW });
+      });
+      y += 16;
+      doc.rect(summaryX - 10, y, 239, 24).fill('#F1F5F9');
+      doc.rect(summaryX - 10, y, 239, 24).strokeColor(borderSubtle).lineWidth(0.8).stroke();
+      doc.fillColor(primaryNavy).font(boldFont).fontSize(9.5).text('Estimated total*:', summaryX, y + 6);
+      doc.fillColor(accentOrange).font(boldFont).fontSize(10).text(formatInr(finalTotalAmount, false), valX, y + 6, { align: 'right', width: valW });
+      doc.fillColor(textSubtle).font(regularFont).fontSize(7).text(`*Premium packaging charges: ${formatInr(packagingCharges, false)}`, summaryX, y + 28);
+      y += 10;
 
       if (isPaid) {
         // =========================================================================
@@ -574,20 +556,13 @@ function getFormattedDeliveryAddress(order) {
       // 7. FOOTER TERMS & CONDITIONS
       // =========================================================================
       y += (isPaid ? 86 : 94);
-      doc.fillColor(textSubtle).fontSize(isPaid ? 7 : 8);
-      if (!isPaid && hasNotoSans) {
-        doc.font('NotoSans');
-      }
+      doc.fillColor(textSubtle).fontSize(7.5);
+      doc.font(regularFont);
       doc.text(
-        isPaid
-          ? 'Terms: 1. This document serves as the official ITACON GRANITO Paid Purchase Order confirmation. ' +
-            '2. Factory dispatch is scheduled per confirmed logistics slot. ' +
-            '3. Transit insurance applies per ITACON B2B standard policy. ' +
-            '4. Generated electronically via ITACON Production System.'
-          : 'Terms: 1. This document is an official Purchase Order Estimate for proforma payment remittance. ' +
-            '2. Pricing and inventory allocation are held for 7 calendar days from order date. ' +
-            '3. Transit insurance (0.35%) applies per ITACON B2B standard logistics policy. ' +
-            '4. Order processing and production scheduling begin immediately upon bank payment verification.',
+        'Terms: 1. This document serves as the official ITACON GRANITO Purchase Order confirmation. ' +
+        '2. Factory dispatch is scheduled per confirmed logistics slot. ' +
+        '3. Transit insurance (0.35%) applies per ITACON B2B standard logistics policy. ' +
+        '4. Generated electronically via ITACON Production System.',
         36,
         y,
         { width: 523, lineGap: 1.5 }
@@ -1233,8 +1208,31 @@ async function handleGenerateUnpaidPoPdf(data, context, options = {}) {
     }
   } catch (_) {}
 
+  // 6b. Orders linked before MRP fields were synced: recover them from the quotation
+  let orderForPdf = orderData;
+  if (!orderData.quotationMode && orderData.quotationId) {
+    try {
+      const qDoc = await db.collection('quotations').doc(orderData.quotationId).get();
+      const q = qDoc.exists ? qDoc.data() : null;
+      if (q && q.quotationMode === 'mrp') {
+        orderForPdf = {
+          ...orderData,
+          quotationMode: 'mrp',
+          basicAmount: q.basicAmount,
+          insuranceAmount: q.insuranceAmount,
+          basicPlusInsurance: q.basicPlusInsurance,
+          packagingCharges: q.packagingCharges,
+          items: q.items || orderData.items,
+          orderItems: q.items || orderData.orderItems,
+        };
+      }
+    } catch (err) {
+      console.warn(`[UnpaidPO] Warning: could not load quotation ${orderData.quotationId}:`, err);
+    }
+  }
+
   // Generate PDF buffer using shared template with unpaid configuration
-  const pdfBuffer = await createPoPdfBuffer(await enrichItemsWithProductDetails(db, orderData), null, customerProfile, {
+  const pdfBuffer = await createPoPdfBuffer(await enrichItemsWithProductDetails(db, orderForPdf), null, customerProfile, {
     isPaid: false,
     bankConfig,
   });

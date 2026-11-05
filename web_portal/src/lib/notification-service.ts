@@ -31,6 +31,7 @@ function parseNotificationDoc(d: QueryDocumentSnapshot<DocumentData> | DocumentD
     id: docId,
     recipientUid: data.recipientUid || "",
     recipientRole: data.recipientRole || "salesperson",
+    audience: data.audience || (data.recipientRole === "admin" ? "admin" : "salesperson"),
     type: data.type || "customer_assigned",
     title: data.title || "Notification",
     body: data.body || "",
@@ -106,9 +107,9 @@ export type NotificationFilter = "all" | "unread" | "customers" | "payments" | "
 const FILTER_TYPE_MAP: Record<NotificationFilter, NotificationType[] | null> = {
   all: null,
   unread: null,
-  customers: ["customer_assigned", "customer_inactive", "no_first_order"],
-  payments: ["payment_submitted", "payment_verified", "payment_rejected", "payment_overdue"],
-  reminders: ["po_approved_unpaid", "follow_up_due", "admin_weekly_summary"],
+  customers: ["customer_assigned", "customer_unassigned_24h", "customer_inactive", "no_first_order"],
+  payments: ["payment_submitted", "payment_action_verify", "payment_verified", "payment_rejected", "payment_overdue"],
+  reminders: ["po_approved_unpaid", "follow_up_due", "admin_weekly_summary", "system_alert"],
   leads: ["lead_assigned"],
 };
 

@@ -120,6 +120,12 @@ class OrderService {
     return cartItems.map((cartItem) {
       final product = cartItem.product;
       final isAdh = product.isAdhesive;
+      final itemImg = isAdh
+          ? (product.images.isNotEmpty ? product.images.first : product.frontCardImage)
+          : (product.faceImages != null && product.faceImages!.isNotEmpty && product.faceImages!.first.isNotEmpty
+              ? product.faceImages!.first
+              : (product.resolvedFaceImages.isNotEmpty ? product.resolvedFaceImages.first : product.frontCardImage));
+
       return OrderItem(
         productId: product.id,
         sku: product.sku,
@@ -136,6 +142,7 @@ class OrderService {
         finalPrice: 0.0,
         unitPrice: null, // Null on PO creation, to be quoted by salesperson
         lineTotal: null,
+        image: itemImg.isNotEmpty ? itemImg : null,
       );
     }).toList();
   }

@@ -70,6 +70,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       key: _mainScaffoldKey,
+      onDrawerChanged: (isOpen) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
       drawer: AppNavigationDrawer(
         onSelectTab: (idx) {
           if (_mainScaffoldKey.currentState?.isDrawerOpen == true) {

@@ -15,6 +15,7 @@ import '../services/firestore_service.dart';
 import '../services/app_state_service.dart';
 import '../services/po_download_service.dart';
 import '../utils/po_calculation.dart';
+import '../widgets/order_item_thumbnail.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final String orderId;
@@ -1115,14 +1116,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryNavy.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.terrain_rounded, color: AppTheme.primaryNavy, size: 22),
+                OrderItemThumbnail(
+                  orderItem: item,
+                  size: 44,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

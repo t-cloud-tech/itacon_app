@@ -1928,6 +1928,7 @@ class FirestoreService {
         unitPrice: null, // Null when pending_rate quote
         lineTotal: null, // Null when pending_rate quote
         orderType: i.orderType,
+        image: i.image,
       );
     }).toList();
 
