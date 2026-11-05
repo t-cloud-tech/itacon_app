@@ -36,6 +36,11 @@ import {
   Check
 } from "lucide-react";
 
+// Fulfillment column is hidden for now. Converted orders (from quotations / client POs / payments)
+// are all stamped status "confirmed", so it never varies. Set to true once the real
+// in_production / dispatched / delivered status is carried through (also powers the status filter).
+const SHOW_FULFILLMENT_COLUMN = false;
+
 function SalesOrdersContent() {
   const searchParams = useSearchParams();
   const { user, role, salesperson } = useAuth();
@@ -1116,20 +1121,20 @@ function SalesOrdersContent() {
                     <th className="py-3.5 px-5">Dispatch / Tracking</th>
                     <th className="py-3.5 px-5">Order Total</th>
                     <th className="py-3.5 px-5">Payment Status</th>
-                    <th className="py-3.5 px-5">Fulfillment</th>
+                    {SHOW_FULFILLMENT_COLUMN && <th className="py-3.5 px-5">Fulfillment</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isLoadingOrders ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={SHOW_FULFILLMENT_COLUMN ? 6 : 5} className="py-12 text-center text-slate-400 text-sm">
                         <div className="w-6 h-6 border-2 border-slate-300 border-t-[#0E274D] rounded-full animate-spin mx-auto mb-2" />
                         Loading factory sales orders...
                       </td>
                     </tr>
                   ) : filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 text-sm">
+                      <td colSpan={SHOW_FULFILLMENT_COLUMN ? 6 : 5} className="py-12 text-center text-slate-400 text-sm">
                         No sales orders found matching your criteria.
                       </td>
                     </tr>
@@ -1210,11 +1215,13 @@ function SalesOrdersContent() {
                           </span>
                         </td>
 
-                        <td className="py-4 px-5">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(ord.status)}`}>
-                            {getPOStatusLabel(ord.status, { isOrder: true })}
-                          </span>
-                        </td>
+                        {SHOW_FULFILLMENT_COLUMN && (
+                          <td className="py-4 px-5">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusBadge(ord.status)}`}>
+                              {getPOStatusLabel(ord.status, { isOrder: true })}
+                            </span>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
