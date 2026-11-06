@@ -13,6 +13,7 @@ import {
   generateSalespersonIdentifiers,
   toggleSalespersonStatus,
   resetSalespersonPassword,
+  updateSalespersonProfile,
   SalespersonPerformanceMetrics,
   SalespersonDetailData,
   NewSalespersonInput
@@ -99,6 +100,39 @@ export default function SalespersonsPage() {
   const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
   const [resetErrorMsg, setResetErrorMsg] = useState<string | null>(null);
 
+  // State: Edit profile within drawer
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "" });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [editMsg, setEditMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const startEditProfile = () => {
+    if (!selectedSp) return;
+    setEditForm({ name: selectedSp.name, email: selectedSp.email, phone: selectedSp.phone });
+    setEditMsg(null);
+    setIsEditingProfile(true);
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSp) return;
+    setIsSavingProfile(true);
+    setEditMsg(null);
+    const res = await updateSalespersonProfile(selectedSp.salesPersonId, editForm);
+    setIsSavingProfile(false);
+    if (!res.success) {
+      setEditMsg({ type: "error", text: res.error || "Failed to update profile." });
+      return;
+    }
+    const patch = { name: res.name!, email: res.email!, phone: res.phone! };
+    setSalespersons((prev) =>
+      prev.map((s) => (s.salesPersonId === selectedSp.salesPersonId ? { ...s, ...patch } : s))
+    );
+    setSelectedSp((prev) => (prev ? { ...prev, ...patch } : null));
+    setIsEditingProfile(false);
+    setEditMsg({ type: "success", text: "Profile updated successfully." });
+  };
+
   // Load live salespersons data
   const loadSalespersons = useCallback(async () => {
     setIsLoading(true);
@@ -133,6 +167,8 @@ export default function SalespersonsPage() {
     setResetSuccessMsg(null);
     setResetErrorMsg(null);
     setResetPasswordInput("");
+    setIsEditingProfile(false);
+    setEditMsg(null);
     try {
       const details = await fetchSalespersonDetailedActivity(sp);
       setDetailData(details);
@@ -963,9 +999,69 @@ export default function SalespersonsPage() {
                     {activeDetailTab === "settings" && (
                       <div className="space-y-6">
                         <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                            Staff Profile Details
-                          </h4>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                              Staff Profile Details
+                            </h4>
+                            {!isEditingProfile && (
+                              <button
+                                onClick={startEditProfile}
+                                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-[#0E274D] text-slate-700 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                          {editMsg && (
+                            <div
+                              className={`p-3 rounded-xl border text-xs ${
+                                editMsg.type === "success"
+                                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                                  : "bg-red-50 border-red-200 text-red-700"
+                              }`}
+                            >
+                              {editMsg.text}
+                            </div>
+                          )}
+                          {isEditingProfile ? (
+                            <form onSubmit={handleSaveProfile} className="space-y-3">
+                              {([
+                                ["name", "Full Name", "text"],
+                                ["email", "Login Email", "email"],
+                                ["phone", "Mobile Phone", "tel"],
+                              ] as const).map(([key, label, type]) => (
+                                <div key={key}>
+                                  <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                                    {label}
+                                  </label>
+                                  <input
+                                    type={type}
+                                    required
+                                    value={editForm[key]}
+                                    onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0E274D]"
+                                  />
+                                </div>
+                              ))}
+                              <div className="flex items-center space-x-2 pt-1">
+                                <button
+                                  type="submit"
+                                  disabled={isSavingProfile}
+                                  className="px-4 py-2 bg-[#E66A23] hover:bg-[#D95D16] text-white text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50"
+                                >
+                                  {isSavingProfile ? "Saving..." : "Save Changes"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={isSavingProfile}
+                                  onClick={() => setIsEditingProfile(false)}
+                                  className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          ) : null}
                           <div className="grid grid-cols-2 gap-4 text-xs">
                             <div>
                               <span className="text-slate-400">Full Name:</span>

@@ -1,4 +1,4 @@
-import { db } from "@/lib/firebase";
+import { db, invokeCallable } from "@/lib/firebase";
 import { cachedGetDocs, invalidateFirestoreCache } from "@/lib/firestore-cache";
 import { 
   collection, 
@@ -689,6 +689,57 @@ export async function resetSalespersonPassword(
   } catch (err: any) {
     console.error("resetSalespersonPassword error:", err);
     return { success: false, error: err.message || "Failed to update password." };
+  }
+}
+
+/**
+ * Updates a salesperson's name, email and phone across both collections
+ */
+export async function updateSalespersonProfile(
+  salesPersonId: string,
+  input: { name: string; email: string; phone: string }
+): Promise<{ success: boolean; name?: string; email?: string; phone?: string; error?: string }> {
+  try {
+    const name = input.name.trim();
+    const email = input.email.trim().toLowerCase();
+    const phone = normalizePhone(input.phone);
+    if (!name) throw new Error("Please enter the salesperson's full name.");
+    if (!email || !email.includes("@")) throw new Error("Please enter a valid email address.");
+    if (!phone || phone.replace(/\D/g, "").length < 10) throw new Error("Please enter a valid phone number (10 digits).");
+
+    const dupSnap = await getDocs(query(collection(db, "users"), where("email", "==", email)));
+    if (dupSnap.docs.some((d) => d.id !== salesPersonId)) {
+      throw new Error("Another account already uses this email.");
+    }
+
+    // Change the Firebase Auth login email first (server-side, admin only). If this fails
+    // nothing else is changed, so Auth and Firestore never disagree.
+    await invokeCallable<{ salesPersonId: string; email: string }, { updated: boolean }>(
+      "updateSalespersonAuthEmail",
+      { salesPersonId, email },
+      "asia-south1"
+    );
+
+    const nowIso = new Date().toISOString();
+    const fields = {
+      name,
+      fullName: name,
+      email,
+      phone,
+      phoneNumber: phone,
+      updatedAt: nowIso,
+    };
+
+    invalidateFirestoreCache();
+    await updateDoc(doc(db, "salesPersons", salesPersonId), fields);
+    try {
+      await updateDoc(doc(db, "users", salesPersonId), fields);
+    } catch (_) {}
+
+    return { success: true, name, email, phone };
+  } catch (err: any) {
+    console.error("updateSalespersonProfile error:", err);
+    return { success: false, error: err.message || "Failed to update profile." };
   }
 }
 

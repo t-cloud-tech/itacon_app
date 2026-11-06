@@ -86,6 +86,9 @@ exports.autoAssignSalesperson = autoAssignSalesperson;
 exports.verifyCustomerReferralCode = verifyCustomerReferralCode;
 exports.onSalesPersonWrite = onSalesPersonWrite;
 // Staff-created customer accounts (admin / salesperson)
+const { updateSalespersonAuthEmail } = require('./updateSalespersonAuthEmail');
+exports.updateSalespersonAuthEmail = updateSalespersonAuthEmail;
+
 const { createCustomerByStaff } = require('./createCustomerByStaff');
 exports.createCustomerByStaff = createCustomerByStaff;
 
