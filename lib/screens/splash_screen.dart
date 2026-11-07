@@ -77,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen>
       _assetsPrecached = true;
       try {
         precacheImage(const AssetImage('assets/images/splash_img.jpg'), context);
-        precacheImage(const AssetImage('assets/images/splash_kitchen.jpg'), context);
+        precacheImage(const AssetImage('assets/images/splash_kitchen.webp'), context);
         precacheImage(const AssetImage('assets/images/itacon-logo-white.png'), context);
         precacheImage(const AssetImage('assets/images/itacon-logo.png'), context);
       } catch (_) {
@@ -291,7 +291,7 @@ class _SplashScreenState extends State<SplashScreen>
               filterQuality: FilterQuality.high,
               errorBuilder: (context, error, stackTrace) {
                 return Image.asset(
-                  'assets/images/splash_kitchen.jpg',
+                  'assets/images/splash_kitchen.webp',
                   fit: BoxFit.cover,
                   alignment: Alignment.topCenter,
                   filterQuality: FilterQuality.high,

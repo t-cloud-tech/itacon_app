@@ -19,8 +19,8 @@ class ProfileTierCard extends StatelessWidget {
   // Default executive fallback credentials (aligned with single active production salesperson)
   static const String _defaultSalespersonName = 'Vraj Shah';
   static const String _defaultRole = 'Sales Executive';
-  static const String _defaultPhone = '+91 98765 43210';
-  static const String _defaultEmpId = 'SALES101';
+  static const String _defaultPhone = '+91 93744 90901';
+  static const String _defaultEmpId = 'ITACON Desk';
 
   Future<void> _makeCall(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');

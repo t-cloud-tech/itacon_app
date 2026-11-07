@@ -256,7 +256,7 @@ class _ReferralGateScreenState extends State<ReferralGateScreen> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: InputDecoration(
                         labelText: 'Referral Code',
-                        hintText: 'e.g., SALES123',
+                        hintText: 'Enter referral code',
                         prefixIcon: const Icon(Icons.qr_code_rounded,
                             color: Color(0xFF1A237E)),
                         border: OutlineInputBorder(

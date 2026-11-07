@@ -24,7 +24,7 @@ class ProductEnums {
       'id': 'marble_collection',
       'label': 'Marble Collection',
       'subtitle': 'Timeless luxury & endless veining.',
-      'image': 'assets/images/Home/Slab_tile.jpg',
+      'image': 'assets/images/Home/Slab_tile.webp',
       'isComingSoon': false,
       'isDark': false,
       'icon': 'auto_awesome',

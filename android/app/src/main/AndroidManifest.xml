@@ -1,20 +1,22 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- Required for Android 13+ (API 33+) push notifications via Firebase Cloud Messaging -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Scoped for legacy Android 8-12 image picker access for payment receipts; Android 13+ uses Photo Picker -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
-    <!-- Android 13+ (API 33+) photo access when required by gallery pickers -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <!-- Android 14+ (API 34+) partial photo access -->
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/>
+
+    <!-- Strictly remove broad media and external storage permissions to comply with Google Play Photo & Video policy.
+         The app uses Android Photo Picker (system picker via image_picker/file_picker) which requires zero runtime permissions. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 
     <application
         android:label="ITACON"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:largeHeap="true"
+        android:allowBackup="false"
         android:enableOnBackInvokedCallback="true">
         <activity
             android:name=".MainActivity"

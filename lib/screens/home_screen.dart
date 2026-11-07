@@ -903,7 +903,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 fit: BoxFit.cover,
                 imageRole: ImageRole.collectionThumbnail,
                 fallback: Image.asset(
-                  'assets/images/Home/Slab_tile.jpg',
+                  'assets/images/Home/Slab_tile.webp',
                   fit: BoxFit.cover,
                 ),
               ),

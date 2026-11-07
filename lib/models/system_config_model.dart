@@ -42,7 +42,7 @@ class CompanyContactsConfig {
   final String whatsappApiToken;
 
   const CompanyContactsConfig({
-    this.billingTeamPhone = '+919876543210',
+    this.billingTeamPhone = '+919374490901',
     this.billingTeamName = 'ITACON Billing Desk',
     this.whatsappPhoneNumberId = '',
     this.whatsappApiToken = '',
@@ -59,7 +59,7 @@ class CompanyContactsConfig {
 
   factory CompanyContactsConfig.fromMap(Map<String, dynamic> map) {
     return CompanyContactsConfig(
-      billingTeamPhone: map['billingTeamPhone'] as String? ?? '+919876543210',
+      billingTeamPhone: map['billingTeamPhone'] as String? ?? '+919374490901',
       billingTeamName: map['billingTeamName'] as String? ?? 'ITACON Billing Desk',
       whatsappPhoneNumberId: map['whatsappPhoneNumberId'] as String? ?? '',
       whatsappApiToken: map['whatsappApiToken'] as String? ?? '',

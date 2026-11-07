@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -31,6 +33,32 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Initialize Crashlytics: enabled in release mode only, disabled during development
+    if (!kDebugMode) {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
+    } else {
+      await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(false);
+    }
+
+    // Catch all uncaught fatal Flutter framework errors (no PII logged)
+    FlutterError.onError = (errorDetails) {
+      if (!kDebugMode) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+      } else {
+        FlutterError.dumpErrorToConsole(errorDetails);
+      }
+    };
+
+    // Catch all uncaught asynchronous errors outside the Flutter framework (no PII logged)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      if (!kDebugMode) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      }
+      return false;
+    };
+
     await NotificationService.initialize();
   } catch (e) {
     debugPrint('Firebase initialization note: $e');

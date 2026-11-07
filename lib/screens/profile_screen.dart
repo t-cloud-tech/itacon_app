@@ -28,85 +28,6 @@ class ProfileScreen extends StatelessWidget {
     this.onBackToHome,
   });
 
-  static Future<bool?> _requestGalleryPermission(BuildContext context) async {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          contentPadding: const EdgeInsets.all(22),
-          title: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryNavy.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.perm_media_rounded,
-                  size: 34,
-                  color: AppTheme.primaryNavy,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Allow "ITACON Granito" to Access Your Photos?',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryNavy,
-                ),
-              ),
-            ],
-          ),
-          content: const Text(
-            'ITACON Granito requires photo library access so you can select and set your personal profile picture directly from your device gallery.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSubtle,
-              height: 1.4,
-            ),
-          ),
-          actionsAlignment: MainAxisAlignment.spaceEvenly,
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text(
-                "Don't Allow",
-                style: TextStyle(
-                  color: AppTheme.textSubtle,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryNavy,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              child: const Text(
-                'Allow Access',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   static Future<void> _showProfilePhotoOptions(BuildContext context, UserProfile profile) async {
     final photoUrl = profile.profilePhotoUrl ?? (profile.avatarUrl.isNotEmpty ? profile.avatarUrl : null);
     final bool hasPhoto = photoUrl != null && photoUrl.trim().isNotEmpty;
@@ -235,22 +156,6 @@ class ProfileScreen extends StatelessWidget {
   }
 
   static Future<void> _pickProfilePhoto(BuildContext context, ImageSource source) async {
-    if (source == ImageSource.gallery) {
-      final granted = await _requestGalleryPermission(context);
-      if (granted != true) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Gallery permission denied. Access is required to select photos.'),
-              backgroundColor: AppTheme.accentOrange,
-            ),
-          );
-        }
-        return;
-      }
-    }
-
-    if (!context.mounted) return;
     await ProfilePhotoService.pickAndUploadProfilePhoto(
       context: context,
       source: source,

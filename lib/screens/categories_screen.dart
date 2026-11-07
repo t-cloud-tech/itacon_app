@@ -27,7 +27,7 @@ class CategoriesScreen extends StatelessWidget {
       'title': 'Slab Tiles',
       'count': 'Coming Soon',
       'isComingSoon': true,
-      'image': 'assets/images/Home/Slab_tile.jpg',
+      'image': 'assets/images/Home/Slab_tile.webp',
     },
     {
       'title': 'Heavy Duty Parkings',
@@ -47,7 +47,7 @@ class CategoriesScreen extends StatelessWidget {
       'title': 'Marble Collection',
       'count': '29 Products',
       'isComingSoon': false,
-      'image': 'assets/images/Home/Slab_tile.jpg',
+      'image': 'assets/images/Home/Slab_tile.webp',
     },
     {
       'title': 'Quartz Surfaces',

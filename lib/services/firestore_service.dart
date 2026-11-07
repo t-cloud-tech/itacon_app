@@ -284,7 +284,7 @@ class FirestoreService {
       };
     }
 
-    // Indian trunk-prefix: 11 digits starting with 0 (e.g. "09876543210" → "9876543210")
+    // Indian trunk-prefix: 11 digits starting with 0 (e.g. "09374490901" → "9374490901")
     if (allDigits.length == 11 && allDigits.startsWith('0')) {
       final national = allDigits.substring(1);
       return {
@@ -1011,8 +1011,8 @@ class FirestoreService {
   static const int maxClientsPerSalesperson = 5;
   static const String defaultSalespersonId = 'WNSahNXK9GQrGoiIEmD4QBvAeim1';
   static const String defaultSalespersonName = 'Vraj Shah';
-  static const String defaultSalespersonPhone = '9876543210';
-  static const String defaultSalespersonReferralCode = 'SALES101';
+  static const String defaultSalespersonPhone = '+919374490901';
+  static const String defaultSalespersonReferralCode = '';
 
   Future<List<Map<String, dynamic>>> getSalespersons() async {
     final snapshot = await _salesPersonsRef.get();

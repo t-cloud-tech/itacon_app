@@ -1565,7 +1565,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _buildFieldLabel('Password * (Min 8 chars, 1 Upper, 1 Lower, 1 Num, 1 Symbol)'),
         _buildCustomInputField(
           controller: _regPasswordController,
-          hintText: 'Create password (e.g. Itacon@2026)',
+          hintText: 'Create a secure password',
           prefixIcon: Icons.lock_outline_rounded,
           obscureText: _obscurePassword,
           suffixIcon: IconButton(

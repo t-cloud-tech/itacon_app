@@ -283,7 +283,7 @@ class _HomeBannerSlideshowState extends State<HomeBannerSlideshow>
           );
         }
         return Image.asset(
-          'assets/images/splash_kitchen.jpg',
+          'assets/images/splash_kitchen.webp',
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -303,7 +303,7 @@ class _HomeBannerSlideshowState extends State<HomeBannerSlideshow>
           );
         }
         return Image.asset(
-          'assets/images/splash_kitchen.jpg',
+          'assets/images/splash_kitchen.webp',
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -387,7 +387,7 @@ class _HomeBannerSlideshowState extends State<HomeBannerSlideshow>
                                   itemBuilder: (context, index) {
                                     if (slideCount == 0) {
                                       return Image.asset(
-                                        'assets/images/splash_kitchen.jpg',
+                                        'assets/images/splash_kitchen.webp',
                                         fit: BoxFit.cover,
                                         cacheWidth: effectiveCacheWidth,
                                         gaplessPlayback: true,
